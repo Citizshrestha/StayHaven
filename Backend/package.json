@@ -1,7 +1,11 @@
 {
   "name": "backend",
   "version": "1.0.0",
+<<<<<<< HEAD
   "description": "��#\u0000 \u0000N\u0000e\u0000w\u0000 \u0000R\u0000e\u0000p\u0000o\u0000\r\u0000 \u0000",
+=======
+  "description": "",
+>>>>>>> backendBranch
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -16,8 +20,11 @@
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "mongoose": "^8.19.1"
+<<<<<<< HEAD
   },
   "devDependencies": {
     "nodemon": "^3.1.10"
+=======
+>>>>>>> backendBranch
   }
 }
