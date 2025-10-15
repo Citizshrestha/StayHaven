@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import express from 'express';
 
 const app = express();
@@ -14,4 +15,19 @@ app.get("/home",(req,res)=> {
 
 app.listen(PORT,()=> {
     console.log(`Server is running on localhost: ${PORT}`);
+=======
+import express from "express";
+
+
+const app = express();
+const port = 3000;
+
+
+app.get("/",(req,res) => {
+    res.send("Welcome to Hotel Booking and Order Management System");
+})
+
+app.listen (port,() => {
+   console.log(`Server is running on http://localhost:${port}`);
+>>>>>>> backendBranch
 })
