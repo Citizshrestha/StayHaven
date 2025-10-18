@@ -48,4 +48,4 @@ const roomSchema = new mongoose.Schema({
 
 }, {timestamps: true})
 
-export default mongoose.model("Room", roomSchema);
+export const Room = mongoose.model("Room", roomSchema);
