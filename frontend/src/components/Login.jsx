@@ -27,6 +27,7 @@ const Login = () => {
     }));
   };
 
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -40,7 +41,12 @@ const Login = () => {
       const response = await login(formData.email, formData.password);
       if (response.success) {
         toast.success('Login successful! Welcome back.');
-        navigate('/dashboard'); // or wherever you want to redirect after successful login
+        // Navigate based on role
+        if (response.role === 'admin') {
+          navigate('/dashboard');
+        } else {
+          navigate('/');
+        }
       }
     } catch (error) {
       console.error('Login error:', error);
@@ -58,12 +64,17 @@ const Login = () => {
         throw new Error("No credential received from Google.");
       }
 
-      // Try to login first
+      // Try login first
       const result = await googleLogin(credentialResponse.credential);
       
       if (result.success) {
         toast.success(`Welcome back!`);
-        navigate('/dashboard');
+        // Navigate based on role
+        if (result.role === 'admin') {
+          navigate('/dashboard');
+        } else {
+          navigate('/');
+        }
       } else if (result.needsRegistration) {
         // Account not found - redirect to registration page
         toast.error('This Google account is not registered. Please use the registration page to create an account.');
@@ -99,7 +110,12 @@ const Login = () => {
       if (result.success) {
         toast.success('Registration successful! Welcome to StayHaven!');
         setShowGoogleModal(false);
-        navigate('/dashboard');
+        // Navigate based on role
+        if (result.role === 'admin') {
+          navigate('/dashboard');
+        } else {
+          navigate('/');
+        }
       }
     } catch (error) {
       console.error('Google registration error:', error);
