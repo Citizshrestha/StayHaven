@@ -1,25 +1,85 @@
+import { useEffect } from 'react';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import axiosClient from '../axiosClient';
 
 const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [user, setUser] = useState(null);
+  const navigate = useNavigate();
+
+
+  const handleLogin = () => {
+    navigate('/login')
+  }
+
+  useEffect(() => {
+    const accessToken = localStorage.getItem("accessToken");
+    const userId = localStorage.getItem("userId");
+    const username = localStorage.getItem("username");
+    const profilePicture = localStorage.getItem("profilePicture");
+
+    if (accessToken && userId && username) {
+      setUser({ id: userId, username, profilePicture });
+    } else {
+      setUser(null);
+    }
+  
+    const fetchUserData = async () => {
+      try {
+        const res = await axiosClient.get("/api/auth/me");
+        setUser({
+          id: res.data._id || res.data.id,
+          username: res.data.username,
+          profilePicture: res.data.profilePicture
+        });
+
+        if (res.data.profilePicture) {
+          localStorage.setItem("profilePicture", res.data.profilePicture);
+        }
+        if (res.data.username) {
+          localStorage.setItem("username", res.data.username);
+        }
+      } catch (err) {
+        console.error('Error fetching user data:', err);
+        setUser(null);
+      }
+    };
+
+    if (accessToken) {
+      fetchUserData();
+    }
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await axiosClient.post('/api/auth/logout');
+      localStorage.clear();
+      setUser(null);
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
+  
 
   return (
-    <nav className="absolute top-2 left-30 right-0 z-50 w-full px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
+    <nav className="fixed top-2 left-20 right-0 z-50 w-full px-4 sm:px-6 lg:px-8 py-3 sm:py-4 bg-transparent border-none">
       <div className="max-w-7xl mx-auto">
         {/* Top Bar - Contact Info */}
         <div className="hidden lg:flex items-center justify-between text-white text-sm mb-4">
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
-              <span>booking.hotel@gmail.com</span>
+              <span className='text-black'>booking.hotel@gmail.com</span>
             </div>
             <div className="flex items-center gap-2">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
               </svg>
-              <span>+01 2136 567 587</span>
+              <span className='text-black'>+01 2136 567 587</span>
             </div>
           </div>
 
@@ -30,22 +90,58 @@ const Navbar = () => {
               </svg>
               <span>Eng</span>
             </button>
-            <button className="flex items-center gap-1 hover:text-gray-300 transition">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-              <span>Login</span>
-            </button>
+            {user ? (
+              <>
+                <div className="flex items-center gap-2">
+                  {user.profilePicture ? (
+                    <img 
+                      src={user.profilePicture} 
+                      alt={user.username}
+                      className="w-8 h-8 rounded-full object-cover border-2 border-white"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-teal-500 flex items-center justify-center text-white font-semibold">
+                      {user.username?.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <span className="text-white font-medium">{user.username}</span>
+                </div>
+                <button 
+                  onClick={handleLogout}
+                  className="flex items-center gap-1 hover:text-gray-300 transition text-white">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                  <span>Logout</span>
+                </button>
+              </>
+            ) : (
+              <button 
+                onClick={handleLogin}
+                className="flex items-center gap-1 hover:text-gray-300 transition">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <span>Login</span>
+              </button>
+            )}
           </div>
         </div>
 
         {/* Main Navigation */}
         <div className="flex items-center justify-between w-full">
           {/* Logo */}
-          <div className="text-white text-2xl sm:text-3xl font-light tracking-wider" style={{fontFamily: 'Nunito'}}>
-            Stay<span className="font-semibold">Haven</span>
-          </div>
-
+              <div 
+            className="flex items-center justify-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+              </div>
+              <span className="text-black text-xl font-light tracking-wider" style={{fontFamily: 'Nunito'}}>
+                Stay<span className="font-bold text-teal-400">Haven</span>
+              </span>
+            </div>
           {/* Desktop Navigation */}
           <div className="hidden lg:flex items-center gap-8">
             <a href="#home" className="text-white hover:text-gray-300 transition font-medium">
@@ -136,20 +232,49 @@ const Navbar = () => {
 
               {/* Mobile Action Buttons */}
               <div className="space-y-3 pt-4 border-t border-white/20">
-                <div className="flex items-center gap-4 text-white text-sm">
-                  <button className="flex items-center gap-2 hover:text-gray-300 transition">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span>English</span>
-                  </button>
-                  <button className="flex items-center gap-2 hover:text-gray-300 transition">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                    <span>Login</span>
-                  </button>
-                </div>
+                {user ? (
+                  <>
+                    <div className="flex items-center gap-3 text-white">
+                      {user.profilePicture ? (
+                        <img 
+                          src={user.profilePicture} 
+                          alt={user.username}
+                          className="w-10 h-10 rounded-full object-cover border-2 border-white"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-teal-500 flex items-center justify-center text-white font-semibold text-lg">
+                          {user.username?.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <span className="font-medium text-lg">{user.username}</span>
+                    </div>
+                    <button 
+                      onClick={handleLogout}
+                      className="w-full flex items-center justify-center gap-2 text-white hover:text-gray-300 transition py-2 border border-white/30 rounded-md">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                      <span>Logout</span>
+                    </button>
+                  </>
+                ) : (
+                  <div className="flex items-center gap-4 text-white text-sm">
+                    <button className="flex items-center gap-2 hover:text-gray-300 transition">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span>English</span>
+                    </button>
+                    <button 
+                      onClick={handleLogin}
+                      className="flex items-center gap-2 hover:text-gray-300 transition">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      <span>Login</span>
+                    </button>
+                  </div>
+                )}
                 <button className="w-full bg-white text-gray-900 px-6 py-3 rounded-md font-medium hover:bg-gray-100 transition">
                   Add Hotel
                 </button>
