@@ -3,7 +3,8 @@ import {
   loginUser,
   registerUser,
   logoutUser, 
-  isAuthenticated, 
+  isAuthenticated,
+  getCurrentUser,
   sendResetPasswordOtp,
   verifyResetPasswordOtp,
   resetPassword,
@@ -37,6 +38,7 @@ router.post('/verifyResetPasswordOtp', verifyResetPasswordOtp);
 router.post('/resetPassword', resetPassword);
 
 // Protected routes
+router.get('/me', protect, getCurrentUser);
 router.post('/logout', protect, logoutUser); 
 router.post('/isAuth', protect, isAuthenticated); 
 router.post('/change-password', protect, changePassword);

@@ -8,6 +8,11 @@ export const login = async (email, password) => {
       localStorage.setItem("accessToken", response.data.accessToken);
       localStorage.setItem("userId", response.data._id);
       localStorage.setItem("email", response.data.email);
+      localStorage.setItem("username", response.data.username);
+      localStorage.setItem("role", response.data.role || 'guest');
+      if (response.data.profilePicture) {
+        localStorage.setItem("profilePicture", response.data.profilePicture);
+      }
       axiosClient.defaults.headers.Authorization = `Bearer ${response.data.accessToken}`;
     }
     return response.data;
@@ -65,6 +70,12 @@ export const googleLogin = async (credential) => {
     if (res.data.accessToken) {
       localStorage.setItem("accessToken", res.data.accessToken);
       localStorage.setItem("userId", res.data._id);
+      localStorage.setItem("username", res.data.username);
+      localStorage.setItem("email", res.data.email);
+      localStorage.setItem("role", res.data.role || 'guest');
+      if (res.data.profilePicture) {
+        localStorage.setItem("profilePicture", res.data.profilePicture);
+      }
       axiosClient.defaults.headers.Authorization = `Bearer ${res.data.accessToken}`;
     }
     return res.data;
@@ -84,7 +95,12 @@ export const googleRegister = async (credential) => {
     if (res.data.accessToken) {
       localStorage.setItem("accessToken", res.data.accessToken);
       localStorage.setItem("userId", res.data._id);
+      localStorage.setItem("username", res.data.username);
       localStorage.setItem("email", res.data.email);
+      localStorage.setItem("role", res.data.role || 'guest');
+      if (res.data.profilePicture) {
+        localStorage.setItem("profilePicture", res.data.profilePicture);
+      }
       axiosClient.defaults.headers.Authorization = `Bearer ${res.data.accessToken}`;
     }
     return res.data;

@@ -1,4 +1,5 @@
 import { User } from "../models/user.schema.js";
+import { Role } from "../models/role.schema.js";
 import jwt from "jsonwebtoken";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendEmail } from "../config/nodemailer.js";
@@ -35,7 +36,7 @@ export const checkUserExists = asyncHandler(async (req, res) => {
 export const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ email }).populate('role');
 
   if (!user) {
     return res.status(400).json({
@@ -68,6 +69,8 @@ export const loginUser = asyncHandler(async (req, res) => {
     _id: user._id,
     username: user.username,
     email: user.email,
+    role: user.role?.name || 'guest',
+    profilePicture: user.profilePicture,
   });
 });
 
@@ -96,7 +99,7 @@ export const googleLogin = asyncHandler(async (req, res) => {
     });
     }
 
-    let user = await User.findOne({ email: payload.email });
+    let user = await User.findOne({ email: payload.email }).populate('role');
 
     if (!user) {
       // User doesn't exist - return user info for confirmation
@@ -112,6 +115,12 @@ export const googleLogin = asyncHandler(async (req, res) => {
         },
         message: "Account not found. Please confirm registration.",
       });
+    }
+
+    // Update profile picture if it's missing or different from Google
+    if (payload.picture && (!user.profilePicture || user.profilePicture !== payload.picture)) {
+      user.profilePicture = payload.picture;
+      await user.save();
     }
 
     const accessToken = generateAccessToken(user._id);
@@ -131,6 +140,8 @@ export const googleLogin = asyncHandler(async (req, res) => {
       _id: user._id,
       username: user.username,
       email: user.email,
+      role: user.role?.name || 'guest',
+      profilePicture: user.profilePicture,
     });
   } catch (error) {
     console.error("Google login error:", error);
@@ -170,11 +181,18 @@ export const registerUser = asyncHandler(async (req, res) => {
   }
 
   try {
+    // Get or create guest role
+    let guestRole = await Role.findOne({ name: 'guest' });
+    if (!guestRole) {
+      guestRole = await Role.create({ name: 'guest' });
+    }
+
     const userData = { 
       fullname, 
       username, 
       email, 
-      password 
+      password,
+      role: guestRole._id
     };
     
     // Add profilePicture if provided
@@ -386,12 +404,19 @@ export const verifySignupOtp = asyncHandler(async (req, res) => {
       });
     }
 
+    // Get or create guest role
+    let guestRole = await Role.findOne({ name: 'guest' });
+    if (!guestRole) {
+      guestRole = await Role.create({ name: 'guest' });
+    }
+
     // Create new user
     const newUser = await User.create({
       fullname: signupFormData.fullName || signupFormData.fullname,
       username: signupFormData.username,
       email: userId,
       password: signupFormData.password,
+      role: guestRole._id,
     });
 
     // Clean up cache
@@ -578,6 +603,40 @@ export const resetPassword = asyncHandler(async (req, res) => {
   });
 });
 
+// @route GET /api/auth/me
+export const getCurrentUser = asyncHandler(async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).populate('role').select('-password -resetOtp -resetOtpExpireAt');
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      _id: user._id,
+      fullname: user.fullname,
+      username: user.username,
+      email: user.email,
+      profilePicture: user.profilePicture,
+      role: user.role?.name || 'guest',
+      contact: user.contact,
+      roomNumber: user.roomNumber,
+      isActive: user.isActive,
+      createdAt: user.createdAt,
+    });
+  } catch (error) {
+    console.error("Get current user error:", error);
+    return res.status(500).json({ 
+      success: false, 
+      message: "Failed to fetch user data" 
+    });
+  }
+});
+
 // @route POST /api/auth/isAuth
 export const isAuthenticated = asyncHandler(async (req, res) => {
   try {
@@ -720,6 +779,12 @@ export const googleRegister = asyncHandler(async (req, res) => {
       });
     }
 
+    // Get or create guest role
+    let guestRole = await Role.findOne({ name: 'guest' });
+    if (!guestRole) {
+      guestRole = await Role.create({ name: 'guest' });
+    }
+
     // Create new user with Google info
     const userData = {
       fullname: payload.name,
@@ -727,7 +792,8 @@ export const googleRegister = asyncHandler(async (req, res) => {
       email: payload.email,
       password: crypto.randomBytes(32).toString('hex'), // Generate random password
       profilePicture: payload.picture,
-      isGoogleUser: true
+      isGoogleUser: true,
+      role: guestRole._id
     };
 
     const user = await User.create(userData);
@@ -777,6 +843,8 @@ The StayHaven Team 🌱
       _id: user._id,
       username: user.username,
       email: user.email,
+      role: 'guest',
+      profilePicture: user.profilePicture,
     });
   } catch (error) {
     console.error("Google registration error:", error);
