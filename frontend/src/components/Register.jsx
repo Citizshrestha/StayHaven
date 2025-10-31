@@ -204,71 +204,71 @@ const Register = () => {
       </div>
 
       {/* Register Form */}
-      <div className="relative z-10 min-h-screen flex items-center justify-center p-10">
-        <div className="bg-slate-900/40 rounded-3xl p-12 w-[440px] max-w-lg shadow-2xl border border-white/20 transform hover:scale-[1.01] transition-all duration-300 h-[570px] flex flex-col justify-center">
+      <div className="relative z-10 min-h-screen flex items-center justify-center p-4 sm:p-6 md:p-10">
+        <div className="bg-slate-900/40 rounded-3xl p-6 sm:p-8 md:p-12 w-[440px] max-w-[95%] sm:max-w-md md:max-w-lg shadow-2xl border border-white/20 transform hover:scale-[1.01] transition-all duration-300 flex flex-col justify-center">
           {/* Logo and Title */}
-          <div className="text-center mb-6 mt-4">
+          <div className="text-center mb-4 sm:mb-6">
             <div 
-            style={{marginBottom: "1rem"}}
-            className="flex items-center justify-center gap-3 mb-4">
+            className="flex items-center justify-center gap-3 mb-3 sm:mb-4">
               <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                 </svg>
               </div>
-              <span className="text-white text-xl font-light tracking-wider" style={{fontFamily: 'Nunito'}}>
+              <span className="text-white text-lg sm:text-xl font-light tracking-wider" style={{fontFamily: 'Nunito'}}>
                 Stay<span className="font-bold text-teal-400">Haven</span>
               </span>
             </div>
-            <h2 className="text-[#F9FAFB] text-2xl font-light mb-2 tracking-tight">
+            <h2 className="text-[#F9FAFB] text-xl sm:text-2xl font-light mb-2 tracking-tight">
               Create Account
             </h2>
-            <p className="text-[#F9FAFB] text-sm">Join us to start your journey</p>
+            <p className="text-[#F9FAFB] text-xs sm:text-sm">Join us to start your journey</p>
           </div>
 
           {!otpStep ? (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4" >
             {/* Google Signup Button */}
-            <div style={{marginLeft: "80px"}} className="w-[60%]">
-              <GoogleLogin
-                onSuccess={handleGoogleSuccess}
-                onError={handleGoogleError}
-                useOneTap={false}
-                ux_mode="popup"
-                text="continue_with"
-                shape="rectangular"
-                theme="filled_blue"
-                size="large"
-                width="80%"
-              />
+            <div className="px-4 sm:px-8 md:px-10" style={{paddingLeft: "3.5rem"}}>
+              <div className="w-[80%] mx-auto">
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={handleGoogleError}
+                  useOneTap={false}
+                  ux_mode="popup"
+                  text="continue_with"
+                  shape="rectangular"
+                  theme="filled_blue"
+                  size="large"
+                  width="100%"
+                />
+              </div>
             </div>
 
             {/* Apple Signup Button */}
-            <button
+            <div className="px-4 sm:px-8 md:px-10" style={{marginTop: "6px", paddingLeft: "3.5rem"}}>
+              <button
               type="button"
-              onClick={handleAppleSignup}
-              disabled={loading}
-              style={{marginLeft: "80px", marginTop: "10px"}}
-              className="w-[60%] h-[48px] bg-white hover:bg-white/90 text-black font-medium rounded-lg flex items-center justify-center gap-3 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-            >
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M18.71 19.5C17.88 20.74 17 21.95 15.66 21.97C14.32 22 13.89 21.18 12.37 21.18C10.84 21.18 10.37 21.95 9.1 22C7.79 22.05 6.8 20.68 5.96 19.47C4.25 17 2.94 12.45 4.7 9.39C5.57 7.87 7.13 6.91 8.82 6.88C10.1 6.86 11.32 7.75 12.11 7.75C12.89 7.75 14.37 6.68 15.92 6.84C16.57 6.87 18.39 7.1 19.56 8.82C19.47 8.88 17.39 10.1 17.41 12.63C17.44 15.65 20.06 16.66 20.09 16.67C20.06 16.74 19.67 18.11 18.71 19.5ZM13 3.5C13.73 2.67 14.94 2.04 15.94 2C16.07 3.17 15.6 4.35 14.9 5.19C14.21 6.04 13.07 6.7 11.95 6.61C11.8 5.46 12.36 4.26 13 3.5Z"/>
-              </svg>
-              Continue with Apple
-            </button>
+                onClick={handleAppleSignup}
+                disabled={loading}
+                className="w-[80%] mx-auto h-[44px] sm:h-[48px] bg-white hover:bg-white/90 text-black font-medium rounded-lg flex items-center justify-center gap-3 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none text-sm sm:text-base">
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M18.71 19.5C17.88 20.74 17 21.95 15.66 21.97C14.32 22 13.89 21.18 12.37 21.18C10.84 21.18 10.37 21.95 9.1 22C7.79 22.05 6.8 20.68 5.96 19.47C4.25 17 2.94 12.45 4.7 9.39C5.57 7.87 7.13 6.91 8.82 6.88C10.1 6.86 11.32 7.75 12.11 7.75C12.89 7.75 14.37 6.68 15.92 6.84C16.57 6.87 18.39 7.1 19.56 8.82C19.47 8.88 17.39 10.1 17.41 12.63C17.44 15.65 20.06 16.66 20.09 16.67C20.06 16.74 19.67 18.11 18.71 19.5ZM13 3.5C13.73 2.67 14.94 2.04 15.94 2C16.07 3.17 15.6 4.35 14.9 5.19C14.21 6.04 13.07 6.7 11.95 6.61C11.8 5.46 12.36 4.26 13 3.5Z"/>
+                </svg>
+                Continue with Apple
+              </button>
+            </div>
 
             {/* Divider */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 px-4 sm:px-8 md:px-10" style={{marginTop: "5px"}}>
               <div className="flex-1 h-px bg-gray-300"></div>
               <span className="text-white text-sm font-medium">or</span>
               <div className="flex-1 h-px bg-gray-300"></div>
             </div>
 
             {/* Full Name Field */}
-            <div>
-              <label 
-                style={{marginLeft: "40px"}}
-              className="block text-white text-sm font-medium mb-2">
+            <div className="px-4 sm:px-8 md:px-10" style={{paddingLeft: "3.5rem"}}>
+              <label
+              className="block text-white text-xs sm:text-sm font-medium mb-2 w-[80%] mx-auto">
                 Full Name
               </label>
               <input
@@ -276,18 +276,16 @@ const Register = () => {
                 name="fullName"
                 value={formData.fullName}
                 onChange={handleInputChange}
-                style={{marginLeft: "40px"}}
                 placeholder="Enter your full name"
-                className="w-[80%] h-[40px] bg-gray-50 text-gray-800 placeholder-gray-400 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-all duration-200 border border-gray-200 hover:border-gray-300"
+                className="w-[80%] mx-auto block h-[40px] sm:h-[44px] bg-gray-50 text-gray-800 placeholder-gray-400 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-all duration-200 border border-gray-200 hover:border-gray-300 text-sm sm:text-base"
                 required
               />
             </div>
 
             {/* Email Field */}
-            <div>
-              <label 
-                style={{marginLeft: "40px"}}
-              className="block text-white text-sm font-medium mb-2">
+            <div className="px-4 sm:px-8 md:px-10" style={{paddingLeft: "3.5rem"}}>
+              <label
+              className="block text-white text-xs sm:text-sm font-medium mb-2 w-[80%] mx-auto">
                 Email Address
               </label>
               <input
@@ -295,28 +293,26 @@ const Register = () => {
                 name="email"
                 value={formData.email}
                 onChange={handleInputChange}
-                style={{marginLeft: "40px"}}
                 placeholder="Enter your email address"
-                className="w-[80%] h-[40px] bg-gray-50 text-gray-800 placeholder-gray-400 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-all duration-200 border border-gray-200 hover:border-gray-300"
+                className="w-[80%] mx-auto block h-[40px] sm:h-[44px] bg-gray-50 text-gray-800 placeholder-gray-400 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-all duration-200 border border-gray-200 hover:border-gray-300 text-sm sm:text-base"
                 required
               />
             </div>
 
             {/* Password Field */}
-            <div>
-              <label 
-                style={{marginLeft: "40px"}}
-              className="block text-white text-sm font-medium mb-2">
+            <div className="px-4 sm:px-8 md:px-10" style={{paddingLeft: "3.5rem"}}>
+              <label
+              className="block text-white text-xs sm:text-sm font-medium mb-2 w-[80%] mx-auto">
                 Password
               </label>
-              <div className="relative w-[80%]" style={{marginLeft: "40px"}}>
+              <div className="relative w-[80%] mx-auto">
                 <input
                   type={showPassword ? "text" : "password"}
                   name="password"
                   value={formData.password}
                   onChange={handleInputChange}
                   placeholder="Enter your password"
-                  className="w-full h-[40px] bg-gray-50 text-gray-800 placeholder-gray-400 px-4 pr-12 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-all duration-200 border border-gray-200 hover:border-gray-300"
+                  className="w-full h-[40px] sm:h-[44px] bg-gray-50 text-gray-800 placeholder-gray-400 px-4 pr-12 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-all duration-200 border border-gray-200 hover:border-gray-300 text-sm sm:text-base"
                   required
                 />
                 <button
@@ -339,20 +335,19 @@ const Register = () => {
             </div>
 
             {/* Confirm Password Field */}
-            <div>
-              <label 
-                style={{marginLeft: "40px"}}
-              className="block text-white text-sm font-medium mb-2">
+            <div className="px-4 sm:px-8 md:px-10" style={{paddingLeft: "3.5rem"}}>
+              <label
+              className="block text-white text-xs sm:text-sm font-medium mb-2 w-[80%] mx-auto">
                 Confirm Password
               </label>
-              <div className="relative w-[80%]" style={{marginLeft: "40px"}}>
+              <div className="relative w-[80%] mx-auto">
                 <input
                   type={showPassword ? "text" : "password"}
                   name="confirmPassword"
                   value={formData.confirmPassword}
                   onChange={handleInputChange}
                   placeholder="Confirm your password"
-                  className="w-full h-[40px] bg-gray-50 text-gray-800 placeholder-gray-400 px-4 pr-12 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-all duration-200 border border-gray-200 hover:border-gray-300"
+                  className="w-full h-[40px] sm:h-[44px] bg-gray-50 text-gray-800 placeholder-gray-400 px-4 pr-12 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-all duration-200 border border-gray-200 hover:border-gray-300 text-sm sm:text-base"
                   required
                 />
                 <button
@@ -375,51 +370,54 @@ const Register = () => {
             </div>
 
             {/* Terms and Conditions */}
-            <div 
-            style={{marginTop: "8px"}}
-            className="flex items-start gap-2">
-              <input
-                type="checkbox"
-                name="agreeToTerms"
-                checked={formData.agreeToTerms}
-                onChange={handleInputChange}
-                style={{marginLeft: "40px"}}
-                className="w-4 h-4 bg-gray-50 border-gray-300 rounded focus:ring-teal-500 focus:ring-2 mt-1"
-                required
-              />
-              <label className="text-white text-sm leading-relaxed">
-                I agree to the{' '}
-                <button
-                  type="button"
-                  className="text-[#08F0D9] hover:underline font-medium transition-colors duration-200"
-                >
-                  Terms of Service
-                </button>
-                {' '}and{' '}
-                <button
-                  type="button"
-                  className="text-[#08F0D9] hover:underline font-medium transition-colors duration-200"
-                >
-                  Privacy Policy
-                </button>
-              </label>
+            <div
+            className="flex items-start gap-2 px-4 sm:px-8 md:px-10" style={{paddingLeft: "3.5rem", }}>
+              <div className="w-[80%] mx-auto flex items-start gap-2" >
+                <input
+                  type="checkbox"
+                  name="agreeToTerms"
+                  style={{marginTop: "6px"}}
+                  checked={formData.agreeToTerms}
+                  onChange={handleInputChange}
+                  className="w-4 h-4 bg-gray-50 border-gray-300 rounded focus:ring-teal-500 focus:ring-2 mt-1 flex-shrink-0"
+                  required
+                />
+                <label 
+                  style={{marginTop: "4px"}}
+                className="text-white text-xs sm:text-sm leading-relaxed">
+                  I agree to the{' '}
+                  <button
+                    type="button"
+                    className="text-[#08F0D9] hover:underline font-medium transition-colors duration-200"
+                  >
+                    Terms of Service
+                  </button>
+                  {' '}and{' '}
+                  <button
+                    type="button"
+                    className="text-[#08F0D9] hover:underline font-medium transition-colors duration-200"
+                  >
+                    Privacy Policy
+                  </button>
+                </label>
+              </div>
             </div>
 
             {/* Register Button */}
-            <button
-              type="submit"
-              disabled={loading}
-              style={{marginLeft: "40px"}}
-              className="w-[80%] h-[40px] bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Sending OTP...' : 'Create Account'}
-            </button>
+            <div className="px-4 sm:px-8 md:px-10" style={{paddingLeft: "3.5rem"}}>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-[80%] mx-auto block h-[40px] sm:h-[44px] bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
+              >
+                {loading ? 'Sending OTP...' : 'Create Account'}
+              </button>
+            </div>
 
             {/* Sign In Link */}
             <div 
-            style={{marginTop: "5px"}}
             className="text-center pt-2">
-              <span className="text-white text-sm">
+              <span className="text-white text-xs sm:text-sm">
                 Already have an account?{' '}
                 <button
                   type="button"
@@ -433,50 +431,48 @@ const Register = () => {
           </form>
           ) : (
           <form onSubmit={handleOtpVerification} className="space-y-4">
-            <div className="text-center mb-4">
-              <h3 className="text-white text-lg font-medium mb-2">Verify Your Email</h3>
-              <p className="text-gray-300 text-sm">We've sent a verification code to {userEmail}</p>
+            <div className="text-center mb-4 px-4">
+              <h3 className="text-white text-base sm:text-lg font-medium mb-2">Verify Your Email</h3>
+              <p className="text-gray-300 text-xs sm:text-sm break-words">We've sent a verification code to {userEmail}</p>
             </div>
 
             {/* OTP Input */}
-            <div>
-              <label 
-                style={{marginLeft: "40px", marginTop: "16px"}}
-                className="block text-white text-sm font-medium mb-2">
+            <div className="px-4 sm:px-8 md:px-10" style={{paddingLeft: "3.5rem"}}>
+              <label
+                 style={{marginTop: "5px"}}
+                className="block text-white text-xs sm:text-sm font-medium mb-2 w-[80%] mx-auto">
                 Verification Code
               </label>
               <input
+                 style={{marginTop: "5px"}}
                 type="text"
                 value={otp}
                 onChange={(e) => setOtp(e.target.value)}
-                style={{marginLeft: "40px"}}
                 placeholder="Enter 6-digit code"
-                className="w-[80%] h-[40px] bg-gray-50 text-gray-800 placeholder-gray-400 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-all duration-200 border border-gray-200 hover:border-gray-300 text-center text-lg tracking-widest"
+                className="w-[80%] mx-auto block h-[40px] sm:h-[44px] bg-gray-50 text-gray-800 placeholder-gray-400 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-all duration-200 border border-gray-200 hover:border-gray-300 text-center text-base sm:text-lg tracking-widest"
                 maxLength="6"
                 required
               />
             </div>
 
             {/* Verify Button */}
-            <button
-              type="submit"
-
-              disabled={loading}
-              style={{marginLeft: "40px", marginTop: "10px"}}
-              className="w-[80%] h-[40px] bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Verifying...' : 'Verify Email'}
-            </button>
+            <div className="px-4 sm:px-8 md:px-10" style={{paddingLeft: "3.5rem", marginTop: "5px"}}>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-[80%] mx-auto block h-[40px] sm:h-[44px] bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
+              >
+                {loading ? 'Verifying...' : 'Verify Email'}
+              </button>
+            </div>
 
             {/* Back to Registration */}
-            <div 
-                style={{marginTop: "16px"}}
-
+            <div
             className="text-center pt-2">
               <button
                 type="button"
                 onClick={() => setOtpStep(false)}
-                className="text-gray-300 text-sm hover:text-white transition-colors duration-200"
+                className="text-gray-300 text-xs sm:text-sm hover:text-white transition-colors duration-200"
               >
                 ← Back to registration
               </button>
