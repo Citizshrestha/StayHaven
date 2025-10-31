@@ -165,70 +165,70 @@ const Login = () => {
       </div>
 
       {/* Login Form */}
-      <div className="relative z-10 min-h-screen flex items-center justify-center p-10">
-        <div className="bg-slate-900/40 rounded-3xl p-12 w-[440px] max-w-lg shadow-2xl border border-white/20 transform hover:scale-[1.01] transition-all duration-300 h-[450px] flex flex-col justify-center">
+      <div className="relative z-10 min-h-screen flex items-center justify-center p-4 sm:p-6 md:p-10">
+        <div className="bg-slate-900/40 rounded-3xl p-6 sm:p-8 md:p-12 w-[410px] max-w-[95%] sm:max-w-md md:max-w-lg shadow-2xl border border-white/20 transform hover:scale-[1.01] transition-all duration-300 flex flex-col justify-center">
           {/* Logo and Title */}
-          <div className="text-center mb-6 mt-2">
+          <div className="text-center mb-4 sm:mb-6">
             <div 
-            style={{marginBottom: "1.2rem"}}
-            className="flex items-center justify-center gap-3 mb-4">
+            className="flex items-center justify-center gap-3 mb-3 sm:mb-4">
               <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                 </svg>
               </div>
-              <span className="text-white text-xl font-light tracking-wider" style={{fontFamily: 'Nunito'}}>
+              <span className="text-white text-lg sm:text-xl font-light tracking-wider" style={{fontFamily: 'Nunito'}}>
                 Stay<span className="font-bold text-teal-400">Haven</span>
               </span>
             </div>
-            <h2 className="text-[#F9FAFB] text-2xl font-light mb-2 tracking-tight">
+            <h2 className="text-[#F9FAFB] text-xl sm:text-2xl font-light mb-2 tracking-tight">
               Welcome Back
             </h2>
-            <p className="text-[#F9FAFB] text-sm">Sign in to your account to continue</p>
+            <p className="text-[#F9FAFB] text-xs sm:text-sm">Sign in to your account to continue</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
             {/* Google Login Button */}
-            <div style={{marginLeft: "80px"}} className="w-[60%]">
-              <GoogleLogin
-                onSuccess={handleGoogleSuccess}
-                onError={handleGoogleError}
-                useOneTap={false}
-                ux_mode="popup"
-                text="continue_with"
-                shape="rectangular"
-                theme="filled_blue"
-                size="large"
-                width="100%"
-              />
+            <div className="px-4 sm:px-8 md:px-10" style={{paddingLeft: "3rem"}}>
+              <div className="w-[80%] mx-auto">
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={handleGoogleError}
+                  useOneTap={false}
+                  ux_mode="popup"
+                  text="continue_with"
+                  shape="rectangular"
+                  theme="filled_blue"
+                  size="large"
+                  width="100%"
+                />
+              </div>
             </div>
 
             {/* Apple Login Button */}
-            <button
-              type="button"
-              onClick={handleAppleLogin}
-              disabled={loading}
-              style={{marginLeft: "80px", marginTop: "10px"}}
-              className="w-[60%] h-[48px] bg-white hover:bg-white/90 text-black font-medium rounded-lg flex items-center justify-center gap-3 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-            >
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M18.71 19.5C17.88 20.74 17 21.95 15.66 21.97C14.32 22 13.89 21.18 12.37 21.18C10.84 21.18 10.37 21.95 9.1 22C7.79 22.05 6.8 20.68 5.96 19.47C4.25 17 2.94 12.45 4.7 9.39C5.57 7.87 7.13 6.91 8.82 6.88C10.1 6.86 11.32 7.75 12.11 7.75C12.89 7.75 14.37 6.68 15.92 6.84C16.57 6.87 18.39 7.1 19.56 8.82C19.47 8.88 17.39 10.1 17.41 12.63C17.44 15.65 20.06 16.66 20.09 16.67C20.06 16.74 19.67 18.11 18.71 19.5ZM13 3.5C13.73 2.67 14.94 2.04 15.94 2C16.07 3.17 15.6 4.35 14.9 5.19C14.21 6.04 13.07 6.7 11.95 6.61C11.8 5.46 12.36 4.26 13 3.5Z"/>
-              </svg>
-              Continue with Apple
-            </button>
+            <div className="px-4 sm:px-8 md:px-10" style={{marginTop: "6px", paddingLeft: "3rem"}}>
+              <button
+                type="button"
+                onClick={handleAppleLogin}
+                disabled={loading}
+                className="w-[80%] mx-auto h-[44px] sm:h-[48px] bg-white hover:bg-white/90 text-black font-medium rounded-lg flex items-center justify-center gap-3 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none text-sm sm:text-base">
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M18.71 19.5C17.88 20.74 17 21.95 15.66 21.97C14.32 22 13.89 21.18 12.37 21.18C10.84 21.18 10.37 21.95 9.1 22C7.79 22.05 6.8 20.68 5.96 19.47C4.25 17 2.94 12.45 4.7 9.39C5.57 7.87 7.13 6.91 8.82 6.88C10.1 6.86 11.32 7.75 12.11 7.75C12.89 7.75 14.37 6.68 15.92 6.84C16.57 6.87 18.39 7.1 19.56 8.82C19.47 8.88 17.39 10.1 17.41 12.63C17.44 15.65 20.06 16.66 20.09 16.67C20.06 16.74 19.67 18.11 18.71 19.5ZM13 3.5C13.73 2.67 14.94 2.04 15.94 2C16.07 3.17 15.6 4.35 14.9 5.19C14.21 6.04 13.07 6.7 11.95 6.61C11.8 5.46 12.36 4.26 13 3.5Z"/>
+                </svg>
+                Sign in with Apple
+              </button>
+            </div>
 
             {/* Divider */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 px-4 sm:px-8 md:px-10" style={{marginTop: "5px"}} >
               <div className="flex-1 h-px bg-gray-300"></div>
               <span className="text-white text-sm font-medium">or</span>
               <div className="flex-1 h-px bg-gray-300"></div>
             </div>
 
             {/* Email Field */}
-            <div>
-              <label 
-                style={{marginLeft: "40px"}}
-              className="block text-white text-sm font-medium mb-2">
+            <div className="px-4 sm:px-8 md:px-10" style={{paddingLeft: "3rem"}}>
+              <label
+              className="block text-white text-xs sm:text-sm font-medium mb-2 w-[80%] mx-auto">
                 Email Address
               </label>
               <input
@@ -236,28 +236,26 @@ const Login = () => {
                 name="email"
                 value={formData.email}
                 onChange={handleInputChange}
-                style={{marginLeft: "40px"}}
                 placeholder="Enter your email address"
-                className="w-[80%] h-[40px]  bg-gray-50 text-gray-800 placeholder-gray-400 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-all duration-200 border border-gray-200 hover:border-gray-300"
+                className="w-[80%] mx-auto block h-[40px] sm:h-[44px] bg-gray-50 text-gray-800 placeholder-gray-400 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-all duration-200 border border-gray-200 hover:border-gray-300 text-sm sm:text-base"
                 required
               />
             </div>
 
             {/* Password Field */}
-            <div>
-              <label 
-                style={{marginLeft: "40px"}}
-              className="block text-white text-sm font-medium mb-2">
+            <div className="px-4 sm:px-8 md:px-10" style={{paddingLeft: "3rem"}}>
+              <label
+              className="block text-white text-xs sm:text-sm font-medium mb-2 w-[80%] mx-auto">
                 Password
               </label>
-              <div className="relative w-[80%]" style={{marginLeft: "40px"}}>
+              <div className="relative w-[80%] mx-auto">
                 <input
                   type={showPassword ? "text" : "password"}
                   name="password"
                   value={formData.password}
                   onChange={handleInputChange}
                   placeholder="Enter your password"
-                  className="w-full h-[40px] bg-gray-50 text-gray-800 placeholder-gray-400 px-4 pr-12 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-all duration-200 border border-gray-200 hover:border-gray-300"
+                  className="w-full h-[40px] sm:h-[44px] bg-gray-50 text-gray-800 placeholder-gray-400 px-4 pr-12 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-all duration-200 border border-gray-200 hover:border-gray-300 text-sm sm:text-base"
                   required
                 />
                 <button
@@ -280,47 +278,45 @@ const Login = () => {
             </div>
 
             {/* Remember Me and Forgot Password */}
-            <div 
-            style={{marginTop: "8px"}}
-            className="flex items-center  justify-between">
-              <label 
-                style={{marginLeft: "40px"}}
-              className="flex items-center gap-2 text-white  text-sm cursor-pointer">
-                <input
-                  type="checkbox"
-                  name="rememberMe"
-                  checked={formData.rememberMe}
-                  onChange={handleInputChange}
-
-                  className="w-4 h-4 bg-gray-50  border-gray-300 rounded focus:ring-teal-500 focus:ring-2"
-                />
-                Remember me
-              </label>
-              <button
-                type="button"
-                onClick={() => navigate('/forgot-password')}
-                style={{marginRight: "65px"}}
-                className="text-[#08F0D9] text-sm hover:underline font-medium transition-colors duration-200"
-              >
-                Forgot Password?
-              </button>
+            <div
+            className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 px-4 sm:px-8 md:px-10" style={{paddingLeft: "3rem"}}>
+              <div className="w-[80%] mx-auto flex items-center justify-between">
+                <label
+                className="flex items-center gap-2 text-white text-xs sm:text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="rememberMe"
+                    checked={formData.rememberMe}
+                    onChange={handleInputChange}
+                    className="w-4 h-4 bg-gray-50 border-gray-300 rounded focus:ring-teal-500 focus:ring-2"
+                  />
+                  Remember me
+                </label>
+                <button
+                  type="button"
+                  onClick={() => navigate('/forgot-password')}
+                  className="text-[#08F0D9] text-xs sm:text-sm hover:underline font-medium transition-colors duration-200"
+                >
+                  Forgot Password?
+                </button>
+              </div>
             </div>
 
             {/* Login Button */}
-            <button
-              type="submit"
-              disabled={loading}
-              style={{marginLeft: "40px"}}
-              className="w-[80%] h-[40px] bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Signing In...' : 'Sign In'}
-            </button>
+            <div className="px-4 sm:px-8 md:px-10" style={{paddingLeft: "3rem"}}>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-[80%] mx-auto block h-[40px] sm:h-[44px] bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
+              >
+                {loading ? 'Signing In...' : 'Sign In'}
+              </button>
+            </div>
 
             {/* Sign Up Link */}
             <div 
-            style={{marginTop: "5px"}}
             className="text-center pt-2">
-              <span className="text-white text-sm">
+              <span className="text-white text-xs sm:text-sm">
                 Don't have an account?{' '}
                 <button
                   type="button"
