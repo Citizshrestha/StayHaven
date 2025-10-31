@@ -3,6 +3,7 @@ import connectDB from './config/db.js';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import authRoutes from "./routes/authRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
 import {Role} from "./models/role.schema.js";
 
 
@@ -18,8 +19,8 @@ const seedRoles = async () => {
     const roles = ['admin', 'staff', 'guest'];
     try {
         for (let roleName of roles){
-            if (!(await Role.findOne({role: roleName}))){
-                await new Role({name: roleName}).save();
+            if (!(await Role.findOne({ name: roleName }))){
+                await new Role({ name: roleName }).save();
                 // console.log(`Role ${roleName} created`);
             }
         }
@@ -50,7 +51,7 @@ app.get("/",(req,res)=> {
     res.send(`Welcome to Hotel Booking and Order Management System`);
 });
 app.use('/api/auth', authRoutes);
-
+app.use('/api/user', userRoutes);
 
 
 
