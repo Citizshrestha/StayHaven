@@ -117,10 +117,13 @@ export const googleLogin = asyncHandler(async (req, res) => {
       });
     }
 
-    // Update profile picture if it's missing or different from Google
+    // Update profile picture and Google ID if it's missing or different from Google
     if (payload.picture && (!user.profilePicture || user.profilePicture !== payload.picture)) {
       user.profilePicture = payload.picture;
+      user.googleId = payload.sub;
+      user.isGoogleUser = true;
       await user.save();
+      console.log('✅ Updated profile picture for user:', user.email, 'Picture URL:', payload.picture);
     }
 
     const accessToken = generateAccessToken(user._id);
