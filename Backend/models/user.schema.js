@@ -63,6 +63,19 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    wishlist: {
+      type: [String],
+      default: [],
+    },
+    cart: {
+      type: [
+        {
+          hotelId: { type: String, required: true },
+          quantity: { type: Number, default: 1, min: 1 },
+        },
+      ],
+      default: [],
+    },
 },
   { timestamps: true }
 );
