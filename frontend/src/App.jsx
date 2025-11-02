@@ -12,6 +12,7 @@ import Dashboard from './components/Dashboard';
 import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
 import ProtectedRoute from './components/ProtectedRoute';
+import OffersPage from "./components/OffersPage";
 
 const App = () => {
   return (
@@ -23,11 +24,13 @@ const App = () => {
       <div className="w-screen min-h-screen overflow-x-hidden">
         <Routes>
           {/* Public Routes */}
-          <Route path="/" element={<Home />} />
+          <Route path="/home" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/" element={<OffersPage />} />
+          
           
           {/* Protected Routes */}
           <Route path="/dashboard" element={
