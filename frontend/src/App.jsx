@@ -13,6 +13,7 @@ import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
 import ProtectedRoute from './components/ProtectedRoute';
 import OffersPage from "./components/OffersPage";
+import MembershipPage from "./components/MembershipPage";
 
 const App = () => {
   return (
@@ -29,7 +30,9 @@ const App = () => {
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/" element={<OffersPage />} />
+          <Route path="/" element={<Home />} />
+          <Route path="/offers" element={<OffersPage />} />
+          <Route path="/memberships" element={<MembershipPage />} />
           
           
           {/* Protected Routes */}

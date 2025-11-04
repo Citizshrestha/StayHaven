@@ -239,26 +239,33 @@ const Navbar = () => {
             </div>
           {/* Desktop Navigation */}
           <div className="hidden lg:flex items-center gap-8">
-            <a href="#home" className="text-white hover:text-teal-300 transition font-medium">
+            <button
+              onClick={() => navigate('/home')}
+              className="text-white hover:text-teal-300 transition font-medium"
+            >
               Home
-            </a>
+            </button>
             <a
               href="#destination"
               className="text-white hover:text-teal-300 transition font-medium"
             >
               Destinations
             </a>
-            <a href="#offers" className="text-white hover:text-teal-300 transition font-medium">
+            <button
+              onClick={() => navigate('/offers')}
+              className="text-white hover:text-teal-300 transition font-medium"
+            >
               Offers
-            </a>
-            <div className="relative group">
-              <button className="text-white hover:text-teal-300 transition font-medium flex items-center gap-1">
-                Memberships
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-            </div>
+            </button>
+            <button
+              onClick={() => navigate('/memberships')}
+              className="text-white hover:text-teal-300 transition font-medium flex items-center gap-1"
+            >
+              Memberships
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
             <div className="relative group">
               <button className="text-white hover:text-teal-300 transition font-medium flex items-center gap-1">
                 More
@@ -311,21 +318,30 @@ const Navbar = () => {
 
               {/* Mobile Navigation Links */}
               <div className="space-y-4">
-                <a href="#home" className="block text-white text-lg font-medium hover:text-gray-300 transition py-2">
+                <button
+                  onClick={() => navigate('/home')}
+                  className="block text-white text-lg font-medium hover:text-gray-300 transition py-2 w-full text-left bg-none border-none cursor-pointer"
+                >
                   Home
-                </a>
+                </button>
                 <a
                   href="#destination"
                   className="block text-white text-lg font-medium hover:text-gray-300 transition py-2 text-left w-full"
                 >
                   Destinations
                 </a>
-                <a href="#offers" className="block text-white text-lg font-medium hover:text-gray-300 transition py-2">
+                <button
+                  onClick={() => navigate('/offers')}
+                  className="block text-white text-lg font-medium hover:text-gray-300 transition py-2 w-full text-left bg-none border-none cursor-pointer"
+                >
                   Offers
-                </a>
-                <a href="#memberships" className="block text-white text-lg font-medium hover:text-gray-300 transition py-2">
+                </button>
+                <button
+                  onClick={() => navigate('/memberships')}
+                  className="block text-white text-lg font-medium hover:text-gray-300 transition py-2 w-full text-left bg-none border-none cursor-pointer"
+                >
                   Memberships
-                </a>
+                </button>
                 <a href="#more" className="block text-white text-lg font-medium hover:text-gray-300 transition py-2">
                   More
                 </a>

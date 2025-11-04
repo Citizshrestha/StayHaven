@@ -1,8 +1,8 @@
 /* OffersPage.css */
 .offers-page {
   font-family: "Poppins", sans-serif;
-  color: #333;
-  background-color: #f8f9fa;
+  color: #2c3e50;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%);
   padding-bottom: 50px;
   min-height: 100vh;
 }
@@ -35,42 +35,45 @@
   flex-wrap: wrap;
   gap: 15px;
   padding: 30px 20px;
-  background: white;
+  background: rgba(255, 255, 255, 0.95);
   margin: 0 10%;
-  border-radius: 15px;
+  border-radius: 12px;
   margin-top: -30px;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(44, 62, 80, 0.08);
   position: relative;
   z-index: 2;
+  border: 1px solid #e8eef5;
 }
 
 .filter-btn {
-  background: #f8f9fa;
-  border: 2px solid #e9ecef;
+  background: #f5f7fa;
+  border: 2px solid #d4dce6;
   padding: 10px 20px;
   border-radius: 25px;
   cursor: pointer;
   font-weight: 500;
   transition: all 0.3s ease;
-  color: #555;
+  color: #5a6c7d;
 }
 
 .filter-btn:hover {
-  background: #e9ecef;
+  background: #e8eef5;
+  border-color: #1a9b8e;
+  color: #1a9b8e;
   transform: translateY(-2px);
 }
 
 .filter-btn.active {
-  background: #00a896;
+  background: #1a9b8e;
   color: white;
-  border-color: #00a896;
+  border-color: #1a9b8e;
 }
 
 /* Offers Count */
 .offers-count {
   text-align: center;
   padding: 20px 0;
-  color: #666;
+  color: #5a6c7d;
   font-weight: 500;
 }
 
@@ -82,17 +85,18 @@
 }
 
 .offer-card {
-  background: #fff;
-  border-radius: 15px;
+  background: #ffffff;
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(44, 62, 80, 0.08);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   position: relative;
+  border: 1px solid #e8eef5;
 }
 
 .offer-card:hover {
-  transform: translateY(-8px);
-  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+  transform: translateY(-10px);
+  box-shadow: 0 12px 28px rgba(44, 62, 80, 0.12);
 }
 
 .offer-card.featured {
@@ -148,17 +152,18 @@
 
 .offer-content h2 {
   font-size: 1.3rem;
-  color: #00796b;
+  color: #1a5f5a;
   margin-bottom: 10px;
   line-height: 1.3;
   min-height: 3.2rem;
+  font-weight: 600;
 }
 
 .offer-content p {
   font-size: 0.9rem;
   line-height: 1.6;
   margin-bottom: 15px;
-  color: #666;
+  color: #5a6c7d;
   flex-grow: 1;
 }
 
@@ -166,14 +171,14 @@
 .price-section {
   margin: 15px 0;
   padding: 12px;
-  background: #f8f9fa;
+  background: #f0f6f5;
   border-radius: 8px;
-  border-left: 4px solid #00a896;
+  border-left: 4px solid #1a9b8e;
 }
 
 .price-original {
   font-size: 0.9rem;
-  color: #999;
+  color: #a0aab8;
   text-decoration: line-through;
   margin-bottom: 4px;
 }
@@ -181,40 +186,42 @@
 .price-discounted {
   font-size: 1.3rem;
   font-weight: 700;
-  color: #e74c3c;
+  color: #d84a3a;
   margin-bottom: 6px;
 }
 
 .price-duration {
   font-size: 0.85rem;
-  color: #666;
+  color: #5a6c7d;
   font-weight: 500;
   margin-bottom: 4px;
 }
 
 .price-info {
   font-size: 0.8rem;
-  color: #888;
+  color: #7a8a9a;
   font-style: italic;
 }
 
 .book-btn {
-  background-color: #00a896;
+  background: linear-gradient(135deg, #1a9b8e 0%, #158b7f 100%);
   color: white;
   border: none;
   padding: 12px 24px;
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
-  transition: background 0.3s ease, transform 0.2s ease;
+  transition: all 0.3s ease;
   width: 100%;
   font-size: 1rem;
   margin-top: auto;
+  box-shadow: 0 4px 12px rgba(26, 155, 142, 0.2);
 }
 
 .book-btn:hover {
-  background-color: #028b77;
+  background: linear-gradient(135deg, #158b7f 0%, #0f7a6f 100%);
   transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(26, 155, 142, 0.3);
 }
 
 /* Modal Styles */
@@ -310,24 +317,25 @@
 }
 
 .modal-details h2 {
-  color: #00796b;
+  color: #1a5f5a;
   margin-bottom: 15px;
   font-size: 1.6rem;
+  font-weight: 600;
 }
 
 .modal-details p {
-  color: #666;
+  color: #5a6c7d;
   line-height: 1.6;
   margin-bottom: 25px;
 }
 
 /* Modal Price Section */
 .modal-price-section {
-  background: #f8f9fa;
+  background: #f0f6f5;
   padding: 20px;
   border-radius: 10px;
   margin-bottom: 25px;
-  border-left: 4px solid #00a896;
+  border-left: 4px solid #1a9b8e;
 }
 
 .price-row {
@@ -336,7 +344,7 @@
   align-items: center;
   margin-bottom: 10px;
   padding-bottom: 10px;
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid #d4dce6;
 }
 
 .price-row:last-child {
@@ -346,43 +354,43 @@
 }
 
 .price-row.total-price {
-  background: #e8f5e8;
+  background: #e8f5f2;
   margin: 10px -10px -10px -10px;
   padding: 15px 10px;
   border-radius: 0 0 8px 8px;
-  border-top: 2px solid #00a896;
+  border-top: 2px solid #1a9b8e;
 }
 
 .price-label {
   font-weight: 500;
-  color: #555;
+  color: #5a6c7d;
 }
 
 .price-base {
   font-weight: 600;
-  color: #00796b;
+  color: #1a5f5a;
 }
 
 .price-extra {
   font-size: 0.9rem;
-  color: #e67e22;
+  color: #d97706;
 }
 
 .price-total {
   font-size: 1.4rem;
   font-weight: 700;
-  color: #e74c3c;
+  color: #d84a3a;
 }
 
 .price-breakdown {
   text-align: center;
   margin-top: 10px;
   padding-top: 10px;
-  border-top: 1px dashed #ddd;
+  border-top: 1px dashed #d4dce6;
 }
 
 .price-breakdown small {
-  color: #666;
+  color: #5a6c7d;
 }
 
 .booking-form {
@@ -399,26 +407,28 @@
 .form-group label {
   font-weight: 500;
   margin-bottom: 8px;
-  color: #333;
+  color: #2c3e50;
 }
 
 .form-group input,
 .form-group select {
   padding: 12px;
-  border: 2px solid #e9ecef;
+  border: 2px solid #d4dce6;
   border-radius: 8px;
   font-size: 1rem;
   transition: border-color 0.3s ease;
+  color: #2c3e50;
 }
 
 .form-group input:focus,
 .form-group select:focus {
   outline: none;
-  border-color: #00a896;
+  border-color: #1a9b8e;
+  box-shadow: 0 0 0 3px rgba(26, 155, 142, 0.1);
 }
 
 .submit-btn {
-  background: #00a896;
+  background: linear-gradient(135deg, #1a9b8e 0%, #158b7f 100%);
   color: white;
   border: none;
   padding: 15px;
@@ -426,12 +436,15 @@
   font-size: 1.1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.3s ease;
+  transition: all 0.3s ease;
   margin-top: 10px;
+  box-shadow: 0 4px 12px rgba(26, 155, 142, 0.2);
 }
 
 .submit-btn:hover {
-  background: #028b77;
+  background: linear-gradient(135deg, #158b7f 0%, #0f7a6f 100%);
+  box-shadow: 0 6px 16px rgba(26, 155, 142, 0.3);
+  transform: translateY(-2px);
 }
 
 /* Responsive Design */
