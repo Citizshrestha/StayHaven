@@ -610,7 +610,7 @@ const FeaturedHotels = ({ selectedCategory = 'Hotel' }) => {
   };
 
   return (
-    <div className="w-full bg-gradient-to-b from-teal-50 to-blue-50 pb-20 px-4 sm:px-6 lg:px-8" style={{minHeight: "70vh", marginTop: "0px", paddingTop: "0px"}}>
+    <div className="w-full bg-white pb-20 px-4 sm:px-6 lg:px-8" style={{minHeight: "70vh", marginTop: "0px", paddingTop: "0px"}}>
       <div className="w-full max-w-[1600px] mx-auto">
         {/* Section Header */}
         <div className="flex items-center justify-between mb-16 ml-0 lg:ml-20">
@@ -618,13 +618,13 @@ const FeaturedHotels = ({ selectedCategory = 'Hotel' }) => {
             <div className="inline-block mb-3">
               <span
               style={{padding: "5px"}}
-              className={`bg-teal-100 text-teal-700 rounded-full text-sm font-semibold transition-all duration-300 ${
+              className={`bg-blue-100 text-blue-800 rounded-full text-sm font-semibold transition-all duration-300 ${
                 isScrolled ? 'shadow-lg' : ''
               }`}>
                 Featured Hotels
               </span>
             </div>
-            <h2 className={`text-4xl font-bold text-gray-900 transition-all duration-300 ${
+            <h2 className={`text-4xl font-bold text-gray-800 transition-all duration-300 ${
               isScrolled ? 'text-3xl' : ''
             }`}>
               Check Out Premium Stays

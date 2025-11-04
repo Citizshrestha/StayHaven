@@ -91,16 +91,16 @@ const Categories = ({ onCategorySelect, selectedCategory: externalSelectedCatego
   ];
 
   return (
-    <div className="w-full bg-gradient-to-b from-teal-50 to-blue-50 pt-32 pb-20 px-4 sm:px-6 lg:px-8 ml-0 lg:ml-20">
+    <div className="w-full bg-gray-100 pt-32 pb-20 px-4 sm:px-6 lg:px-8 ml-0 lg:ml-20">
       <div className="max-w-7xl mx-auto">
         {/* Section Header */}
         <div className="text-center mb-16" style={{marginLeft: "10.5rem"}}>
           <div className="inline-block mb-4">
-            <span className="px-6 py-2 bg-teal-100 text-teal-700 rounded-full text-sm font-medium">
+            <span className="px-6 py-2 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
               Categories
             </span>
           </div>
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">
+          <h2 className="text-4xl font-bold text-gray-800 mb-4">
             Luxury & Comfort Choices
           </h2>
         </div>
