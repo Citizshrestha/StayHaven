@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getWishlist, getCart, toggleWishlist as toggleWishlistApi, addToCart as addToCartApi } from '../api/user';
+import { getWishlist, toggleWishlist as toggleWishlistApi } from '../api/user';
 import { toast } from 'react-toastify';
 // Hotel data moved outside component to avoid dependency issues
 const allHotels = [
@@ -465,9 +465,7 @@ const FeaturedHotels = ({ selectedCategory = 'Hotel' }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [filteredHotels, setFilteredHotels] = useState([]);
   const [wishlist, setWishlist] = useState([]);
-  const [cart, setCart] = useState([]);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [loadingCart, setLoadingCart] = useState({});
 
   // Track scroll position for navbar effects
   useEffect(() => {
@@ -480,7 +478,7 @@ const FeaturedHotels = ({ selectedCategory = 'Hotel' }) => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Load wishlist and cart for authenticated users
+  // Load wishlist for authenticated users
   useEffect(() => {
     const init = async () => {
       const token = localStorage.getItem('accessToken');
@@ -489,13 +487,8 @@ const FeaturedHotels = ({ selectedCategory = 'Hotel' }) => {
         const { wishlist } = await getWishlist();
         setWishlist(wishlist);
         window.dispatchEvent(new Event('wishlistUpdated'));
-        
-        // Load cart
-        const { cart } = await getCart();
-        setCart(cart);
-        window.dispatchEvent(new Event('cartUpdated'));
       } catch (err) {
-        console.error('Failed to load wishlist/cart:', err);
+        console.error('Failed to load wishlist:', err);
         toast.error(`Failed to load data: ${err.message}`);
       }
     };
@@ -531,42 +524,6 @@ const FeaturedHotels = ({ selectedCategory = 'Hotel' }) => {
       console.error('Failed to toggle wishlist:', err);
       toast.error(`Failed to update wishlist: ${err.message || 'Something went wrong'}`);
     }
-  };
-
-  // Add to cart
-  const handleAddToCart = async (hotelId) => {
-    const token = localStorage.getItem("accessToken");
-    if (!token) {
-      toast.error('🔒 You must be logged in to add to cart', {
-        position: "top-center",
-        autoClose: 3000,
-      });
-      setTimeout(() => {
-        window.location.href = '/login';
-      }, 2000);
-      return;
-    }
-
-    setLoadingCart(prev => ({ ...prev, [hotelId]: true }));
-    try {
-      const { cart: updatedCart, message } = await addToCartApi(hotelId, 1);
-      setCart(updatedCart);
-      window.dispatchEvent(new Event('cartUpdated'));
-      toast.success(message || '🛒 Added to cart successfully!', {
-        position: "top-right",
-        autoClose: 2000,
-      });
-    } catch (err) {
-      console.error('Failed to add to cart:', err);
-      toast.error(`Failed to add to cart: ${err.message || 'Something went wrong'}`);
-    } finally {
-      setLoadingCart(prev => ({ ...prev, [hotelId]: false }));
-    }
-  };
-
-  // Check if hotel is in cart
-  const isInCart = (hotelId) => {
-    return cart.some(item => item.hotelId === String(hotelId));
   };
 
   // Filter hotels based on selected category
@@ -610,25 +567,26 @@ const FeaturedHotels = ({ selectedCategory = 'Hotel' }) => {
   };
 
   return (
-    <div className="w-full bg-gradient-to-b from-teal-50 to-blue-50 pb-20 px-4 sm:px-6 lg:px-8" style={{minHeight: "70vh", marginTop: "0px", paddingTop: "0px"}}>
+    <div className="w-full bg-gray-50 pb-20 px-4 sm:px-6 lg:px-8" style={{minHeight: "70vh", marginTop: "0px", paddingTop: "0px"}}>
       <div className="w-full max-w-[1600px] mx-auto">
         {/* Section Header */}
         <div className="flex items-center justify-between mb-16 ml-0 lg:ml-20">
           <div>
-            <div className="inline-block mb-3">
+            {/* <div className="inline-block mb-3">
               <span
               style={{padding: "5px"}}
-              className={`bg-teal-100 text-teal-700 rounded-full text-sm font-semibold transition-all duration-300 ${
-                isScrolled ? 'shadow-lg' : ''
+              className={`bg-gray-800 text-white rounded-full text-sm font-semibold tracking-wide shadow-lg transition-all duration-300 ${
+                isScrolled ? 'shadow-xl' : ''
               }`}>
                 Featured Hotels
               </span>
-            </div>
-            <h2 className={`text-4xl font-bold text-gray-900 transition-all duration-300 ${
-              isScrolled ? 'text-3xl' : ''
+            </div> */}
+            <h2 className={`text-5xl font-bold text-gray-900 transition-all duration-300 ${
+              isScrolled ? 'text-4xl' : ''
             }`}>
               Check Out Premium Stays
             </h2>
+            <p className="text-gray-600 text-lg font-light mt-2">Discover our handpicked selection of luxury accommodations</p>
           </div>
 
           {/* Navigation Arrows */}
@@ -638,8 +596,8 @@ const FeaturedHotels = ({ selectedCategory = 'Hotel' }) => {
               disabled={currentIndex === 0}
               className={`w-12 h-12 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${
                 currentIndex === 0
-                  ? 'border-gray-200 text-gray-300 cursor-not-allowed'
-                  : 'border-gray-300 text-gray-700 hover:border-teal-500 hover:text-teal-500 hover:shadow-md'
+                  ? 'border-gray-300 text-gray-400 cursor-not-allowed'
+                  : 'border-gray-400 text-gray-700 hover:border-gray-800 hover:text-gray-900 hover:shadow-lg'
               }`}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -651,8 +609,8 @@ const FeaturedHotels = ({ selectedCategory = 'Hotel' }) => {
               disabled={currentIndex >= maxIndex}
               className={`w-12 h-12 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${
                 currentIndex >= maxIndex
-                  ? 'border-gray-200 text-gray-300 cursor-not-allowed'
-                  : 'border-gray-300 text-gray-700 hover:border-teal-500 hover:text-teal-500 hover:shadow-md'
+                  ? 'border-gray-300 text-gray-400 cursor-not-allowed'
+                  : 'border-gray-400 text-gray-700 hover:border-gray-800 hover:text-gray-900 hover:shadow-lg'
               }`}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -671,8 +629,8 @@ const FeaturedHotels = ({ selectedCategory = 'Hotel' }) => {
             {hotels.map((hotel) => (
               <div
                 key={hotel.id}
-                className="flex-shrink-0 bg-white rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 overflow-hidden group border border-gray-100"
-                style={{ 
+                className="flex-shrink-0 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden group border border-gray-200 bg-white"
+                style={{
                   width: `calc(${100 / itemsPerView}% - ${24 * (itemsPerView - 1) / itemsPerView}px)`,
                   minWidth: '280px'
                 }}
@@ -686,7 +644,7 @@ const FeaturedHotels = ({ selectedCategory = 'Hotel' }) => {
                   />
                   
                   {/* Badge */}
-                  <div className={`absolute top-4 left-4 ${hotel.badgeColor} text-white px-3 py-1 rounded-full text-xs font-semibold`}>
+                  <div className={`absolute top-4 left-4 ${hotel.badgeColor} text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg`}>
                     {hotel.badge}
                   </div>
 
@@ -696,7 +654,7 @@ const FeaturedHotels = ({ selectedCategory = 'Hotel' }) => {
                     className={`absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 transform hover:scale-110 ${
                       wishlist.includes(String(hotel.id))
                         ? 'bg-red-500 shadow-lg'
-                        : 'bg-white/90 backdrop-blur-sm hover:bg-white'
+                        : 'bg-white/90 backdrop-blur-sm hover:bg-white shadow-md'
                     }`}
                     title={wishlist.includes(String(hotel.id)) ? 'Remove from wishlist' : 'Add to wishlist'}
                   >
@@ -720,31 +678,31 @@ const FeaturedHotels = ({ selectedCategory = 'Hotel' }) => {
                 <div className="p-5">
                   {/* Price */}
                   <div className="flex items-baseline gap-2 mb-3">
-                    <span className="text-2xl font-bold text-teal-600">NPR {hotel.price.toLocaleString()}</span>
+                    <span className="text-2xl font-bold text-gray-900">NPR {hotel.price.toLocaleString()}</span>
                     <span className="text-sm text-gray-500">Start from</span>
                   </div>
 
                   {/* Hotel Name */}
-                  <h3 className="text-xl font-bold text-gray-900 mb-4 group-hover:text-teal-600 transition-colors">
+                  <h3 className="text-xl font-bold text-gray-900 mb-4 group-hover:text-gray-700 transition-colors">
                     {hotel.name}
                   </h3>
 
                   {/* Features */}
                   <div className="flex items-center gap-4 mb-4 text-sm text-gray-600">
                     <div className="flex items-center gap-1">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                       </svg>
                       <span>{hotel.rooms} Room</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
                       <span>{hotel.bathrooms} Bathroom</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
                       </svg>
                       <span>{hotel.area}</span>
@@ -752,10 +710,10 @@ const FeaturedHotels = ({ selectedCategory = 'Hotel' }) => {
                   </div>
 
                   {/* Footer */}
-                  <div className="pt-4 border-t border-gray-100 space-y-4">
+                  <div className="pt-4 border-t border-gray-200 space-y-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                         </svg>
@@ -765,7 +723,7 @@ const FeaturedHotels = ({ selectedCategory = 'Hotel' }) => {
                         {[...Array(5)].map((_, i) => (
                           <svg
                             key={i}
-                            className={`w-4 h-4 ${i < hotel.rating ? 'text-yellow-400' : 'text-gray-300'}`}
+                            className={`w-4 h-4 ${i < hotel.rating ? 'text-yellow-500' : 'text-gray-300'}`}
                             fill="currentColor"
                             viewBox="0 0 20 20"
                           >
@@ -775,44 +733,25 @@ const FeaturedHotels = ({ selectedCategory = 'Hotel' }) => {
                       </div>
                     </div>
                     
-                    {/* Add to Cart Button */}
-                    <button
-                      onClick={() => handleAddToCart(hotel.id)}
-                      disabled={loadingCart[hotel.id] || isInCart(hotel.id)}
-                      className={`w-full py-3.5 px-5 rounded-xl font-bold text-base transition-all duration-300 flex items-center justify-center gap-2.5 shadow-lg ${
-                        isInCart(hotel.id)
-                          ? 'bg-emerald-50 text-emerald-700 border-2 border-emerald-300 cursor-not-allowed shadow-emerald-100'
-                          : 'bg-gradient-to-r from-teal-500 to-cyan-600 text-white hover:from-teal-600 hover:to-cyan-700 hover:shadow-2xl hover:shadow-teal-500/50 transform hover:scale-[1.02] active:scale-[0.98]'
-                      }`}
-                      style={{
-                        letterSpacing: '0.3px'
-                      }}
-                      title={isInCart(hotel.id) ? 'Already in cart' : 'Add to cart'}
-                    >
-                      {loadingCart[hotel.id] ? (
-                        <>
-                          <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          <span className="font-semibold">Adding...</span>
-                        </>
-                      ) : isInCart(hotel.id) ? (
-                        <>
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                          </svg>
-                          <span>In Cart</span>
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                          </svg>
-                          <span>Add to Cart</span>
-                        </>
-                      )}
-                    </button>
+                    {/* View Hotel Info Button */}
+                    <div className="flex justify-center pt-2">
+                      <button
+                        onClick={() => toast.info('Hotel info page is on development phase rn', {
+                          position: "top-center",
+                          autoClose: 3000,
+                        })}
+                        className="py-2.5 px-6 rounded-lg font-semibold text-sm transition-all duration-300 flex items-center justify-center gap-2 shadow-md bg-[#00AB9A] text-white hover:bg-gray-900 hover:shadow-lg transform hover:scale-105 active:scale-95"
+                        style={{
+                          letterSpacing: '0.3px'
+                        }}
+                        title="View hotel information"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>View Hotel Info</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -834,8 +773,8 @@ const FeaturedHotels = ({ selectedCategory = 'Hotel' }) => {
                 onClick={() => setCurrentIndex(index)}
                 className={`h-2 rounded-full transition-all duration-300 ${
                   index === currentIndex
-                    ? 'w-8 bg-teal-600'
-                    : 'w-2 bg-gray-300 hover:bg-teal-400'
+                    ? 'w-8 bg-gray-800'
+                    : 'w-2 bg-gray-300 hover:bg-gray-500'
                 }`}
                 aria-label={`Go to slide ${index + 1}`}
               />

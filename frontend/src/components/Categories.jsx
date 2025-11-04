@@ -91,18 +91,19 @@ const Categories = ({ onCategorySelect, selectedCategory: externalSelectedCatego
   ];
 
   return (
-    <div className="w-full bg-gradient-to-b from-teal-50 to-blue-50 pt-32 pb-20 px-4 sm:px-6 lg:px-8 ml-0 lg:ml-20">
+    <div className="w-full bg-white pt-32 pb-20 px-4 sm:px-6 lg:px-8 ml-0 lg:ml-20">
       <div className="max-w-7xl mx-auto">
         {/* Section Header */}
         <div className="text-center mb-16" style={{marginLeft: "10.5rem"}}>
           <div className="inline-block mb-4">
-            <span className="px-6 py-2 bg-teal-100 text-teal-700 rounded-full text-sm font-medium">
+            <span className="px-6 py-2 bg-gray-800 text-white rounded-full text-sm font-semibold tracking-wide shadow-lg">
               Categories
             </span>
           </div>
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">
+          <h2 className="text-5xl font-bold text-gray-900 mb-4">
             Luxury & Comfort Choices
           </h2>
+          <p className="text-gray-600 text-lg font-light">Explore our premium collection of accommodations</p>
         </div>
 
         {/* Categories Grid */}
@@ -111,14 +112,16 @@ const Categories = ({ onCategorySelect, selectedCategory: externalSelectedCatego
             <div
               key={index}
               onClick={() => handleCategoryClick(category.name)}
-              className={`group relative bg-white rounded-2xl border-2 transition-all duration-300 cursor-pointer overflow-hidden w-full max-w-[200px] ${
-                selectedCategory === category.name ? 'border-teal-500 shadow-xl scale-105 ring-2 ring-teal-200' : 'border-gray-200 hover:border-teal-500 hover:shadow-lg hover:scale-102'
+              className={`group relative rounded-2xl border transition-all duration-300 cursor-pointer overflow-hidden w-full max-w-[200px] ${
+                selectedCategory === category.name
+                  ? 'bg-gray-100 border-gray-800 shadow-2xl scale-105 ring-2 ring-gray-800'
+                  : 'bg-white border-gray-300 hover:border-gray-600 hover:shadow-xl hover:scale-102 hover:bg-gray-50'
               }`}
             >
               {/* Background Image */}
-              <div className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-300">
-                <img 
-                  src={category.image} 
+              <div className="absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-300">
+                <img
+                  src={category.image}
                   alt={category.name}
                   className="w-full h-full object-cover"
                 />
@@ -127,17 +130,17 @@ const Categories = ({ onCategorySelect, selectedCategory: externalSelectedCatego
               {/* Content */}
               <div className="relative p-6 flex flex-col items-center text-center">
                 {/* Icon */}
-                <div className="mb-4">
+                <div className={`mb-4 transition-all duration-300 ${selectedCategory === category.name ? 'text-gray-800' : 'text-gray-700 group-hover:text-gray-900'}`}>
                   {category.icon}
                 </div>
 
                 {/* Category Name */}
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                <h3 className={`text-lg font-bold mb-1 transition-colors duration-300 ${selectedCategory === category.name ? 'text-gray-900' : 'text-gray-800 group-hover:text-gray-900'}`}>
                   {category.name}
                 </h3>
 
                 {/* Items Count */}
-                <p className="text-sm text-gray-500">
+                <p className={`text-sm transition-colors duration-300 ${selectedCategory === category.name ? 'text-gray-700' : 'text-gray-600 group-hover:text-gray-700'}`}>
                   {category.items}
                 </p>
               </div>
