@@ -5,6 +5,7 @@ import { toast } from 'react-toastify';
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  // eslint-disable-next-line no-unused-vars
   const [user, setUser] = useState({
     email: localStorage.getItem('email') || '',
     userId: localStorage.getItem('userId') || '',

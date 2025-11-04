@@ -7,6 +7,7 @@ import { getWishlist, getCart } from '../api/user';
 const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [user, setUser] = useState(null);
+  // eslint-disable-next-line no-unused-vars
   const [isScrolled, setIsScrolled] = useState(false);
   const [wishlistCount, setWishlistCount] = useState(0);
   const [cartCount, setCartCount] = useState(0);
