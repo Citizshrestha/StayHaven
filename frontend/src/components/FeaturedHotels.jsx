@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect,  } from 'react';
 import { getWishlist, toggleWishlist as toggleWishlistApi } from '../api/user';
 import { toast } from 'react-toastify';
+import {useNavigate} from "react-router-dom";
 // Hotel data moved outside component to avoid dependency issues
 const allHotels = [
     {
@@ -466,6 +467,7 @@ const FeaturedHotels = ({ selectedCategory = 'Hotel' }) => {
   const [filteredHotels, setFilteredHotels] = useState([]);
   const [wishlist, setWishlist] = useState([]);
   const [isScrolled, setIsScrolled] = useState(false);
+  const navigate = useNavigate();
 
   // Track scroll position for navbar effects
   useEffect(() => {
@@ -567,7 +569,8 @@ const FeaturedHotels = ({ selectedCategory = 'Hotel' }) => {
   };
 
   return (
-    <div className="w-full bg-gray-50 pb-20 px-4 sm:px-6 lg:px-8" style={{minHeight: "70vh", marginTop: "0px", paddingTop: "0px"}}>
+    <div 
+    className="w-full bg-gray-10 pb-20 px-4 sm:px-6 lg:px-8" style={{minHeight: "70vh", marginTop: "0px", paddingTop: "0px"}}>
       <div className="w-full max-w-[1600px] mx-auto">
         {/* Section Header */}
         <div className="flex items-center justify-between mb-16 ml-0 lg:ml-20">
@@ -581,8 +584,8 @@ const FeaturedHotels = ({ selectedCategory = 'Hotel' }) => {
                 Featured Hotels
               </span>
             </div> */}
-            <h2 className={`text-5xl font-bold text-gray-900 transition-all duration-300 ${
-              isScrolled ? 'text-4xl' : ''
+            <h2 className={`text-4xl font-bold text-[#17A998] transition-all duration-300 ${
+              isScrolled ? 'text-3xl' : ''
             }`}>
               Check Out Premium Stays
             </h2>
@@ -736,10 +739,7 @@ const FeaturedHotels = ({ selectedCategory = 'Hotel' }) => {
                     {/* View Hotel Info Button */}
                     <div className="flex justify-center pt-2">
                       <button
-                        onClick={() => toast.info('Hotel info page is on development phase rn', {
-                          position: "top-center",
-                          autoClose: 3000,
-                        })}
+                        onClick={() => navigate('/hotelInfo')}
                         className="py-2.5 px-6 rounded-lg font-semibold text-sm transition-all duration-300 flex items-center justify-center gap-2 shadow-md bg-[#00AB9A] text-white hover:bg-gray-900 hover:shadow-lg transform hover:scale-105 active:scale-95"
                         style={{
                           letterSpacing: '0.3px'

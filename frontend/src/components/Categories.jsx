@@ -94,28 +94,30 @@ const Categories = ({ onCategorySelect, selectedCategory: externalSelectedCatego
     <div className="w-full bg-white pt-32 pb-20 px-4 sm:px-6 lg:px-8 ml-0 lg:ml-20">
       <div className="max-w-7xl mx-auto">
         {/* Section Header */}
-        <div className="text-center mb-16" style={{marginLeft: "10.5rem"}}>
+        <div className="text-center mb-16" style={{marginLeft: "15.5rem"}}>
           <div className="inline-block mb-4">
-            <span className="px-6 py-2 bg-gray-800 text-white rounded-full text-sm font-semibold tracking-wide shadow-lg">
+            <span className="px-6 py-2 bg-gray-8 00 text-white rounded-full text-sm font-semibold tracking-wide shadow-lg">
               Categories
             </span>
           </div>
-          <h2 className="text-5xl font-bold text-gray-900 mb-4">
+          <h2 className="text-4xl font-bold text-[#00A998] mb-4">
             Luxury & Comfort Choices
           </h2>
           <p className="text-gray-600 text-lg font-light">Explore our premium collection of accommodations</p>
         </div>
 
         {/* Categories Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 justify-items-center" style={{marginLeft: "8rem", marginTop: "1rem"}}>
+        <div 
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 justify-items-center" style={{marginLeft: "8rem", marginTop: "1rem"}}>
           {categories.map((category, index) => (
             <div
               key={index}
+              style={{marginLeft: "6rem"}}
               onClick={() => handleCategoryClick(category.name)}
               className={`group relative rounded-2xl border transition-all duration-300 cursor-pointer overflow-hidden w-full max-w-[200px] ${
                 selectedCategory === category.name
-                  ? 'bg-gray-100 border-gray-800 shadow-2xl scale-105 ring-2 ring-gray-800'
-                  : 'bg-white border-gray-300 hover:border-gray-600 hover:shadow-xl hover:scale-102 hover:bg-gray-50'
+                  ? 'bg-gray-100 border-[#00A998] shadow-2xl scale-105 ring-2 ring-[#00A998]'
+                  : 'bg-white border-[#00A998] hover:border-[#00A998] hover:shadow-xl hover:scale-102 hover:bg-gray-50'
               }`}
             >
               {/* Background Image */}
@@ -139,10 +141,7 @@ const Categories = ({ onCategorySelect, selectedCategory: externalSelectedCatego
                   {category.name}
                 </h3>
 
-                {/* Items Count */}
-                <p className={`text-sm transition-colors duration-300 ${selectedCategory === category.name ? 'text-gray-700' : 'text-gray-600 group-hover:text-gray-700'}`}>
-                  {category.items}
-                </p>
+             
               </div>
             </div>
           ))}
