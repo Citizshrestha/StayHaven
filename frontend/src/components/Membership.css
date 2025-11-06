@@ -68,7 +68,7 @@ body, html {
 .hero-cta {
   padding: 15px 40px;
   border: none;
-  background: #02bd88;
+  background: #00a896;
   color: white;
   font-size: 1.1rem;
   border-radius: 30px;
@@ -78,7 +78,7 @@ body, html {
 }
 
 .hero-cta:hover {
-  background: #018b64;
+  background: #00796b;
   transform: translateY(-2px);
   box-shadow: 0 5px 15px rgba(0,0,0,0.2);
 }
