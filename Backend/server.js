@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
+import hotelRoutes from "./routes/hotelRoutes.js";
 import {Role} from "./models/role.schema.js";
 
 
@@ -16,16 +17,17 @@ connectDB();
 
 // Seed roles
 const seedRoles = async () => {
-    const roles = ['admin', 'staff', 'guest'];
+    const roles = ['admin', 'staff', 'guest', 'owner'];
     try {
         for (let roleName of roles){
             if (!(await Role.findOne({ name: roleName }))){
                 await new Role({ name: roleName }).save();
-                // console.log(`Role ${roleName} created`);
+                console.log(`✅ Role '${roleName}' created`);
             }
         }
+        console.log('✅ All roles seeded successfully');
     } catch (err) {
-        console.error('Error seeding roles:', err);
+        console.error('❌ Error seeding roles:', err);
     }
 };
 seedRoles();
@@ -52,6 +54,7 @@ app.get("/",(req,res)=> {
 });
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
+app.use('/api/hotels', hotelRoutes);
 
 
 

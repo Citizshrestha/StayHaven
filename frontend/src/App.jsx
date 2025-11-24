@@ -8,12 +8,14 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import Home from './components/Home';
 import Login from './components/Login';
 import Register from './components/Register';
-import Dashboard from './components/Dashboard';
 import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
-import ProtectedRoute from './components/ProtectedRoute';
 import OffersPage from "./components/OffersPage";
 import MembershipPage from "./components/MembershipPage";
+import HotelDetailsPage from './components/HotelDetails';
+import FilteredHotels from './components/FilteredHotels';
+import BookingConfirmed from './components/BookingConfirmed';
+import WaiterDashboard from './components/WaiterDashboard/WaiterDashboard';
 
 const App = () => {
   return (
@@ -25,7 +27,6 @@ const App = () => {
       <div className="w-screen min-h-screen overflow-x-hidden">
         <Routes>
           {/* Public Routes */}
-          <Route path="/home" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -33,13 +34,12 @@ const App = () => {
           <Route path="/" element={<Home />} />
           <Route path="/offers" element={<OffersPage />} />
           <Route path="/memberships" element={<MembershipPage />} />
+          <Route path="/hotel/:id" element={<HotelDetailsPage />} />
+          <Route path="/hotels" element={<FilteredHotels />} />
+          <Route path="/booking-confirmed" element={<BookingConfirmed />} />
           
-          {/* Protected Routes */}
-          <Route path="/dashboard" element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          } />
+          {/* Waiter Dashboard - Temporary public route for test */}
+          <Route path="/waiter-dashboard" element={<WaiterDashboard />} />
         </Routes>
       </div>
       

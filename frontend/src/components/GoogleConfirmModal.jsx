@@ -32,13 +32,13 @@ const GoogleConfirmModal = ({
               }}
             />
           ) : (
-            <div className="w-20 h-20 rounded-full mb-4 border-4 border-blue-400 shadow-md bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
+            <div className="w-20 h-20 rounded-full mb-4 border-4 border-blue-400 shadow-md bg-linear-to-br from-blue-500 to-purple-500 flex items-center justify-center">
               <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
             </div>
           )}
-          <div className="w-20 h-20 rounded-full mb-4 border-4 border-blue-400 shadow-md bg-gradient-to-br from-blue-500 to-purple-500 items-center justify-center" style={{display: 'none'}}>
+          <div className="w-20 h-20 rounded-full mb-4 border-4 border-blue-400 shadow-md bg-linear-to-br from-blue-500 to-purple-500 items-center justify-center" style={{display: 'none'}}>
             <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
@@ -51,7 +51,7 @@ const GoogleConfirmModal = ({
           </div>
           <p className="text-gray-600 mb-6">StayHaven will use your Google account to create your profile. Do you want to continue?</p>
           <button
-            className="bg-gradient-to-r from-blue-500 to-purple-500 text-white font-semibold px-8 py-2 rounded-lg shadow-md hover:from-blue-600 hover:to-purple-600 transition-colors text-lg mb-2"
+            className="bg-linear-to-r from-blue-500 to-purple-500 text-white font-semibold px-8 py-2 rounded-lg shadow-md hover:from-blue-600 hover:to-purple-600 transition-colors text-lg mb-2"
             onClick={onConfirm}
           >
             Yes, Continue

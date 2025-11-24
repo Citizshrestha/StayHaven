@@ -226,7 +226,7 @@ const HotelDetails = () => {
         </div>
       )}
 
-      <main style={{marginTop: "4.5rem", marginLeft: "1.3rem"}} className="w-full px-4 py-8 pt-20 lg:pt-24 lg:mt-20 lg:ml-4">
+      <main style={{marginTop: "4.5rem", marginLeft: "2rem"}} className="w-full px-4 py-8 pt-20 lg:pt-24 lg:mt-20 lg:ml-4">
         <div className="max-w-[1490px] mx-auto box-border">
           <div className="flex flex-wrap gap-2 mb-4">
             <a className="text-gray-500 text-sm font-medium leading-normal" href="#">USA</a>
@@ -320,7 +320,7 @@ const HotelDetails = () => {
                   <span className="text-gray-500">(1,284 reviews)</span>
                 </div>
                 </div>
-                <button style={{padding: "10px"}} className="flex items-center bg-gray-100 gap-2 px-4 py-2 border-none rounded-lg hover:bg-gray-50 transition text-gray-900">
+                <button style={{padding: "10px", marginRight: "1.5rem", marginTop: "1rem"}} className="flex items-center bg-gray-100 gap-2 px-4 py-2 border-none rounded-lg hover:bg-gray-50 transition text-gray-900">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                   </svg>
