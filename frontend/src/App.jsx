@@ -34,11 +34,12 @@ const App = () => {
           <Route path="/" element={<Home />} />
           <Route path="/offers" element={<OffersPage />} />
           <Route path="/memberships" element={<MembershipPage />} />
+          <Route path="/membership" element={<MembershipPage />} />
           <Route path="/hotel/:id" element={<HotelDetailsPage />} />
           <Route path="/hotels" element={<FilteredHotels />} />
           <Route path="/booking-confirmed" element={<BookingConfirmed />} />
           
-          {/* Waiter Dashboard - Temporary public route for test */}
+          {/* Waiter Dashboard - Temporary public route for testing */}
           <Route path="/waiter-dashboard" element={<WaiterDashboard />} />
         </Routes>
       </div>
