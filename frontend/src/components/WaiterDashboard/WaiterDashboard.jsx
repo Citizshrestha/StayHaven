@@ -7,7 +7,7 @@ import MobileBottomNav from "./MobileBottomNav";
 
 const WaiterDashboard = () => {
   const [activeFilter, setActiveFilter] = useState("all");
-  const [orders, _setOrders] = useState([
+  const [orders, setOrders] = useState([
     {
       id: "82301",
       status: "new",
@@ -35,33 +35,28 @@ const WaiterDashboard = () => {
         "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400",
     },
   ]);
-  const [_notifications, _setNotifications] = useState([
-    {
-      id: "1",
-      message: "New order received from Table 5",
-      time: "Just now",
-    },
-    {
-      id: "2",
-      message: "Order #82301 is ready to be served",
-      time: "10m ago",
-    },
-  ]);
+ 
+   const handleUpdateOrderStatus = (orderId, newStatus) => {
+      setOrders ((prevOrders) => 
+        prevOrders.map((order) => 
+          order.id === orderId ? {...order, status: newStatus} : order
+        )
+      );
+   };
+
+   const handleMarkServed = (orderId) => {
+      setOrders ((prevOrders) => prevOrders.filter ((order) => order.id !== orderId));
+   }
 
   return (
-    <div className="min-h-screen bg-[#F8F9FB] text-gray-900">
-      {/* Sidebar - Hidden on mobile, fixed on desktop */}
-      <aside className="hidden lg:flex lg:flex-col lg:fixed lg:left-0 lg:top-0 lg:h-screen lg:w-[260px] lg:z-30 lg:bg-white">
+    <div className="min-h-screen bg-[#F8F9FB] text-gray-900 lg:flex lg:h-screen lg:overflow-hidden">
+      {/* Sidebar - Hidden on mobile, visible flex item on desktop */}
+      <aside className="hidden lg:block lg:w-[280px] lg:shrink-0 lg:h-full lg:bg-white lg:border-r lg:border-gray-100 lg:overflow-y-auto">
         <Sidebar />
       </aside>
 
-      {/* Right Panel - Fixed on desktop */}
-      <aside className="hidden lg:flex lg:flex-col lg:fixed lg:right-0 lg:top-0 lg:h-screen lg:w-[360px] lg:z-30 lg:bg-white lg:border-l lg:border-gray-100">
-        <RightPanel />
-      </aside>
-
-      {/* Main Content Area */}
-      <main className="w-full min-h-screen lg:ml-[260px] lg:mr-[360px]">
+      {/* Main Content Area - Flex grow to fill space */}
+      <main className="flex-1 h-full overflow-y-auto relative w-full">
         {/* Mobile Header */}
         <header className="lg:hidden">
           <MobileHeader />
@@ -72,8 +67,15 @@ const WaiterDashboard = () => {
           orders={orders}
           activeFilter={activeFilter}
           setActiveFilter={setActiveFilter}
+          onUpdateOrderStatus = {handleUpdateOrderStatus}
+          onMarkServed = {handleMarkServed}
         />
       </main>
+
+      {/* Right Panel - Hidden on mobile, visible flex item on desktop */}
+      <aside className="hidden lg:block lg:w-[380px] lg:shrink-0 lg:h-full lg:bg-white lg:border-l lg:border-gray-100 lg:overflow-y-auto">
+        <RightPanel />
+      </aside>
 
       {/* Mobile Bottom Navigation */}
       <nav className="lg:hidden">

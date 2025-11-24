@@ -14,76 +14,140 @@ const Sidebar = () => {
     setActiveMenu(menu);
   };
 
-  const menuItems = [
-    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { id: "assignedTables", label: "Assigned Tables", icon: UtensilsCrossed },
-    { id: "notifications", label: "Notifications", icon: Bell, badge: 3 },
-  ];
+  const containerStyle = {
+    height: "100%",
+    backgroundColor: "white",
+    display: "flex",
+    flexDirection: "column",
+    borderRight: "1px solid #E5E7EB",
+    fontFamily: "'Nunito', sans-serif",
+  };
+
+  const profileSectionStyle = {
+    padding: "24px 24px 32px 24px",
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+  };
+
+  const profileImageStyle = {
+    width: "48px",
+    height: "48px",
+    borderRadius: "50%",
+    objectFit: "cover",
+    flexShrink: 0,
+  };
+
+  const navSectionStyle = {
+    flex: 1,
+    padding: "0 16px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "8px",
+  };
+
+  const bottomSectionStyle = {
+    padding: "24px 16px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "8px",
+    borderTop: "1px solid transparent", 
+  };
+
+  const getMenuItemStyle = (isActive) => ({
+    width: "100%",
+    padding: "12px 20px",
+    borderRadius: "12px",
+    display: "flex",
+    alignItems: "center",
+    gap: "16px",
+    transition: "all 0.2s ease",
+    border: "none",
+    outline: "none",
+    cursor: "pointer",
+    backgroundColor: isActive ? "#D1FAE5" : "transparent",
+    color: isActive ? "#059669" : "#374151",
+    fontWeight: isActive ? "600" : "500",
+  });
+
+  const badgeStyle = {
+    marginLeft: "auto",
+    width: "20px",
+    height: "20px",
+    backgroundColor: "#3B82F6",
+    color: "white",
+    borderRadius: "50%",
+    fontSize: "11px",
+    fontWeight: "700",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  };
 
   return (
-    <div className="h-full w-full bg-white flex flex-col border-r border-gray-100">
+    <div style={containerStyle}>
       {/* User Profile */}
-      <div className="px-6 pt-6 pb-5">
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <img
-              src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=120&h=120&fit=crop&crop=faces"
-              alt="Profile"
-              className="w-11 h-11 rounded-full object-cover"
-            />
-            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-[#10B981] border-2 border-white rounded-full" />
-          </div>
-          <div className="min-w-0">
-            <h3 className="text-[15px] font-bold text-gray-900 leading-tight">
-              Alex Miller
-            </h3>
-            <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400">
-              Waiter
-            </p>
-          </div>
+      <div style={profileSectionStyle}>
+        <img
+          src="https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=100&auto=format&fit=crop&q=60"
+          alt="User"
+          style={profileImageStyle}
+        />
+        <div style={{ minWidth: 0 }}>
+          <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "700", color: "#111827" }}>
+            Alex Miller
+          </h3>
+          <p style={{ margin: 0, fontSize: "14px", color: "#6B7280" }}>Waiter</p>
         </div>
       </div>
 
       {/* Navigation Items */}
-      <nav className="flex-1 px-4 pt-4 space-y-1">
-        {menuItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeMenu === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => handleMenuClick(item.id)}
-              className={`group relative w-full overflow-hidden rounded-lg px-4 py-2.5 text-left transition-all duration-200 ${
-                isActive
-                  ? "bg-emerald-50 text-emerald-600"
-                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <Icon className="w-5 h-5" strokeWidth={2} />
-                <span className="text-[14px] font-medium">
-                  {item.label}
-                </span>
-                {item.badge && (
-                  <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-500 px-1.5 text-[11px] font-bold text-white">
-                    {item.badge}
-                  </span>
-                )}
-              </div>
-            </button>
-          );
-        })}
+      <nav style={navSectionStyle}>
+        {/* Dashboard Button */}
+        <button
+          style={getMenuItemStyle(activeMenu === "dashboard")}
+          onClick={() => handleMenuClick("dashboard")}
+        >
+          <LayoutDashboard size={20} />
+          <span style={{ fontSize: "14px" }}>Dashboard</span>
+        </button>
+
+        {/* Assigned Tables Button */}
+        <button
+          style={getMenuItemStyle(activeMenu === "assignedTables")}
+          onClick={() => handleMenuClick("assignedTables")}
+        >
+          <UtensilsCrossed size={20} />
+          <span style={{ fontSize: "14px" }}>Assigned Tables</span>
+        </button>
+
+        {/* Notifications Button */}
+        <button
+          style={getMenuItemStyle(activeMenu === "notifications")}
+          onClick={() => handleMenuClick("notifications")}
+        >
+          <Bell size={20} />
+          <span style={{ fontSize: "14px" }}>Notifications</span>
+          <span style={badgeStyle}>3</span>
+        </button>
       </nav>
 
       {/* Bottom Actions */}
-      <div className="px-4 pb-6 pt-3 border-t border-gray-100 space-y-1">
-        <button className="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-[14px] font-medium text-gray-600 transition hover:bg-gray-50 hover:text-gray-900">
-          <Settings className="w-5 h-5" strokeWidth={2} />
-          Settings
+      <div style={bottomSectionStyle}>
+        <button
+          style={getMenuItemStyle(activeMenu === "settings")}
+          onClick={() => handleMenuClick("settings")}
+        >
+          <Settings size={20} />
+          <span style={{ fontSize: "14px" }}>Settings</span>
         </button>
-        <button className="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-[14px] font-medium text-gray-600 transition hover:bg-red-50 hover:text-red-600">
-          <LogOut className="w-5 h-5" strokeWidth={2} />
-          Log Out
+
+        <button
+          style={getMenuItemStyle(activeMenu === "logout")}
+          onClick={() => handleMenuClick("logout")}
+        >
+          <LogOut size={20} />
+          <span style={{ fontSize: "14px" }}>Log Out</span>
         </button>
       </div>
     </div>
