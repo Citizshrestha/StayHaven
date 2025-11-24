@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
-const BookingSidebar = ({ pricePerNight, nights, taxesAndFees, guests }) => {
+const BookingSidebar = ({ pricePerNight, nights, taxesAndFees, guests, hotelName, hotelAddress, hotelImage }) => {
+  const navigate = useNavigate();
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
   const [selectedGuests, setSelectedGuests] = useState(guests);
@@ -43,8 +45,8 @@ const BookingSidebar = ({ pricePerNight, nights, taxesAndFees, guests }) => {
         <div style={{ borderTop: '1px solid #e5e7eb', marginBottom: '1rem' }} />
 
         {/* Check-in and Check-out */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
-          <div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+          <div style={{ minWidth: 0 }}>
             <label style={{ 
               display: 'block', 
               fontSize: '14px', 
@@ -62,17 +64,18 @@ const BookingSidebar = ({ pricePerNight, nights, taxesAndFees, guests }) => {
               style={{
                 width: '100%',
                 height: '48px',
-                padding: '12px 16px',
+                padding: '12px 8px',
                 border: '1px solid #e5e7eb',
                 borderRadius: '12px',
-                fontSize: '15px',
+                fontSize: '14px',
                 color: '#111827',
                 outline: 'none',
                 background: '#ffffff',
+                boxSizing: 'border-box',
               }}
             />
           </div>
-          <div>
+          <div style={{ minWidth: 0 }}>
             <label style={{ 
               display: 'block', 
               fontSize: '14px', 
@@ -90,13 +93,14 @@ const BookingSidebar = ({ pricePerNight, nights, taxesAndFees, guests }) => {
               style={{
                 width: '100%',
                 height: '48px',
-                padding: '12px 16px',
+                padding: '12px 8px',
                 border: '1px solid #e5e7eb',
                 borderRadius: '12px',
-                fontSize: '15px',
+                fontSize: '14px',
                 color: '#111827',
                 outline: 'none',
                 background: '#ffffff',
+                boxSizing: 'border-box',
               }}
             />
           </div>
@@ -171,6 +175,21 @@ const BookingSidebar = ({ pricePerNight, nights, taxesAndFees, guests }) => {
         
         {/* Book Now Button */}
         <button
+          onClick={() => {
+            navigate('/booking-confirmed', {
+              state: {
+                bookingReference: '#SH837190',
+                hotelName: hotelName || 'The Grand Coastal Hotel',
+                hotelAddress: hotelAddress || '123 Ocean Drive, Sunnyville',
+                hotelImage: hotelImage || 'https://via.placeholder.com/200x150',
+                checkIn: checkIn || 'Fri, 16 Aug 2024',
+                checkOut: checkOut || 'Mon, 19 Aug 2024',
+                guests: selectedGuests || guests,
+                roomType: 'Deluxe Queen Room',
+                totalPaid: total
+              }
+            });
+          }}
           style={{
             width: '85%',
             height: '48px',

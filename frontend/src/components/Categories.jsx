@@ -94,12 +94,7 @@ const Categories = ({ onCategorySelect, selectedCategory: externalSelectedCatego
     <div className="w-full bg-white pt-32 pb-20 px-4 sm:px-6 lg:px-8 ml-0 lg:ml-20">
       <div className="max-w-7xl mx-auto">
         {/* Section Header */}
-        <div className="text-center mb-16" style={{marginLeft: "15.5rem"}}>
-          <div className="inline-block mb-4">
-            <span className="px-6 py-2 bg-gray-8 00 text-white rounded-full text-sm font-semibold tracking-wide shadow-lg">
-              Categories
-            </span>
-          </div>
+        <div className="text-center mb-16" style={{marginLeft: "13.5rem"}}>
           <h2 className="text-4xl font-bold text-[#00A998] mb-4">
             Luxury & Comfort Choices
           </h2>

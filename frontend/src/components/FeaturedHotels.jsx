@@ -1,676 +1,528 @@
-import { useState, useEffect,  } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getWishlist, toggleWishlist as toggleWishlistApi } from '../api/user';
 import { toast } from 'react-toastify';
-import {useNavigate} from "react-router-dom";
-// Hotel data moved outside component to avoid dependency issues
-const allHotels = [
+
+// Property data organized by category
+const propertyData = {
+  Villa: [
     {
-      id: 1,
-      name: 'Azure Haven Resort',
-      price: 8500,
-      image: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?q=80&w=2070&auto=format&fit=crop',
-      badge: 'Most Popular',
-      badgeColor: 'bg-blue-600',
-      rooms: 3,
-      bathrooms: 1,
-      area: '8\'9 m2',
-      rating: 5,
-      reviews: 9,
-      location: 'Thailand',
-      category: 'Resort'
-    },
-    {
-      id: 2,
-      name: 'Serene Vista Hotel',
-      price: 4500,
-      image: 'https://images.unsplash.com/photo-1564501049412-61c2a3083791?q=80&w=2070&auto=format&fit=crop',
-      badge: 'New Launched',
-      badgeColor: 'bg-red-600',
-      rooms: 3,
-      bathrooms: 1,
-      area: '8\'9 m2',
-      rating: 5,
-      reviews: 9,
-      location: 'Thailand',
-      category: 'Hotel'
-    },
-    {
-      id: 3,
-      name: 'Velvet Nest Suites',
-      price: 5200,
-      image: 'https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?q=80&w=2049&auto=format&fit=crop',
-      badge: 'Most Popular',
-      badgeColor: 'bg-blue-600',
-      rooms: 3,
-      bathrooms: 1,
-      area: '8\'9 m2',
-      rating: 5,
-      reviews: 9,
-      location: 'Thailand',
-      category: 'Hotel'
-    },
-    {
-      id: 4,
-      name: 'Lush Bloom Villa',
-      price: 12500,
+      id: 'villa-1',
+      name: 'Sunset Villa Paradise',
+      price: 450,
       image: 'https://images.unsplash.com/photo-1613490493576-7fde63acd811?q=80&w=2071&auto=format&fit=crop',
-      badge: 'New Launched',
-      badgeColor: 'bg-red-600',
-      rooms: 3,
-      bathrooms: 1,
-      area: '8\'9 m2',
-      rating: 5,
-      reviews: 9,
-      location: 'Thailand',
-      category: 'Villa'
-    },
-    {
-      id: 5,
-      name: 'Golden Sands Resort',
-      price: 9800,
-      image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?q=80&w=2070&auto=format&fit=crop',
       badge: 'Most Popular',
-      badgeColor: 'bg-blue-600',
-      rooms: 4,
-      bathrooms: 2,
-      area: '10\'5 m2',
-      rating: 5,
-      reviews: 12,
-      location: 'Maldives',
-      category: 'Resort'
+      badgeColor: '#2563EB',
+      rooms: 5,
+      bathrooms: 4,
+      area: '350',
+      rating: 4.9,
+      location: 'Bali, Indonesia'
     },
     {
-      id: 6,
-      name: 'Ocean Breeze Hotel',
-      price: 3800,
-      image: 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?q=80&w=2080&auto=format&fit=crop',
-      badge: 'New Launched',
-      badgeColor: 'bg-red-600',
-      rooms: 2,
-      bathrooms: 1,
-      area: '7\'2 m2',
-      rating: 4,
-      reviews: 7,
-      location: 'Bali',
-      category: 'Hotel'
-    },
-    {
-      id: 7,
-      name: 'Mountain View Cottage',
-      price: 3200,
-      image: 'https://images.unsplash.com/photo-1518780664697-55e3ad937233?q=80&w=2065&auto=format&fit=crop',
-      badge: 'Most Popular',
-      badgeColor: 'bg-blue-600',
-      rooms: 2,
-      bathrooms: 1,
-      area: '6\'5 m2',
-      rating: 5,
-      reviews: 8,
-      location: 'Switzerland',
-      category: 'Cottage'
-    },
-    {
-      id: 8,
-      name: 'Sunset Bungalow',
-      price: 4200,
+      id: 'villa-2',
+      name: 'Ocean View Villa',
+      price: 380,
       image: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=2070&auto=format&fit=crop',
       badge: 'New Launched',
-      badgeColor: 'bg-red-600',
-      rooms: 3,
-      bathrooms: 2,
-      area: '9\'0 m2',
-      rating: 4,
-      reviews: 6,
-      location: 'Fiji',
-      category: 'Bungalow'
+      badgeColor: '#DC2626',
+      rooms: 4,
+      bathrooms: 3,
+      area: '280',
+      rating: 4.8,
+      location: 'Maldives'
     },
     {
-      id: 9,
-      name: 'Urban Duplex Suite',
-      price: 6500,
+      id: 'villa-3',
+      name: 'Mountain Retreat Villa',
+      price: 420,
       image: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=2075&auto=format&fit=crop',
       badge: 'Most Popular',
-      badgeColor: 'bg-blue-600',
-      rooms: 4,
-      bathrooms: 2,
-      area: '11\'2 m2',
-      rating: 5,
-      reviews: 10,
-      location: 'Dubai',
-      category: 'Duplex'
-    },
-    {
-      id: 10,
-      name: 'Paradise Resort & Spa',
-      price: 11500,
-      image: 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?q=80&w=2070&auto=format&fit=crop',
-      badge: 'New Launched',
-      badgeColor: 'bg-red-600',
-      rooms: 5,
-      bathrooms: 3,
-      area: '12\'8 m2',
-      rating: 5,
-      reviews: 15,
-      location: 'Seychelles',
-      category: 'Resort'
-    },
-    // Additional Hotels
-    {
-      id: 11,
-      name: 'Grand Plaza Hotel',
-      price: 5500,
-      image: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?q=80&w=2070&auto=format&fit=crop',
-      badge: 'Most Popular',
-      badgeColor: 'bg-blue-600',
-      rooms: 2,
-      bathrooms: 1,
-      area: '7\'5 m2',
-      rating: 4,
-      reviews: 11,
-      location: 'Singapore',
-      category: 'Hotel'
-    },
-    {
-      id: 12,
-      name: 'Skyline Boutique Hotel',
-      price: 4800,
-      image: 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?q=80&w=2070&auto=format&fit=crop',
-      badge: 'New Launched',
-      badgeColor: 'bg-red-600',
-      rooms: 3,
-      bathrooms: 2,
-      area: '8\'2 m2',
-      rating: 5,
-      reviews: 8,
-      location: 'Bangkok',
-      category: 'Hotel'
-    },
-    {
-      id: 13,
-      name: 'Royal Heritage Hotel',
-      price: 6200,
-      image: 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?q=80&w=2074&auto=format&fit=crop',
-      badge: 'Most Popular',
-      badgeColor: 'bg-blue-600',
-      rooms: 4,
-      bathrooms: 2,
-      area: '9\'8 m2',
-      rating: 5,
-      reviews: 14,
-      location: 'Kathmandu',
-      category: 'Hotel'
-    },
-    {
-      id: 14,
-      name: 'Crystal Bay Hotel',
-      price: 3900,
-      image: 'https://images.unsplash.com/photo-1455587734955-081b22074882?q=80&w=2070&auto=format&fit=crop',
-      badge: 'New Launched',
-      badgeColor: 'bg-red-600',
-      rooms: 2,
-      bathrooms: 1,
-      area: '6\'8 m2',
-      rating: 4,
-      reviews: 6,
-      location: 'Phuket',
-      category: 'Hotel'
-    },
-    // Additional Villas
-    {
-      id: 15,
-      name: 'Emerald Garden Villa',
-      price: 15500,
-      image: 'https://images.unsplash.com/photo-1602343168117-bb8ffe3e2e9f?q=80&w=2075&auto=format&fit=crop',
-      badge: 'Most Popular',
-      badgeColor: 'bg-blue-600',
-      rooms: 5,
-      bathrooms: 3,
-      area: '14\'2 m2',
-      rating: 5,
-      reviews: 18,
-      location: 'Bali',
-      category: 'Villa'
-    },
-    {
-      id: 16,
-      name: 'Sunset Paradise Villa',
-      price: 13800,
-      image: 'https://images.unsplash.com/photo-1613977257363-707ba9348227?q=80&w=2070&auto=format&fit=crop',
-      badge: 'New Launched',
-      badgeColor: 'bg-red-600',
-      rooms: 4,
-      bathrooms: 3,
-      area: '12\'6 m2',
-      rating: 5,
-      reviews: 12,
-      location: 'Phuket',
-      category: 'Villa'
-    },
-    {
-      id: 17,
-      name: 'Oceanfront Luxury Villa',
-      price: 18500,
-      image: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=2070&auto=format&fit=crop',
-      badge: 'Most Popular',
-      badgeColor: 'bg-blue-600',
+      badgeColor: '#2563EB',
       rooms: 6,
-      bathrooms: 4,
-      area: '16\'5 m2',
-      rating: 5,
-      reviews: 22,
-      location: 'Maldives',
-      category: 'Villa'
+      bathrooms: 5,
+      area: '400',
+      rating: 5.0,
+      location: 'Swiss Alps'
+    }
+  ],
+  Hotel: [
+    {
+      id: 'hotel-1',
+      name: 'The Grand Elysian',
+      price: 250,
+      image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?q=80&w=2070&auto=format&fit=crop',
+      badge: 'Most Popular',
+      badgeColor: '#2563EB',
+      rooms: 1,
+      bathrooms: 1,
+      area: '45',
+      rating: 4.8,
+      location: 'Thamel, Kathmandu'
     },
     {
-      id: 18,
-      name: 'Mountain Peak Villa',
-      price: 11200,
-      image: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?q=80&w=2053&auto=format&fit=crop',
+      id: 'hotel-2',
+      name: 'Himalayan Oasis',
+      price: 320,
+      image: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?q=80&w=2070&auto=format&fit=crop',
       badge: 'New Launched',
-      badgeColor: 'bg-red-600',
-      rooms: 3,
-      bathrooms: 2,
-      area: '10\'8 m2',
-      rating: 4,
-      reviews: 9,
-      location: 'Pokhara',
-      category: 'Villa'
+      badgeColor: '#DC2626',
+      rooms: 1,
+      bathrooms: 1,
+      area: '55',
+      rating: 4.9,
+      location: 'Lazimpat, Kathmandu'
     },
-    // Additional Resorts
     {
-      id: 19,
-      name: 'Coral Reef Resort',
-      price: 10500,
+      id: 'hotel-3',
+      name: 'Boudha Boutique Hotel',
+      price: 180,
       image: 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?q=80&w=2080&auto=format&fit=crop',
       badge: 'Most Popular',
-      badgeColor: 'bg-blue-600',
-      rooms: 4,
-      bathrooms: 2,
-      area: '11\'3 m2',
-      rating: 5,
-      reviews: 16,
-      location: 'Mauritius',
-      category: 'Resort'
+      badgeColor: '#2563EB',
+      rooms: 1,
+      bathrooms: 1,
+      area: '40',
+      rating: 4.7,
+      location: 'Boudha, Kathmandu'
     },
     {
-      id: 20,
-      name: 'Tranquil Waters Resort',
-      price: 9200,
-      image: 'https://images.unsplash.com/photo-1584132967334-10e028bd69f7?q=80&w=2070&auto=format&fit=crop',
+      id: 'hotel-4',
+      name: 'Durbar Square Inn',
+      price: 150,
+      image: 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?q=80&w=2070&auto=format&fit=crop',
       badge: 'New Launched',
-      badgeColor: 'bg-red-600',
+      badgeColor: '#DC2626',
+      rooms: 1,
+      bathrooms: 1,
+      area: '35',
+      rating: 4.5,
+      location: 'Basantapur, Kathmandu'
+    }
+  ],
+  Resort: [
+    {
+      id: 'resort-1',
+      name: 'Azure Haven Resort',
+      price: 520,
+      image: 'https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?q=80&w=2049&auto=format&fit=crop',
+      badge: 'Most Popular',
+      badgeColor: '#2563EB',
+      rooms: 2,
+      bathrooms: 2,
+      area: '120',
+      rating: 5.0,
+      location: 'Phuket, Thailand'
+    },
+    {
+      id: 'resort-2',
+      name: 'Tropical Paradise Resort',
+      price: 480,
+      image: 'https://images.unsplash.com/photo-1596436889106-be35e843f974?q=80&w=2070&auto=format&fit=crop',
+      badge: 'New Launched',
+      badgeColor: '#DC2626',
+      rooms: 2,
+      bathrooms: 2,
+      area: '110',
+      rating: 4.9,
+      location: 'Bali, Indonesia'
+    },
+    {
+      id: 'resort-3',
+      name: 'Seaside Luxury Resort',
+      price: 550,
+      image: 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?q=80&w=2070&auto=format&fit=crop',
+      badge: 'Most Popular',
+      badgeColor: '#2563EB',
       rooms: 3,
       bathrooms: 2,
-      area: '9\'7 m2',
-      rating: 4,
-      reviews: 10,
-      location: 'Krabi',
-      category: 'Resort'
-    },
+      area: '150',
+      rating: 4.8,
+      location: 'Maldives'
+    }
+  ],
+  Cottage: [
     {
-      id: 21,
-      name: 'Tropical Breeze Resort',
-      price: 12800,
-      image: 'https://images.unsplash.com/photo-1540541338287-41700207dee6?q=80&w=2070&auto=format&fit=crop',
+      id: 'cottage-1',
+      name: 'Cozy Mountain Cottage',
+      price: 180,
+      image: 'https://images.unsplash.com/photo-1518780664697-55e3ad937233?q=80&w=2065&auto=format&fit=crop',
       badge: 'Most Popular',
-      badgeColor: 'bg-blue-600',
-      rooms: 5,
-      bathrooms: 3,
-      area: '13\'2 m2',
-      rating: 5,
-      reviews: 19,
-      location: 'Fiji',
-      category: 'Resort'
-    },
-    // Additional Cottages
-    {
-      id: 22,
-      name: 'Riverside Cottage',
-      price: 2800,
-      image: 'https://images.unsplash.com/photo-1499696010180-025ef6e1a8f9?q=80&w=2070&auto=format&fit=crop',
-      badge: 'Most Popular',
-      badgeColor: 'bg-blue-600',
+      badgeColor: '#2563EB',
       rooms: 2,
       bathrooms: 1,
-      area: '5\'8 m2',
-      rating: 4,
-      reviews: 7,
-      location: 'Scotland',
-      category: 'Cottage'
+      area: '75',
+      rating: 4.7,
+      location: 'Scottish Highlands'
     },
     {
-      id: 23,
-      name: 'Forest Haven Cottage',
-      price: 3500,
-      image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=80&w=2070&auto=format&fit=crop',
+      id: 'cottage-2',
+      name: 'Lakeside Cottage',
+      price: 160,
+      image: 'https://images.unsplash.com/photo-1449158743715-0a90ebb6d2d8?q=80&w=2070&auto=format&fit=crop',
       badge: 'New Launched',
-      badgeColor: 'bg-red-600',
-      rooms: 3,
-      bathrooms: 1,
-      area: '6\'9 m2',
-      rating: 5,
-      reviews: 5,
-      location: 'Canada',
-      category: 'Cottage'
-    },
-    {
-      id: 24,
-      name: 'Alpine Retreat Cottage',
-      price: 4100,
-      image: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=2070&auto=format&fit=crop',
-      badge: 'Most Popular',
-      badgeColor: 'bg-blue-600',
+      badgeColor: '#DC2626',
       rooms: 2,
       bathrooms: 1,
-      area: '6\'2 m2',
-      rating: 5,
-      reviews: 9,
-      location: 'Austria',
-      category: 'Cottage'
-    },
-    // Additional Bungalow
+      area: '65',
+      rating: 4.6,
+      location: 'Lake District, UK'
+    }
+  ],
+  Bungalow: [
     {
-      id: 25,
-      name: 'Beach Paradise Bungalow',
-      price: 3800,
+      id: 'bungalow-1',
+      name: 'Beach Front Bungalow',
+      price: 220,
+      image: 'https://images.unsplash.com/photo-1602002418082-a4443e081dd1?q=80&w=2074&auto=format&fit=crop',
+      badge: 'Most Popular',
+      badgeColor: '#2563EB',
+      rooms: 2,
+      bathrooms: 1,
+      area: '80',
+      rating: 4.8,
+      location: 'Goa, India'
+    },
+    {
+      id: 'bungalow-2',
+      name: 'Garden Bungalow',
+      price: 200,
       image: 'https://images.unsplash.com/photo-1439066615861-d1af74d74000?q=80&w=2073&auto=format&fit=crop',
       badge: 'New Launched',
-      badgeColor: 'bg-red-600',
+      badgeColor: '#DC2626',
       rooms: 2,
       bathrooms: 1,
-      area: '7\'8 m2',
-      rating: 4,
-      reviews: 8,
-      location: 'Goa',
-      category: 'Bungalow'
-    },
-    // Additional Duplexes
+      area: '70',
+      rating: 4.5,
+      location: 'Kerala, India'
+    }
+  ],
+  Duplex: [
     {
-      id: 26,
+      id: 'duplex-1',
       name: 'Modern Loft Duplex',
-      price: 7200,
+      price: 350,
       image: 'https://images.unsplash.com/photo-1484154218962-a197022b5858?q=80&w=2074&auto=format&fit=crop',
       badge: 'Most Popular',
-      badgeColor: 'bg-blue-600',
-      rooms: 4,
-      bathrooms: 3,
-      area: '12\'5 m2',
-      rating: 5,
-      reviews: 13,
-      location: 'Tokyo',
-      category: 'Duplex'
+      badgeColor: '#2563EB',
+      rooms: 3,
+      bathrooms: 2,
+      area: '180',
+      rating: 4.9,
+      location: 'Tokyo, Japan'
     },
     {
-      id: 27,
+      id: 'duplex-2',
       name: 'Executive Duplex Suite',
-      price: 8500,
+      price: 380,
       image: 'https://images.unsplash.com/photo-1502672260066-6bc35f0a1f75?q=80&w=2080&auto=format&fit=crop',
       badge: 'New Launched',
-      badgeColor: 'bg-red-600',
-      rooms: 5,
+      badgeColor: '#DC2626',
+      rooms: 4,
       bathrooms: 3,
-      area: '13\'8 m2',
-      rating: 5,
-      reviews: 11,
-      location: 'Seoul',
-      category: 'Duplex'
+      area: '200',
+      rating: 5.0,
+      location: 'Seoul, Korea'
     },
     {
-      id: 28,
-      name: 'Skyview Duplex',
-      price: 6800,
-      image: 'https://images.unsplash.com/photo-1493809842364-78817add7ffb?q=80&w=2070&auto=format&fit=crop',
-      badge: 'Most Popular',
-      badgeColor: 'bg-blue-600',
-      rooms: 3,
-      bathrooms: 2,
-      area: '10\'2 m2',
-      rating: 4,
-      reviews: 9,
-      location: 'Mumbai',
-      category: 'Duplex'
-    },
-    {
-      id: 29,
-      name: 'Penthouse Duplex',
-      price: 9800,
-      image: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?q=80&w=2070&auto=format&fit=crop',
-      badge: 'New Launched',
-      badgeColor: 'bg-red-600',
-      rooms: 5,
-      bathrooms: 4,
-      area: '14\'5 m2',
-      rating: 5,
-      reviews: 15,
-      location: 'New York',
-      category: 'Duplex'
-    },
-    {
-      id: 30,
+      id: 'duplex-3',
       name: 'City Centre Duplex',
-      price: 5900,
+      price: 320,
       image: 'https://images.unsplash.com/photo-1556912172-45b7abe8b7e1?q=80&w=2070&auto=format&fit=crop',
       badge: 'Most Popular',
-      badgeColor: 'bg-blue-600',
+      badgeColor: '#2563EB',
       rooms: 3,
       bathrooms: 2,
-      area: '9\'8 m2',
-      rating: 4,
-      reviews: 7,
-      location: 'London',
-      category: 'Duplex'
+      area: '160',
+      rating: 4.7,
+      location: 'London, UK'
     }
-];
+  ]
+};
 
-const FeaturedHotels = ({ selectedCategory = 'Hotel' }) => {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [filteredHotels, setFilteredHotels] = useState([]);
-  const [wishlist, setWishlist] = useState([]);
-  const [isScrolled, setIsScrolled] = useState(false);
+const FeaturedHotels = () => {
   const navigate = useNavigate();
+  const [selectedCategory, setSelectedCategory] = useState('Hotel');
+  const [wishlist, setWishlist] = useState([]);
 
-  // Track scroll position for navbar effects
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrollTop = window.pageYOffset;
-      setIsScrolled(scrollTop > 100);
-    };
+  const categories = [
+    {
+      name: 'Villa',
+      icon: (
+        <svg style={{ width: '32px', height: '32px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+        </svg>
+      )
+    },
+    {
+      name: 'Hotel',
+      icon: (
+        <svg style={{ width: '32px', height: '32px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+        </svg>
+      )
+    },
+    {
+      name: 'Resort',
+      icon: (
+        <svg style={{ width: '32px', height: '32px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 21h18M4 18h16M6 18V9l6-6 6 6v9M9 21v-7a1 1 0 011-1h4a1 1 0 011 1v7" />
+        </svg>
+      )
+    },
+    {
+      name: 'Cottage',
+      icon: (
+        <svg style={{ width: '32px', height: '32px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h3a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h3a1 1 0 001-1V10" />
+        </svg>
+      )
+    },
+    {
+      name: 'Bungalow',
+      icon: (
+        <svg style={{ width: '32px', height: '32px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
+        </svg>
+      )
+    },
+    {
+      name: 'Duplex',
+      icon: (
+        <svg style={{ width: '32px', height: '32px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+        </svg>
+      )
+    }
+  ];
 
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  // Load wishlist for authenticated users
+  // Load wishlist
   useEffect(() => {
     const init = async () => {
       const token = localStorage.getItem('accessToken');
-      if (!token) return; // leave empty for guests
+      if (!token) return;
       try {
         const { wishlist } = await getWishlist();
         setWishlist(wishlist);
-        window.dispatchEvent(new Event('wishlistUpdated'));
       } catch (err) {
         console.error('Failed to load wishlist:', err);
-        toast.error(`Failed to load data: ${err.message}`);
       }
     };
     init();
   }, []);
 
   // Toggle wishlist
-  const toggleWishlist = async (hotelId) => {
+  const toggleWishlist = async (propertyId, e) => {
+    e.stopPropagation();
     const token = localStorage.getItem("accessToken");
     if (!token) {
-      toast.error('🔒 You must be logged in to like this', {
-        position: "top-center",
-        autoClose: 3000,
-      });
-      setTimeout(() => {
-        window.location.href = '/login';
-      }, 2000);
+      toast.error('🔒 You must be logged in to like this');
+      setTimeout(() => navigate('/login'), 2000);
       return;
     }
 
     try {
-      const { wishlist: updated, message } = await toggleWishlistApi(hotelId);
+      const { wishlist: updated, message } = await toggleWishlistApi(propertyId);
       setWishlist(updated);
       window.dispatchEvent(new Event('wishlistUpdated'));
-      
-      // Show success message based on whether item was added or removed
-      const wasAdded = updated.includes(String(hotelId));
-      toast.success(message || (wasAdded ? '❤️ Added to wishlist!' : 'Removed from wishlist'), {
-        position: "top-right",
-        autoClose: 2000,
-      });
+      toast.success(message || '❤️ Wishlist updated!');
     } catch (err) {
-      console.error('Failed to toggle wishlist:', err);
-      toast.error(`Failed to update wishlist: ${err.message || 'Something went wrong'}`);
+      toast.error(`Failed to update wishlist: ${err.message}`);
     }
   };
 
-  // Filter hotels based on selected category
-  useEffect(() => {
-    const filtered = allHotels.filter(hotel => hotel.category === selectedCategory);
-    setFilteredHotels(filtered);
-    setCurrentIndex(0); // Reset to first slide when category changes
-  }, [selectedCategory]);
-
-  const hotels = filteredHotels.length > 0 ? filteredHotels : allHotels;
-
-  // Responsive items per view
-  const getItemsPerView = () => {
-    if (typeof window !== 'undefined') {
-      if (window.innerWidth < 640) return 1; // mobile
-      if (window.innerWidth < 1024) return 2; // tablet
-      if (window.innerWidth < 1280) return 3; // small desktop
-      return 4; // big desktop
-    }
-    return 4;
-  };
-
-  const [itemsPerView, setItemsPerView] = useState(getItemsPerView());
-  const maxIndex = Math.max(0, hotels.length - itemsPerView);
-
-  // Handle window resize
-  useEffect(() => {
-    const handleResize = () => {
-      setItemsPerView(getItemsPerView());
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  const handlePrev = () => {
-    setCurrentIndex((prev) => Math.max(0, prev - 1));
-  };
-
-  const handleNext = () => {
-    setCurrentIndex((prev) => Math.min(maxIndex, prev + 1));
-  };
+  // Get displayed properties based on selected category
+  const displayedProperties = propertyData[selectedCategory] || [];
 
   return (
-    <div 
-    className="w-full bg-gray-10 pb-20 px-4 sm:px-6 lg:px-8" style={{minHeight: "70vh", marginTop: "0px", paddingTop: "0px"}}>
-      <div className="w-full max-w-[1600px] mx-auto">
-        {/* Section Header */}
-        <div className="flex items-center justify-between mb-16 ml-0 lg:ml-20">
-          <div>
-            {/* <div className="inline-block mb-3">
-              <span
-              style={{padding: "5px"}}
-              className={`bg-gray-800 text-white rounded-full text-sm font-semibold tracking-wide shadow-lg transition-all duration-300 ${
-                isScrolled ? 'shadow-xl' : ''
-              }`}>
-                Featured Hotels
-              </span>
-            </div> */}
-            <h2 className={`text-4xl font-bold text-[#17A998] transition-all duration-300 ${
-              isScrolled ? 'text-3xl' : ''
-            }`}>
-              Check Out Premium Stays
-            </h2>
-            <p className="text-gray-600 text-lg font-light mt-2">Discover our handpicked selection of luxury accommodations</p>
-          </div>
+    <div style={{ backgroundColor: '#ffffff', paddingTop: '14px', paddingBottom: '16px' }}>
+      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 24px' }}>
+        
+        {/* Categories Section */}
+        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+          <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#111827', marginBottom: '5px' }}>
+            Luxury & Comfort Choices
+          </h2>
+          <p style={{ fontSize: '1rem', color: '#6B7280', marginBottom: '48px' }}>
+            Explore our premium collection of accommodations
+          </p>
 
-          {/* Navigation Arrows */}
-          <div className="flex gap-3" style={{marginRight: "2rem"}}>
-            <button
-              onClick={handlePrev}
-              disabled={currentIndex === 0}
-              className={`w-12 h-12 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${
-                currentIndex === 0
-                  ? 'border-gray-300 text-gray-400 cursor-not-allowed'
-                  : 'border-gray-400 text-gray-700 hover:border-gray-800 hover:text-gray-900 hover:shadow-lg'
-              }`}
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <button
-              onClick={handleNext}
-              disabled={currentIndex >= maxIndex}
-              className={`w-12 h-12 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${
-                currentIndex >= maxIndex
-                  ? 'border-gray-300 text-gray-400 cursor-not-allowed'
-                  : 'border-gray-400 text-gray-700 hover:border-gray-800 hover:text-gray-900 hover:shadow-lg'
-              }`}
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
+          {/* Categories Grid - Single Row on Desktop */}
+          <div style={{ 
+            display: 'flex',
+            flexWrap: 'wrap',
+            justifyContent: 'center',
+            gap: '16px',
+            maxWidth: '100%',
+            margin: '0 auto'
+          }}>
+            {categories.map((category) => (
+              <div
+                key={category.name}
+                onClick={() => setSelectedCategory(category.name)}
+                style={{
+                  padding: '24px 20px',
+                  border: selectedCategory === category.name ? '2px solid #14B8A6' : '2px solid #E5E7EB',
+                  borderRadius: '16px',
+                  cursor: 'pointer',
+                  backgroundColor: selectedCategory === category.name ? '#F0FDFA' : '#ffffff',
+                  transition: 'all 0.3s',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px',
+                  minWidth: '140px',
+                  flex: '0 1 auto'
+                }}
+                onMouseEnter={(e) => {
+                  if (selectedCategory !== category.name) {
+                    e.currentTarget.style.borderColor = '#14B8A6';
+                    e.currentTarget.style.backgroundColor = '#F9FAFB';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (selectedCategory !== category.name) {
+                    e.currentTarget.style.borderColor = '#E5E7EB';
+                    e.currentTarget.style.backgroundColor = '#ffffff';
+                  }
+                }}
+              >
+                <div style={{ color: selectedCategory === category.name ? '#14B8A6' : '#6B7280' }}>
+                  {category.icon}
+                </div>
+                <span style={{ 
+                  fontSize: '0.875rem', 
+                  fontWeight: selectedCategory === category.name ? '600' : '500',
+                  color: selectedCategory === category.name ? '#111827' : '#374151'
+                }}>
+                  {category.name}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Hotels Slider */}
-        <div className="overflow-hidden rounded-xl ml-0 lg:ml-20 mr-0 lg:mr-8">
-          <div
-            className="flex gap-6 transition-transform duration-500 ease-in-out px-1 pr-8"
-            style={{ transform: `translateX(-${currentIndex * (100 / itemsPerView)}%)` }}
-          >
-            {hotels.map((hotel) => (
-              <div
-                key={hotel.id}
-                className="flex-shrink-0 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden group border border-gray-200 bg-white"
+        {/* Featured Properties Section */}
+        <div >
+          {/* Section Header */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '16px' }}>
+            <div>
+              <h2 style={{ fontSize: '1.875rem', fontWeight: '700', color: '#111827', marginBottom: '4px' }}>
+                Check Out Premium Stays
+              </h2>
+              <p style={{ fontSize: '0.875rem', color: '#6B7280' }}>
+                Discover our handpicked selection of luxury accommodations
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
                 style={{
-                  width: `calc(${100 / itemsPerView}% - ${24 * (itemsPerView - 1) / itemsPerView}px)`,
-                  minWidth: '280px'
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '50%',
+                  border: '2px solid #D1D5DB',
+                  backgroundColor: '#ffffff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#374151'
                 }}
               >
-                {/* Image Container */}
-                <div className="relative h-64 overflow-hidden">
+                <svg style={{ width: '20px', height: '20px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <button
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '50%',
+                  border: '2px solid #D1D5DB',
+                  backgroundColor: '#ffffff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#374151'
+                }}
+              >
+                <svg style={{ width: '20px', height: '20px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Properties Grid */}
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', 
+            gap: '24px' 
+          }}>
+            {displayedProperties.map((property) => (
+              <div
+                key={property.id}
+                onClick={() => navigate(`/hotel/${property.id}`)}
+                style={{
+                  backgroundColor: '#ffffff',
+                  borderRadius: '16px',
+                  overflow: 'hidden',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                  border: '1px solid #E5E7EB',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 10px 25px rgba(0,0,0,0.15)'}
+                onMouseLeave={(e) => e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)'}
+              >
+                {/* Image */}
+                <div style={{ position: 'relative', height: '200px', overflow: 'hidden' }}>
                   <img
-                    src={hotel.image}
-                    alt={hotel.name}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    src={property.image}
+                    alt={property.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
                   
-                  {/* Badge */}
-                  <div className={`absolute top-4 left-4 ${hotel.badgeColor} text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg`}>
-                    {hotel.badge}
+                  {/* Badges */}
+                  <div style={{ position: 'absolute', top: '12px', left: '12px' }}>
+                    <span style={{
+                      padding: '6px 12px',
+                      backgroundColor: property.badgeColor,
+                      color: '#ffffff',
+                      borderRadius: '20px',
+                      fontSize: '0.75rem',
+                      fontWeight: '600'
+                    }}>
+                      {property.badge}
+                    </span>
                   </div>
 
-                  {/* Favorite Icon */}
+                  {/* Wishlist Heart */}
                   <button
-                    onClick={() => toggleWishlist(hotel.id)}
-                    className={`absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 transform hover:scale-110 ${
-                      wishlist.includes(String(hotel.id))
-                        ? 'bg-red-500 shadow-lg'
-                        : 'bg-white/90 backdrop-blur-sm hover:bg-white shadow-md'
-                    }`}
-                    title={wishlist.includes(String(hotel.id)) ? 'Remove from wishlist' : 'Add to wishlist'}
+                    onClick={(e) => toggleWishlist(property.id, e)}
+                    style={{
+                      position: 'absolute',
+                      top: '12px',
+                      right: '12px',
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '50%',
+                      backgroundColor: wishlist.includes(String(property.id)) ? '#EF4444' : '#ffffff',
+                      border: 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+                    }}
                   >
                     <svg
-                      className={`w-5 h-5 transition-all duration-300 ${
-                        wishlist.includes(String(hotel.id))
-                          ? 'text-white fill-white'
-                          : 'text-gray-600 hover:text-red-500'
-                      }`}
-                      fill={wishlist.includes(String(hotel.id)) ? 'currentColor' : 'none'}
+                      style={{ width: '18px', height: '18px', color: wishlist.includes(String(property.id)) ? '#ffffff' : '#9CA3AF' }}
+                      fill={wishlist.includes(String(property.id)) ? 'currentColor' : 'none'}
                       stroke="currentColor"
-                      viewBox="0 0 24 24"
                       strokeWidth={2}
+                      viewBox="0 0 24 24"
                     >
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                     </svg>
@@ -678,106 +530,105 @@ const FeaturedHotels = ({ selectedCategory = 'Hotel' }) => {
                 </div>
 
                 {/* Content */}
-                <div className="p-5">
-                  {/* Price */}
-                  <div className="flex items-baseline gap-2 mb-3">
-                    <span className="text-2xl font-bold text-gray-900">NPR {hotel.price.toLocaleString()}</span>
-                    <span className="text-sm text-gray-500">Start from</span>
+                <div style={{ padding: '20px' }}>
+                  {/* Rating and Start Date */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '0.75rem', color: '#9CA3AF', textTransform: 'uppercase', fontWeight: '600' }}>
+                      Start Date
+                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      {[...Array(5)].map((_, i) => (
+                        <svg
+                          key={i}
+                          style={{ width: '14px', height: '14px', color: i < Math.floor(property.rating) ? '#FCD34D' : '#D1D5DB' }}
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                        </svg>
+                      ))}
+                    </div>
                   </div>
 
-                  {/* Hotel Name */}
-                  <h3 className="text-xl font-bold text-gray-900 mb-4 group-hover:text-gray-700 transition-colors">
-                    {hotel.name}
+                  {/* Price */}
+                  <div style={{ marginBottom: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                      <span style={{ fontSize: '1.5rem', fontWeight: '700', color: '#111827' }}>NPR {property.price}</span>
+                    </div>
+                  </div>
+
+                  {/* Property Name */}
+                  <h3 style={{ fontSize: '1.125rem', fontWeight: '700', color: '#111827', marginBottom: '8px' }}>
+                    {property.name}
                   </h3>
 
-                  {/* Features */}
-                  <div className="flex items-center gap-4 mb-4 text-sm text-gray-600">
-                    <div className="flex items-center gap-1">
-                      <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  {/* Location */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#6B7280', fontSize: '0.875rem', marginBottom: '16px' }}>
+                    <svg style={{ width: '14px', height: '14px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span>{property.location}</span>
+                  </div>
+
+                  {/* Amenities - Improved Layout */}
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center',
+                    gap: '12px', 
+                    marginBottom: '16px', 
+                    fontSize: '0.75rem', 
+                    color: '#6B7280',
+                    flexWrap: 'wrap'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <svg style={{ width: '14px', height: '14px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                       </svg>
-                      <span>{hotel.rooms} Room</span>
+                      <span style={{ fontSize: '0.875rem' }}>{property.rooms}</span>
+                      <span style={{ fontSize: '0.875rem' }}>Room</span>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <svg style={{ width: '14px', height: '14px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
                       </svg>
-                      <span>{hotel.bathrooms} Bathroom</span>
+                      <span style={{ fontSize: '0.875rem' }}>{property.bathrooms}</span>
+                      <span style={{ fontSize: '0.875rem' }}>Bathroom</span>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <svg style={{ width: '14px', height: '14px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
                       </svg>
-                      <span>{hotel.area}</span>
+                      <span style={{ fontSize: '0.875rem' }}>{property.area}</span>
+                      <span style={{ fontSize: '0.875rem' }}>m2</span>
                     </div>
                   </div>
 
-                  {/* Footer */}
-                  <div className="pt-4 border-t border-gray-200 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                        <span className="text-sm text-gray-600">{hotel.location}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {[...Array(5)].map((_, i) => (
-                          <svg
-                            key={i}
-                            className={`w-4 h-4 ${i < hotel.rating ? 'text-yellow-500' : 'text-gray-300'}`}
-                            fill="currentColor"
-                            viewBox="0 0 20 20"
-                          >
-                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                          </svg>
-                        ))}
-                      </div>
-                    </div>
-                    
-                    {/* View Hotel Info Button */}
-                    <div className="flex justify-center pt-2">
-                      <button
-                        onClick={() => navigate('/hotelInfo')}
-                        className="py-2.5 px-6 rounded-lg font-semibold text-sm transition-all duration-300 flex items-center justify-center gap-2 shadow-md bg-[#00AB9A] text-white hover:bg-gray-900 hover:shadow-lg transform hover:scale-105 active:scale-95"
-                        style={{
-                          letterSpacing: '0.3px'
-                        }}
-                        title="View hotel information"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <span>View Hotel Info</span>
-                      </button>
-                    </div>
-                  </div>
+                  {/* View Hotel Info Button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/hotel/${property.id}`);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      backgroundColor: '#14B8A6',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '0.875rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'background-color 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.target.style.backgroundColor = '#0D9488'}
+                    onMouseLeave={(e) => e.target.style.backgroundColor = '#14B8A6'}
+                  >
+                    View Hotel Info
+                  </button>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Scroll Indicator and Item Counter */}
-        <div className="flex items-center justify-between mt-8 ml-0 lg:ml-20 px-2">
-          <div className="text-sm text-gray-600 font-medium">
-            Showing {currentIndex + 1} - {Math.min(currentIndex + itemsPerView, hotels.length)} of {hotels.length} {selectedCategory}{hotels.length > 1 ? 's' : ''}
-          </div>
-          
-          {/* Pagination Dots */}
-          <div className="flex items-center gap-2">
-            {Array.from({ length: maxIndex + 1 }).map((_, index) => (
-              <button
-                key={index}
-                onClick={() => setCurrentIndex(index)}
-                className={`h-2 rounded-full transition-all duration-300 ${
-                  index === currentIndex
-                    ? 'w-8 bg-gray-800'
-                    : 'w-2 bg-gray-300 hover:bg-gray-500'
-                }`}
-                aria-label={`Go to slide ${index + 1}`}
-              />
             ))}
           </div>
         </div>
