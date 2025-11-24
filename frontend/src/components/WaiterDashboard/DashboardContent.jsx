@@ -1,13 +1,13 @@
 import {
   RefreshCw,
-  LayoutList,
-  BellRing,
-  UtensilsCrossed,
-  TimerReset,
+  List,
+  Bell as BellIcon,
+  ChefHat,
+  CheckCircle,
 } from "lucide-react";
-import OrderCard from "./OrderCard";
+import OrderCard from "./order/OrderCard";
 
-const DashboardContent = ({ orders, activeFilter, setActiveFilter }) => {
+const DashboardContent = ({ orders, activeFilter, setActiveFilter, onUpdateOrderStatus, onMarkServed }) => {
   const filteredOrders =
     activeFilter === "all"
       ? orders
@@ -15,67 +15,157 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter }) => {
 
   const handleRefresh = () => {
     console.log("Refreshing orders...");
-    window.location.reload();
   };
 
   const filters = [
-    { id: "all", label: "All", icon: LayoutList },
-    { id: "new", label: "New", icon: BellRing },
-    { id: "preparing", label: "Preparing", icon: UtensilsCrossed },
-    { id: "ready", label: "Ready for Pickup", icon: TimerReset },
+    { id: "all", label: "All", icon: List },
+    { id: "new", label: "New", icon: BellIcon },
+    { id: "preparing", label: "Preparing", icon: ChefHat },
+    { id: "ready", label: "Ready for Pickup", icon: CheckCircle },
   ];
 
+  // Inline Styles
+  const containerStyle = {
+    // width: "100%", // Removed to prevent overflow issues
+    minHeight: "100%", // Allow it to fill the scrolling container
+    paddingBottom: "6rem",
+    backgroundColor: "#F8F9FB", 
+    fontFamily: "'Nunito', sans-serif",
+  };
+
+  const headerContainerStyle = {
+    position: "sticky",
+    top: 0,
+    zIndex: 20,
+    backgroundColor: "#F8F9FB", // Match background
+    padding: "32px 48px 24px 48px", // Increased side padding for better aesthetics
+  };
+
+  const titleSectionStyle = {
+    display: "flex",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    marginBottom: "32px",
+  };
+
+  const titleStyle = {
+    fontSize: "40px",
+    fontWeight: "800",
+    color: "#111827",
+    marginBottom: "8px",
+    letterSpacing: "-0.025em",
+    lineHeight: "1.1",
+  };
+
+  const subtitleStyle = {
+    fontSize: "18px",
+    color: "#6B7280",
+    fontWeight: "500",
+  };
+
+  const refreshButtonStyle = {
+    padding: "12px 24px",
+    backgroundColor: "#10B981", // Emerald-500
+    color: "white",
+    borderRadius: "12px",
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    transition: "background-color 0.2s",
+    border: "none",
+    cursor: "pointer",
+    fontWeight: "700",
+    fontSize: "14px",
+    boxShadow: "0 4px 6px -1px rgba(16, 185, 129, 0.1), 0 2px 4px -1px rgba(16, 185, 129, 0.06)",
+  };
+
+  const filterContainerStyle = {
+    display: "flex",
+    gap: "12px",
+    overflowX: "auto",
+    paddingBottom: "8px",
+  };
+
+  const getFilterButtonStyle = (isActive) => ({
+    padding: "12px 24px",
+    borderRadius: "12px",
+    fontWeight: "700",
+    fontSize: "14px",
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    whiteSpace: "nowrap",
+    transition: "all 0.2s",
+    border: "none",
+    cursor: "pointer",
+    backgroundColor: isActive ? "#D1FAE5" : "white",
+    color: isActive ? "#059669" : "#6B7280",
+    boxShadow: isActive ? "none" : "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+  });
+
+  const ordersGridStyle = {
+    padding: "0 48px 48px 48px", // Increased side padding
+  };
+
+  const ordersListStyle = {
+    display: "flex",
+    flexDirection: "column",
+    gap: "24px",
+  };
+
   return (
-    <div className="w-full pb-24 lg:pb-8 px-6 pt-6">
-      {/* Header Section */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-[32px] font-bold tracking-tight text-gray-900 leading-tight">
-            Waiter Dashboard
-          </h1>
-          <p className="mt-1 text-[15px] text-gray-500">
-            Real-time view of orders and table statuses.
-          </p>
+    <div style={containerStyle}>
+      {/* Header Section - Sticky */}
+      <div style={headerContainerStyle}>
+        {/* Title + Refresh Button */}
+        <div style={titleSectionStyle}>
+          <div>
+            <h1 style={titleStyle}>Waiter Dashboard</h1>
+            <p style={subtitleStyle}>Real-time view of orders and table statuses.</p>
+          </div>
+
+          {/* Refresh Button */}
+          <button onClick={handleRefresh} style={refreshButtonStyle}>
+            <RefreshCw size={20} />
+            <span>Refresh Orders</span>
+          </button>
         </div>
 
-        {/* Refresh Button */}
-        <button
-          onClick={handleRefresh}
-          className="self-start lg:self-auto inline-flex items-center gap-2 rounded-lg bg-[#10B981] px-5 py-2.5 text-[14px] font-semibold text-white transition hover:bg-[#059669]"
-        >
-          <RefreshCw className="h-4 w-4" strokeWidth={2.5} />
-          <span>Refresh Orders</span>
-        </button>
+        {/* Filter Tabs */}
+        <div style={filterContainerStyle} className="scrollbar-hide">
+          {filters.map((filter) => {
+            const Icon = filter.icon;
+            const isActive = activeFilter === filter.id;
+
+            return (
+              <button
+                key={filter.id}
+                onClick={() => setActiveFilter(filter.id)}
+                style={getFilterButtonStyle(isActive)}
+              >
+                <Icon size={16} />
+                <span>{filter.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="flex flex-wrap gap-2.5 mb-6">
-        {filters.map((filter) => {
-          const Icon = filter.icon;
-          const isActive = activeFilter === filter.id;
+      {/* Orders Grid */}
+      <div style={ordersGridStyle}>
+        <div style={ordersListStyle}>
+          {filteredOrders.map((order) => {
+            return <OrderCard key={order.id} order={order} onUpdateOrderStatus={onUpdateOrderStatus} onMarkServed={onMarkServed} />;
+          })}
+        </div>
 
-          return (
-            <button
-              key={filter.id}
-              onClick={() => setActiveFilter(filter.id)}
-              className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-[14px] font-medium transition ${
-                isActive
-                  ? "bg-emerald-50 text-emerald-600"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-150"
-              }`}
-            >
-              <Icon className="h-4 w-4" strokeWidth={2} />
-              {filter.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Orders List */}
-      <div className="space-y-5">
-        {filteredOrders.map((order) => (
-          <OrderCard key={order.id} order={order} />
-        ))}
+        {filteredOrders.length === 0 && (
+          <div style={{ textAlign: "center", padding: "48px 0" }}>
+            <p style={{ color: "#9CA3AF", fontSize: "18px", fontWeight: "500" }}>
+              No orders found
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
