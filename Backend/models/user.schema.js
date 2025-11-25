@@ -1,10 +1,17 @@
 import mongoose from "mongoose";
+import bcrypt from "bcryptjs";
 
 const userSchema = new mongoose.Schema(
   {
-    name: {
+    fullname: {
       type: String,
       required: true,
+      trim: true,
+    },
+    username: {
+      type: String,
+      required: true,
+      unique: true,
       trim: true,
     },
     email: {
@@ -18,10 +25,14 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    profilePicture: {
+      type: String,
+      default: null,
+    },
     role: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Role",
-      required: true,
+      required: false, // Made optional for now
     },
     roomNumber: {
       type: String,
@@ -34,8 +45,50 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
-  },
+    // OTP fields for password reset
+    resetOtp: {
+      type: String,
+      default: "",
+    },
+    resetOtpExpireAt: {
+      type: Number,
+      default: 0,
+    },
+    // Google OAuth fields
+    isGoogleUser: {
+      type: Boolean,
+      default: false,
+    },
+    googleId: {
+      type: String,
+      default: null,
+    },
+    wishlist: {
+      type: [String],
+      default: [],
+    },
+    cart: {
+      type: [
+        {
+          hotelId: { type: String, required: true },
+          quantity: { type: Number, default: 1, min: 1 },
+        },
+      ],
+      default: [],
+    },
+},
   { timestamps: true }
 );
 
-export default mongoose.model("User", userSchema);
+
+userSchema.pre('save', async function (next) {
+  if (this.isModified('password'))this.password = await bcrypt.hash(this.password, 10);
+  next();
+});
+
+// Method to compare password
+userSchema.methods.matchPassword = async function (enteredPassword) {
+  return await bcrypt.compare(enteredPassword, this.password);
+};
+
+export const User = mongoose.model("User", userSchema);
