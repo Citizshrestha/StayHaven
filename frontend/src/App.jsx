@@ -16,6 +16,7 @@ import HotelDetailsPage from './components/HotelDetails';
 import FilteredHotels from './components/FilteredHotels';
 import BookingConfirmed from './components/BookingConfirmed';
 import WaiterDashboard from './components/WaiterDashboard/WaiterDashboard';
+import KitchenDashboard from "./components/KitchenDashboard/KitchenDashboard";
 
 const App = () => {
   return (
@@ -41,6 +42,7 @@ const App = () => {
           
           {/* Waiter Dashboard - Temporary public route for testing */}
           <Route path="/waiter-dashboard" element={<WaiterDashboard />} />
+          <Route path="/kitchen-dashboard" element={<KitchenDashboard />} />
         </Routes>
       </div>
       
