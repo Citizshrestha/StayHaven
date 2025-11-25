@@ -1,14 +1,34 @@
 import mongoose from "mongoose";
 
 const orderSchema = new mongoose.Schema({
+  hotel: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Hotel',
+    required: true,
+  },
+  room: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Room',
+    required: true,
+  },
   roomNumber: {
-    type: Number,
+    type: String,
+    required: true,
+  },
+  orderBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
     required: true,
   },
   items: [
     {
+      menuItem: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'MenuItem',
+        required: true,
+      },
       name: { type: String, required: true },
-      quantity: { type: Number, required: true },
+      quantity: { type: Number, required: true, min: 1 },
       price: { type: Number, required: true },
     },
   ],
@@ -16,20 +36,37 @@ const orderSchema = new mongoose.Schema({
     type: Number,
     required: true,
   },
+  orderType: {
+    type: String,
+    enum: ['roomService', 'dineIn', 'takeaway'],
+    default: 'roomService',
+  },
   status: {
     type: String,
-    enum: ['Pending', 'Preparing', 'Delivered'],
-    default: 'Pending',
+    enum: ['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled'],
+    default: 'pending',
   },
-  orderBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User', // reference to user.schema.js
-    required: true,
+  priority: {
+    type: String,
+    enum: ['normal', 'high'],
+    default: 'normal',
   },
-  createdAt: {
+  notes: {
+    type: String,
+    maxlength: 300,
+  },
+  preparationTime: {
+    type: Number, // In minutes
+  },
+  deliveredAt: {
     type: Date,
-    default: Date.now,
   },
-});
+}, {timestamps: true});
 
-module.exports = mongoose.model('Order', orderSchema);
+// Indexes for performance
+orderSchema.index({ room: 1, status: 1 });
+orderSchema.index({ hotel: 1, status: 1 });
+orderSchema.index({ orderBy: 1, createdAt: -1 });
+orderSchema.index({ status: 1, createdAt: -1 });
+
+export const Order = mongoose.model('Order', orderSchema);
