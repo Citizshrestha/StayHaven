@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import OrderCard from "./order/OrderCard";
 
-const DashboardContent = ({ orders, activeFilter, setActiveFilter, onUpdateOrderStatus, onMarkServed }) => {
+const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed }) => {
   const filteredOrders =
     activeFilter === "all"
       ? orders
@@ -22,6 +22,7 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onUpdateOrder
     { id: "new", label: "New", icon: BellIcon },
     { id: "preparing", label: "Preparing", icon: ChefHat },
     { id: "ready", label: "Ready for Pickup", icon: CheckCircle },
+    { id: "completed", label: "Completed", icon: CheckCircle },
   ];
 
   // Inline Styles
@@ -155,7 +156,7 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onUpdateOrder
       <div style={ordersGridStyle}>
         <div style={ordersListStyle}>
           {filteredOrders.map((order) => {
-            return <OrderCard key={order.id} order={order} onUpdateOrderStatus={onUpdateOrderStatus} onMarkServed={onMarkServed} />;
+            return <OrderCard key={order.id} order={order} onMarkServed={onMarkServed} />;
           })}
         </div>
 
