@@ -20,7 +20,7 @@ const OrderCard = ({ order, onUpdateOrderStatus }) => {
     if (order.status === "preparing" && order.startedPreparingAt) {
       const startTime = new Date(order.startedPreparingAt);
       const diffMins = Math.floor((now - startTime) / 60000);
-      return diffMins === 0 ? `Cooking - Just now` : `Cooking for ${diffMins}m`;
+      return diffMins === 0 ? `Preparing - Just now` : `Preparing for ${diffMins}m`;
     } else if (order.status === "ready" && order.readyAt) {
       const readyTime = new Date(order.readyAt);
       const diffMins = Math.floor((now - readyTime) / 60000);
@@ -37,7 +37,7 @@ const OrderCard = ({ order, onUpdateOrderStatus }) => {
       case "new":
         return { backgroundColor: "#DBEAFE", color: "#2563EB", label: "New Order" };
       case "preparing":
-        return { backgroundColor: "#FEF3C7", color: "#D97706", label: "Cooking" };
+        return { backgroundColor: "#FEF3C7", color: "#D97706", label: "Preparing" };
       case "ready":
         return { backgroundColor: "#D1FAE5", color: "#059669", label: "Ready" };
       default:
@@ -137,17 +137,26 @@ const OrderCard = ({ order, onUpdateOrderStatus }) => {
         
         {order.status === "ready" && (
           <div style={{
-            padding: "12px",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "8px",
+            padding: "10px 20px",
             backgroundColor: "#D1FAE5",
-            borderRadius: "12px",
-            textAlign: "center",
+            borderRadius: "9999px",
+            border: "1px solid #A7F3D0",
           }}>
-            <div style={{ fontSize: "16px", fontWeight: "700", color: "#059669" }}>
+            <span style={{ fontSize: "14px", fontWeight: "700", color: "#059669" }}>
               ✓ Ready for Pickup
-            </div>
-            <div style={{ fontSize: "14px", color: "#6B7280" }}>
-              Waiting for waiter
-            </div>
+            </span>
+            <span style={{ 
+              fontSize: "12px", 
+              color: "#6B7280",
+              padding: "2px 8px",
+              backgroundColor: "white",
+              borderRadius: "9999px",
+            }}>
+              Awaiting waiter
+            </span>
           </div>
         )}
       </div>

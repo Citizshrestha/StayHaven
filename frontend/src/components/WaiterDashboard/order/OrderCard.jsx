@@ -18,7 +18,7 @@ const OrderCard = ({ order, onMarkServed }) => {
     if (order.status === "preparing" && order.startedPreparingAt) {
       const startTime = new Date(order.startedPreparingAt);
       const diffMins = Math.floor((now - startTime) / 60000);
-      return diffMins === 0 ? `Cooking - Just now` : `Cooking for ${diffMins}m`;
+      return diffMins === 0 ? `Preparing - Just now` : `Preparing for ${diffMins}m`;
     } else if (order.status === "ready" && order.readyAt) {
       const readyTime = new Date(order.readyAt);
       const diffMins = Math.floor((now - readyTime) / 60000);
