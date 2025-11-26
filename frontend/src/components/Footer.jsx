@@ -90,7 +90,7 @@ const Footer = () => {
         </a>
 
         <a
-          href="/contact-us"
+          href="/contactus"
           style={{
             color: 'white',
             textDecoration: 'none',
