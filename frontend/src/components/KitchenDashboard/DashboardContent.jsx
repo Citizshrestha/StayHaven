@@ -1,15 +1,18 @@
 import OrderCard from "./OrderCard";
 
 const DashboardContent = ({ orders, activeFilter, setActiveFilter, onUpdateOrderStatus }) => {
+  // Kitchen only sees active orders (not completed)
+  const activeOrders = orders.filter(o => o.status !== "completed");
+  
   const filters = [
-    { id: "all", label: "All Orders", count: orders.length },
-    { id: "new", label: "New", count: orders.filter((o) => o.status === "new").length },
-    { id: "preparing", label: "Preparing", count: orders.filter((o) => o.status === "preparing").length },
-    { id: "ready", label: "Ready", count: orders.filter((o) => o.status === "ready").length },
+    { id: "all", label: "All Active", count: activeOrders.length },
+    { id: "new", label: "🔔 New", count: orders.filter((o) => o.status === "new").length },
+    { id: "preparing", label: "🍳 Preparing", count: orders.filter((o) => o.status === "preparing").length },
+    { id: "ready", label: "✅ Ready", count: orders.filter((o) => o.status === "ready").length },
   ];
 
   const filteredOrders = activeFilter === "all" 
-    ? orders.filter(o => o.status !== "completed")
+    ? activeOrders
     : orders.filter((order) => order.status === activeFilter);
 
   return (
