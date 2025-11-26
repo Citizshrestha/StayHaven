@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
-import Navbarr from '../components/common/Navbarr';
-import { API_ENDPOINTS } from '../api/config';
+import Navbar from './Navbar';
+
+import axiosClient from '../axiosClient';
 
 const Feedback = () => {
   const [formData, setFormData] = useState({
@@ -35,18 +36,10 @@ const Feedback = () => {
     
     try {
       // Send to backend server
-      const response = await fetch(API_ENDPOINTS.FEEDBACK, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData)
-      });
+      const { data } = await axiosClient.post('/api/feedback', formData);
       
-      const data = await response.json();
-      
-      if (response.ok && data.success) {
-        alert(data.message);
+      if (data && data.success) {
+        alert(data.message || 'Thank you for your feedback!');
         
         // Reset form
         setFormData({
@@ -70,9 +63,9 @@ const Feedback = () => {
   // Inline CSS styles
   const styles = {
     page: {
-      minHeight: '100vh',
-      backgroundColor: '#f8f9fa',
-      fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
+      minHeight: '200vh',
+      backgroundColor: '#fff6f6',
+      fontFamily: "'Nunito', Tahoma, Geneva, Verdana, sans-serif"
     },
     container: {
       maxWidth: '800px',
@@ -84,13 +77,14 @@ const Feedback = () => {
       marginBottom: '40px'
     },
     title: {
-      color: '#1e3a8a',
+      color: '#00A797',
       fontSize: '2.5rem',
       marginBottom: '15px',
+      marginTop: '60px',
       fontWeight: '600'
     },
     subtitle: {
-      color: '#5a6c7d',
+      color: '#666',
       fontSize: '1.2rem',
       marginBottom: '10px'
     },
@@ -107,7 +101,7 @@ const Feedback = () => {
       display: 'block',
       marginBottom: '8px',
       fontWeight: '600',
-      color: '#2c3e50',
+      color: '#333',
       fontSize: '1.1rem'
     },
     input: {
@@ -121,8 +115,8 @@ const Feedback = () => {
     },
     inputFocus: {
       outline: 'none',
-      borderColor: '#3b82f6',
-      boxShadow: '0 0 0 3px rgba(59, 130, 246, 0.2)'
+      borderColor: '#00A797',
+      boxShadow: '0 0 0 3px rgba(0, 167, 151, 0.2)'
     },
     textarea: {
       resize: 'vertical',
@@ -136,7 +130,7 @@ const Feedback = () => {
       fontFamily: 'inherit'
     },
     submitBtn: {
-      backgroundColor: '#3b82f6',
+      backgroundColor: '#00A797',
       color: 'white',
       border: 'none',
       padding: '16px 32px',
@@ -149,7 +143,7 @@ const Feedback = () => {
       marginTop: '10px'
     },
     submitBtnHover: {
-      backgroundColor: '#2563eb',
+      backgroundColor: '#10A394',
       transform: 'translateY(-2px)'
     },
     submitBtnDisabled: {
@@ -206,8 +200,8 @@ const Feedback = () => {
   // Function to handle input focus
   const handleFocus = (e) => {
     e.target.style.outline = 'none';
-    e.target.style.borderColor = '#3b82f6';
-    e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.2)';
+    e.target.style.borderColor = '#00A797';
+    e.target.style.boxShadow = '0 0 0 3px rgba(0, 167, 151, 0.2)';
   };
 
   // Function to handle input blur
@@ -219,7 +213,7 @@ const Feedback = () => {
   // Function to handle button hover
   const handleMouseEnter = (e) => {
     if (!isSubmitting) {
-      e.target.style.backgroundColor = '#2563eb';
+      e.target.style.backgroundColor = '#10A394';
       e.target.style.transform = 'translateY(-2px)';
     }
   };
@@ -227,14 +221,14 @@ const Feedback = () => {
   // Function to handle button leave
   const handleMouseLeave = (e) => {
     if (!isSubmitting) {
-      e.target.style.backgroundColor = '#3b82f6';
+      e.target.style.backgroundColor = '#00A797';
       e.target.style.transform = 'translateY(0)';
     }
   };
 
   return (
     <div style={styles.page}>
-      <Navbarr />
+      <Navbar />
       
       <div style={styles.container}>
         <div style={styles.header}>

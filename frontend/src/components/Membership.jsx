@@ -271,7 +271,7 @@ const MembershipPage = () => {
           <h2>Membership Tiers</h2>
           <p className="section-subtitle">Choose the perfect membership level for your travel needs</p>
           <div className="tiers-grid">
-            {membershipTiers.map((tier, idx) => (
+            {membershipTiers.map((tier) => (
               <div 
                 key={tier.id}
                 className={`tier-card ${tier.tier === "Premium" ? "recommended" : ""}`}
@@ -442,7 +442,7 @@ const MembershipPage = () => {
                       required
                     >
                       <option value="">Choose a tier</option>
-                      {membershipTiers.map((tier, idx) => (
+                      {membershipTiers.map((tier) => (
                         <option key={tier.id} value={tier.tier}>
                           {tier.tier} - {tier.price}
                         </option>

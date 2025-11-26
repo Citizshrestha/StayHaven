@@ -16,7 +16,14 @@ import HotelDetailsPage from './components/HotelDetails';
 import FilteredHotels from './components/FilteredHotels';
 import BookingConfirmed from './components/BookingConfirmed';
 import WaiterDashboard from './components/WaiterDashboard/WaiterDashboard';
+import SuperadminDashboard from './components/Superadmin/SuperadminDashboard';  
+import UserManagement from "./components/Superadmin/Usermanagement";
+import HotelManagement from "./components/Superadmin/HotelManagement";
 import Feedback from "./components/Feedback";
+import Footer from "./components/Footer";
+import ContactUs from "./components/Contactus";
+
+
 
 const App = () => {
   return (
@@ -32,7 +39,7 @@ const App = () => {
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/" element={<Home />} />
+          <Route path="/home" element={<Home />} />
           <Route path="/offers" element={<OffersPage />} />
           <Route path="/memberships" element={<MembershipPage />} />
           <Route path="/membership" element={<MembershipPage />} />
@@ -41,9 +48,14 @@ const App = () => {
           <Route path="/booking-confirmed" element={<BookingConfirmed />} />
           <Route path="/feedback" element={<Feedback />} />
           <Route path="/footer" element={<Footer />} />
+          <Route path="/contactus" element={<ContactUs />} />
+
           
           {/* Waiter Dashboard - Temporary public route for testing */}
           <Route path="/waiter-dashboard" element={<WaiterDashboard />} />
+          <Route path="/" element={<SuperadminDashboard />} />
+          <Route path="/usermanagement" element={<UserManagement />} />
+          <Route path="/hotelmanagement" element={<HotelManagement />} />
         </Routes>
       </div>
       
