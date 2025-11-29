@@ -42,7 +42,7 @@ const Home = () => {
               <h1 className="text-4xl md:text-[3.375rem] font-bold leading-tight text-white mb-2 drop-shadow-lg">
                 Your Dream Stay Awaits
               </h1>
-              <h2 className="text-4xl md:text-[3.375rem] font-bold leading-tight text-white drop-shadow-lg">
+              <h2 style={{color: "#fff"}} className="text-4xl md:text-[3.375rem] font-bold leading-tight text-[#fff] drop-shadow-lg">
                 Book the Perfect Hotel Today!
               </h2>
             </div>

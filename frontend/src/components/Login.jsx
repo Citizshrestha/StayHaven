@@ -180,9 +180,9 @@ const Login = () => {
                 Stay<span className="font-bold text-teal-400">Haven</span>
               </span>
             </div>
-            <h2 className="text-[#F9FAFB] text-xl sm:text-2xl font-light mb-2 tracking-tight">
+            <h3 style={{color: "#F9FAFB"}} className="text-[#F9FAFB] text-xl sm:text-2xl font-light mb-2 tracking-tight">
               Welcome Back
-            </h2>
+            </h3>
             <p className="text-[#F9FAFB] text-xs sm:text-sm">Sign in to your account to continue</p>
           </div>
 
