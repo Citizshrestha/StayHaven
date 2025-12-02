@@ -18,6 +18,8 @@ import BookingConfirmed from "./components/BookingConfirmed";
 import WaiterDashboard from "./components/WaiterDashboard/WaiterDashboard";
 import KitchenDashboard from "./components/KitchenDashboard/KitchenDashboard";
 import { OrderProvider } from "./context/OrderContext";
+import AboutPage from "./components/AboutPage";
+import StaffLogin from "./components/StaffLogin";
 
 const App = () => {
   return (
@@ -30,9 +32,11 @@ const App = () => {
               {/* Public Routes */}
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/staff/login" element={<StaffLogin />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/" element={<Home />} />
+              <Route path="/about" element={<AboutPage />} />
               <Route path="/offers" element={<OffersPage />} />
               <Route path="/memberships" element={<MembershipPage />} />
               <Route path="/membership" element={<MembershipPage />} />
