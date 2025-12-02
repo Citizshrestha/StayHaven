@@ -6,13 +6,28 @@ import {
   LogOut,
 } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+import { staffLogout } from "../../api/staff";
+
 
 const Sidebar = () => {
   const [activeMenu, setActiveMenu] = useState("dashboard");
+  const navigate = useNavigate();
 
   const handleMenuClick = (menu) => {
     setActiveMenu(menu);
   };
+
+  const handleLogout = async () => {
+    try {
+      await staffLogout();
+      navigate("/staff/login");
+    } catch (err) {
+      console.error("Logout Failed:", err);
+      toast.error("Logout Failed! Please try again");
+    }
+  }
 
   const containerStyle = {
     height: "100%",
@@ -144,7 +159,7 @@ const Sidebar = () => {
 
         <button
           style={getMenuItemStyle(activeMenu === "logout")}
-          onClick={() => handleMenuClick("logout")}
+          onClick={handleLogout}
         >
           <LogOut size={20} />
           <span style={{ fontSize: "14px" }}>Log Out</span>
