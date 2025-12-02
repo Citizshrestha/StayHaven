@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { X, ChevronRight, Clock, User } from "lucide-react";
+import ItemCarousel from "../shared/ItemCarousel";
 
 const OrderCard = ({ order, onUpdateOrderStatus }) => {
   const [showStatusModal, setShowStatusModal] = useState(false);
@@ -30,6 +31,22 @@ const OrderCard = ({ order, onUpdateOrderStatus }) => {
     const placedTime = new Date(order.placedAt);
     const diffMins = Math.floor((now - placedTime) / 60000);
     return diffMins === 0 ? "Just now" : `${diffMins}m ago`;
+  };
+
+  // Helper to get items display text (supports both old string and new array format)
+  const getItemsDisplay = () => {
+    if (Array.isArray(order.items)) {
+      return order.items.map(item => `${item.quantity}× ${item.name}`).join(", ");
+    }
+    return order.itemsText || order.items || "";
+  };
+
+  // Get total item count
+  const getTotalItemCount = () => {
+    if (Array.isArray(order.items)) {
+      return order.items.reduce((sum, item) => sum + item.quantity, 0);
+    }
+    return 0;
   };
 
   const getStatusStyles = (status) => {
@@ -83,6 +100,19 @@ const OrderCard = ({ order, onUpdateOrderStatus }) => {
       <div style={{ flex: 1 }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
           <span style={badgeStyle}>{statusStyle.label}</span>
+          {/* Item count badge */}
+          {Array.isArray(order.items) && order.items.length > 1 && (
+            <span style={{
+              padding: "4px 10px",
+              borderRadius: "8px",
+              fontSize: "11px",
+              fontWeight: "700",
+              backgroundColor: "#EDE9FE",
+              color: "#7C3AED",
+            }}>
+              🍽️ {getTotalItemCount()} items
+            </span>
+          )}
           {(() => {
             const now = new Date();
             const placedTime = new Date(order.placedAt);
@@ -126,8 +156,42 @@ const OrderCard = ({ order, onUpdateOrderStatus }) => {
         )}
 
         <p style={{ color: "#6B7280", fontSize: "14px", lineHeight: "1.5", marginBottom: "24px" }}>
-          {order.items}
+          {getItemsDisplay()}
         </p>
+
+        {/* Show special notes if any items have notes */}
+        {Array.isArray(order.items) && order.items.some(item => item.notes) && (
+          <div style={{
+            marginBottom: "16px",
+            padding: "10px 14px",
+            backgroundColor: "#FFFBEB",
+            borderRadius: "10px",
+            borderLeft: "3px solid #F59E0B",
+            maxWidth: "360px",
+          }}>
+            <div style={{ 
+              fontSize: "11px", 
+              fontWeight: "700", 
+              color: "#B45309", 
+              marginBottom: "6px",
+              textTransform: "uppercase",
+              letterSpacing: "0.5px",
+            }}>
+              📝 Special Instructions
+            </div>
+            {order.items.filter(item => item.notes).map(item => (
+              <div key={item.id} style={{ 
+                fontSize: "12px", 
+                color: "#78350F",
+                marginBottom: "3px",
+                lineHeight: "1.4",
+              }}>
+                <span style={{ fontWeight: "600" }}>{item.name}:</span>{" "}
+                <span style={{ color: "#92400E" }}>{item.notes}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {order.status !== "ready" && (
           <button onClick={handleUpdateStatus} style={primaryButtonStyle}>
@@ -161,18 +225,22 @@ const OrderCard = ({ order, onUpdateOrderStatus }) => {
         )}
       </div>
 
-      <div style={{ width: "240px", flexShrink: 0 }}>
-        <img 
-          src={order.image} 
-          alt="Food" 
-          style={{ 
-            width: "100%", 
-            height: "100%", 
-            objectFit: "cover", 
-            borderRadius: "16px",
-            aspectRatio: "4/3"
-          }} 
-        />
+      {/* Right side - Image Carousel */}
+      <div style={{ width: "280px", flexShrink: 0 }}>
+        {Array.isArray(order.items) && order.items.length > 0 ? (
+          <ItemCarousel items={order.items} width={280} height={200} />
+        ) : (
+          <img 
+            src={order.image} 
+            alt="Food" 
+            style={{ 
+              width: "100%", 
+              height: "200px", 
+              objectFit: "cover", 
+              borderRadius: "16px",
+            }} 
+          />
+        )}
       </div>
 
       {showStatusModal && (

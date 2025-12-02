@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { X, Clock, MapPin, User } from "lucide-react";
+import ItemCarousel from "../../shared/ItemCarousel";
 
 const OrderCard = ({ order, onMarkServed }) => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -10,6 +11,22 @@ const OrderCard = ({ order, onMarkServed }) => {
 
   const handleMarkServed = () => {
     onMarkServed(order.id);
+  };
+
+  // Helper to get items display text (supports both old string and new array format)
+  const getItemsDisplay = () => {
+    if (Array.isArray(order.items)) {
+      return order.items.map(item => `${item.quantity}× ${item.name}`).join(", ");
+    }
+    return order.itemsText || order.items || "";
+  };
+
+  // Get total item count
+  const getTotalItemCount = () => {
+    if (Array.isArray(order.items)) {
+      return order.items.reduce((sum, item) => sum + item.quantity, 0);
+    }
+    return 0;
   };
 
   const getStatusDuration = (order) => {
@@ -157,17 +174,17 @@ const OrderCard = ({ order, onMarkServed }) => {
   };
 
   const standaloneButtonStyle = {
-    width: "400px",
-    padding: "12px 24px",
+    padding: "12px 28px",
     backgroundColor: "#10B981",
     color: "white",
-    borderRadius: "9999px",
+    borderRadius: "12px",
     fontWeight: "700",
-    fontSize: "15px",
+    fontSize: "14px",
     border: "none",
     cursor: "pointer",
-    transition: "background-color 0.2s",
+    transition: "all 0.2s",
     textAlign: "center",
+    boxShadow: "0 2px 4px rgba(16, 185, 129, 0.2)",
   };
 
   const imageContainerStyle = {
@@ -189,6 +206,19 @@ const OrderCard = ({ order, onMarkServed }) => {
       <div style={contentStyle}>
         <div style={headerStyle}>
           <span style={badgeStyle}>{statusStyle.label}</span>
+          {/* Item count badge */}
+          {Array.isArray(order.items) && order.items.length > 1 && (
+            <span style={{
+              padding: "4px 10px",
+              borderRadius: "8px",
+              fontSize: "11px",
+              fontWeight: "700",
+              backgroundColor: "#EDE9FE",
+              color: "#7C3AED",
+            }}>
+              🍽️ {getTotalItemCount()} items
+            </span>
+          )}
           {(() => {
             const now = new Date();
             const placedTime = new Date(order.placedAt);
@@ -241,7 +271,46 @@ const OrderCard = ({ order, onMarkServed }) => {
             </span>
           </div>
         )}
-        <p style={itemsStyle}>{order.items}</p>
+        <p style={itemsStyle}>{getItemsDisplay()}</p>
+
+        {/* Show special notes indicator if any items have notes */}
+        {Array.isArray(order.items) && order.items.some(item => item.notes) && (
+          <div style={{
+            marginBottom: "12px",
+            padding: "8px 12px",
+            backgroundColor: "#FFFBEB",
+            borderRadius: "8px",
+            borderLeft: "3px solid #F59E0B",
+            maxWidth: "280px",
+          }}>
+            <div style={{ 
+              fontSize: "11px", 
+              fontWeight: "700", 
+              color: "#B45309", 
+              marginBottom: "4px",
+              textTransform: "uppercase",
+              letterSpacing: "0.5px",
+            }}>
+              📝 Special Instructions
+            </div>
+            {order.items.filter(item => item.notes).slice(0, 2).map(item => (
+              <div key={item.id} style={{ 
+                fontSize: "11px", 
+                color: "#78350F",
+                marginBottom: "2px",
+                lineHeight: "1.3",
+              }}>
+                <span style={{ fontWeight: "600" }}>{item.name}:</span>{" "}
+                <span style={{ color: "#92400E" }}>{item.notes.length > 25 ? item.notes.slice(0, 25) + "..." : item.notes}</span>
+              </div>
+            ))}
+            {order.items.filter(item => item.notes).length > 2 && (
+              <div style={{ fontSize: "10px", color: "#B45309", marginTop: "4px", fontStyle: "italic" }}>
+                +{order.items.filter(item => item.notes).length - 2} more in details
+              </div>
+            )}
+          </div>
+        )}
 
         <div style={buttonsContainerStyle}>
           {order.status === "completed" ? (
@@ -277,30 +346,50 @@ const OrderCard = ({ order, onMarkServed }) => {
               </button>
             </>
           ) : (
-            <>
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              flexWrap: "wrap",
+            }}>
               <button onClick={handleViewDetails} style={standaloneButtonStyle}>
                 View Details
               </button>
               <div style={{
-                marginTop: "8px",
-                padding: "8px 12px",
+                padding: "10px 16px",
                 backgroundColor: "#FEF3C7",
-                borderRadius: "8px",
-                textAlign: "center",
+                borderRadius: "10px",
                 fontSize: "13px",
                 color: "#92400E",
-                fontWeight: "600"
+                fontWeight: "600",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
               }}>
-                {order.status === "new" ? "⏳ Waiting for kitchen to accept" : "👨‍🍳 Being prepared in kitchen"}
+                {order.status === "new" ? (
+                  <>
+                    <span style={{ fontSize: "16px" }}>⏳</span>
+                    <span>Waiting for kitchen</span>
+                  </>
+                ) : (
+                  <>
+                    <span style={{ fontSize: "16px" }}>👨‍🍳</span>
+                    <span>Being prepared</span>
+                  </>
+                )}
               </div>
-            </>
+            </div>
           )}
         </div>
       </div>
 
-      {/* Right Image */}
+      {/* Right Image Carousel */}
       <div style={imageContainerStyle}>
-        <img src={order.image} alt="Food" style={imageStyle} />
+        {Array.isArray(order.items) && order.items.length > 0 ? (
+          <ItemCarousel items={order.items} width={240} height={180} />
+        ) : (
+          <img src={order.image} alt="Food" style={imageStyle} />
+        )}
       </div>
 
       {/* Order Details Modal */}
@@ -467,21 +556,68 @@ const OrderCard = ({ order, onMarkServed }) => {
                   Order Items
                 </h3>
                 <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                  {order.items.split(", ").map((item, index) => (
-                    <li
-                      key={index}
-                      style={{
-                        padding: "12px",
-                        backgroundColor: "#F9FAFB",
-                        borderRadius: "12px",
-                        marginBottom: "8px",
-                        fontSize: "15px",
-                        fontWeight: "600",
-                      }}
-                    >
-                      {item}
-                    </li>
-                  ))}
+                  {Array.isArray(order.items) ? (
+                    order.items.map((item) => (
+                      <li
+                        key={item.id}
+                        style={{
+                          padding: "12px",
+                          backgroundColor: "#F9FAFB",
+                          borderRadius: "12px",
+                          marginBottom: "8px",
+                        }}
+                      >
+                        <div style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          marginBottom: item.notes ? "8px" : "0",
+                        }}>
+                          <span style={{ fontSize: "15px", fontWeight: "600" }}>
+                            {item.name}
+                          </span>
+                          <span style={{
+                            backgroundColor: "#10B981",
+                            color: "white",
+                            padding: "2px 10px",
+                            borderRadius: "9999px",
+                            fontSize: "12px",
+                            fontWeight: "700",
+                          }}>
+                            ×{item.quantity}
+                          </span>
+                        </div>
+                        {item.notes && (
+                          <div style={{
+                            fontSize: "13px",
+                            color: "#92400E",
+                            backgroundColor: "#FEF3C7",
+                            padding: "6px 10px",
+                            borderRadius: "6px",
+                            fontStyle: "italic",
+                          }}>
+                            📝 {item.notes}
+                          </div>
+                        )}
+                      </li>
+                    ))
+                  ) : (
+                    getItemsDisplay().split(", ").map((item, index) => (
+                      <li
+                        key={index}
+                        style={{
+                          padding: "12px",
+                          backgroundColor: "#F9FAFB",
+                          borderRadius: "12px",
+                          marginBottom: "8px",
+                          fontSize: "15px",
+                          fontWeight: "600",
+                        }}
+                      >
+                        {item}
+                      </li>
+                    ))
+                  )}
                 </ul>
               </div>
 
@@ -496,18 +632,24 @@ const OrderCard = ({ order, onMarkServed }) => {
                     marginBottom: "12px",
                   }}
                 >
-                  Order Image
+                  Order Images
                 </h3>
-                <img
-                  src={order.image}
-                  alt="Order"
-                  style={{
-                    width: "100%",
-                    height: "200px",
-                    objectFit: "cover",
-                    borderRadius: "16px",
-                  }}
-                />
+                {Array.isArray(order.items) && order.items.length > 0 ? (
+                  <div style={{ display: "flex", justifyContent: "center" }}>
+                    <ItemCarousel items={order.items} width={400} height={250} />
+                  </div>
+                ) : (
+                  <img
+                    src={order.image}
+                    alt="Order"
+                    style={{
+                      width: "100%",
+                      height: "200px",
+                      objectFit: "cover",
+                      borderRadius: "16px",
+                    }}
+                  />
+                )}
               </div>
 
               {/* Order Timeline */}
