@@ -9,11 +9,13 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { staffLogout } from "../../api/staff";
+import { useStaffAuth } from "../../context/StaffAuthContext";
 
 
 const Sidebar = () => {
   const [activeMenu, setActiveMenu] = useState("dashboard");
   const navigate = useNavigate();
+  const { staffUser, logout } = useStaffAuth();
 
   const handleMenuClick = (menu) => {
     setActiveMenu(menu);
@@ -22,6 +24,8 @@ const Sidebar = () => {
   const handleLogout = async () => {
     try {
       await staffLogout();
+      // clear auth context/localStorage
+      logout();
       navigate("/staff/login");
     } catch (err) {
       console.error("Logout Failed:", err);
@@ -104,15 +108,15 @@ const Sidebar = () => {
       {/* User Profile */}
       <div style={profileSectionStyle}>
         <img
-          src="https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=100&auto=format&fit=crop&q=60"
+          src={staffUser?.profilePicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(staffUser?.fullname || 'Staff')}`}
           alt="User"
           style={profileImageStyle}
         />
         <div style={{ minWidth: 0 }}>
           <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "700", color: "#111827" }}>
-            Alex Miller
+            {staffUser?.fullname ?? "Staff Member"}
           </h3>
-          <p style={{ margin: 0, fontSize: "14px", color: "#6B7280" }}>Waiter</p>
+          <p style={{ margin: 0, fontSize: "14px", color: "#6B7280", textTransform: "capitalize" }}>{staffUser?.role ?? "Waiter"}</p>
         </div>
       </div>
 

@@ -2,13 +2,16 @@ import { ChefHat } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { staffLogout } from "../../api/staff";
 import { toast } from "react-toastify";
+import { useStaffAuth } from "../../context/StaffAuthContext";
 
 const Sidebar = () => {
   const navigate = useNavigate();
+  const { staffUser, logout } = useStaffAuth();
 
   const handleLogout = async () => {
     try {
       await staffLogout();
+      logout();
       toast.success("Logged out successfully");
       navigate("/staff/login");
     } catch (err) {
@@ -29,12 +32,16 @@ const Sidebar = () => {
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-        <ChefHat size={32} style={{ color: "#10B981" }} />
+        <img
+          src={staffUser?.profilePicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(staffUser?.fullname || 'Kitchen')}`}
+          alt="User"
+          style={{ width: 48, height: 48, borderRadius: 12, objectFit: 'cover' }}
+        />
         <div>
-          <h1 style={{ fontSize: "20px", fontWeight: "800", color: "#111827" }}>
-            Kitchen Dashboard
+          <h1 style={{ fontSize: "18px", fontWeight: "800", color: "#111827" }}>
+            {staffUser?.fullname ?? 'Kitchen Staff'}
           </h1>
-          <p style={{ fontSize: "14px", color: "#6B7280" }}>Order Management</p>
+          <p style={{ fontSize: "14px", color: "#6B7280" }}>{staffUser?.role ?? 'Kitchen'}</p>
         </div>
       </div>
 
