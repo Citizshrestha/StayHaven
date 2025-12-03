@@ -18,6 +18,8 @@ import BookingConfirmed from "./components/BookingConfirmed";
 import WaiterDashboard from "./components/WaiterDashboard/WaiterDashboard";
 import KitchenDashboard from "./components/KitchenDashboard/KitchenDashboard";
 import { OrderProvider } from "./context/OrderContext";
+import { StaffAuthProvider } from "./context/StaffAuthContext";
+import ProtectedStaffRoute from "./routes/ProtectedStaffRoute";
 import AboutPage from "./components/AboutPage";
 import StaffLogin from "./components/StaffLogin";
 
@@ -25,7 +27,8 @@ const App = () => {
   return (
     <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
       <Router>
-        <OrderProvider>
+        <StaffAuthProvider>
+          <OrderProvider>
           {/* Page Routes */}
           <div className="w-screen min-h-screen overflow-x-hidden">
             <Routes>
@@ -44,12 +47,27 @@ const App = () => {
               <Route path="/hotels" element={<FilteredHotels />} />
               <Route path="/booking-confirmed" element={<BookingConfirmed />} />
               
-              {/* Dashboard Routes */}
-              <Route path="/waiter-dashboard" element={<WaiterDashboard />} />
-              <Route path="/kitchen-dashboard" element={<KitchenDashboard />} />
+              {/* Dashboard Routes (protected) */}
+              <Route
+                path="/waiter-dashboard"
+                element={
+                  <ProtectedStaffRoute allowedRoles={["waiter"]}>
+                    <WaiterDashboard />
+                  </ProtectedStaffRoute>
+                }
+              />
+              <Route
+                path="/kitchen-dashboard"
+                element={
+                  <ProtectedStaffRoute allowedRoles={["kitchen"]}>
+                    <KitchenDashboard />
+                  </ProtectedStaffRoute>
+                }
+              />
             </Routes>
           </div>
-        </OrderProvider>
+          </OrderProvider>
+        </StaffAuthProvider>
 
         {/* Toast Container */}
         <ToastContainer

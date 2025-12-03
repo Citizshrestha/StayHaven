@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { staffLogin } from "../api/staff";
+import { useStaffAuth } from "../context/StaffAuthContext";
 import { toast } from "react-toastify";
 
 const StaffLogin = () => {
   const navigate = useNavigate();
+  const { login } = useStaffAuth();
 
   const [formData, setFormData] = useState({
     email: "",
@@ -37,6 +39,8 @@ const StaffLogin = () => {
 
       if (response.success) {
         toast.success(`Welcome back, ${response.user.fullname}!`);
+        // Save user to auth context so other components can access it
+        login(response.user);
         
         // Redirect based on role
         if (response.redirectPath) {
