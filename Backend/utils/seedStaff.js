@@ -165,7 +165,7 @@ const seedStaff = async () => {
             password: staffData.password,
             role: role._id,
             company: company._id,
-            companyRole: "staff",
+            companyRole: staffData.roleName, // Use the actual role name (kitchen, waiter, etc.)
             assignedProperties: [hotel._id],
             isActive: true,
           });
