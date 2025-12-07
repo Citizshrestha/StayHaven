@@ -137,7 +137,7 @@ const StaffLogin = () => {
               {/* Feature 1 */}
               <div style={{ display: "flex", alignItems: "flex-start", gap: "16px" }}>
                 <div 
-                  className="rounded-lg bg-white/10 backdrop-blur-sm flex items-center justify-center flex-shrink-0"
+                  className="rounded-lg bg-white/10 backdrop-blur-sm flex items-center justify-center shrink-0"
                   style={{ width: "40px", height: "40px" }}
                 >
                   <svg
@@ -168,7 +168,7 @@ const StaffLogin = () => {
               {/* Feature 2 */}
               <div style={{ display: "flex", alignItems: "flex-start", gap: "16px" }}>
                 <div 
-                  className="rounded-lg bg-white/10 backdrop-blur-sm flex items-center justify-center flex-shrink-0"
+                  className="rounded-lg bg-white/10 backdrop-blur-sm flex items-center justify-center shrink-0"
                   style={{ width: "40px", height: "40px" }}
                 >
                   <svg
@@ -199,7 +199,7 @@ const StaffLogin = () => {
               {/* Feature 3 */}
               <div style={{ display: "flex", alignItems: "flex-start", gap: "16px" }}>
                 <div 
-                  className="rounded-lg bg-white/10 backdrop-blur-sm flex items-center justify-center flex-shrink-0"
+                  className="rounded-lg bg-white/10 backdrop-blur-sm flex items-center justify-center shrink-0"
                   style={{ width: "40px", height: "40px" }}
                 >
                   <svg
@@ -452,7 +452,7 @@ const StaffLogin = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:hover:shadow-lg"
+              className="w-full bg-linear-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:hover:shadow-lg"
               style={{ height: "48px", fontSize: "15px" }}
             >
               {loading ? (
