@@ -16,6 +16,16 @@ const hotelSchema = new mongoose.Schema({
     ref: "User",
     required: true,
   },
+  company: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Company",
+    required: true,
+    index: true,
+  },
+  propertyManager: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+  },
   location: {
     city: {
       type: String,
@@ -66,7 +76,7 @@ const hotelSchema = new mongoose.Schema({
     type: [String],
     required: true,
     validate: {
-      validator: function(v) {
+      validator: function (v) {
         return v && v.length > 0;
       },
       message: 'At least one image is required'
