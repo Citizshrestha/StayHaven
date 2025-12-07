@@ -1,6 +1,7 @@
 import { Hotel } from "../models/hotel.schema.js";
 import { Room } from "../models/room.schema.js";
 import { User } from "../models/user.schema.js";
+import { Company } from "../models/company.schema.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
 // @desc    Create a new hotel
@@ -29,15 +30,24 @@ export const createHotel = asyncHandler(async (req, res) => {
   }
 
   // Check if hotel name already exists for this owner
-  const existingHotel = await Hotel.findOne({ 
-    name, 
-    owner: req.user._id 
+  const existingHotel = await Hotel.findOne({
+    name,
+    owner: req.user._id
   });
 
   if (existingHotel) {
     return res.status(400).json({
       success: false,
       message: "You already have a hotel with this name",
+    });
+  }
+
+  // Get company
+  const company = await Company.findOne({ owner: req.user._id });
+  if (!company) {
+    return res.status(400).json({
+      success: false,
+      message: "Please create a company profile first",
     });
   }
 
@@ -54,7 +64,13 @@ export const createHotel = asyncHandler(async (req, res) => {
     policies: policies || {},
     contact,
     owner: req.user._id,
+    company: company._id,
     status: 'pending', // Requires admin approval
+  });
+
+  // Update company stats
+  await Company.findByIdAndUpdate(company._id, {
+    $inc: { totalProperties: 1 }
   });
 
   res.status(201).json({
@@ -194,11 +210,11 @@ export const updateHotel = asyncHandler(async (req, res) => {
 
   // Update hotel (status changes back to pending if major changes)
   const updatedFields = { ...req.body };
-  
+
   // If major fields changed, reset to pending
   const majorFields = ['name', 'description', 'location', 'category'];
   const hasMajorChanges = majorFields.some(field => req.body[field]);
-  
+
   if (hasMajorChanges && hotel.status === 'approved') {
     updatedFields.status = 'pending';
   }
@@ -211,8 +227,8 @@ export const updateHotel = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     success: true,
-    message: hasMajorChanges 
-      ? "Hotel updated. Changes pending admin approval." 
+    message: hasMajorChanges
+      ? "Hotel updated. Changes pending admin approval."
       : "Hotel updated successfully",
     hotel: updatedHotel,
   });
@@ -272,9 +288,9 @@ export const getHotelStatistics = asyncHandler(async (req, res) => {
 
   // Get rooms count
   const totalRooms = await Room.countDocuments({ hotel: hotel._id });
-  const availableRooms = await Room.countDocuments({ 
-    hotel: hotel._id, 
-    status: 'available' 
+  const availableRooms = await Room.countDocuments({
+    hotel: hotel._id,
+    status: 'available'
   });
 
   res.status(200).json({
@@ -286,8 +302,8 @@ export const getHotelStatistics = asyncHandler(async (req, res) => {
       reviewCount: hotel.reviewCount,
       totalRooms,
       availableRooms,
-      occupancyRate: totalRooms > 0 
-        ? ((totalRooms - availableRooms) / totalRooms * 100).toFixed(2) 
+      occupancyRate: totalRooms > 0
+        ? ((totalRooms - availableRooms) / totalRooms * 100).toFixed(2)
         : 0,
     },
   });
