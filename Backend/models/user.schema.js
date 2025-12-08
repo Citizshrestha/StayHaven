@@ -45,7 +45,7 @@ const userSchema = new mongoose.Schema(
         "owner",
         "admin",
         "manager",
-        "kitchen",
+        "chief",
         "waiter",
         "receptionist",
         "housekeeping",
