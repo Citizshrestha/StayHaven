@@ -53,7 +53,7 @@ const getStaffInviteEmailTemplate = ({
                   <p style="margin: 0 0 25px; font-size: 16px; color: #374151; line-height: 1.6;">
                     <strong style="color: #667eea;">${managerName}</strong> has invited you to join 
                     <strong style="color: #1f2937;">${propertyName}</strong> as a 
-                    <span style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 4px 12px; border-radius: 20px; font-size: 14px; font-weight: 600;">${roleDisplay} Staff</span>
+                    <span style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 4px 12px; border-radius: 20px; font-size: 14px; font-weight: 600;">${roleDisplay}</span>
                   </p>
                   
                   <p style="margin: 0 0 30px; font-size: 16px; color: #374151;">Click the button below to set up your account and get started:</p>
@@ -116,6 +116,10 @@ export const staffLogin = asyncHandler(async (req, res) => {
     .populate("company")
     .populate("assignedProperties");
 
+  console.log("🔍 DEBUG - User found:", user ? "Yes" : "No");
+  console.log("🔍 DEBUG - User role object:", user?.role);
+  console.log("🔍 DEBUG - User companyRole:", user?.companyRole);
+
   if (!user) {
     return res.status(401).json({
       success: false,
@@ -132,14 +136,25 @@ export const staffLogin = asyncHandler(async (req, res) => {
     });
   }
 
-  // Check if user has a staff role (kitchen or waiter)
-  const allowedRoles = ["kitchen", "waiter", "manager", "admin", "owner"];
-  if (!user.role || !allowedRoles.includes(user.role.name)) {
+  // Check if user has a staff role
+  // Use companyRole as fallback if role.name is not available
+  const allowedRoles = ["chief", "waiter", "manager", "admin", "owner", "receptionist"];
+  const userRoleName = user.role?.name || user.companyRole;
+  
+  console.log("🔍 DEBUG - Role name being checked:", userRoleName);
+  
+  // Make role check case-insensitive
+  const isAllowedRole = userRoleName && allowedRoles.some(role => role.toLowerCase() === userRoleName.toLowerCase());
+  
+  if (!isAllowedRole) {
+    console.log("❌ Access denied. User role:", userRoleName, "| Allowed roles:", allowedRoles);
     return res.status(403).json({
       success: false,
       message: "Access denied. Staff account required.",
     });
   }
+  
+  console.log("✅ Role check passed for:", userRoleName);
 
   // Check if user is active
   if (!user.isActive) {
@@ -192,7 +207,7 @@ export const staffLogin = asyncHandler(async (req, res) => {
   // Determine redirect path based on role
   let redirectPath = "/";
   switch (user.role.name) {
-    case "kitchen":
+    case "chief":
       redirectPath = "/kitchen-dashboard";
       break;
     case "waiter":
@@ -301,7 +316,7 @@ export const registerStaff = asyncHandler(async (req, res) => {
   }
 
   // Validate role
-  const allowedRoles = ["kitchen", "waiter", "receptionist"];
+  const allowedRoles = ["chief", "waiter", "receptionist"];
   if (!allowedRoles.includes(role)) {
     return res.status(400).json({
       success: false,
@@ -593,7 +608,7 @@ export const inviteStaff = asyncHandler(async (req, res) => {
   }
 
   // only allow valid staff roles
-  const allowedRoles = ["kitchen", "waiter", "receptionist"];
+  const allowedRoles = ["chief", "waiter", "receptionist"];
   if (!allowedRoles.includes(role)) {
     return res.status(400).json({
       success: false,
@@ -637,7 +652,7 @@ export const inviteStaff = asyncHandler(async (req, res) => {
     // update existing invited user (re-invite user)
     existingUser.fullname = fullname;
     existingUser.role = staffRole._id;
-    existingUser.companyRole = role; // Store role name string (kitchen, waiter, etc.)
+    existingUser.companyRole = role; // Store role name string (chief, waiter, etc.)
     existingUser.inviteToken = hashedToken;
     existingUser.inviteTokenExpireAt = inviteExpires;
     existingUser.invitedAt = new Date();
@@ -651,7 +666,7 @@ export const inviteStaff = asyncHandler(async (req, res) => {
       email: email.toLowerCase(),
       password: generateSecureToken(),
       role: staffRole._id,
-      companyRole: role, // Store role name string (kitchen, waiter, etc.)
+      companyRole: role, // Store role name string (chief, waiter, etc.)
       company: req.user.company,
       assignedProperties: [propertyId],
       isActive: false, // cant login yet
@@ -1023,4 +1038,43 @@ export const getPendingInvites = asyncHandler(async (req, res) => {
       invitedBy: invite.createdBy?.fullname || 'Unknown',
     })),
   });
+});
+
+
+// delete/cancel a pending staff invite
+export const deleteInvite = asyncHandler(async (req, res) => {
+    const {staffId} = req.params;
+
+    // check permissions
+    const allowedRoles = ['manager','owner', 'admin'];
+    const userRole = (req.user.role?.name || req.user.companyRole)?.toLowerCase();
+    if (!allowedRoles.includes(userRole)){
+       return res.status(403).json({
+          success: false,
+          message: "Not authorized to delete invite",
+       });
+    }
+
+    const staff = await User.findById(staffId);
+    if (!staff){
+      return res.status(404).json({
+        success: false,
+        message: "Staff invite not found"
+      });
+    }
+
+    
+     // Verify it's a pending invite (not yet onboarded)
+    if (staff.accountStatus !== "invited"){
+      return res.status(400).json({
+        success: false,
+        message: "Cannot delete invite for staff who have been already onboarded"
+      });
+    }
+
+    await User.findByIdAndDelete(staffId);
+    res.status(200).json({
+      success: true,
+      message: "Invite deleted successfully"
+    });
 });
