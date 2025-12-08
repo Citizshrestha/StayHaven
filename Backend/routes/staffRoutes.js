@@ -12,6 +12,7 @@ import {
   completeOnBoarding,
   resendInvite,
   getPendingInvites,
+  deleteInvite,
 } from "../controllers/staffController.js";
 import { protect, authorize } from "../middleware/authMiddleware.js";
 
@@ -67,8 +68,12 @@ router.get(
   getPendingInvites
 );
 
+
+// delete/cancel pending invitations
+router.delete("/invite/:staffId",protect, authorize('manager','admin','owner'),deleteInvite);
+
+
 // Get all staff for a specific property
-// Example: GET /api/staff/property/64abc123...
 router.get(
   "/property/:propertyId",
   protect,
@@ -77,7 +82,6 @@ router.get(
 );
 
 // Update staff status (activate/deactivate)
-// Example: PUT /api/staff/status/64abc123... { isActive: false }
 router.put(
   "/status/:staffId",
   protect,
