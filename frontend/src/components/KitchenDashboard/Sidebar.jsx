@@ -33,15 +33,15 @@ const Sidebar = () => {
     >
       <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
         <img
-          src={staffUser?.profilePicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(staffUser?.fullname || 'Kitchen')}`}
+          src={staffUser?.profilePicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(staffUser?.fullname || 'Chief')}`}
           alt="User"
           style={{ width: 48, height: 48, borderRadius: 12, objectFit: 'cover' }}
         />
         <div>
           <h1 style={{ fontSize: "18px", fontWeight: "800", color: "#111827" }}>
-            {staffUser?.fullname ?? 'Kitchen Staff'}
+            {staffUser?.fullname ?? 'Chief Staff'}
           </h1>
-          <p style={{ fontSize: "14px", color: "#6B7280" }}>{staffUser?.role ?? 'Kitchen'}</p>
+          <p style={{ fontSize: "14px", color: "#6B7280",textTransform: "capitalize" }}>{staffUser?.role ? `${staffUser.role} ` :'Chief'}</p>
         </div>
       </div>
 

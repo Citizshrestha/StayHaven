@@ -59,7 +59,7 @@ const App = () => {
               <Route
                 path="/kitchen-dashboard"
                 element={
-                  <ProtectedStaffRoute allowedRoles={["kitchen"]}>
+                  <ProtectedStaffRoute allowedRoles={["chief"]}>
                     <KitchenDashboard />
                   </ProtectedStaffRoute>
                 }
