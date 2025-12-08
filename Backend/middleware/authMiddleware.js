@@ -5,17 +5,29 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 
 export const protect = asyncHandler(async (req, res, next) => {
   let token;
-  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-    token = req.headers.authorization.split(' ')[1];
-    const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
-    req.user = await User.findById(decoded.id).select('-password').populate('role');
-    if (!req.user) {
-      throw Object.assign(new Error('User not found'), { status: 401 });
-    }
-    next();
-  } else {
-    throw Object.assign(new Error('No access token provided, token missing'), { status: 401 });
+
+  // Check for token in Authorization header first
+  if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
+    token = req.headers.authorization.split(" ")[1];
+  } 
+  // Fallback: check for token in cookies
+  else if (req.cookies && req.cookies.accessToken) {
+    token = req.cookies.accessToken;
   }
+
+  if (!token) {
+    return res.status(401).json({
+      success: false,
+      message: "Not authorized, no token",
+    });
+  }
+
+  const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+  req.user = await User.findById(decoded.id).select('-password').populate('role');
+  if (!req.user) {
+    throw Object.assign(new Error('User not found'), { status: 401 });
+  }
+  next();
 });
 
 export const authorize = (...roles) => {
