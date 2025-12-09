@@ -10,6 +10,7 @@ import {
   generateSecureToken,
   hashToken,
 } from "../utils/tokenUtils.js";
+import { validatePasswordStrength } from "../utils/passwordValidation.js";
 import { transporter } from "../config/nodemailer.js";
 // import { JWT } from "google-auth-library";
 
@@ -23,7 +24,7 @@ const getStaffInviteEmailTemplate = ({
 }) => {
   // Ensure role is displayed properly
   const roleDisplay = String(role || 'Staff Member');
-  
+
   return `
     <!DOCTYPE html>
     <html>
@@ -140,12 +141,12 @@ export const staffLogin = asyncHandler(async (req, res) => {
   // Use companyRole as fallback if role.name is not available
   const allowedRoles = ["chief", "waiter", "manager", "admin", "owner", "receptionist"];
   const userRoleName = user.role?.name || user.companyRole;
-  
+
   console.log("🔍 DEBUG - Role name being checked:", userRoleName);
-  
+
   // Make role check case-insensitive
   const isAllowedRole = userRoleName && allowedRoles.some(role => role.toLowerCase() === userRoleName.toLowerCase());
-  
+
   if (!isAllowedRole) {
     console.log("❌ Access denied. User role:", userRoleName, "| Allowed roles:", allowedRoles);
     return res.status(403).json({
@@ -153,7 +154,7 @@ export const staffLogin = asyncHandler(async (req, res) => {
       message: "Access denied. Staff account required.",
     });
   }
-  
+
   console.log("✅ Role check passed for:", userRoleName);
 
   // Check if user is active
@@ -245,9 +246,9 @@ export const staffLogin = asyncHandler(async (req, res) => {
       // Current active property (first one or selected)
       activeProperty: user.assignedProperties[0]
         ? {
-            _id: user.assignedProperties[0]._id,
-            name: user.assignedProperties[0].name,
-          }
+          _id: user.assignedProperties[0]._id,
+          name: user.assignedProperties[0].name,
+        }
         : null,
     },
     redirectPath,
@@ -279,9 +280,9 @@ export const getStaffProfile = asyncHandler(async (req, res) => {
       role: user.role?.name,
       company: user.company
         ? {
-            _id: user.company._id,
-            name: user.company.name,
-          }
+          _id: user.company._id,
+          name: user.company.name,
+        }
         : null,
       assignedProperties:
         user.assignedProperties?.map((prop) => ({
@@ -380,9 +381,8 @@ export const registerStaff = asyncHandler(async (req, res) => {
 
   return res.status(201).json({
     success: true,
-    message: `${
-      role.charAt(0).toUpperCase() + role.slice(1)
-    } staff registered successfully`,
+    message: `${role.charAt(0).toUpperCase() + role.slice(1)
+      } staff registered successfully`,
     staff: {
       _id: newStaff._id,
       fullname: newStaff.fullname,
@@ -687,7 +687,7 @@ export const inviteStaff = asyncHandler(async (req, res) => {
   const managerName = req.user.fullname || "Your Manager";
   const roleCapitalized = role.charAt(0).toUpperCase() + role.slice(1);
   console.log("📧 Sending invite email with role:", roleCapitalized);
-  
+
   const emailTemplate = getStaffInviteEmailTemplate({
     staffName: fullname,
     managerName: managerName,
@@ -702,9 +702,8 @@ export const inviteStaff = asyncHandler(async (req, res) => {
       from: `"${property.name} via StayHaven" <${process.env.SENDER_EMAIL}>`,
       replyTo: property.contact?.email || process.env.SENDER_EMAIL,
       to: email,
-      subject: `You're Invited to Join as ${
-        role.charAt(0).toUpperCase() + role.slice(1)
-      } at ${property.name}`,
+      subject: `You're Invited to Join as ${role.charAt(0).toUpperCase() + role.slice(1)
+        } at ${property.name}`,
       html: emailTemplate,
     });
   } catch (emailError) {
@@ -746,19 +745,19 @@ export const verifyInviteToken = asyncHandler(async (req, res) => {
     inviteToken: hashedToken,
     accountStatus: 'invited',
   })
-   .populate('role', 'name')  // get role name
-   .populate('company', 'name') // get company name
-   .populate('assignedProperties', 'name'); // get Property name
+    .populate('role', 'name')  // get role name
+    .populate('company', 'name') // get company name
+    .populate('assignedProperties', 'name'); // get Property name
 
   // check if user found
-  if (!user){
+  if (!user) {
     return res.status(400).json({
       success: false,
       message: "Invalid or already used invite link",
     });
   }
   // check if token has been expired or not
-  if (user.inviteTokenExpireAt < new Date()){
+  if (user.inviteTokenExpireAt < new Date()) {
     return res.status(400).json({
       success: false,
       message: "Invite link has been expired. please ask your manager for a new one",
@@ -767,147 +766,131 @@ export const verifyInviteToken = asyncHandler(async (req, res) => {
   }
 
   // token is valid now it can return info for onboarding form
-    return res.status(200).json({
-      success: true,
-      message: "Invite token is valid",
-      user: {
-         fullname: user.fullname,
-         email: user.email,
-         role: user.role?.name || user.companyRole,
-         company: user.company?.name,
-         assignedProperties: user.assignedProperties?.map( prop => ({
-          _id: prop._id,
-          name: prop.name,
-         })) || [],
-      },
-    });
+  return res.status(200).json({
+    success: true,
+    message: "Invite token is valid",
+    user: {
+      fullname: user.fullname,
+      email: user.email,
+      role: user.role?.name || user.companyRole,
+      company: user.company?.name,
+      assignedProperties: user.assignedProperties?.map(prop => ({
+        _id: prop._id,
+        name: prop.name,
+      })) || [],
+    },
+  });
 });
 
 
 export const completeOnBoarding = asyncHandler(async (req, res) => {
 
   // extract data from body
-   const {token, password, username} = req.body;
+  const { token, password, username } = req.body;
 
-   // validate required fields
-   if (!token || !password){
+  // validate required fields
+  if (!token || !password) {
     return res.status(400).json({
       success: false,
       message: "Token and password are required",
     });
-   }
+  }
 
-   
-  const passwordErrors = [];
 
-   // validate password strength
-   if (password.length < 8){
-     passwordErrors.push("Password must be atleast 8 characters long");
-   }
-   if (!/[A-Z]/.test(password)){
-     passwordErrors.push("Password must contain at least one UpperCase letter");
-   }
-   if (!/[a-z]/.test(password)){
-    passwordErrors.push("Password must contain at least one LowerCase letter");
-   }
-   if (!/[0-9]/.test(password)){
-     passwordErrors.push("Password must contain at least one number");
-   }
-   if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)){
-      passwordErrors.push("Password must contain at least one special character");
-   }
+  // Validate password strength
+  const passwordErrors = validatePasswordStrength(password);
 
-   // return all errors at once if exists
-   if (passwordErrors.length > 0){
-     return res.status(400).json({
+  // return all errors at once if exists
+  if (passwordErrors.length > 0) {
+    return res.status(400).json({
       success: false,
       message: "Password does not meet strength requirement",
       errors: passwordErrors,
-     });
-   }
+    });
+  }
 
-   // find user by hashed Token
-   const hashedToken = hashToken(token);
+  // find user by hashed Token
+  const hashedToken = hashToken(token);
 
-   const user = await User.findOne({
-      inviteToken: hashedToken,
-      accountStatus: 'invited',
-   })
+  const user = await User.findOne({
+    inviteToken: hashedToken,
+    accountStatus: 'invited',
+  })
     .populate('role', 'name')
     .populate('company', 'name')
     .populate('assignedProperties', 'name');
 
-    if (!user){
-      return res.status(400).json({
-        success: false,
-        message: "Invalid or already used invite link",
-      });
-    }
+  if (!user) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid or already used invite link",
+    });
+  }
 
-    // check token expiration
-    if (user.inviteTokenExpireAt < new Date()){
-      return res.status(400).json({
-        success: false,
-        message: "Invite link has been expired. please ask your manager for a new one",
-        expired: true,
-      });
-    }
+  // check token expiration
+  if (user.inviteTokenExpireAt < new Date()) {
+    return res.status(400).json({
+      success: false,
+      message: "Invite link has been expired. please ask your manager for a new one",
+      expired: true,
+    });
+  }
 
-    // check if username is taken 
-    if (username){
-      const existingUsername = await User.findOne({
-        username: username.toLowerCase(),
-        _id: { $ne: user._id }, // exclude this user
-      })
-    
+  // check if username is taken 
+  if (username) {
+    const existingUsername = await User.findOne({
+      username: username.toLowerCase(),
+      _id: { $ne: user._id }, // exclude this user
+    })
+
     if (existingUsername) {
       return res.status(400).json({
         success: false,
         message: "Username is already taken",
       });
     }
-    
+
     user.username = username.toLowerCase();
   }
 
-    // activate this account
-    user.password = password;
+  // activate this account
+  user.password = password;
 
-    // clear the invite token- single use only
-    user.inviteToken = null;
-    user.inviteTokenExpireAt = null;
+  // clear the invite token- single use only
+  user.inviteToken = null;
+  user.inviteTokenExpireAt = null;
 
-    // Change status from 'invited' to 'active'
-    user.accountStatus = 'active';
+  // Change status from 'invited' to 'active'
+  user.accountStatus = 'active';
 
-     // Enable login
-    user.isActive = true;
-    user.isEmailVerified = true;
+  // Enable login
+  user.isActive = true;
+  user.isEmailVerified = true;
 
-    user.onboardedAt = new Date(); // record when onboarding was completed
+  user.onboardedAt = new Date(); // record when onboarding was completed
 
-    await user.save(); // save all changes to db
+  await user.save(); // save all changes to db
 
-    res.status(200).json({
-      success: true,
-      message: "Onboarding completed successfully",
-      user: {
-        _id: user._id,
-        fullname: user.fullname,
-        email: user.email,
-        username: user.username,
-        role: user.role?.name || user.companyRole,
-        company: user.company?.name,
-        assignedProperties: user.assignedProperties?.map(prop => ({
-          _id: prop._id,
-          name: prop.name,
-        })) || [],
-      },
-    });
+  res.status(200).json({
+    success: true,
+    message: "Onboarding completed successfully",
+    user: {
+      _id: user._id,
+      fullname: user.fullname,
+      email: user.email,
+      username: user.username,
+      role: user.role?.name || user.companyRole,
+      company: user.company?.name,
+      assignedProperties: user.assignedProperties?.map(prop => ({
+        _id: prop._id,
+        name: prop.name,
+      })) || [],
+    },
+  });
 });
 
 
- //  Resend invite email to staff with expired token
+//  Resend invite email to staff with expired token
 export const resendInvite = asyncHandler(async (req, res) => {
   // Get staff ID from URL parameter
   const { staffId } = req.params;
@@ -943,7 +926,6 @@ export const resendInvite = asyncHandler(async (req, res) => {
 
   //  Check status - can only resend for 'invited' accounts
   // If status is 'active', they already onboarded - no need to resend
-  // ═══════════════════════════════════════════════════════════════
   if (staff.accountStatus !== 'invited') {
     return res.status(400).json({
       success: false,
@@ -1043,38 +1025,316 @@ export const getPendingInvites = asyncHandler(async (req, res) => {
 
 // delete/cancel a pending staff invite
 export const deleteInvite = asyncHandler(async (req, res) => {
-    const {staffId} = req.params;
+  const { staffId } = req.params;
 
-    // check permissions
-    const allowedRoles = ['manager','owner', 'admin'];
-    const userRole = (req.user.role?.name || req.user.companyRole)?.toLowerCase();
-    if (!allowedRoles.includes(userRole)){
-       return res.status(403).json({
-          success: false,
-          message: "Not authorized to delete invite",
-       });
-    }
-
-    const staff = await User.findById(staffId);
-    if (!staff){
-      return res.status(404).json({
-        success: false,
-        message: "Staff invite not found"
-      });
-    }
-
-    
-     // Verify it's a pending invite (not yet onboarded)
-    if (staff.accountStatus !== "invited"){
-      return res.status(400).json({
-        success: false,
-        message: "Cannot delete invite for staff who have been already onboarded"
-      });
-    }
-
-    await User.findByIdAndDelete(staffId);
-    res.status(200).json({
-      success: true,
-      message: "Invite deleted successfully"
+  // Check permissions - consistent with other functions
+  const allowedRoles = ['manager', 'admin', 'owner'];
+  if (!req.user.role || !allowedRoles.includes(req.user.role.name)) {
+    return res.status(403).json({
+      success: false,
+      message: "Not authorized to delete invite",
     });
+  }
+
+  const staff = await User.findById(staffId);
+  if (!staff) {
+    return res.status(404).json({
+      success: false,
+      message: "Staff invite not found"
+    });
+  }
+
+  // Security: Verify staff belongs to the same company (multi-tenant isolation)
+  if (staff.company.toString() !== req.user.company.toString()) {
+    return res.status(403).json({
+      success: false,
+      message: "Not authorized to manage this staff member",
+    });
+  }
+
+  // Verify it's a pending invite (not yet onboarded)
+  if (staff.accountStatus !== "invited") {
+    return res.status(400).json({
+      success: false,
+      message: "Cannot delete invite for staff who have been already onboarded"
+    });
+  }
+
+  await User.findByIdAndDelete(staffId);
+  res.status(200).json({
+    success: true,
+    message: "Invite deleted successfully"
+  });
+});
+
+export const changePassword = asyncHandler(async (req, res) => {
+
+  // extracting currentpassword and password from frontend request body
+  const { currentPassword, newPassword } = req.body;
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({
+      success: false,
+      message: "Current Password and New Password are required"
+    });
+  }
+
+  // find logged-in user 
+  const user = req.user._id;
+  const currentUser = await User.findById(user).select("+password");
+
+  if (!currentUser) {
+    return res.status(404).json({
+      success: false,
+      message: "User not found!"
+    });
+  }
+
+  const isMatch = await currentUser.matchPassword(currentPassword);
+
+  if (!isMatch) {
+    return res.status(401).json({
+      success: false,
+      message: "Current Password is incorrect",
+    });
+  }
+
+  // Check if new password is same as current password
+  if (currentPassword === newPassword) {
+    return res.status(400).json({
+      success: false,
+      message: "New password cannot be the same as current password",
+    });
+  }
+
+  // Validate password strength
+  const passErrs = validatePasswordStrength(newPassword);
+
+  if (passErrs.length > 0) {
+    return res.status(400).json({
+      success: false,
+      message: "Password does not meet strength requirements",
+      errors: passErrs,
+    });
+  }
+
+  currentUser.password = newPassword;
+
+  // Invalidate all existing refresh tokens for security
+  // Forces re-login on other devices after password change
+  currentUser.refreshToken = null;
+
+  await currentUser.save();
+
+  return res.status(200).json({
+    success: true,
+    message: "Password Changed Successfully.",
+  });
+});
+
+
+export const forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({
+      success: false,
+      message: "Email is required!",
+    });
+  }
+
+  const user = await User.findOne({ email: email.toLowerCase() }).populate('role').populate('assignedProperties', "name");
+
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      message: "User with this email not found!",
+    });
+  }
+
+  const staffRoles = ['chief', 'manager', 'waiter', 'receptionist', 'admin', 'owner'];
+  const userRole = (user.role?.name || user.companyRole).toLowerCase();
+
+  if (!userRole || !staffRoles.includes(userRole)) {
+    return res.status(404).json({
+      success: false,
+      message: "User with this email and role not found!",
+    })
+  }
+
+  // generate a secure random token 
+  const resetToken = generateSecureToken();
+
+  // Hashing the token before storing in db
+  const hashedToken = hashToken(resetToken);
+
+  //token expires in 1 hr shorter than invite(for security purpose)
+  const resetExpires = new Date(Date.now() + 60 * 60 * 1000);
+
+  // Save hashed token and expiry to user document
+  user.resetOtp = hashedToken;
+  user.resetOtpExpireAt = resetExpires;
+  await user.save();
+
+  // build reset link and send email
+  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+
+  const resetLink = `${frontendUrl}/staff/reset-password?token=${resetToken}`;
+
+  // Get property name for email branding
+  const propertyName = user.assignedProperties?.[0]?.name || "StayHaven";
+
+  const emailHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f4f8;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f0f4f8; padding: 40px 20px;">
+        <tr>
+          <td align="center">
+            <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);">
+              
+              <!-- Header -->
+              <tr>
+                <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; text-align: center;">
+                  <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 600;">🔐 Password Reset</h1>
+                  <p style="margin: 10px 0 0; color: rgba(255,255,255,0.9); font-size: 16px;">Reset your account password</p>
+                </td>
+              </tr>
+              
+              <!-- Content -->
+              <tr>
+                <td style="padding: 40px 30px;">
+                  <p style="margin: 0 0 20px; font-size: 16px; color: #374151;">Hi <strong style="color: #1f2937;">${user.fullname}</strong>,</p>
+                  
+                  <p style="margin: 0 0 25px; font-size: 16px; color: #374151; line-height: 1.6;">
+                    We received a request to reset your password for your staff account at 
+                    <strong style="color: #667eea;">${propertyName}</strong>.
+                  </p>
+                  
+                  <p style="margin: 0 0 30px; font-size: 16px; color: #374151;">Click the button below to set a new password:</p>
+                  
+                  <!-- CTA Button -->
+                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                    <tr>
+                      <td align="center">
+                        <a href="${resetLink}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; text-decoration: none; padding: 16px 40px; border-radius: 8px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);">Reset Password</a>
+                      </td>
+                    </tr>
+                  </table>
+                  
+                  <!-- Warning Box -->
+                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top: 30px;">
+                    <tr>
+                      <td style="background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 0 8px 8px 0; padding: 16px 20px;">
+                        <p style="margin: 0; font-size: 14px; color: #92400e;">
+                          <strong>⏰ Important:</strong> This link expires in <strong>1 hour</strong>. If you didn't request this, please ignore this email.
+                        </p>
+                      </td>
+                    </tr>
+                  </table>
+                  
+                  <p style="margin: 30px 0 0; font-size: 14px; color: #6b7280;">If you're having trouble clicking the button, copy and paste this URL into your browser:</p>
+                  <p style="margin: 10px 0 0; font-size: 12px; color: #9ca3af; word-break: break-all;">${resetLink}</p>
+                </td>
+              </tr>
+              
+              <!-- Footer -->
+              <tr>
+                <td style="background-color: #f9fafb; padding: 25px 30px; text-align: center; border-top: 1px solid #e5e7eb;">
+                  <p style="margin: 0 0 5px; font-size: 14px; color: #374151; font-weight: 500;">Best regards,</p>
+                  <p style="margin: 0; font-size: 14px; color: #667eea; font-weight: 600;">The ${propertyName} Team</p>
+                  <p style="margin: 15px 0 0; font-size: 12px; color: #9ca3af;">This is an automated message. Please do not reply to this email.</p>
+                </td>
+              </tr>
+              
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `;
+
+  try {
+    await transporter.sendMail({
+      from: `"${propertyName}" <${process.env.SENDER_EMAIL}>`,
+      to: user.email,
+      subject: "Password Reset Request",
+      html: emailHtml,
+    });
+  } catch (emailError) {
+    console.error("Failed to send reset email:", emailError);
+  }
+
+  return res.status(200).json({
+    success: true,
+    message: "If this email exists, a reset link has been sent",
+  });
+});
+
+
+// Reset Password - Complete the password reset with token
+export const resetPassword = asyncHandler(async (req, res) => {
+  //Extract token and newPassword from request body
+  const { token, newPassword } = req.body;
+
+  // Validate required fields
+  if (!token || !newPassword) {
+    return res.status(400).json({
+      success: false,
+      message: "Token and new password are required",
+    });
+  }
+
+  // Validate password strength
+  const passwordErrors = validatePasswordStrength(newPassword);
+
+  // Return all errors if password is weak
+  if (passwordErrors.length > 0) {
+    return res.status(400).json({
+      success: false,
+      message: "Password does not meet strength requirements",
+      errors: passwordErrors,
+    });
+  }
+
+  //  Hash the token to compare with database
+  const hashedToken = hashToken(token);
+
+  // Find user with matching token that hasn't expired
+  const user = await User.findOne({
+    resetOtp: hashedToken,
+    resetOtpExpireAt: { $gt: new Date() }, // Token must not be expired
+  });
+
+  // Check if user found (invalid or expired token)
+  if (!user) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid or expired reset token. Please request a new reset link.",
+    });
+  }
+
+  // Set new password - pre-save hook will hash it
+  user.password = newPassword;
+
+  // Clear the reset token fields - single use only
+  user.resetOtp = null;
+  user.resetOtpExpireAt = null;
+
+  // Invalidate all refresh tokens for security
+  user.refreshToken = null;
+
+  // Save changes to database
+  await user.save();
+
+  // Return success response
+  return res.status(200).json({
+    success: true,
+    message: "Password reset successfully. You can now login with your new password.",
+  });
 });
