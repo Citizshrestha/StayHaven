@@ -13,15 +13,15 @@ import {
   resendInvite,
   getPendingInvites,
   deleteInvite,
+  changePassword,
+  forgotPassword,
+  resetPassword,
 } from "../controllers/staffController.js";
 import { protect, authorize } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// Staff login - returns tokens and user data
 router.post("/login", staffLogin);
-
-// Refresh access token - uses refresh token from cookie
 router.post("/refresh-token", refreshAccessToken);
 
 // Verify invite token - staff clicks email link, frontend calls this
@@ -30,12 +30,18 @@ router.get("/verify-invite/:token", verifyInviteToken);
 // Complete onboarding - staff sets password after clicking invite link
 router.post("/complete-onboard", completeOnBoarding);
 
-// PROTECTED ROUTES (Requires valid access token)
-// Get logged-in staff's profile
-router.get("/me", protect, getStaffProfile);
+// Forgot password - request reset link 
+router.post("/forgot-password", forgotPassword);
 
-// Staff logout - clears tokens
+// Reset password - complete reset with token
+router.post("/reset-password", resetPassword);
+
+// PROTECTED ROUTES (Requires valid access token)
+router.get("/me", protect, getStaffProfile);
 router.post("/logout", protect, staffLogout);
+
+//staff change password
+router.put("/change-password", protect, changePassword);
 
 // MANAGER/ADMIN/OWNER ONLY ROUTES
 // Register staff directly (manager creates with password)
@@ -70,7 +76,7 @@ router.get(
 
 
 // delete/cancel pending invitations
-router.delete("/invite/:staffId",protect, authorize('manager','admin','owner'),deleteInvite);
+router.delete("/invite/:staffId", protect, authorize('manager', 'admin', 'owner'), deleteInvite);
 
 
 // Get all staff for a specific property
