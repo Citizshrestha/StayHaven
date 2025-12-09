@@ -1,13 +1,4 @@
-/**
- * Password Validation Utility
- * Validates password strength with consistent rules across the application
- */
 
-/**
- * Validates password strength and returns array of errors
- * @param {string} password - The password to validate
- * @returns {string[]} Array of error messages (empty if valid)
- */
 export const validatePasswordStrength = (password) => {
     const errors = [];
 
