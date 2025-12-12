@@ -9,17 +9,40 @@ const orderSchema = new mongoose.Schema({
   room: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Room',
-    required: true,
+    required: false,  // only for room service 
   },
   roomNumber: {
     type: String,
-    required: true,
   },
+  tableNumber: {
+    type: String,
+  },
+
+  // staff info 
   orderBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true,
   },
+   orderByName: {
+      type: String,
+   },
+   
+   // customer info 
+  customerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  },
+  customerName: {
+    type: String,
+  },
+  customerPhone: {
+    type: String,
+  },
+  customerPhone: {
+    type: String,
+  },
+  // order items 
   items: [
     {
       menuItem: {
@@ -30,12 +53,17 @@ const orderSchema = new mongoose.Schema({
       name: { type: String, required: true },
       quantity: { type: Number, required: true, min: 1 },
       price: { type: Number, required: true },
+      notes: {
+        type: String,
+      }
     },
   ],
+  // pricing
   totalPrice: {
     type: Number,
     required: true,
   },
+  // order type and status
   orderType: {
     type: String,
     enum: ['roomService', 'dineIn', 'takeaway'],
@@ -51,22 +79,20 @@ const orderSchema = new mongoose.Schema({
     enum: ['normal', 'high'],
     default: 'normal',
   },
-  notes: {
-    type: String,
-    maxlength: 300,
-  },
+
+  // additional info
   preparationTime: {
     type: Number, // In minutes
   },
   deliveredAt: {
     type: Date,
   },
-}, {timestamps: true});
+}, { timestamps: true });
 
 // Indexes for performance
-orderSchema.index({ room: 1, status: 1 });
+orderSchema.index({ room: 1, status: 1 });  // find orders by hotel and staus
 orderSchema.index({ hotel: 1, status: 1 });
-orderSchema.index({ orderBy: 1, createdAt: -1 });
-orderSchema.index({ status: 1, createdAt: -1 });
+orderSchema.index({ orderBy: 1, createdAt: -1 });  // find orders by staff
+orderSchema.index({ status: 1, createdAt: -1 });  // find orders by status (newest first)
 
 export const Order = mongoose.model('Order', orderSchema);

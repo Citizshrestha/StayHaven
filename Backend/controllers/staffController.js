@@ -117,9 +117,9 @@ export const staffLogin = asyncHandler(async (req, res) => {
     .populate("company")
     .populate("assignedProperties");
 
-  console.log("🔍 DEBUG - User found:", user ? "Yes" : "No");
-  console.log("🔍 DEBUG - User role object:", user?.role);
-  console.log("🔍 DEBUG - User companyRole:", user?.companyRole);
+  // console.log("🔍 DEBUG - User found:", user ? "Yes" : "No");
+  // console.log("🔍 DEBUG - User role object:", user?.role);
+  // console.log("🔍 DEBUG - User companyRole:", user?.companyRole);
 
   if (!user) {
     return res.status(401).json({
@@ -148,14 +148,14 @@ export const staffLogin = asyncHandler(async (req, res) => {
   const isAllowedRole = userRoleName && allowedRoles.some(role => role.toLowerCase() === userRoleName.toLowerCase());
 
   if (!isAllowedRole) {
-    console.log("❌ Access denied. User role:", userRoleName, "| Allowed roles:", allowedRoles);
+    // console.log("❌ Access denied. User role:", userRoleName, "| Allowed roles:", allowedRoles);
     return res.status(403).json({
       success: false,
       message: "Access denied. Staff account required.",
     });
   }
 
-  console.log("✅ Role check passed for:", userRoleName);
+  // console.log("✅ Role check passed for:", userRoleName);
 
   // Check if user is active
   if (!user.isActive) {
