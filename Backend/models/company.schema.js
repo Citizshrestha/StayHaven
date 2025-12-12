@@ -233,7 +233,6 @@ const companySchema = new mongoose.Schema({
     default: [],
   },
   
- 
   
 }, { timestamps: true });
 
