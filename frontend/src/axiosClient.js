@@ -1,0 +1,129 @@
+import axios from "axios";
+
+const axiosClient = axios.create({
+    baseURL: import.meta.env.VITE_API_BASE_URL,
+    headers: {
+        "Content-Type": "application/json",
+    },
+    withCredentials: true, // send cookies
+});
+
+axiosClient.interceptors.request.use(
+    (config) => {
+        // Token selection logic:
+        // - Normal users use `accessToken`
+        // - Staff endpoints should prefer `staffAccessToken`
+        const url = String(config.url || "");
+        const isStaffRequest = url.includes("/api/staff");
+
+        const staffAccessToken = localStorage.getItem("staffAccessToken");
+        const accessToken = localStorage.getItem('accessToken');
+
+        const tokenToUse = isStaffRequest
+          ? (staffAccessToken || accessToken)
+          : accessToken;
+
+        if (tokenToUse) {
+            config.headers.Authorization = `Bearer ${tokenToUse}`;
+        }
+        return config;
+    },
+    (error) => Promise.reject(error)
+);
+
+// Interceptor to handle token refresh on 401 errors
+axiosClient.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+        const originalRequest = error.config;
+        const url = String(originalRequest.url || "");
+        const isStaffRequest = url.includes("/api/staff");
+        
+        // Skip token refresh for login/register/password reset/signup OTP endpoints
+        const skipRefreshEndpoints = [
+            '/api/auth/login',
+            '/api/auth/register',
+            '/api/auth/google-login',
+            '/api/auth/sendResetPasswordOtp',
+            '/api/auth/verifyResetPasswordOtp',
+            '/api/auth/resetPassword',
+            '/api/auth/sendSignupOtp',
+            '/api/auth/verifySignupOtp',
+            // Staff public endpoints
+            '/api/staff/login',
+            '/api/staff/forgot-password',
+            '/api/staff/reset-password',
+            '/api/staff/complete-onboard',
+            '/api/staff/verify-invite'
+        ];
+        
+        const isAuthEndpoint = skipRefreshEndpoints.some(endpoint => 
+            originalRequest.url?.includes(endpoint)
+        );
+        
+        // Determine if user is logged in (staff or normal user)
+        const hasStaffSession = !!localStorage.getItem('staffAccessToken');
+        const hasUserSession = !!localStorage.getItem('userId');
+        
+        // Only attempt refresh if:
+        // 1. It's a 401 error
+        // 2. It's not already retrying
+        // 3. It's not an auth endpoint (login/register)
+        // 4. We have a session (staff or user)
+        if (error.response?.status === 401 && 
+            !originalRequest._retry && 
+            !isAuthEndpoint && 
+            (hasStaffSession || hasUserSession)) {
+            
+            originalRequest._retry = true;
+
+            try {
+                // Choose refresh endpoint based on request type
+                const refreshUrl = isStaffRequest && hasStaffSession
+                    ? '/api/staff/refresh-token'
+                    : '/api/auth/refresh';
+                
+                // Use axios directly to avoid interceptor loop
+                const { data } = await axios.post(
+                    import.meta.env.VITE_API_BASE_URL + refreshUrl, 
+                    {}, 
+                    { withCredentials: true }
+                );
+                
+                const newAccessToken = data.accessToken;
+                
+                // Store in the correct key
+                if (isStaffRequest && hasStaffSession) {
+                    localStorage.setItem('staffAccessToken', newAccessToken);
+                } else {
+                    localStorage.setItem('accessToken', newAccessToken);
+                }
+                
+                originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+                return axiosClient(originalRequest);
+            } catch (refreshErr) {
+                // Clear appropriate tokens and redirect
+                if (isStaffRequest && hasStaffSession) {
+                    localStorage.removeItem('staffAccessToken');
+                    localStorage.removeItem('staffUser');
+                    localStorage.removeItem('staffRole');
+                    localStorage.removeItem('activeProperty');
+                    if (!window.location.pathname.includes('/staff/login')) {
+                        window.location.href = "/staff/login";
+                    }
+                } else if (localStorage.getItem('accessToken')) {
+                    localStorage.removeItem('accessToken');
+                    localStorage.removeItem('userId');
+                    if (!window.location.pathname.includes('/login')) {
+                        window.location.href = "/";
+                    }
+                }
+                return Promise.reject(refreshErr);
+            }
+        }
+        
+        return Promise.reject(error);
+    }
+);
+
+export default axiosClient;
