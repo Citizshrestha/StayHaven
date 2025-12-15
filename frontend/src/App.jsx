@@ -6,7 +6,7 @@ import { GoogleOAuthProvider } from "@react-oauth/google";
 
 // Import components
 import Home from "./components/Home";
-import Login from "./components/Login";
+import Login from "./components/guestUsers/Login";
 import Register from "./components/Register";
 import ForgotPassword from "./components/ForgotPassword";
 import ResetPassword from "./components/ResetPassword";
@@ -21,7 +21,8 @@ import { OrderProvider } from "./context/OrderContext";
 import { StaffAuthProvider } from "./context/StaffAuthContext";
 import ProtectedStaffRoute from "./routes/ProtectedStaffRoute";
 import AboutPage from "./components/AboutPage";
-import StaffLogin from "./components/StaffLogin";
+import StaffLogin from "./components/staff/StaffLogin";
+import StaffForgotPassword from "./components/staff/staffForgotPassword";
 
 const App = () => {
   return (
@@ -35,7 +36,6 @@ const App = () => {
               {/* Public Routes */}
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
-              <Route path="/staff/login" element={<StaffLogin />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/" element={<Home />} />
@@ -46,6 +46,11 @@ const App = () => {
               <Route path="/hotel/:id" element={<HotelDetailsPage />} />
               <Route path="/hotels" element={<FilteredHotels />} />
               <Route path="/booking-confirmed" element={<BookingConfirmed />} />
+
+              // staff routes
+              <Route path="/staff/login" element={<StaffLogin />} />
+              <Route path="/staff/forgot-password" element={<StaffForgotPassword />} />
+
               
               {/* Dashboard Routes (protected) */}
               <Route
