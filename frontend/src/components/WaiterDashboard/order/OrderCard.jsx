@@ -1,13 +1,40 @@
-import { useState } from "react";
-import { X, ChevronRight, Clock, MapPin, User } from "lucide-react";
+import { useState, useEffect } from "react";
+import { X, Clock, MapPin, User, Trash2, MoreVertical, Edit, Copy, AlertTriangle } from "lucide-react";
+import ItemCarousel from "../../shared/ItemCarousel";
+import { deleteOrder } from "../../../api/staff";
+import { toast } from "react-toastify";
+import useClickOutside from "../../../hooks/useClickOutSide";
 
-const OrderCard = ({ order, onUpdateOrderStatus, onMarkServed }) => {
-  const [showStatusModal, setShowStatusModal] = useState(false);
+const OrderCard = ({ order, onMarkServed, onDelete }) => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const [isMobile, setIsMobile] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
 
-  const handleUpdateStatus = () => {
-    setShowStatusModal(true);
-  };
+  // use custom hook for handling click outside
+  const menuRef = useClickOutside(() => setShowMenu(false));
+
+  // Handle responsive breakpoints
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsMobile(window.innerWidth < 640);
+      setIsTablet(window.innerWidth >= 640 && window.innerWidth < 1024);
+    };
+    
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
+
+
+
+  // Safety check - if no order, don't render (AFTER all hooks)
+  if (!order) {
+    return null;
+  }
 
   const handleViewDetails = () => {
     setShowDetailsModal(true);
@@ -17,11 +44,40 @@ const OrderCard = ({ order, onUpdateOrderStatus, onMarkServed }) => {
     onMarkServed(order.id);
   };
 
-  const confirmUpdate = () => {
-    const nextStatus = order.status === "new" ? "preparing" : "ready";
-    setShowStatusModal(false);
-    onUpdateOrderStatus(order.id, nextStatus)
+  // Helper to get items display text (supports both old string and new array format)
+  const getItemsDisplay = () => {
+    if (Array.isArray(order.items)) {
+      return order.items.map(item => `${item.quantity}× ${item.name}`).join(", ");
+    }
+    return order.itemsText || order.items || "";
   };
+
+  // Get total item count
+  const getTotalItemCount = () => {
+    if (Array.isArray(order.items)) {
+      return order.items.reduce((sum, item) => sum + item.quantity, 0);
+    }
+    return 0;
+  };
+
+  const getStatusDuration = (order) => {
+    const now = new Date();
+    
+    if (order.status === "preparing" && order.startedPreparingAt) {
+      const startTime = new Date(order.startedPreparingAt);
+      const diffMins = Math.floor((now - startTime) / 60000);
+      return diffMins === 0 ? `Preparing - Just now` : `Preparing for ${diffMins}m`;
+    } else if (order.status === "ready" && order.readyAt) {
+      const readyTime = new Date(order.readyAt);
+      const diffMins = Math.floor((now - readyTime) / 60000);
+      return diffMins === 0 ? `Ready - Just now` : `Ready for ${diffMins}m`;
+    } else if (order.status === "completed" && order.servedAt) {
+      return `Completed at ${order.servedAt}`;
+    }
+    return order.time;
+  };
+
+  
 
   const getStatusStyles = (status) => {
     switch (status) {
@@ -43,6 +99,12 @@ const OrderCard = ({ order, onUpdateOrderStatus, onMarkServed }) => {
           color: "#059669",
           label: "Ready for Pickup",
         };
+      case "completed":
+        return {
+          backgroundColor: "#E5E7EB",
+          color: "#6B7280",
+          label: "Completed ✓",
+        };
       default:
         return {
           backgroundColor: "#F3F4F6",
@@ -54,14 +116,14 @@ const OrderCard = ({ order, onUpdateOrderStatus, onMarkServed }) => {
 
   const statusStyle = getStatusStyles(order.status);
 
-  // Inline Styles
+  // Responsive Inline Styles
   const cardStyle = {
     backgroundColor: "white",
-    borderRadius: "24px",
-    padding: "24px",
+    borderRadius: isMobile ? "16px" : "24px",
+    padding: isMobile ? "16px" : "24px",
     display: "flex",
-    flexDirection: "row",
-    gap: "24px",
+    flexDirection: isMobile ? "column" : "row",
+    gap: isMobile ? "16px" : "24px",
     boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
     border: "1px solid #F3F4F6",
   };
@@ -70,19 +132,21 @@ const OrderCard = ({ order, onUpdateOrderStatus, onMarkServed }) => {
     flex: 1,
     display: "flex",
     flexDirection: "column",
+    minWidth: 0, // Prevent text overflow
   };
 
   const headerStyle = {
     display: "flex",
     alignItems: "center",
-    gap: "12px",
-    marginBottom: "16px",
+    flexWrap: "wrap",
+    gap: isMobile ? "8px" : "12px",
+    marginBottom: isMobile ? "12px" : "16px",
   };
 
   const badgeStyle = {
-    padding: "4px 12px",
+    padding: isMobile ? "3px 8px" : "4px 12px",
     borderRadius: "8px",
-    fontSize: "12px",
+    fontSize: isMobile ? "11px" : "12px",
     fontWeight: "700",
     backgroundColor: statusStyle.backgroundColor,
     color: statusStyle.color,
@@ -90,77 +154,83 @@ const OrderCard = ({ order, onUpdateOrderStatus, onMarkServed }) => {
 
   const metaStyle = {
     color: "#6B7280",
-    fontSize: "14px",
+    fontSize: isMobile ? "12px" : "14px",
     fontWeight: "500",
   };
 
   const titleStyle = {
-    fontSize: "24px",
+    fontSize: isMobile ? "18px" : isTablet ? "20px" : "24px",
     fontWeight: "800",
     color: "#111827",
     marginBottom: "8px",
     lineHeight: "1.2",
+    wordBreak: "break-word",
   };
 
   const itemsStyle = {
     color: "#6B7280",
-    fontSize: "14px",
+    fontSize: isMobile ? "13px" : "14px",
     lineHeight: "1.5",
-    marginBottom: "24px",
+    marginBottom: isMobile ? "16px" : "24px",
     flex: 1,
   };
 
   const buttonsContainerStyle = {
     marginTop: "auto",
     display: "flex",
-    gap: "12px",
+    flexDirection: isMobile ? "column" : "row",
+    gap: isMobile ? "8px" : "12px",
   };
 
   const primaryButtonStyle = {
-    flex: 1,
-    padding: "12px 24px",
+    flex: isMobile ? "none" : 1,
+    padding: isMobile ? "10px 16px" : "12px 24px",
     backgroundColor: "#10B981",
     color: "white",
     borderRadius: "9999px",
     fontWeight: "700",
-    fontSize: "14px",
+    fontSize: isMobile ? "13px" : "14px",
     border: "none",
     cursor: "pointer",
     transition: "background-color 0.2s",
     textAlign: "center",
+    width: isMobile ? "100%" : "auto",
   };
 
   const secondaryButtonStyle = {
-    flex: 1,
-    padding: "12px 24px",
+    flex: isMobile ? "none" : 1,
+    padding: isMobile ? "10px 16px" : "12px 24px",
     backgroundColor: "#E5E7EB",
     color: "#374151",
     borderRadius: "9999px",
     fontWeight: "700",
-    fontSize: "14px",
+    fontSize: isMobile ? "13px" : "14px",
     border: "none",
     cursor: "pointer",
     transition: "background-color 0.2s",
     textAlign: "center",
+    width: isMobile ? "100%" : "auto",
   };
 
   const standaloneButtonStyle = {
-    width: "400px",
-    padding: "12px 24px",
+    padding: isMobile ? "10px 20px" : "12px 28px",
     backgroundColor: "#10B981",
     color: "white",
-    borderRadius: "9999px",
+    borderRadius: "12px",
     fontWeight: "700",
-    fontSize: "15px",
+    fontSize: isMobile ? "13px" : "14px",
     border: "none",
     cursor: "pointer",
-    transition: "background-color 0.2s",
+    transition: "all 0.2s",
     textAlign: "center",
+    boxShadow: "0 2px 4px rgba(16, 185, 129, 0.2)",
+    width: isMobile ? "100%" : "auto",
   };
 
   const imageContainerStyle = {
-    width: "240px",
+    width: isMobile ? "100%" : isTablet ? "180px" : "240px",
     flexShrink: 0,
+    order: isMobile ? -1 : 0, // Image on top for mobile
   };
 
   const imageStyle = {
@@ -171,22 +241,290 @@ const OrderCard = ({ order, onUpdateOrderStatus, onMarkServed }) => {
     aspectRatio: "4/3",
   };
 
+  const handleDelete = async () => {
+    if (!order) return;
+    
+    setIsDeleting(true);
+    setDeleteError("");
+    try {
+      const orderId = order._id || order.id;
+      if (!orderId) {
+        setDeleteError("Order ID not found");
+        setIsDeleting(false);
+        return;
+      }
+
+      // Check if it's a real order (from backend) or dummy order
+      if (order.isReal) {
+        // Real order - call backend API
+        const response = await deleteOrder(orderId);
+        if (response.success) {
+          setShowDeleteConfirm(false);
+          if (onDelete) {
+            onDelete(orderId);
+            toast.success("Order Deleted Successfully");
+          }
+        } else {
+          setDeleteError(response.message || "Failed to delete order");
+        }
+      } else {
+        // Dummy order - just remove locally
+        setShowDeleteConfirm(false);
+        if (onDelete) {
+          onDelete(orderId);
+          toast.success("Order Deleted Successfully");
+        }
+      }
+    } catch (err) {
+      setDeleteError(err.response?.data?.message || "Failed to delete order. Please try again.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const openDeleteConfirm = () => {
+    setDeleteError("");
+    setShowDeleteConfirm(true);
+  };
+
+  const handleMenuAction = (action) => {
+    setShowMenu(false);
+    switch (action) {
+      case "delete":
+        openDeleteConfirm();
+        break;
+      case "edit":
+        // TODO: Implement edit order
+        console.log("Edit order:", order._id || order.id);
+        break;
+      default:
+        break;
+    }
+  };
+
   return (
-    <div style={cardStyle}>
+    <div style={{ ...cardStyle, position: "relative" }}>
+      {/* Three-dot Menu Button */}
+      <div ref={menuRef} style={{ position: "absolute", top: "16px", right: "16px", zIndex: 10 }}>
+        <button
+          onClick={() => setShowMenu(!showMenu)}
+          style={{
+            background: "white",
+            border: "1px solid #E5E7EB",
+            borderRadius: "8px",
+            padding: "8px",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            transition: "all 0.2s",
+            boxShadow: showMenu ? "0 2px 8px rgba(0,0,0,0.1)" : "none",
+          }}
+        >
+          <MoreVertical size={18} color="#6B7280" />
+        </button>
+
+        {/* Dropdown Menu */}
+        {showMenu && (
+          <div
+            style={{
+              position: "absolute",
+              top: "100%",
+              right: 0,
+              marginTop: "4px",
+              backgroundColor: "white",
+              borderRadius: "12px",
+              boxShadow: "0 10px 40px rgba(0,0,0,0.15)",
+              border: "1px solid #E5E7EB",
+              minWidth: "180px",
+              overflow: "hidden",
+              zIndex: 100,
+            }}
+          >
+            <button
+              onClick={() => handleMenuAction("edit")}
+              style={{
+                width: "100%",
+                padding: "12px 16px",
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                border: "none",
+                background: "none",
+                cursor: "pointer",
+                fontSize: "14px",
+                fontWeight: "500",
+                color: "#374151",
+                transition: "background 0.2s",
+              }}
+              onMouseEnter={(e) => e.target.style.backgroundColor = "#F3F4F6"}
+              onMouseLeave={(e) => e.target.style.backgroundColor = "transparent"}
+            >
+              <Edit size={16} color="#6B7280" />
+              Edit Order
+            </button>
+            <div style={{ height: "1px", backgroundColor: "#E5E7EB", margin: "4px 0" }} />
+            <button
+              onClick={() => handleMenuAction("delete")}
+              style={{
+                width: "100%",
+                padding: "12px 16px",
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                border: "none",
+                background: "none",
+                cursor: "pointer",
+                fontSize: "14px",
+                fontWeight: "500",
+                color: "#DC2626",
+                transition: "background 0.2s",
+              }}
+              onMouseEnter={(e) => e.target.style.backgroundColor = "#FEE2E2"}
+              onMouseLeave={(e) => e.target.style.backgroundColor = "transparent"}
+            >
+              <Trash2 size={16} color="#DC2626" />
+              Delete Order
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* Left Content */}
       <div style={contentStyle}>
         <div style={headerStyle}>
           <span style={badgeStyle}>{statusStyle.label}</span>
+          {/* Item count badge */}
+          {Array.isArray(order.items) && order.items.length > 1 && (
+            <span style={{
+              padding: "4px 10px",
+              borderRadius: "8px",
+              fontSize: "11px",
+              fontWeight: "700",
+              backgroundColor: "#EDE9FE",
+              color: "#7C3AED",
+            }}>
+              🍽️ {getTotalItemCount()} items
+            </span>
+          )}
+          {(() => {
+            const now = new Date();
+            const placedTime = new Date(order.placedAt);
+            const diffMins = Math.floor((now - placedTime) / 60000);
+
+            if (diffMins > 30 && order.status !== "completed") {
+              return (
+                <span
+                  style={{
+                    padding: "4px 12px",
+                    borderRadius: "8px",
+                    fontSize: "11px",
+                    fontWeight: "700",
+                    backgroundColor: "#FEE2E2",
+                    color: "#DC2626",
+                  }}
+                >
+                  ⚠ Delayed
+                </span>
+              );
+            }
+            return null;
+          })()}
           <span style={metaStyle}>
-            {order.table} - {order.time}
+            {order.table} - {getStatusDuration(order)}
           </span>
         </div>
 
-        <h3 style={titleStyle}>Order #{order.id}</h3>
-        <p style={itemsStyle}>{order.items}</p>
+        <h3 style={titleStyle}>Order #{order.orderNumber || order.id?.slice?.(-5)?.toUpperCase() || order.id}</h3>
+        {order.customerName && (
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "10px",
+              marginBottom: "12px",
+             
+            }}
+          >
+            <User size={20} style={{ color: "#0284C7", flexShrink: 0 }} />
+            <span
+              style={{ 
+                fontSize: "16px", 
+                fontWeight: "800", 
+                letterSpacing: "0.01em",
+                color: "#0284C7"
+              }}
+            >
+              {order.customerName}
+            </span>
+          </div>
+        )}
+        <p style={itemsStyle}>{getItemsDisplay()}</p>
+
+        {/* Show special notes indicator if any items have notes */}
+        {Array.isArray(order.items) && order.items.some(item => item.notes) && (
+          <div style={{
+            marginBottom: "12px",
+            padding: "8px 12px",
+            backgroundColor: "#FFFBEB",
+            borderRadius: "8px",
+            borderLeft: "3px solid #F59E0B",
+            maxWidth: "280px",
+          }}>
+            <div style={{ 
+              fontSize: "11px", 
+              fontWeight: "700", 
+              color: "#B45309", 
+              marginBottom: "4px",
+              textTransform: "uppercase",
+              letterSpacing: "0.5px",
+            }}>
+              📝 Special Instructions
+            </div>
+            {order.items.filter(item => item.notes).slice(0, 2).map(item => (
+              <div key={item.id} style={{ 
+                fontSize: "11px", 
+                color: "#78350F",
+                marginBottom: "2px",
+                lineHeight: "1.3",
+              }}>
+                <span style={{ fontWeight: "600" }}>{item.name}:</span>{" "}
+                <span style={{ color: "#92400E" }}>{item.notes.length > 25 ? item.notes.slice(0, 25) + "..." : item.notes}</span>
+              </div>
+            ))}
+            {order.items.filter(item => item.notes).length > 2 && (
+              <div style={{ fontSize: "10px", color: "#B45309", marginTop: "4px", fontStyle: "italic" }}>
+                +{order.items.filter(item => item.notes).length - 2} more in details
+              </div>
+            )}
+          </div>
+        )}
 
         <div style={buttonsContainerStyle}>
-          {order.status === "ready" ? (
+          {order.status === "completed" ? (
+            <div
+              style={{
+                padding: "12px",
+                backgroundColor: "#D1FAE5",
+                borderRadius: "12px",
+                textAlign: "center",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: "16px",
+                  fontWeight: "700",
+                  color: "#059669",
+                  marginBottom: "4px",
+                }}
+              >
+                ✓ Order Completed
+              </div>
+              <div style={{ fontSize: "14px", color: "#6B7280" }}>
+                Served at {order.servedAt}
+              </div>
+            </div>
+          ) : order.status === "ready" ? (
             <>
               <button onClick={handleViewDetails} style={secondaryButtonStyle}>
                 View Details
@@ -196,148 +534,57 @@ const OrderCard = ({ order, onUpdateOrderStatus, onMarkServed }) => {
               </button>
             </>
           ) : (
-            <button onClick={handleUpdateStatus} style={standaloneButtonStyle}>
-              Update Status
-            </button>
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              flexWrap: "wrap",
+            }}>
+              <button onClick={handleViewDetails} style={standaloneButtonStyle}>
+                View Details
+              </button>
+              <div style={{
+                padding: "10px 16px",
+                backgroundColor: "#FEF3C7",
+                borderRadius: "10px",
+                fontSize: "13px",
+                color: "#92400E",
+                fontWeight: "600",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+              }}>
+                {order.status === "new" ? (
+                  <>
+                    <span style={{ fontSize: "16px" }}>⏳</span>
+                    <span>Waiting for kitchen</span>
+                  </>
+                ) : (
+                  <>
+                    <span style={{ fontSize: "16px" }}>👨‍🍳</span>
+                    <span>Being prepared</span>
+                  </>
+                )}
+              </div>
+            </div>
           )}
         </div>
       </div>
 
-      {/* Right Image */}
+      
+
+      {/* Right Image Carousel */}
       <div style={imageContainerStyle}>
-        <img src={order.image} alt="Food" style={imageStyle} />
+        {Array.isArray(order.items) && order.items.length > 0 ? (
+          <ItemCarousel 
+            items={order.items} 
+            width={isMobile ? "100%" : isTablet ? 180 : 240} 
+            height={isMobile ? 200 : 180} 
+          />
+        ) : (
+          <img src={order.image} alt="Food" style={imageStyle} />
+        )}
       </div>
-
-      {/* Status Update Modal */}
-      {showStatusModal && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-          }}
-          onClick={() => setShowStatusModal(false)}
-        >
-          <div
-            style={{
-              backgroundColor: "white",
-              borderRadius: "24px",
-              maxWidth: "500px",
-              width: "90%",
-              padding: "24px",
-              position: "relative",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              onClick={() => setShowStatusModal(false)}
-              style={{
-                position: "absolute",
-                top: "24px",
-                right: "24px",
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                color: "#6B7280",
-              }}
-            >
-              <X size={24} />
-            </button>
-
-            <h2 style={{ fontSize: "24px", fontWeight: "800", marginBottom: "8px" }}>
-              Update Order Status
-            </h2>
-            <p style={{ fontSize: "15px", color: "#6B7280", marginBottom: "24px" }}>
-              Order #{order.id}
-            </p>
-
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "16px",
-                padding: "24px",
-                backgroundColor: "#F9FAFB",
-                borderRadius: "16px",
-                marginBottom: "24px",
-              }}
-            >
-              <div
-                style={{
-                  padding: "12px 20px",
-                  borderRadius: "12px",
-                  fontSize: "14px",
-                  fontWeight: "700",
-                  backgroundColor: "#FEF3C7",
-                  color: "#D97706",
-                }}
-              >
-                {order.status === "new" ? "New" : "Preparing"}
-              </div>
-              <ChevronRight size={24} style={{ color: "#9CA3AF" }} />
-              <div
-                style={{
-                  padding: "12px 20px",
-                  borderRadius: "12px",
-                  fontSize: "14px",
-                  fontWeight: "700",
-                  backgroundColor: "#D1FAE5",
-                  color: "#059669",
-                }}
-              >
-                {order.status === "new" ? "Preparing" : "Ready"}
-              </div>
-            </div>
-
-            <p style={{ fontSize: "15px", color: "#6B7280", marginBottom: "24px" }}>
-              Are you sure you want to update this order?
-            </p>
-
-            <div style={{ display: "flex", gap: "12px" }}>
-              <button
-                onClick={() => setShowStatusModal(false)}
-                style={{
-                  flex: 1,
-                  padding: "12px 24px",
-                  backgroundColor: "#E5E7EB",
-                  color: "#374151",
-                  borderRadius: "12px",
-                  fontWeight: "700",
-                  fontSize: "15px",
-                  border: "none",
-                  cursor: "pointer",
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmUpdate}
-                style={{
-                  flex: 1,
-                  padding: "12px 24px",
-                  backgroundColor: "#10B981",
-                  color: "white",
-                  borderRadius: "12px",
-                  fontWeight: "700",
-                  fontSize: "15px",
-                  border: "none",
-                  cursor: "pointer",
-                }}
-              >
-                Update Status
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Order Details Modal */}
       {showDetailsModal && (
@@ -396,8 +643,14 @@ const OrderCard = ({ order, onUpdateOrderStatus, onMarkServed }) => {
               >
                 <X size={24} />
               </button>
-              <h2 style={{ fontSize: "24px", fontWeight: "800", marginBottom: "8px" }}>
-                Order #{order.id}
+              <h2
+                style={{
+                  fontSize: "24px",
+                  fontWeight: "800",
+                  marginBottom: "8px",
+                }}
+              >
+                Order #{order.orderNumber || order.id?.slice?.(-5)?.toUpperCase() || order.id}
               </h2>
               <span
                 style={{
@@ -439,7 +692,10 @@ const OrderCard = ({ order, onUpdateOrderStatus, onMarkServed }) => {
                     borderRadius: "12px",
                   }}
                 >
-                  <MapPin size={20} style={{ color: "#10B981", flexShrink: 0 }} />
+                  <MapPin
+                    size={20}
+                    style={{ color: "#10B981", flexShrink: 0 }}
+                  />
                   <span style={{ fontSize: "15px", fontWeight: "600" }}>
                     {order.table}
                   </span>
@@ -455,7 +711,10 @@ const OrderCard = ({ order, onUpdateOrderStatus, onMarkServed }) => {
                     borderRadius: "12px",
                   }}
                 >
-                  <Clock size={20} style={{ color: "#10B981", flexShrink: 0 }} />
+                  <Clock
+                    size={20}
+                    style={{ color: "#10B981", flexShrink: 0 }}
+                  />
                   <span style={{ fontSize: "15px", fontWeight: "600" }}>
                     Placed {order.time}
                   </span>
@@ -491,21 +750,68 @@ const OrderCard = ({ order, onUpdateOrderStatus, onMarkServed }) => {
                   Order Items
                 </h3>
                 <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                  {order.items.split(", ").map((item, index) => (
-                    <li
-                      key={index}
-                      style={{
-                        padding: "12px",
-                        backgroundColor: "#F9FAFB",
-                        borderRadius: "12px",
-                        marginBottom: "8px",
-                        fontSize: "15px",
-                        fontWeight: "600",
-                      }}
-                    >
-                      {item}
-                    </li>
-                  ))}
+                  {Array.isArray(order.items) ? (
+                    order.items.map((item) => (
+                      <li
+                        key={item.id}
+                        style={{
+                          padding: "12px",
+                          backgroundColor: "#F9FAFB",
+                          borderRadius: "12px",
+                          marginBottom: "8px",
+                        }}
+                      >
+                        <div style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          marginBottom: item.notes ? "8px" : "0",
+                        }}>
+                          <span style={{ fontSize: "15px", fontWeight: "600" }}>
+                            {item.name}
+                          </span>
+                          <span style={{
+                            backgroundColor: "#10B981",
+                            color: "white",
+                            padding: "2px 10px",
+                            borderRadius: "9999px",
+                            fontSize: "12px",
+                            fontWeight: "700",
+                          }}>
+                            ×{item.quantity}
+                          </span>
+                        </div>
+                        {item.notes && (
+                          <div style={{
+                            fontSize: "13px",
+                            color: "#92400E",
+                            backgroundColor: "#FEF3C7",
+                            padding: "6px 10px",
+                            borderRadius: "6px",
+                            fontStyle: "italic",
+                          }}>
+                            📝 {item.notes}
+                          </div>
+                        )}
+                      </li>
+                    ))
+                  ) : (
+                    getItemsDisplay().split(", ").map((item, index) => (
+                      <li
+                        key={index}
+                        style={{
+                          padding: "12px",
+                          backgroundColor: "#F9FAFB",
+                          borderRadius: "12px",
+                          marginBottom: "8px",
+                          fontSize: "15px",
+                          fontWeight: "600",
+                        }}
+                      >
+                        {item}
+                      </li>
+                    ))
+                  )}
                 </ul>
               </div>
 
@@ -520,23 +826,345 @@ const OrderCard = ({ order, onUpdateOrderStatus, onMarkServed }) => {
                     marginBottom: "12px",
                   }}
                 >
-                  Order Image
+                  Order Images
                 </h3>
-                <img
-                  src={order.image}
-                  alt="Order"
-                  style={{
-                    width: "100%",
-                    height: "200px",
-                    objectFit: "cover",
-                    borderRadius: "16px",
-                  }}
-                />
+                {Array.isArray(order.items) && order.items.length > 0 ? (
+                  <div style={{ display: "flex", justifyContent: "center" }}>
+                    <ItemCarousel items={order.items} width={400} height={250} />
+                  </div>
+                ) : (
+                  <img
+                    src={order.image}
+                    alt="Order"
+                    style={{
+                      width: "100%",
+                      height: "200px",
+                      objectFit: "cover",
+                      borderRadius: "16px",
+                    }}
+                  />
+                )}
               </div>
+
+              {/* Order Timeline */}
+              {order.statusHistory && order.statusHistory.length > 0 && (
+                <div style={{ marginBottom: "24px" }}>
+                  <h3
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: "700",
+                      color: "#6B7280",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                      marginBottom: "12px",
+                    }}
+                  >
+                    Order Timeline
+                  </h3>
+
+                  {/* Map through status history */}
+                  <div style={{ position: "relative", paddingLeft: "24px" }}>
+                    {/*  Vertical timeline line */}
+                    <div
+                      style={{
+                        position: "absolute",
+                        left: "7px",
+                        top: "8px",
+                        bottom: "8px",
+                        width: "2px",
+                        backgroundColor: "#E5E7EB",
+                      }}
+                    />
+
+                    {/*  Timeline entries */}
+                    {order.statusHistory.map((entry, index) => (
+                      <div
+                        key={index}
+                        style={{
+                          position: "relative",
+                          marginBottom: "16px",
+                          display: "flex",
+                          alignItems: "flex-start",
+                          gap: "12px",
+                        }}
+                      >
+                        {/*Timeline dot */}
+                        <div
+                          style={{
+                            position: "absolute",
+                            left: "-20px",
+                            width: "16px",
+                            height: "16px",
+                            borderRadius: "50%",
+                            backgroundColor: "#10B981",
+                            border: "3px solid white",
+                            boxShadow: "0 0 0 1px #E5E7EB",
+                          }}
+                        />
+
+                        {/* TODO: Timeline content */}
+                        <div style={{ flex: 1 }}>
+                          <div
+                            style={{
+                              fontSize: "14px",
+                              fontWeight: "700",
+                              color: "#111827",
+                            }}
+                          >
+                            {entry.status.charAt(0).toUpperCase() +
+                              entry.status.slice(1)}
+                          </div>
+                          <div style={{ fontSize: "12px", color: "#6B7280" }}>
+                            {entry.timestamp}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 2000,
+            backdropFilter: "blur(4px)",
+          }}
+          onClick={() => setShowDeleteConfirm(false)}
+        >
+          <div
+            style={{
+              backgroundColor: "white",
+              borderRadius: "24px",
+              padding: "32px",
+              maxWidth: "400px",
+              width: "90%",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+              animation: "fadeIn 0.2s ease-out",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Warning Icon */}
+            <div
+              style={{
+                width: "64px",
+                height: "64px",
+                backgroundColor: "#FEE2E2",
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: "0 auto 20px",
+              }}
+            >
+              <AlertTriangle size={32} color="#DC2626" />
+            </div>
+
+            {/* Title */}
+            <h3
+              style={{
+                fontSize: "20px",
+                fontWeight: "700",
+                color: "#111827",
+                textAlign: "center",
+                marginBottom: "8px",
+              }}
+            >
+              Delete Order
+            </h3>
+
+            {/* Description */}
+            <p
+              style={{
+                fontSize: "14px",
+                color: "#6B7280",
+                textAlign: "center",
+                marginBottom: "8px",
+                lineHeight: "1.5",
+              }}
+            >
+              Are you sure you want to delete this order?
+            </p>
+
+            {/* Order Info */}
+            <div
+              style={{
+                backgroundColor: "#F9FAFB",
+                borderRadius: "12px",
+                padding: "16px",
+                marginBottom: "24px",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: "15px",
+                  fontWeight: "600",
+                  color: "#111827",
+                  marginBottom: "4px",
+                }}
+              >
+                Order #{order?.orderNumber || order?.id?.slice?.(-5)?.toUpperCase() || order?.id || "Unknown"}
+              </div>
+              <div style={{ fontSize: "13px", color: "#6B7280" }}>
+                {order?.table || "Unknown table"} • {getItemsDisplay()?.substring(0, 50) || "No items"}
+                {(getItemsDisplay()?.length || 0) > 50 ? "..." : ""}
+              </div>
+            </div>
+
+            {/* Warning Text */}
+            <p
+              style={{
+                fontSize: "12px",
+                color: "#DC2626",
+                textAlign: "center",
+                marginBottom: deleteError ? "12px" : "24px",
+                backgroundColor: "#FEF2F2",
+                padding: "10px 16px",
+                borderRadius: "8px",
+                fontWeight: "500",
+              }}
+            >
+              ⚠️ This action cannot be undone
+            </p>
+
+            {/* Error Message */}
+            {deleteError && (
+              <div
+                style={{
+                  backgroundColor: "#FEE2E2",
+                  border: "1px solid #FECACA",
+                  borderRadius: "12px",
+                  padding: "12px 16px",
+                  marginBottom: "24px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                }}
+              >
+                <div
+                  style={{
+                    width: "32px",
+                    height: "32px",
+                    backgroundColor: "#DC2626",
+                    borderRadius: "50%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <X size={16} color="white" />
+                </div>
+                <div>
+                  <div
+                    style={{
+                      fontSize: "13px",
+                      fontWeight: "600",
+                      color: "#991B1B",
+                      marginBottom: "2px",
+                    }}
+                  >
+                    Delete Failed
+                  </div>
+                  <div style={{ fontSize: "12px", color: "#DC2626" }}>
+                    {deleteError}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Buttons */}
+            <div style={{ display: "flex", gap: "12px" }}>
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={isDeleting}
+                style={{
+                  flex: 1,
+                  padding: "14px 24px",
+                  backgroundColor: "#F3F4F6",
+                  color: "#374151",
+                  border: "none",
+                  borderRadius: "12px",
+                  fontSize: "15px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={isDeleting}
+                style={{
+                  flex: 1,
+                  padding: "14px 24px",
+                  backgroundColor: "#DC2626",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "12px",
+                  fontSize: "15px",
+                  fontWeight: "600",
+                  cursor: isDeleting ? "not-allowed" : "pointer",
+                  transition: "all 0.2s",
+                  opacity: isDeleting ? 0.7 : 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                }}
+              >
+                {isDeleting ? (
+                  <>
+                    <span
+                      style={{
+                        width: "16px",
+                        height: "16px",
+                        border: "2px solid white",
+                        borderTopColor: "transparent",
+                        borderRadius: "50%",
+                        animation: "spin 1s linear infinite",
+                      }}
+                    />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={16} />
+                    Delete
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CSS Animations */}
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 };
