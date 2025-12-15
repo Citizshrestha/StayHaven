@@ -11,18 +11,21 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
  * - Smooth slide transitions
  * 
  * @param {Array} items - Array of order items with { id, name, quantity, image, notes }
- * @param {number} width - Width of the carousel (default: 280)
+ * @param {number|string} width - Width of the carousel (default: 280, can be "100%" for responsive)
  * @param {number} height - Height of the carousel (default: 200)
  */
 const ItemCarousel = ({ items = [], width = 280, height = 200 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
+
+  // Handle width as number or "100%"
+  const widthStyle = typeof width === 'number' ? `${width}px` : width;
 
   // Handle empty or invalid items
   if (!items || items.length === 0) {
     return (
       <div
         style={{
-          width: `${width}px`,
+          width: widthStyle,
           height: `${height}px`,
           backgroundColor: "#F3F4F6",
           borderRadius: "16px",
@@ -42,7 +45,7 @@ const ItemCarousel = ({ items = [], width = 280, height = 200 }) => {
   if (items.length === 1) {
     const item = items[0];
     return (
-      <div style={{ width: `${width}px`, flexShrink: 0 }}>
+      <div style={{ width: widthStyle, flexShrink: 0 }}>
         <div style={{ position: "relative" }}>
           <img
             src={item.image}
@@ -130,7 +133,7 @@ const ItemCarousel = ({ items = [], width = 280, height = 200 }) => {
   const currentItem = items[currentIndex];
 
   return (
-    <div style={{ width: `${width}px`, flexShrink: 0 }}>
+    <div style={{ width: widthStyle, flexShrink: 0 }}>
       {/* Item counter badge */}
       <div
         style={{

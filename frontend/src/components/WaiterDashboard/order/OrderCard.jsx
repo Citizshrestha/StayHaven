@@ -1,9 +1,40 @@
-import { useState } from "react";
-import { X, Clock, MapPin, User } from "lucide-react";
+import { useState, useEffect } from "react";
+import { X, Clock, MapPin, User, Trash2, MoreVertical, Edit, Copy, AlertTriangle } from "lucide-react";
 import ItemCarousel from "../../shared/ItemCarousel";
+import { deleteOrder } from "../../../api/staff";
+import { toast } from "react-toastify";
+import useClickOutside from "../../../hooks/useClickOutSide";
 
-const OrderCard = ({ order, onMarkServed }) => {
+const OrderCard = ({ order, onMarkServed, onDelete }) => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const [isMobile, setIsMobile] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
+
+  // use custom hook for handling click outside
+  const menuRef = useClickOutside(() => setShowMenu(false));
+
+  // Handle responsive breakpoints
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsMobile(window.innerWidth < 640);
+      setIsTablet(window.innerWidth >= 640 && window.innerWidth < 1024);
+    };
+    
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
+
+
+
+  // Safety check - if no order, don't render (AFTER all hooks)
+  if (!order) {
+    return null;
+  }
 
   const handleViewDetails = () => {
     setShowDetailsModal(true);
@@ -46,6 +77,8 @@ const OrderCard = ({ order, onMarkServed }) => {
     return order.time;
   };
 
+  
+
   const getStatusStyles = (status) => {
     switch (status) {
       case "new":
@@ -83,14 +116,14 @@ const OrderCard = ({ order, onMarkServed }) => {
 
   const statusStyle = getStatusStyles(order.status);
 
-  // Inline Styles
+  // Responsive Inline Styles
   const cardStyle = {
     backgroundColor: "white",
-    borderRadius: "24px",
-    padding: "24px",
+    borderRadius: isMobile ? "16px" : "24px",
+    padding: isMobile ? "16px" : "24px",
     display: "flex",
-    flexDirection: "row",
-    gap: "24px",
+    flexDirection: isMobile ? "column" : "row",
+    gap: isMobile ? "16px" : "24px",
     boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
     border: "1px solid #F3F4F6",
   };
@@ -99,19 +132,21 @@ const OrderCard = ({ order, onMarkServed }) => {
     flex: 1,
     display: "flex",
     flexDirection: "column",
+    minWidth: 0, // Prevent text overflow
   };
 
   const headerStyle = {
     display: "flex",
     alignItems: "center",
-    gap: "12px",
-    marginBottom: "16px",
+    flexWrap: "wrap",
+    gap: isMobile ? "8px" : "12px",
+    marginBottom: isMobile ? "12px" : "16px",
   };
 
   const badgeStyle = {
-    padding: "4px 12px",
+    padding: isMobile ? "3px 8px" : "4px 12px",
     borderRadius: "8px",
-    fontSize: "12px",
+    fontSize: isMobile ? "11px" : "12px",
     fontWeight: "700",
     backgroundColor: statusStyle.backgroundColor,
     color: statusStyle.color,
@@ -119,77 +154,83 @@ const OrderCard = ({ order, onMarkServed }) => {
 
   const metaStyle = {
     color: "#6B7280",
-    fontSize: "14px",
+    fontSize: isMobile ? "12px" : "14px",
     fontWeight: "500",
   };
 
   const titleStyle = {
-    fontSize: "24px",
+    fontSize: isMobile ? "18px" : isTablet ? "20px" : "24px",
     fontWeight: "800",
     color: "#111827",
     marginBottom: "8px",
     lineHeight: "1.2",
+    wordBreak: "break-word",
   };
 
   const itemsStyle = {
     color: "#6B7280",
-    fontSize: "14px",
+    fontSize: isMobile ? "13px" : "14px",
     lineHeight: "1.5",
-    marginBottom: "24px",
+    marginBottom: isMobile ? "16px" : "24px",
     flex: 1,
   };
 
   const buttonsContainerStyle = {
     marginTop: "auto",
     display: "flex",
-    gap: "12px",
+    flexDirection: isMobile ? "column" : "row",
+    gap: isMobile ? "8px" : "12px",
   };
 
   const primaryButtonStyle = {
-    flex: 1,
-    padding: "12px 24px",
+    flex: isMobile ? "none" : 1,
+    padding: isMobile ? "10px 16px" : "12px 24px",
     backgroundColor: "#10B981",
     color: "white",
     borderRadius: "9999px",
     fontWeight: "700",
-    fontSize: "14px",
+    fontSize: isMobile ? "13px" : "14px",
     border: "none",
     cursor: "pointer",
     transition: "background-color 0.2s",
     textAlign: "center",
+    width: isMobile ? "100%" : "auto",
   };
 
   const secondaryButtonStyle = {
-    flex: 1,
-    padding: "12px 24px",
+    flex: isMobile ? "none" : 1,
+    padding: isMobile ? "10px 16px" : "12px 24px",
     backgroundColor: "#E5E7EB",
     color: "#374151",
     borderRadius: "9999px",
     fontWeight: "700",
-    fontSize: "14px",
+    fontSize: isMobile ? "13px" : "14px",
     border: "none",
     cursor: "pointer",
     transition: "background-color 0.2s",
     textAlign: "center",
+    width: isMobile ? "100%" : "auto",
   };
 
   const standaloneButtonStyle = {
-    padding: "12px 28px",
+    padding: isMobile ? "10px 20px" : "12px 28px",
     backgroundColor: "#10B981",
     color: "white",
     borderRadius: "12px",
     fontWeight: "700",
-    fontSize: "14px",
+    fontSize: isMobile ? "13px" : "14px",
     border: "none",
     cursor: "pointer",
     transition: "all 0.2s",
     textAlign: "center",
     boxShadow: "0 2px 4px rgba(16, 185, 129, 0.2)",
+    width: isMobile ? "100%" : "auto",
   };
 
   const imageContainerStyle = {
-    width: "240px",
+    width: isMobile ? "100%" : isTablet ? "180px" : "240px",
     flexShrink: 0,
+    order: isMobile ? -1 : 0, // Image on top for mobile
   };
 
   const imageStyle = {
@@ -200,8 +241,155 @@ const OrderCard = ({ order, onMarkServed }) => {
     aspectRatio: "4/3",
   };
 
+  const handleDelete = async () => {
+    if (!order) return;
+    
+    setIsDeleting(true);
+    setDeleteError("");
+    try {
+      const orderId = order._id || order.id;
+      if (!orderId) {
+        setDeleteError("Order ID not found");
+        setIsDeleting(false);
+        return;
+      }
+
+      // Check if it's a real order (from backend) or dummy order
+      if (order.isReal) {
+        // Real order - call backend API
+        const response = await deleteOrder(orderId);
+        if (response.success) {
+          setShowDeleteConfirm(false);
+          if (onDelete) {
+            onDelete(orderId);
+            toast.success("Order Deleted Successfully");
+          }
+        } else {
+          setDeleteError(response.message || "Failed to delete order");
+        }
+      } else {
+        // Dummy order - just remove locally
+        setShowDeleteConfirm(false);
+        if (onDelete) {
+          onDelete(orderId);
+          toast.success("Order Deleted Successfully");
+        }
+      }
+    } catch (err) {
+      setDeleteError(err.response?.data?.message || "Failed to delete order. Please try again.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const openDeleteConfirm = () => {
+    setDeleteError("");
+    setShowDeleteConfirm(true);
+  };
+
+  const handleMenuAction = (action) => {
+    setShowMenu(false);
+    switch (action) {
+      case "delete":
+        openDeleteConfirm();
+        break;
+      case "edit":
+        // TODO: Implement edit order
+        console.log("Edit order:", order._id || order.id);
+        break;
+      default:
+        break;
+    }
+  };
+
   return (
-    <div style={cardStyle}>
+    <div style={{ ...cardStyle, position: "relative" }}>
+      {/* Three-dot Menu Button */}
+      <div ref={menuRef} style={{ position: "absolute", top: "16px", right: "16px", zIndex: 10 }}>
+        <button
+          onClick={() => setShowMenu(!showMenu)}
+          style={{
+            background: "white",
+            border: "1px solid #E5E7EB",
+            borderRadius: "8px",
+            padding: "8px",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            transition: "all 0.2s",
+            boxShadow: showMenu ? "0 2px 8px rgba(0,0,0,0.1)" : "none",
+          }}
+        >
+          <MoreVertical size={18} color="#6B7280" />
+        </button>
+
+        {/* Dropdown Menu */}
+        {showMenu && (
+          <div
+            style={{
+              position: "absolute",
+              top: "100%",
+              right: 0,
+              marginTop: "4px",
+              backgroundColor: "white",
+              borderRadius: "12px",
+              boxShadow: "0 10px 40px rgba(0,0,0,0.15)",
+              border: "1px solid #E5E7EB",
+              minWidth: "180px",
+              overflow: "hidden",
+              zIndex: 100,
+            }}
+          >
+            <button
+              onClick={() => handleMenuAction("edit")}
+              style={{
+                width: "100%",
+                padding: "12px 16px",
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                border: "none",
+                background: "none",
+                cursor: "pointer",
+                fontSize: "14px",
+                fontWeight: "500",
+                color: "#374151",
+                transition: "background 0.2s",
+              }}
+              onMouseEnter={(e) => e.target.style.backgroundColor = "#F3F4F6"}
+              onMouseLeave={(e) => e.target.style.backgroundColor = "transparent"}
+            >
+              <Edit size={16} color="#6B7280" />
+              Edit Order
+            </button>
+            <div style={{ height: "1px", backgroundColor: "#E5E7EB", margin: "4px 0" }} />
+            <button
+              onClick={() => handleMenuAction("delete")}
+              style={{
+                width: "100%",
+                padding: "12px 16px",
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                border: "none",
+                background: "none",
+                cursor: "pointer",
+                fontSize: "14px",
+                fontWeight: "500",
+                color: "#DC2626",
+                transition: "background 0.2s",
+              }}
+              onMouseEnter={(e) => e.target.style.backgroundColor = "#FEE2E2"}
+              onMouseLeave={(e) => e.target.style.backgroundColor = "transparent"}
+            >
+              <Trash2 size={16} color="#DC2626" />
+              Delete Order
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* Left Content */}
       <div style={contentStyle}>
         <div style={headerStyle}>
@@ -247,7 +435,7 @@ const OrderCard = ({ order, onMarkServed }) => {
           </span>
         </div>
 
-        <h3 style={titleStyle}>Order #{order.id}</h3>
+        <h3 style={titleStyle}>Order #{order.orderNumber || order.id?.slice?.(-5)?.toUpperCase() || order.id}</h3>
         {order.customerName && (
           <div
             style={{
@@ -383,10 +571,16 @@ const OrderCard = ({ order, onMarkServed }) => {
         </div>
       </div>
 
+      
+
       {/* Right Image Carousel */}
       <div style={imageContainerStyle}>
         {Array.isArray(order.items) && order.items.length > 0 ? (
-          <ItemCarousel items={order.items} width={240} height={180} />
+          <ItemCarousel 
+            items={order.items} 
+            width={isMobile ? "100%" : isTablet ? 180 : 240} 
+            height={isMobile ? 200 : 180} 
+          />
         ) : (
           <img src={order.image} alt="Food" style={imageStyle} />
         )}
@@ -456,7 +650,7 @@ const OrderCard = ({ order, onMarkServed }) => {
                   marginBottom: "8px",
                 }}
               >
-                Order #{order.id}
+                Order #{order.orderNumber || order.id?.slice?.(-5)?.toUpperCase() || order.id}
               </h2>
               <span
                 style={{
@@ -733,6 +927,244 @@ const OrderCard = ({ order, onMarkServed }) => {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 2000,
+            backdropFilter: "blur(4px)",
+          }}
+          onClick={() => setShowDeleteConfirm(false)}
+        >
+          <div
+            style={{
+              backgroundColor: "white",
+              borderRadius: "24px",
+              padding: "32px",
+              maxWidth: "400px",
+              width: "90%",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+              animation: "fadeIn 0.2s ease-out",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Warning Icon */}
+            <div
+              style={{
+                width: "64px",
+                height: "64px",
+                backgroundColor: "#FEE2E2",
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: "0 auto 20px",
+              }}
+            >
+              <AlertTriangle size={32} color="#DC2626" />
+            </div>
+
+            {/* Title */}
+            <h3
+              style={{
+                fontSize: "20px",
+                fontWeight: "700",
+                color: "#111827",
+                textAlign: "center",
+                marginBottom: "8px",
+              }}
+            >
+              Delete Order
+            </h3>
+
+            {/* Description */}
+            <p
+              style={{
+                fontSize: "14px",
+                color: "#6B7280",
+                textAlign: "center",
+                marginBottom: "8px",
+                lineHeight: "1.5",
+              }}
+            >
+              Are you sure you want to delete this order?
+            </p>
+
+            {/* Order Info */}
+            <div
+              style={{
+                backgroundColor: "#F9FAFB",
+                borderRadius: "12px",
+                padding: "16px",
+                marginBottom: "24px",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: "15px",
+                  fontWeight: "600",
+                  color: "#111827",
+                  marginBottom: "4px",
+                }}
+              >
+                Order #{order?.orderNumber || order?.id?.slice?.(-5)?.toUpperCase() || order?.id || "Unknown"}
+              </div>
+              <div style={{ fontSize: "13px", color: "#6B7280" }}>
+                {order?.table || "Unknown table"} • {getItemsDisplay()?.substring(0, 50) || "No items"}
+                {(getItemsDisplay()?.length || 0) > 50 ? "..." : ""}
+              </div>
+            </div>
+
+            {/* Warning Text */}
+            <p
+              style={{
+                fontSize: "12px",
+                color: "#DC2626",
+                textAlign: "center",
+                marginBottom: deleteError ? "12px" : "24px",
+                backgroundColor: "#FEF2F2",
+                padding: "10px 16px",
+                borderRadius: "8px",
+                fontWeight: "500",
+              }}
+            >
+              ⚠️ This action cannot be undone
+            </p>
+
+            {/* Error Message */}
+            {deleteError && (
+              <div
+                style={{
+                  backgroundColor: "#FEE2E2",
+                  border: "1px solid #FECACA",
+                  borderRadius: "12px",
+                  padding: "12px 16px",
+                  marginBottom: "24px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                }}
+              >
+                <div
+                  style={{
+                    width: "32px",
+                    height: "32px",
+                    backgroundColor: "#DC2626",
+                    borderRadius: "50%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <X size={16} color="white" />
+                </div>
+                <div>
+                  <div
+                    style={{
+                      fontSize: "13px",
+                      fontWeight: "600",
+                      color: "#991B1B",
+                      marginBottom: "2px",
+                    }}
+                  >
+                    Delete Failed
+                  </div>
+                  <div style={{ fontSize: "12px", color: "#DC2626" }}>
+                    {deleteError}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Buttons */}
+            <div style={{ display: "flex", gap: "12px" }}>
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={isDeleting}
+                style={{
+                  flex: 1,
+                  padding: "14px 24px",
+                  backgroundColor: "#F3F4F6",
+                  color: "#374151",
+                  border: "none",
+                  borderRadius: "12px",
+                  fontSize: "15px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={isDeleting}
+                style={{
+                  flex: 1,
+                  padding: "14px 24px",
+                  backgroundColor: "#DC2626",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "12px",
+                  fontSize: "15px",
+                  fontWeight: "600",
+                  cursor: isDeleting ? "not-allowed" : "pointer",
+                  transition: "all 0.2s",
+                  opacity: isDeleting ? 0.7 : 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                }}
+              >
+                {isDeleting ? (
+                  <>
+                    <span
+                      style={{
+                        width: "16px",
+                        height: "16px",
+                        border: "2px solid white",
+                        borderTopColor: "transparent",
+                        borderRadius: "50%",
+                        animation: "spin 1s linear infinite",
+                      }}
+                    />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={16} />
+                    Delete
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CSS Animations */}
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 };
