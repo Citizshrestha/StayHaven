@@ -22,6 +22,7 @@ import {
   getOrders,
   updateOrderStatus,
   getOrderById,
+  deleteOrder
 } from "../controllers/orderController.js";
 import { getMenuItems, getMenuCategories } from "../controllers/menuController.js";
 import { protect, authorize } from "../middleware/authMiddleware.js";
@@ -116,6 +117,13 @@ router.put(
   protect,
   authorize("manager", "admin", "owner"),
   updateStaffStatus
+);
+
+router.delete(
+  "/orders/:orderId",
+  protect,
+  authorize("waiter", "manager", "receptionist", "admin"),
+  deleteOrder
 );
 
 export default router;
