@@ -6,14 +6,24 @@ export const staffLogin = async (email, password) => {
     email,
     password,
   });
-  
+
   if (response.data.success) {
-    // Store tokens and user data
+    if (response.data.accessToken) {
+      localStorage.setItem("staffAccessToken", response.data.accessToken);
+    }
+    localStorage.setItem("staffUserId", response.data.user._id);
     localStorage.setItem("staffUser", JSON.stringify(response.data.user));
     localStorage.setItem("staffRole", response.data.user.role);
-    localStorage.setItem("activeProperty", JSON.stringify(response.data.user.activeProperty));
+    if (response.data.user.activeProperty) {
+      localStorage.setItem(
+        "activeProperty",
+        JSON.stringify(response.data.user.activeProperty)
+      );
+    } else {
+      localStorage.removeItem("activeProperty");
+    }
   }
-  
+
   return response.data;
 };
 
@@ -27,19 +37,16 @@ export const staffLogout = async () => {
     // Clear all staff data
     localStorage.removeItem("staffAccessToken");
     localStorage.removeItem("staffUser");
+    localStorage.removeItem("staffUserId");
     localStorage.removeItem("staffRole");
     localStorage.removeItem("activeProperty");
-    localStorage.removeItem("restaurant_orders"); 
+    localStorage.removeItem("restaurant_orders");
   }
 };
 
 // Get Staff Profile
 export const getStaffProfile = async () => {
-  const response = await axiosClient.get("/api/staff/me", {
-    headers: {
-      Authorization: `Bearer ${localStorage.getItem("staffAccessToken")}`,
-    },
-  });
+  const response = await axiosClient.get("/api/staff/me");
   return response.data;
 };
 
@@ -64,3 +71,40 @@ export const getActiveProperty = () => {
   const property = localStorage.getItem("activeProperty");
   return property ? JSON.parse(property) : null;
 };
+
+
+// create order
+export const createOrder = async (orderData) => {
+  const response = await axiosClient.post("/api/staff/create-order", orderData);
+  return response.data;
+};
+
+// get order
+export const getOrders = async (hotelId, status="pending", orderType="dineIn") => {
+  const response = await axiosClient.get("/api/staff/orders", {
+    params: {hotelId, status, orderType}
+  });
+
+  return response.data;
+};
+
+// Delete an order
+export const deleteOrder = async (orderId) => {
+  const response = await axiosClient.delete(`/api/staff/orders/${orderId}`);
+  return response.data;
+};
+
+export const changePassword = async (currentPassword, newPassword) => {
+   const response = await axiosClient.post("/api/staff/change-password", { currentPassword, newPassword });
+   return response.data;
+}
+
+export const forgotPassword = async (email) => {
+  const response = await axiosClient.post("/api/staff/forgot-pasword", {email});
+  return response.data;
+}
+
+export const resetPassword = async (token, newPassword) => {
+  const response = await axiosClient.post("/api/staff/reset-password", {token, newPassword});
+  return response.data;
+}
