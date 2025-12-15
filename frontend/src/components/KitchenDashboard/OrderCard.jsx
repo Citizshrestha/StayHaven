@@ -138,7 +138,7 @@ const OrderCard = ({ order, onUpdateOrderStatus }) => {
         </div>
 
         <h3 style={{ fontSize: "24px", fontWeight: "800", color: "#111827", marginBottom: "8px" }}>
-          Order #{order.id}
+          Order #{order.orderNumber || order.id?.slice?.(-5)?.toUpperCase() || order.id}
         </h3>
         
         {order.customerName && (
@@ -289,7 +289,7 @@ const OrderCard = ({ order, onUpdateOrderStatus }) => {
               Update Order Status
             </h2>
             <p style={{ color: "#6B7280", marginBottom: "32px", fontSize: "14px" }}>
-              Order #{order.id}
+              Order #{order.orderNumber || order.id?.slice?.(-5)?.toUpperCase() || order.id}
             </p>
 
             <div style={{

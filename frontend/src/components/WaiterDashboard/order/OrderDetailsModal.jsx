@@ -166,7 +166,7 @@ const OrderDetailsModal = ({ order, onClose }) => {
             <X size={24} />
           </button>
 
-          <h2 style={titleStyle}>Order #{order.id}</h2>
+          <h2 style={titleStyle}>Order #{order.orderNumber || order.id?.slice?.(-5)?.toUpperCase() || order.id}</h2>
           <span style={badgeStyle}>{statusStyle.label}</span>
         </div>
 

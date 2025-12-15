@@ -8,9 +8,8 @@ import { useOrderContext } from "../../context/useOrderContext";
 
 const WaiterDashboard = () => {
   const [activeFilter, setActiveFilter] = useState("all");
-  const { orders, markServed } = useOrderContext(); 
+  const { orders, markServed } = useOrderContext();
 
-  
 
   return (
     <div className="min-h-screen bg-[#F8F9FB] text-gray-900 lg:flex lg:h-screen lg:overflow-hidden">
