@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { login, googleLogin, googleRegister } from '../api/auth';
+import { login, googleLogin, googleRegister } from '../../api/auth';
 import { toast } from 'react-toastify';
-import GoogleConfirmModal from './GoogleConfirmModal';
+import GoogleConfirmModal from '../GoogleConfirmModal';
 import { GoogleLogin } from '@react-oauth/google';
 const Login = () => {
   const navigate = useNavigate();
@@ -150,7 +150,6 @@ const Login = () => {
     navigate('/register')
   }
 
-  // No need to load Google Sign-In script manually when using @react-oauth/google
 
   return (
     <div className="min-h-screen w-full relative overflow-hidden">
@@ -180,9 +179,9 @@ const Login = () => {
                 Stay<span className="font-bold text-teal-400">Haven</span>
               </span>
             </div>
-            <h2 className="text-[#F9FAFB] text-xl sm:text-2xl font-light mb-2 tracking-tight">
+            <h3 style={{color: "#F9FAFB"}} className="text-[#F9FAFB] text-xl sm:text-2xl font-light mb-2 tracking-tight">
               Welcome Back
-            </h2>
+            </h3>
             <p className="text-[#F9FAFB] text-xs sm:text-sm">Sign in to your account to continue</p>
           </div>
 

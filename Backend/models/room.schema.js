@@ -7,18 +7,24 @@ const roomSchema = new mongoose.Schema({
         ref: "Hotel",
         required: true,
     },
+    company: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Company",
+        required: true,
+        index: true,
+    },
     roomName: {
         type: String,
         required: true,
         trim: true,
     },
-    roomNumber:{
+    roomNumber: {
         type: String,
         required: true,
     },
     type: {
         type: String,
-        enum: ['single','double','suite','deluxe','villa'],
+        enum: ['single', 'double', 'suite', 'deluxe', 'villa'],
         required: true,
     },
     price: {
@@ -27,7 +33,7 @@ const roomSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['available','occupied', 'maintenance', 'cleaning'],
+        enum: ['available', 'occupied', 'maintenance', 'cleaning'],
         default: 'available',
         required: true,
     },
@@ -61,7 +67,7 @@ const roomSchema = new mongoose.Schema({
         type: String,
     }
 
-}, {timestamps: true})
+}, { timestamps: true })
 
 // Compound index for unique room numbers per hotel
 roomSchema.index({ hotel: 1, roomNumber: 1 }, { unique: true })

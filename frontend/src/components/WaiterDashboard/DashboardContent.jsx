@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import {
   RefreshCw,
   List,
@@ -7,7 +8,22 @@ import {
 } from "lucide-react";
 import OrderCard from "./order/OrderCard";
 
-const DashboardContent = ({ orders, activeFilter, setActiveFilter, onUpdateOrderStatus, onMarkServed }) => {
+const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed, onDeleteOrder }) => {
+  const [isMobile, setIsMobile] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
+
+  // Handle responsive breakpoints
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsMobile(window.innerWidth < 640);
+      setIsTablet(window.innerWidth >= 640 && window.innerWidth < 1024);
+    };
+    
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
+
   const filteredOrders =
     activeFilter === "all"
       ? orders
@@ -22,13 +38,13 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onUpdateOrder
     { id: "new", label: "New", icon: BellIcon },
     { id: "preparing", label: "Preparing", icon: ChefHat },
     { id: "ready", label: "Ready for Pickup", icon: CheckCircle },
+    { id: "completed", label: "Completed", icon: CheckCircle },
   ];
 
-  // Inline Styles
+  // Responsive Inline Styles
   const containerStyle = {
-    // width: "100%", // Removed to prevent overflow issues
-    minHeight: "100%", // Allow it to fill the scrolling container
-    paddingBottom: "6rem",
+    minHeight: "100%",
+    paddingBottom: isMobile ? "5rem" : "6rem",
     backgroundColor: "#F8F9FB", 
     fontFamily: "'Nunito', sans-serif",
   };
@@ -37,19 +53,21 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onUpdateOrder
     position: "sticky",
     top: 0,
     zIndex: 20,
-    backgroundColor: "#F8F9FB", // Match background
-    padding: "32px 48px 24px 48px", // Increased side padding for better aesthetics
+    backgroundColor: "#F8F9FB",
+    padding: isMobile ? "16px" : isTablet ? "24px 32px 20px 32px" : "32px 48px 24px 48px",
   };
 
   const titleSectionStyle = {
     display: "flex",
-    alignItems: "flex-start",
+    flexDirection: isMobile ? "column" : "row",
+    alignItems: isMobile ? "stretch" : "flex-start",
     justifyContent: "space-between",
-    marginBottom: "32px",
+    gap: isMobile ? "16px" : "0",
+    marginBottom: isMobile ? "20px" : "32px",
   };
 
   const titleStyle = {
-    fontSize: "40px",
+    fontSize: isMobile ? "28px" : isTablet ? "32px" : "40px",
     fontWeight: "800",
     color: "#111827",
     marginBottom: "8px",
@@ -58,18 +76,19 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onUpdateOrder
   };
 
   const subtitleStyle = {
-    fontSize: "18px",
+    fontSize: isMobile ? "14px" : "18px",
     color: "#6B7280",
     fontWeight: "500",
   };
 
   const refreshButtonStyle = {
-    padding: "12px 24px",
-    backgroundColor: "#10B981", // Emerald-500
+    padding: isMobile ? "10px 16px" : "12px 24px",
+    backgroundColor: "#10B981",
     color: "white",
     borderRadius: "12px",
     display: "flex",
     alignItems: "center",
+    justifyContent: "center",
     gap: "8px",
     transition: "background-color 0.2s",
     border: "none",
@@ -77,23 +96,27 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onUpdateOrder
     fontWeight: "700",
     fontSize: "14px",
     boxShadow: "0 4px 6px -1px rgba(16, 185, 129, 0.1), 0 2px 4px -1px rgba(16, 185, 129, 0.06)",
+    width: isMobile ? "100%" : "auto",
   };
 
   const filterContainerStyle = {
     display: "flex",
-    gap: "12px",
+    gap: isMobile ? "8px" : "12px",
     overflowX: "auto",
     paddingBottom: "8px",
+    WebkitOverflowScrolling: "touch",
+    scrollbarWidth: "none",
+    msOverflowStyle: "none",
   };
 
   const getFilterButtonStyle = (isActive) => ({
-    padding: "12px 24px",
+    padding: isMobile ? "8px 12px" : "12px 24px",
     borderRadius: "12px",
     fontWeight: "700",
-    fontSize: "14px",
+    fontSize: isMobile ? "12px" : "14px",
     display: "flex",
     alignItems: "center",
-    gap: "8px",
+    gap: isMobile ? "4px" : "8px",
     whiteSpace: "nowrap",
     transition: "all 0.2s",
     border: "none",
@@ -101,16 +124,17 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onUpdateOrder
     backgroundColor: isActive ? "#D1FAE5" : "white",
     color: isActive ? "#059669" : "#6B7280",
     boxShadow: isActive ? "none" : "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+    flexShrink: 0,
   });
 
   const ordersGridStyle = {
-    padding: "0 48px 48px 48px", // Increased side padding
+    padding: isMobile ? "0 16px 80px 16px" : isTablet ? "0 32px 48px 32px" : "0 48px 48px 48px",
   };
 
   const ordersListStyle = {
     display: "flex",
     flexDirection: "column",
-    gap: "24px",
+    gap: isMobile ? "16px" : "24px",
   };
 
   return (
@@ -155,7 +179,7 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onUpdateOrder
       <div style={ordersGridStyle}>
         <div style={ordersListStyle}>
           {filteredOrders.map((order) => {
-            return <OrderCard key={order.id} order={order} onUpdateOrderStatus={onUpdateOrderStatus} onMarkServed={onMarkServed} />;
+            return <OrderCard key={order.id} order={order} onMarkServed={onMarkServed}  onDelete={onDeleteOrder} />;
           })}
         </div>
 

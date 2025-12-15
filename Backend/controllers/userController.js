@@ -1,5 +1,6 @@
 import { User } from "../models/user.schema.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { generateRefreshToken, hashToken } from "../utils/tokenUtils.js";
 
 export const getWishList = asyncHandler(async (req, res) => {
   res.status(200).json({

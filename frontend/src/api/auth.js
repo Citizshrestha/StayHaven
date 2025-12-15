@@ -114,10 +114,21 @@ export const googleRegister = async (credential) => {
   }
 };
 
+// Helper to clear only user-specific keys (preserves staff session)
+const clearUserStorage = () => {
+  localStorage.removeItem("accessToken");
+  localStorage.removeItem("userId");
+  localStorage.removeItem("email");
+  localStorage.removeItem("username");
+  localStorage.removeItem("role");
+  localStorage.removeItem("profilePicture");
+  localStorage.removeItem("signupUserId");
+};
+
 export const logout = async () => {
   try {
     await axiosClient.post("/api/auth/logout");
-    localStorage.clear();
+    clearUserStorage();
     delete axiosClient.defaults.headers.Authorization;
   } catch (error) {
     if (axios.isAxiosError(error) && error.response) {
@@ -125,7 +136,7 @@ export const logout = async () => {
     } else {
       console.error("Logout API Error:", error.message);
     }
-    localStorage.clear();
+    clearUserStorage();
     delete axiosClient.defaults.headers.Authorization;
     throw error;
   }
