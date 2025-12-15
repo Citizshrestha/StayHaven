@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import AddHotel from './AddHotel'; // Adjust path as needed
 import './HotelManagement.css';
 
 const HotelManagement = () => {
@@ -7,6 +8,8 @@ const HotelManagement = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeNav, setActiveNav] = useState('hotel-management');
+  const [isAddHotelOpen, setIsAddHotelOpen] = useState(false);
+  const [editingHotel, setEditingHotel] = useState(null);
 
   const navigationItems = [
     { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', path: '/' },
@@ -31,7 +34,7 @@ const HotelManagement = () => {
     { label: 'Rooms Managed', value: '48,230' },
   ];
 
-  const hotels = [
+  const [hotels, setHotels] = useState([
     {
       id: 1,
       name: 'The Grand Hyatt',
@@ -80,7 +83,34 @@ const HotelManagement = () => {
       image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDtR_tLVYScDAG7Kpb72wjiAq5X9CU86bTy9HFuHxc63bRc8hrkufq9Gla41mSBKf3ERdVefSSCYyEbqgEYCrXa-Eu5zGwT7E22ehDDsoB-2VenG6clXUVY_iE4DqnNndQGahWQ4k1jJSO57qtJvVeAWSu4SPVeX2IQozHAgd3vszNlZY2Ht7x5S5d6UTwXQKWnQPaJcnv8ie67E9Va09HQ3yinVx2CHDZgXpbRt_H9MeJKVp93O_HLm0yrbmtGej-eK7T48HQPfg',
       toggleIcon: 'toggle_on'
     }
-  ];
+  ]);
+
+  const handleSaveHotel = (hotelData) => {
+    if (editingHotel) {
+      setHotels(prevHotels => prevHotels.map(hotel =>
+        hotel.id === editingHotel.id
+          ? { ...hotel, ...hotelData, id: editingHotel.id }
+          : hotel
+      ));
+    } else {
+      setHotels(prevHotels => [
+        ...prevHotels,
+        {
+          ...hotelData,
+          id: prevHotels.length ? Math.max(...prevHotels.map(h => h.id)) + 1 : 1,
+          createdAt: new Date().toISOString().slice(0, 10),
+          status: 'Active',
+          statusType: 'success',
+          manager: 'Unassigned',
+          rating: 0,
+          image: hotelData.images?.[0]?.preview || '',
+          toggleIcon: 'toggle_off'
+        }
+      ]);
+    }
+    setEditingHotel(null);
+    setIsAddHotelOpen(false);
+  };
 
   const filterOptions = [
     { label: 'Status', options: ['Active', 'Pending', 'Disabled'] },
@@ -186,10 +216,13 @@ const HotelManagement = () => {
                 />
               </div>
 
-              <button className="add-hotel-btn">
-                <span className="material-symbols-outlined">add</span>
-                <span>Add New Hotel</span>
-              </button>
+              <button 
+  className="add-hotel-btn"
+  onClick={() => setIsAddHotelOpen(true)}
+>
+  <span className="material-symbols-outlined">add</span>
+  <span>Add New Hotel</span>
+</button>
             </div>
 
             {/* Stats Grid */}
@@ -263,9 +296,17 @@ const HotelManagement = () => {
                             <button className="action-btn">
                               <span className="material-symbols-outlined">visibility</span>
                             </button>
-                            <button className="action-btn">
-                              <span className="material-symbols-outlined">edit</span>
-                            </button>
+                            
+                            <button 
+                                className="action-btn"
+                                onClick={() => {
+                                    setEditingHotel(hotel);
+                                    setIsAddHotelOpen(true);
+                                }}
+                                >
+                                <span className="material-symbols-outlined">edit</span>
+                                </button>
+
                             <button className="action-btn">
                               <span className="material-symbols-outlined">{hotel.toggleIcon}</span>
                             </button>
@@ -296,6 +337,16 @@ const HotelManagement = () => {
             </div>
           </div>
         </main>
+ <AddHotel
+        isOpen={isAddHotelOpen}
+        onClose={() => {
+          setIsAddHotelOpen(false);
+          setEditingHotel(null);
+        }}
+        onSave={handleSaveHotel}
+        editHotel={editingHotel}
+      />
+
       </div>
     </div>
   );
@@ -322,5 +373,6 @@ const NavButton = ({ item, activeNav, setActiveNav }) => {
       </span>
       <p>{item.label}</p>
     </button>
+    
   );
 };

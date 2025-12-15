@@ -40,7 +40,7 @@
 
 /* Sidebar Styles */
 .sidebar {
-  width: 16rem;
+  width: 12rem;
   flex-shrink: 0;
   background-color: var(--card-light);
   padding: 1rem;
@@ -166,7 +166,7 @@
 /* Main Content Styles */
 .main-content {
   flex: 1;
-  padding: 1rem;
+  padding: 2.5rem 2rem 2rem 1rem;
 }
 
 @media (min-width: 640px) {

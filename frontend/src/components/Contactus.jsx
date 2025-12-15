@@ -88,7 +88,7 @@ const ContactUs = () => {
           <div className="header-content">
             <div className="logo-section">
               <span className="logo-icon">🛒</span>
-              <h1>GreenCart</h1>
+              <h1>StayHeaven</h1>
             </div>
             <p className="tagline">Trade Policies from Self Agency</p>
             <div className="header-divider"></div>

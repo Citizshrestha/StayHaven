@@ -22,6 +22,11 @@ import HotelManagement from "./components/Superadmin/HotelManagement";
 import Feedback from "./components/Feedback";
 import Footer from "./components/Footer";
 import ContactUs from "./components/Contactus";
+import AddHotel from "./components/Superadmin/AddHotel";
+
+import RoomManagement from "./components/HotelAdmin/RoomManagement";
+import HoteladminDashboard from "./components/HotelAdmin/HoteladminDashboard";
+import RestaurantManagement from "./components/HotelAdmin/RestaurantManagement";
 
 
 
@@ -51,11 +56,20 @@ const App = () => {
           <Route path="/contactus" element={<ContactUs />} />
 
           
-          {/* Waiter Dashboard - Temporary public route for testing */}
+          {/* superadmin Dashboard - Temporary public route for testing */}
           <Route path="/waiter-dashboard" element={<WaiterDashboard />} />
-          <Route path="/" element={<SuperadminDashboard />} />
+          <Route path="/superadmindashboard" element={<SuperadminDashboard />} />
           <Route path="/usermanagement" element={<UserManagement />} />
           <Route path="/hotelmanagement" element={<HotelManagement />} />
+          <Route path="/addhotel" element={<AddHotel />} />
+
+
+        {/* Hoteladmin Dashboard - Temporary public route for testing */}
+        <Route path="/" element={<HoteladminDashboard />} />
+        <Route path="/roommanagement" element={<RoomManagement />} />
+        <Route path="/restaurantmanagement" element={<RestaurantManagement />} />
+
+
         </Routes>
       </div>
       
