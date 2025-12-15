@@ -1,0 +1,43 @@
+import jwt from "jsonwebtoken";
+import crypto from "crypto";
+
+export const generateAccessToken = (id) => {
+  return jwt.sign({ id }, process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRE || "15m",
+  });
+};
+
+export const generateRefreshToken = (id) => {
+  return jwt.sign({ id }, process.env.JWT_REFRESH_SECRET, {
+    expiresIn: "7d", // 7 days for refresh token
+  });
+};
+
+// Generate JWT (legacy function for compatibility)
+export const generateToken = (id) => {
+  return jwt.sign({ id }, process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRE || "30d",
+  });
+};
+
+// Generate cryptographically secure 6-digit OTP
+export const generateOTP = () => {
+  // crypto.randomInt returns integer in [min, max), so use 100000..1000000
+  return crypto.randomInt(100000, 1000000).toString();
+};
+
+// Alias for backward compatibility where a verification code generator was used
+export const generateVerificationCode = generateOTP;
+
+
+export const generateSecureToken = () => {
+  // 32 bytes = 256 bits of randomness 
+  // toString('hex') converts to readable string (64 characters)
+  return crypto.randomBytes(32).toString("hex");
+};
+
+
+// Hash a token for storage
+export const hashToken = (token) => {
+  return crypto.createHash("sha256").update(token).digest("hex");
+};
