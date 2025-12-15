@@ -22,16 +22,16 @@ const companySchema = new mongoose.Schema({
   description: {
     type: String,
     trim: true,
-    maxlength: 2000,
+    maxlength: 20
   },
   
   // Branding
   logo: {
-    type: String, // URL to logo image
+    type: String, 
     default: null,
   },
   coverImage: {
-    type: String, // URL to cover/banner image
+    type: String, 
     default: null,
   },
   brandColors: {

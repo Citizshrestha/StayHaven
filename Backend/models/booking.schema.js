@@ -1,30 +1,36 @@
 import mongoose from "mongoose";
 
 const bookingSchema = new mongoose.Schema({
-   user: {
+  user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     required: true,
-   },
-   hotel: {
+  },
+  hotel: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Hotel",
     required: true,
-   },
-   room: {
+  },
+  company: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Company",
+    required: true,
+    index: true,
+  },
+  room: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Room",
     required: true,
-   },
-   checkIn: {
-    type: Date, 
+  },
+  checkIn: {
+    type: Date,
     required: true,
-   },
-   checkOut: {
-    type: Date, 
+  },
+  checkOut: {
+    type: Date,
     required: true,
-   },
-   guests: {
+  },
+  guests: {
     adults: {
       type: Number,
       required: true,
@@ -37,52 +43,52 @@ const bookingSchema = new mongoose.Schema({
       min: 0,
       max: 8,
     },
-   },
-   totalAmount: {
+  },
+  totalAmount: {
     type: Number,
     required: true,
-   },
-   currency: {
+  },
+  currency: {
     type: String,
     default: 'USD',
     enum: ['USD', 'EUR', 'GBP', 'INR', 'NPR'],
-   },
-   status: {
+  },
+  status: {
     type: String,
     enum: ['Pending', 'Confirmed', 'Checked-In', 'Checked-Out', 'Cancelled', 'No-Show'],
     default: 'Pending',
-   },
-   paymentStatus: {
+  },
+  paymentStatus: {
     type: String,
     enum: ['unpaid', 'partial', 'paid', 'refunded'],
     default: 'unpaid',
-   },
-   confirmationCode: {
+  },
+  confirmationCode: {
     type: String,
     unique: true,
     sparse: true,
-   },
-   specialRequests: {
+  },
+  specialRequests: {
     type: String,
     maxlength: 500,
-   },
-   cancellationReason: {
+  },
+  cancellationReason: {
     type: String,
     maxlength: 500,
-   },
-   cancelledAt: {
+  },
+  cancelledAt: {
     type: Date,
-   },
-   cancelledBy: {
+  },
+  cancelledBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
-   },
-   bookingSource: {
+  },
+  bookingSource: {
     type: String,
     enum: ['web', 'mobile', 'admin', 'api'],
     default: 'web',
-   },
-}, {timestamps: true});
+  },
+}, { timestamps: true });
 
 // Indexes for performance
 bookingSchema.index({ user: 1, status: 1 });
@@ -90,6 +96,8 @@ bookingSchema.index({ room: 1, checkIn: 1, checkOut: 1 });
 bookingSchema.index({ hotel: 1, status: 1 });
 bookingSchema.index({ confirmationCode: 1 });
 bookingSchema.index({ createdAt: -1 });
+bookingSchema.index({ company: 1, status: 1 });
+bookingSchema.index({ company: 1, createdAt: -1 });
 
-export const Booking =  mongoose.model("Booking", bookingSchema);
+export const Booking = mongoose.model("Booking", bookingSchema);
 
