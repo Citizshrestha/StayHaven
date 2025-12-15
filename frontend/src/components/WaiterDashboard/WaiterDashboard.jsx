@@ -8,7 +8,7 @@ import { useOrderContext } from "../../context/useOrderContext";
 
 const WaiterDashboard = () => {
   const [activeFilter, setActiveFilter] = useState("all");
-  const { orders, markServed } = useOrderContext();
+  const { orders, markServed, removeOrder } = useOrderContext();
 
 
   return (
@@ -31,6 +31,7 @@ const WaiterDashboard = () => {
           activeFilter={activeFilter}
           setActiveFilter={setActiveFilter}
           onMarkServed={markServed}
+          onDeleteOrder={removeOrder}
         />
       </main>
 
