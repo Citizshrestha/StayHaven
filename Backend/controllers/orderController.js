@@ -2,6 +2,7 @@ import { Order } from "../models/order.schema.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { Room } from "../models/room.schema.js";
 import { Hotel } from "../models/hotel.schema.js";
+import { MenuItem } from "../models/menuItem.schema.js";
 
 export const createOrder = asyncHandler(async (req, res) => {
   const {
@@ -18,6 +19,12 @@ export const createOrder = asyncHandler(async (req, res) => {
     customerPhone,
   } = req.body;
 
+  // DEBUG: Log received data
+  console.log(
+    "Create Order - Received data:",
+    JSON.stringify(req.body, null, 2)
+  );
+
   // basic hotel and items availability checks
   if (!hotelId || !Array.isArray(items) || items.length === 0) {
     return res.status(400).json({
@@ -27,10 +34,10 @@ export const createOrder = asyncHandler(async (req, res) => {
   }
 
   // order-type specific checks
-  if (orderType === "roomService" && (!roomId || !roomNumber)) {
+  if (orderType === "roomService" && !roomNumber) {
     return res.status(400).json({
       success: false,
-      message: "Room Id and Room Number are required for room service orders",
+      message: "Room Number is required for room service orders",
     });
   }
 
@@ -50,16 +57,14 @@ export const createOrder = asyncHandler(async (req, res) => {
     });
   }
 
-  // if roomService, validate room belongs to that hotel
-  if (orderType === "roomService") {
+  // if roomService and roomId provided, validate room belongs to that hotel
+  let validatedRoomId = null;
+  if (orderType === "roomService" && roomId) {
     const room = await Room.findById(roomId);
-
-    if (!room || room.hotel.toString() !== hotelId) {
-      return res.status(404).json({
-        success: false,
-        message: "Room not found or does not belong to this hotel",
-      });
+    if (room && room.hotel.toString() === hotelId) {
+      validatedRoomId = room._id;
     }
+    // If room not found or doesn't match, we still allow the order with just roomNumber
   }
 
   //validate items and calculate total price
@@ -67,46 +72,74 @@ export const createOrder = asyncHandler(async (req, res) => {
   const validatedItems = [];
 
   for (const item of items) {
-    if (!item.menuItem || !item.quantity) {
+    // Support two modes:
+    // 1. menuItem ID provided - lookup from database
+    // 2. Custom item - name and price provided directly
+
+    if (!item.quantity || item.quantity < 1) {
       return res.status(400).json({
         success: false,
-        message: "Each item must have menuItem ID and quantity",
+        message: "Each item must have a valid quantity (minimum 1)",
+      });
+    }
+
+    // Mode 1: MenuItem ID provided - validate from database
+    if (item.menuItem) {
+      const menuItem = await MenuItem.findById(item.menuItem);
+      if (!menuItem) {
+        return res.status(404).json({
+          success: false,
+          message: `Menu item not found: ${item.menuItem}`,
+        });
+      }
+
+      if (!menuItem.isAvailable) {
+        return res.status(400).json({
+          success: false,
+          message: `${menuItem.name} is currently not available`,
+        });
+      }
+
+      // Calculate item total and add to order total
+      const itemTotal = menuItem.price * item.quantity;
+      totalPrice += itemTotal;
+
+      // Build validated item object
+      validatedItems.push({
+        menuItem: menuItem._id,
+        name: menuItem.name,
+        quantity: item.quantity,
+        price: menuItem.price,
+        notes: item.notes || "",
+      });
+    }
+    // Mode 2: Custom item - name and price provided directly
+    else if (item.name && item.price !== undefined) {
+      const itemPrice = parseFloat(item.price) || 0;
+      const itemTotal = itemPrice * item.quantity;
+      totalPrice += itemTotal;
+
+      validatedItems.push({
+        // No menuItem field - omit it entirely for custom items
+        name: item.name,
+        quantity: item.quantity,
+        price: itemPrice,
+        notes: item.notes || "",
+      });
+    }
+    // Invalid item - neither menuItem ID nor custom name/price
+    else {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Each item must have either a menuItem ID, or a name and price",
       });
     }
   }
 
-  // VERIFY menuItem exists and get its details
-  const menuItem = await MenuItem.findById(item.menuItem);
-  if (!menuItem) {
-    return res.status(404).json({
-      success: false,
-      message: `Menu item not found: ${item.menuItem}`,
-    });
-  }
-
-  if (!menuItem.isAvailable) {
-    return res.status(400).json({
-      success: false,
-      message: `${menuItem.name} is currently not available`,
-    });
-  }
-
-  // Calculate item total and add to order total
-  const itemTotal = menuItem.price * item.quantity;
-  totalPrice += itemTotal;
-
-  // Build validated item object
-  validatedItems.push({
-    menuItem: menuItem._id,
-    name: menuItem.name,
-    quantity: item.quantity,
-    price: menuItem.price,
-    notes: item.notes || "",
-  });
-
   const order = new Order({
     hotel: hotelId,
-    room: orderType === "roomService" ? roomId : undefined,
+    room: orderType === "roomService" ? validatedRoomId : undefined,
     roomNumber: orderType === "roomService" ? roomNumber : undefined,
     tableNumber: orderType === "dineIn" ? tableNumber : undefined,
     orderType,
@@ -137,7 +170,7 @@ export const createOrder = asyncHandler(async (req, res) => {
   });
 });
 
-export const getOrder = asyncHandler(async (req, res) => {
+export const getOrders = asyncHandler(async (req, res) => {
   const { hotelId, status, orderType } = req.query;
 
   const filter = {};
@@ -164,7 +197,7 @@ export const getOrder = asyncHandler(async (req, res) => {
   });
 });
 
-export const updateStatus = asyncHandler(async (req, res) => {
+export const updateOrderStatus = asyncHandler(async (req, res) => {
   const { orderId } = req.params;
   const { status } = req.body;
 
@@ -205,7 +238,6 @@ export const updateStatus = asyncHandler(async (req, res) => {
   });
 });
 
-
 export const getOrderById = asyncHandler(async (req, res) => {
   const { orderId } = req.params;
 
@@ -226,14 +258,8 @@ export const getOrderById = asyncHandler(async (req, res) => {
     success: true,
     order,
   });
-});import { MenuItem } from "../models/menuItem.schema.js";
-import { asyncHandler } from "../utils/asyncHandler.js";
+});
 
-// ═══════════════════════════════════════════════════════════════════════════
-// GET MENU ITEMS
-// Called when: Waiter opens "New Order" modal
-// Route: GET /api/staff/menu-items?hotelId=xxx
-// ═══════════════════════════════════════════════════════════════════════════
 export const getMenuItems = asyncHandler(async (req, res) => {
   const { hotelId, category, available } = req.query;
 
@@ -282,11 +308,6 @@ export const getMenuItems = asyncHandler(async (req, res) => {
   });
 });
 
-// ═══════════════════════════════════════════════════════════════════════════
-// GET MENU CATEGORIES
-// Called when: Filter dropdown in menu
-// Route: GET /api/staff/menu-categories
-// ═══════════════════════════════════════════════════════════════════════════
 export const getMenuCategories = asyncHandler(async (req, res) => {
   // Get unique categories from MenuItem schema enum
   const categories = [
@@ -302,5 +323,32 @@ export const getMenuCategories = asyncHandler(async (req, res) => {
   return res.status(200).json({
     success: true,
     categories,
+  });
+});
+
+export const deleteOrder = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+
+  const order = await Order.findById(orderId);
+  if (!order) {
+    return res.status(404).json({
+      success: false,
+      message: "Order not found",
+    });
+  }
+
+  // allowing deletion only of pending, cancelled, and new orders
+  const deletableStatus = ["pending", "cancelled", "new"];
+  if (!deletableStatus.includes(order.status)){
+    return res.status(400).json({
+      success: false,
+      message: `Cannot delete order with status "${order.status}". Only pending, new, or cancelled orders can be deleted.`,
+    });
+  }
+
+  await Order.findByIdAndDelete(orderId);
+  return res.status(200).json({
+    success: true,
+    message: "Order deleted successfully",
   });
 });
