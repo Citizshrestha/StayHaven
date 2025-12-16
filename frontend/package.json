@@ -14,10 +14,16 @@
     "axios": "^1.12.2",
     "jwt-decode": "^4.0.0",
     "lucide-react": "^0.553.0",
+<<<<<<< HEAD
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-router-dom": "^7.9.6",
+=======
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "react-router-dom": "^7.9.4",
     "react-server-dom-webpack": "^19.2.1",
+>>>>>>> 6201717ed27592fda6447f65f9ab3967b09da6b1
     "react-toastify": "^11.0.5"
   },
   "devDependencies": {
