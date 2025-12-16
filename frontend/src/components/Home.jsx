@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import Navbar from './Navbar';
 import FeaturedHotels from './FeaturedHotels';
+import Footer from './Footer';
 
 const Home = () => {
   const navigate = useNavigate();
@@ -145,7 +146,9 @@ const Home = () => {
       <div id="destination">
         <FeaturedHotels />
       </div>
+      <Footer />
     </div>
+    
   );
 };
 
