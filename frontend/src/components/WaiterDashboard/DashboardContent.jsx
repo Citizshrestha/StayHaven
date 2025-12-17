@@ -18,7 +18,7 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
       setIsMobile(window.innerWidth < 640);
       setIsTablet(window.innerWidth >= 640 && window.innerWidth < 1024);
     };
-    
+
     checkScreenSize();
     window.addEventListener('resize', checkScreenSize);
     return () => window.removeEventListener('resize', checkScreenSize);
@@ -43,9 +43,9 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
 
   // Responsive Inline Styles
   const containerStyle = {
-    minHeight: "100%",
+    minHeight: "100vh",
     paddingBottom: isMobile ? "5rem" : "6rem",
-    backgroundColor: "#F8F9FB", 
+    backgroundColor: "#F8F9FB",
     fontFamily: "'Nunito', sans-serif",
   };
 
@@ -86,7 +86,7 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
     backgroundColor: "#10B981",
     color: "white",
     borderRadius: "12px",
-    display: "flex",
+  display: "flex",
     alignItems: "center",
     justifyContent: "center",
     gap: "8px",
@@ -179,7 +179,7 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
       <div style={ordersGridStyle}>
         <div style={ordersListStyle}>
           {filteredOrders.map((order) => {
-            return <OrderCard key={order.id} order={order} onMarkServed={onMarkServed}  onDelete={onDeleteOrder} />;
+            return <OrderCard key={order.id} order={order} onMarkServed={onMarkServed} onDelete={onDeleteOrder} />;
           })}
         </div>
 
