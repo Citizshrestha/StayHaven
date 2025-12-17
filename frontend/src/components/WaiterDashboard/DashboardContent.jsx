@@ -24,10 +24,16 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
-  const filteredOrders =
-    activeFilter === "all"
-      ? orders
-      : orders.filter((order) => order.status === activeFilter);
+  const filteredOrders = (activeFilter === "all"
+    ? orders
+    : orders.filter((order) => order.status === activeFilter)
+  ).sort((a, b) => {
+    // Real orders (isReal: true) come first
+    if (a.isReal && !b.isReal) return -1;
+    if (!a.isReal && b.isReal) return 1;
+    // If both are same type, sort by date (newest first)
+    return new Date(b.placedAt) - new Date(a.placedAt);
+  });
 
   const handleRefresh = () => {
     console.log("Refreshing orders...");
@@ -86,7 +92,7 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
     backgroundColor: "#10B981",
     color: "white",
     borderRadius: "12px",
-  display: "flex",
+    display: "flex",
     alignItems: "center",
     justifyContent: "center",
     gap: "8px",

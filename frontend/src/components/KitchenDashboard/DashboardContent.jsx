@@ -3,7 +3,7 @@ import OrderCard from "./OrderCard";
 const DashboardContent = ({ orders, activeFilter, setActiveFilter, onUpdateOrderStatus }) => {
   // Kitchen only sees active orders (not completed)
   const activeOrders = orders.filter(o => o.status !== "completed");
-  
+
   const filters = [
     { id: "all", label: "All Active", count: activeOrders.length },
     { id: "new", label: "🔔 New", count: orders.filter((o) => o.status === "new").length },
@@ -11,9 +11,16 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onUpdateOrder
     { id: "ready", label: "✅ Ready", count: orders.filter((o) => o.status === "ready").length },
   ];
 
-  const filteredOrders = activeFilter === "all" 
+  const filteredOrders = (activeFilter === "all"
     ? activeOrders
-    : orders.filter((order) => order.status === activeFilter);
+    : orders.filter((order) => order.status === activeFilter)
+  ).sort((a, b) => {
+    // Real orders (isReal: true) come first
+    if (a.isReal && !b.isReal) return -1;
+    if (!a.isReal && b.isReal) return 1;
+    // If both are same type, sort by date (newest first)
+    return new Date(b.placedAt) - new Date(a.placedAt);
+  });
 
   return (
     <div>

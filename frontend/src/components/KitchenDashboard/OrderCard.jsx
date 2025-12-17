@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { X, ChevronRight, Clock, User } from "lucide-react";
 import ItemCarousel from "../shared/ItemCarousel";
+import useRelativeTime from "../../hooks/useRelativeTime";
 
 const OrderCard = ({ order, onUpdateOrderStatus }) => {
   const [showStatusModal, setShowStatusModal] = useState(false);
+  const placedAtRelativeTime = useRelativeTime(order?.placedAt, true);
 
   const handleUpdateStatus = () => {
     setShowStatusModal(true);
@@ -16,22 +18,25 @@ const OrderCard = ({ order, onUpdateOrderStatus }) => {
   };
 
   const getStatusDuration = (order) => {
-    const now = new Date();
-    
-    if (order.status === "preparing" && order.startedPreparingAt) {
-      const startTime = new Date(order.startedPreparingAt);
-      const diffMins = Math.floor((now - startTime) / 60000);
-      return diffMins === 0 ? `Preparing - Just now` : `Preparing for ${diffMins}m`;
-    } else if (order.status === "ready" && order.readyAt) {
-      const readyTime = new Date(order.readyAt);
-      const diffMins = Math.floor((now - readyTime) / 60000);
-      return diffMins === 0 ? `Ready - Just now` : `Ready for ${diffMins}m`;
-    }
-    
-    const placedTime = new Date(order.placedAt);
-    const diffMins = Math.floor((now - placedTime) / 60000);
-    return diffMins === 0 ? "Just now" : `${diffMins}m ago`;
-  };
+  const now = new Date();
+  
+  // For "preparing" status, show how long it's been preparing
+  if (order.status === "preparing" && order.startedPreparingAt) {
+    const startTime = new Date(order.startedPreparingAt);
+    const diffMins = Math.floor((now - startTime) / 60000);
+    return diffMins === 0 ? `Preparing - Just now` : `Preparing for ${diffMins}m`;
+  } 
+  
+  // For "ready" status, show how long it's been ready
+  else if (order.status === "ready" && order.readyAt) {
+    const readyTime = new Date(order.readyAt);
+    const diffMins = Math.floor((now - readyTime) / 60000);
+    return diffMins === 0 ? `Ready - Just now` : `Ready for ${diffMins}m`;
+  }
+  
+  // For "new" or other status, use relative time
+  return placedAtRelativeTime;
+};
 
   // Helper to get items display text (supports both old string and new array format)
   const getItemsDisplay = () => {

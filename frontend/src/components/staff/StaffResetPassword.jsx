@@ -42,7 +42,7 @@ const StaffResetPassword = () => {
                     toast.success("Password reset successfully!. Please login with your new password. ");
                     setTimeout(() => {
                         navigate("/staff/login");
-                    }, 2000);
+                    }, 500);
                 }
             } catch (error) {
                 toast.error("Failed to reset password. Please try again.");

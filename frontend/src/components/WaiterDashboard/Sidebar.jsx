@@ -10,12 +10,14 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { staffLogout } from "../../api/staff";
 import { useStaffAuth } from "../../context/StaffAuthContext";
-
+import WaiterSettings from "./settings/WaiterSettings";
 
 const Sidebar = () => {
   const [activeMenu, setActiveMenu] = useState("dashboard");
   const navigate = useNavigate();
   const { staffUser, logout } = useStaffAuth();
+  const [showSettings, setShowSettings] = useState(false);
+
 
   const handleMenuClick = (menu) => {
     setActiveMenu(menu);
@@ -70,7 +72,7 @@ const Sidebar = () => {
     display: "flex",
     flexDirection: "column",
     gap: "8px",
-    borderTop: "1px solid transparent", 
+    borderTop: "1px solid transparent",
   };
 
   const getMenuItemStyle = (isActive) => ({
@@ -155,7 +157,7 @@ const Sidebar = () => {
       <div style={bottomSectionStyle}>
         <button
           style={getMenuItemStyle(activeMenu === "settings")}
-          onClick={() => handleMenuClick("settings")}
+          onClick={() => setShowSettings(true)}
         >
           <Settings size={20} />
           <span style={{ fontSize: "14px" }}>Settings</span>
@@ -168,6 +170,29 @@ const Sidebar = () => {
           <LogOut size={20} />
           <span style={{ fontSize: "14px" }}>Log Out</span>
         </button>
+        {/* Settings Modal */}
+        {showSettings && (
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 1000,
+              padding: "20px",
+            }}
+            onClick={() => setShowSettings(false)}
+          >
+            <div onClick={(e) => e.stopPropagation()}>
+              <WaiterSettings onClose={() => setShowSettings(false)} />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
