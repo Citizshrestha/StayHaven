@@ -273,9 +273,10 @@ export const checkUserExists = async (email) => {
   }
 };
 
-export const changePassword = async (newPassword) => {
+export const changePassword = async (currentPassword, newPassword) => {
   try {
     const response = await axiosClient.post("/api/auth/change-password", {
+      currentPassword,
       newPassword,
     });
     return response.data;
