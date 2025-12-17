@@ -1179,7 +1179,7 @@ export const forgotPassword = asyncHandler(async (req, res) => {
   // build reset link and send email
   const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
 
-  const resetLink = `${frontendUrl}/staff/reset-password?token=${resetToken}`;
+  const resetLink = `${frontendUrl}/staff/reset-password/${resetToken}`;
 
   // Get property name for email branding
   const propertyName = user.assignedProperties?.[0]?.name || "StayHaven";
