@@ -14,7 +14,7 @@ const OrderDetailsModal = ({ order, onClose }) => {
     alignItems: "center",
     justifyContent: "center",
     zIndex: 1000,
-    padding: "20px",
+    padding: "16px",
   };
 
   const modalStyle = {
@@ -23,26 +23,27 @@ const OrderDetailsModal = ({ order, onClose }) => {
     maxWidth: "600px",
     width: "100%",
     maxHeight: "90vh",
-    overflow: "auto",
+    overflow: "hidden",
     position: "relative",
     boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)",
+    display: "flex",
+    flexDirection: "column",
   };
 
   const headerStyle = {
-    padding: "24px",
+    padding: "20px",
     borderBottom: "1px solid #F3F4F6",
-    position: "sticky",
-    top: 0,
     backgroundColor: "white",
     zIndex: 10,
     borderTopLeftRadius: "24px",
     borderTopRightRadius: "24px",
+    flexShrink: 0,
   };
 
   const closeButtonStyle = {
     position: "absolute",
-    top: "24px",
-    right: "24px",
+    top: "20px",
+    right: "20px",
     background: "none",
     border: "none",
     cursor: "pointer",
@@ -55,14 +56,17 @@ const OrderDetailsModal = ({ order, onClose }) => {
   };
 
   const titleStyle = {
-    fontSize: "24px",
+    fontSize: "20px",
     fontWeight: "800",
     color: "#111827",
     marginBottom: "8px",
+    paddingRight: "40px",
   };
 
   const bodyStyle = {
-    padding: "24px",
+    padding: "20px",
+    overflowY: "auto",
+    flex: 1,
   };
 
   const sectionStyle = {
@@ -70,7 +74,7 @@ const OrderDetailsModal = ({ order, onClose }) => {
   };
 
   const sectionTitleStyle = {
-    fontSize: "14px",
+    fontSize: "12px",
     fontWeight: "700",
     color: "#6B7280",
     textTransform: "uppercase",
@@ -82,7 +86,7 @@ const OrderDetailsModal = ({ order, onClose }) => {
     display: "flex",
     alignItems: "center",
     gap: "12px",
-    marginBottom: "12px",
+    marginBottom: "8px",
     padding: "12px",
     backgroundColor: "#F9FAFB",
     borderRadius: "12px",
@@ -94,7 +98,7 @@ const OrderDetailsModal = ({ order, onClose }) => {
   };
 
   const infoTextStyle = {
-    fontSize: "15px",
+    fontSize: "14px",
     color: "#111827",
     fontWeight: "600",
   };
@@ -110,17 +114,70 @@ const OrderDetailsModal = ({ order, onClose }) => {
     backgroundColor: "#F9FAFB",
     borderRadius: "12px",
     marginBottom: "8px",
-    fontSize: "15px",
+    fontSize: "14px",
     color: "#111827",
     fontWeight: "600",
+    wordWrap: "break-word",
+    overflowWrap: "break-word",
+  };
+
+  const specialInstructionsStyle = {
+    fontSize: "12px",
+    color: "#D97706",
+    backgroundColor: "#FEF3C7",
+    padding: "6px 10px",
+    borderRadius: "8px",
+    marginTop: "6px",
+    display: "flex",
+    alignItems: "center",
+    gap: "4px",
+    wordWrap: "break-word",
+    overflowWrap: "break-word",
+  };
+
+  // Image container with horizontal scroll
+  const imageContainerStyle = {
+    display: "flex",
+    gap: "12px",
+    overflowX: "auto",
+    overflowY: "hidden",
+    paddingBottom: "12px",
+    marginTop: "12px",
+    WebkitOverflowScrolling: "touch",
+    scrollbarWidth: "thin",
+    position: "relative",
+  };
+
+  const imageWrapperStyle = {
+    position: "relative",
   };
 
   const imageStyle = {
-    width: "100%",
-    height: "200px",
+    minWidth: "85vw",
+    maxWidth: "85vw",
+    height: "220px",
     objectFit: "cover",
-    borderRadius: "16px",
-    marginTop: "16px",
+    borderRadius: "12px",
+    flexShrink: 0,
+    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+  };
+
+  const scrollIndicatorStyle = {
+    position: "absolute",
+    top: "50%",
+    transform: "translateY(-50%)",
+    backgroundColor: "rgba(255,255,255,0.9)",
+    borderRadius: "50%",
+    width: "32px",
+    height: "32px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+    fontSize: "18px",
+    fontWeight: "bold",
+    color: "#10B981",
+    zIndex: 5,
   };
 
   const getStatusStyles = (status) => {
@@ -144,15 +201,13 @@ const OrderDetailsModal = ({ order, onClose }) => {
     }
   };
 
-  // TODO: Call getStatusStyles function with order.status
-  // LEARN: Function calls, storing returned values
-  const statusStyle = getStatusStyles(order.status); // Replace with function call
+  const statusStyle = getStatusStyles(order.status);
 
   const badgeStyle = {
     display: "inline-block",
-    padding: "6px 16px",
+    padding: "6px 12px",
     borderRadius: "8px",
-    fontSize: "13px",
+    fontSize: "12px",
     fontWeight: "700",
     backgroundColor: statusStyle.backgroundColor,
     color: statusStyle.color,
@@ -199,8 +254,20 @@ const OrderDetailsModal = ({ order, onClose }) => {
           </div>
 
           <div style={sectionStyle}>
-            <h3 style={sectionTitleStyle}>Order Image</h3>
-            <img style={imageStyle} alt="order" src={order.image} />
+            <h3 style={sectionTitleStyle}>Order Images</h3>
+            <p style={{
+              fontSize: "11px",
+              color: "#9CA3AF",
+              marginBottom: "8px",
+              fontStyle: "italic"
+            }}>
+              👈 Swipe to view more images
+            </p>
+            <div style={imageContainerStyle}>
+              <img style={imageStyle} alt="order" src={order.image} />
+              {/* Add more images here if available */}
+              {/* Example: order.images?.map((img, i) => <img key={i} style={imageStyle} alt={`order-${i}`} src={img} />) */}
+            </div>
           </div>
         </div>
       </div>

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Utensils, ClipboardList, Clock, Plus, X, Minus } from "lucide-react";
 import { useOrderContext } from "../../context/useOrderContext";
 import { toast } from "react-toastify";
+import useClickOutside from "../../hooks/useClickOutSide";
 
 
 const RightPanel = () => {
@@ -17,6 +18,9 @@ const RightPanel = () => {
     priority: "normal",
     items: [{ name: "", quantity: 1, price: 0, notes: "" }]
   });
+
+  const formRef  = useClickOutside(() => setShowForm(false));
+
   const assignedAreas = [
     { id: 1, name: "Table 5", orderCount: 2 },
     { id: 2, name: "Table 8A", orderCount: 1 },
@@ -271,24 +275,27 @@ const RightPanel = () => {
       </div>
       {/* Order Form Modal */}
       {showForm && (
-        <div style={{
-          position: "fixed",
-          top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: "rgba(0,0,0,0.6)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 1000,
-        }}>
-          <div style={{
-            backgroundColor: "white",
-            borderRadius: "24px",
-            padding: "40px",
-            width: "90%",
-            maxWidth: "460px",
-            maxHeight: "90vh",
-            overflowY: "auto",
+        <div
+          style={{
+            position: "fixed",
+            top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: "rgba(0,0,0,0.6)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
           }}>
+          <div
+            ref = {formRef}
+            style={{
+              backgroundColor: "white",
+              borderRadius: "24px",
+              padding: "40px",
+              width: "90%",
+              maxWidth: "460px",
+              maxHeight: "90vh",
+              overflowY: "auto",
+            }}>
             {/* Header */}
             <div style={{ marginBottom: "32px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "4px" }}>
@@ -588,23 +595,25 @@ const RightPanel = () => {
                         </button>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <span style={{ fontSize: "18px", fontWeight: "700", color: "#111827" }}>
-                          $ <input
+                        <div style={{ display: "flex", alignItems: "center", fontSize: "18px", fontWeight: "700", color: "#111827" }}>
+                          <span>$</span>
+                          <input
                             type="number"
                             value={item.price || 0}
                             step="0.01"
                             min="0"
                             onChange={(e) => handleItemChange(index, "price", parseFloat(e.target.value) || 0)}
                             style={{
-                              width: "70px",
+                              width: "80px",
                               border: "none",
                               fontSize: "18px",
                               fontWeight: "700",
-                              textAlign: "right",
+                              textAlign: "left",
                               outline: "none",
-                              color: "#111827"
+                              color: "#111827",
+                              marginLeft: "4px"
                             }} />
-                        </span>
+                        </div>
                         {formData.items.length > 1 && (
                           <button type="button"
                             onClick={() => removeItem(index)}
