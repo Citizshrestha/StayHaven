@@ -22,7 +22,7 @@ import { StaffAuthProvider } from "./context/StaffAuthContext";
 import ProtectedStaffRoute from "./routes/ProtectedStaffRoute";
 import AboutPage from "./components/AboutPage";
 import StaffLogin from "./components/staff/StaffLogin";
-import StaffForgotPassword from "./components/staff/staffForgotPassword";
+import StaffForgotPassword from "./components/staff/StaffForgotPassword";
 
 // Superadmin & Hotel Admin Components (commented out until files exist)
 import SuperadminDashboard from "./components/Superadmin/SuperadminDashboard";  
@@ -35,6 +35,7 @@ import RestaurantManagement from "./components/HotelAdmin/RestaurantManagement";
 import Feedback from "./components/Feedback";
 import Footer from "./components/Footer";
 import ContactUs from "./components/Contactus";
+import StaffResetPassword from "./components/staff/StaffResetPassword";
 
 const App = () => {
   return (
@@ -62,6 +63,7 @@ const App = () => {
                 {/* Staff Routes */}
                 <Route path="/staff/login" element={<StaffLogin />} />
                 <Route path="/staff/forgot-password" element={<StaffForgotPassword />} />
+                <Route path="/staff/reset-password/:token" element = {<StaffResetPassword /> } />
 
                 {/* Dashboard Routes (protected) */}
                 <Route

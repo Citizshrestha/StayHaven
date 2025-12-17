@@ -100,7 +100,7 @@ export const changePassword = async (currentPassword, newPassword) => {
 }
 
 export const forgotPassword = async (email) => {
-  const response = await axiosClient.post("/api/staff/forgot-pasword", {email});
+  const response = await axiosClient.post("/api/staff/forgot-password", {email});
   return response.data;
 }
 
