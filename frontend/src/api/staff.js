@@ -80,9 +80,9 @@ export const createOrder = async (orderData) => {
 };
 
 // get order
-export const getOrders = async (hotelId, status="pending", orderType="dineIn") => {
+export const getOrders = async (hotelId, status = "pending", orderType = "dineIn") => {
   const response = await axiosClient.get("/api/staff/orders", {
-    params: {hotelId, status, orderType}
+    params: { hotelId, status, orderType }
   });
 
   return response.data;
@@ -95,16 +95,16 @@ export const deleteOrder = async (orderId) => {
 };
 
 export const changePassword = async (currentPassword, newPassword) => {
-   const response = await axiosClient.post("/api/staff/change-password", { currentPassword, newPassword });
-   return response.data;
+  const response = await axiosClient.put("/api/staff/change-password", { currentPassword, newPassword });
+  return response.data;
 }
 
 export const forgotPassword = async (email) => {
-  const response = await axiosClient.post("/api/staff/forgot-password", {email});
+  const response = await axiosClient.post("/api/staff/forgot-password", { email });
   return response.data;
 }
 
 export const resetPassword = async (token, newPassword) => {
-  const response = await axiosClient.post("/api/staff/reset-password", {token, newPassword});
+  const response = await axiosClient.post("/api/staff/reset-password", { token, newPassword });
   return response.data;
 }
