@@ -1,6 +1,6 @@
 import React from "react";
 import "./AboutPage.css";
-import Navbar from "./Navbar";
+import Navbar from "../Navbar";
 
 const AboutPage = () => {
   const teamMembers = [

@@ -20,12 +20,12 @@ import KitchenDashboard from "./components/KitchenDashboard/KitchenDashboard";
 import { OrderProvider } from "./context/OrderContext";
 import { StaffAuthProvider } from "./context/StaffAuthContext";
 import ProtectedStaffRoute from "./routes/ProtectedStaffRoute";
-import AboutPage from "./components/AboutPage";
+import AboutPage from "./components/aboutPage/AboutPage";
 import StaffLogin from "./components/staff/StaffLogin";
 import StaffForgotPassword from "./components/staff/StaffForgotPassword";
 
 // Superadmin & Hotel Admin Components (commented out until files exist)
-import SuperadminDashboard from "./components/Superadmin/SuperadminDashboard";  
+import SuperadminDashboard from "./components/Superadmin/SuperadminDashboard";
 import UserManagement from "./components/Superadmin/Usermanagement";
 import HotelManagement from "./components/Superadmin/HotelManagement";
 import AddHotel from "./components/Superadmin/AddHotel";
@@ -63,7 +63,7 @@ const App = () => {
                 {/* Staff Routes */}
                 <Route path="/staff/login" element={<StaffLogin />} />
                 <Route path="/staff/forgot-password" element={<StaffForgotPassword />} />
-                <Route path="/staff/reset-password/:token" element = {<StaffResetPassword /> } />
+                <Route path="/staff/reset-password/:token" element={<StaffResetPassword />} />
 
                 {/* Dashboard Routes (protected) */}
                 <Route
@@ -83,7 +83,7 @@ const App = () => {
                   }
                 />
 
-             {/*   Superadmin & Hotel Admin Routes (commented out until files exist) */}
+                {/*   Superadmin & Hotel Admin Routes (commented out until files exist) */}
                 <Route path="/superadmindashboard" element={<SuperadminDashboard />} />
                 <Route path="/usermanagement" element={<UserManagement />} />
                 <Route path="/hotelmanagement" element={<HotelManagement />} />
@@ -92,7 +92,7 @@ const App = () => {
                 <Route path="/roommanagement" element={<RoomManagement />} />
                 <Route path="/restaurantmanagement" element={<RestaurantManagement />} />
                 <Route path="/feedback" element={<Feedback />} />
-                 <Route path="/contactus" element={<ContactUs />} />
+                <Route path="/contactus" element={<ContactUs />} />
               </Routes>
             </div>
           </OrderProvider>
