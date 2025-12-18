@@ -35,6 +35,8 @@
   background-color: var(--background-light);
   color: var(--text-light);
   min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .hotel-management.dark {
@@ -46,7 +48,9 @@
 .layout-container {
   display: flex;
   min-height: 100vh;
+  height: 100vh;
   width: 100%;
+  overflow: hidden;
 }
 
 /* Sidebar Styles */
@@ -56,6 +60,12 @@
   border-right: 1px solid var(--border-light);
   display: none;
   flex-direction: column;
+  position: fixed;
+  left: 0;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  z-index: 10;
 }
 
 @media (min-width: 1024px) {
@@ -176,6 +186,14 @@
   display: flex;
   flex-direction: column;
   background-color: var(--background-light);
+  height: 100vh;
+  overflow-y: auto;
+}
+
+@media (min-width: 1024px) {
+  .main-content {
+    margin-left: 16rem;
+  }
 }
 
 .hotel-management.dark .main-content {

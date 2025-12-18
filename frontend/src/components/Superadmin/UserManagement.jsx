@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './UserManagement.css';
 
@@ -7,8 +7,13 @@ const UserManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeNav, setActiveNav] = useState('user-management');
 
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   const navigationItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', path: '/' },
+    { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', path: '/superadmindashboard' },
     { id: 'bookings', label: 'Bookings', icon: 'calendar_month', path: '/bookings' },
     { id: 'user-management', label: 'User Management', icon: 'group', path: '/usermanagement' },
     { id: 'settings', label: 'Settings', icon: 'settings', path: '/settings' },
