@@ -14,6 +14,9 @@ import ResetPassword from './components/ResetPassword';
 import ProtectedRoute from './components/ProtectedRoute';
 import OffersPage from "./components/OffersPage";
 import MembershipPage from "./components/MembershipPage";
+import HotelDetailsPage from './components/HotelDetails';
+import SelectRoom from './components/SelectRoom';
+import FilteredHotels from './components/FilteredHotels';
 
 const App = () => {
   return (
@@ -25,7 +28,6 @@ const App = () => {
       <div className="w-screen min-h-screen overflow-x-hidden">
         <Routes>
           {/* Public Routes */}
-          <Route path="/home" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -33,7 +35,10 @@ const App = () => {
           <Route path="/" element={<Home />} />
           <Route path="/offers" element={<OffersPage />} />
           <Route path="/memberships" element={<MembershipPage />} />
-          
+          <Route path="/hotel/:id" element={<HotelDetailsPage />} />
+          <Route path="/hotel/:id/rooms" element={<SelectRoom />} />
+          <Route path="/hotels" element={<FilteredHotels />} />
+
           {/* Protected Routes */}
           <Route path="/dashboard" element={
             <ProtectedRoute>

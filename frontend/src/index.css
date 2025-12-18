@@ -1,6 +1,18 @@
 @import url('https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap');
 @import "tailwindcss";
 
+/* Theme colors for hotel detail page */
+@theme inline {
+  /* Teal colors matching home page */
+  --color-teal-400: #2dd4bf;
+  --color-teal-500: #14b8a6;
+  --color-teal-600: #0d9488;
+  --color-teal-700: #0f766e;
+  
+  /* Yellow for star ratings */
+  --color-yellow-500: #eab308;
+}
+
 /* Reset all margins and paddings */
 * {
   margin: 0;

@@ -188,7 +188,7 @@ const Navbar = () => {
             className="hidden lg:flex items-center gap-6"
           >
             <button
-              onClick={() => navigate("/home")}
+              onClick={() => navigate("/")}
               className="text-gray-800 hover:text-teal-600 transition font-medium"
             >
               HOME
@@ -322,7 +322,7 @@ const Navbar = () => {
             )}
             <button 
             style={{paddingTop: "5px"}}
-            className="bg-[#00b285] h-8 w-16 text-white px-6 py-4 rounded-full hover:bg-gray-800 transition font-medium shadow-md">
+            className="bg-[#00A797] h-8 w-16 text-white px-6 py-4 rounded-full hover:bg-gray-800 transition font-medium shadow-md">
               Book now
             </button>
           </div>
@@ -402,7 +402,7 @@ const Navbar = () => {
               {/* Mobile Navigation Links */}
               <div className="space-y-4">
                 <button
-                  onClick={() => navigate("/home")}
+                  onClick={() => navigate("/")}
                   className="block text-white text-lg font-medium hover:text-gray-300 transition py-2 w-full text-left bg-none border-none cursor-pointer"
                 >
                   Home

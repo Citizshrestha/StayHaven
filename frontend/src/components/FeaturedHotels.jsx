@@ -1,7 +1,7 @@
-import { useState, useEffect,  } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getWishlist, toggleWishlist as toggleWishlistApi } from '../api/user';
 import { toast } from 'react-toastify';
-import {useNavigate} from "react-router-dom";
 // Hotel data moved outside component to avoid dependency issues
 const allHotels = [
     {
@@ -462,12 +462,12 @@ const allHotels = [
     }
 ];
 
-const FeaturedHotels = ({ selectedCategory = 'Hotel' }) => {
+const FeaturedHotels = ({ selectedCategory = 'Hotel', onCategoryChange }) => {
+  const navigate = useNavigate();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [filteredHotels, setFilteredHotels] = useState([]);
   const [wishlist, setWishlist] = useState([]);
   const [isScrolled, setIsScrolled] = useState(false);
-  const navigate = useNavigate();
 
   // Track scroll position for navbar effects
   useEffect(() => {
@@ -632,7 +632,8 @@ const FeaturedHotels = ({ selectedCategory = 'Hotel' }) => {
             {hotels.map((hotel) => (
               <div
                 key={hotel.id}
-                className="flex-shrink-0 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden group border border-gray-200 bg-white"
+                onClick={() => navigate(`/hotel/${hotel.id}`)}
+                className="flex-shrink-0 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden group border border-gray-200 bg-white cursor-pointer"
                 style={{
                   width: `calc(${100 / itemsPerView}% - ${24 * (itemsPerView - 1) / itemsPerView}px)`,
                   minWidth: '280px'
@@ -653,7 +654,10 @@ const FeaturedHotels = ({ selectedCategory = 'Hotel' }) => {
 
                   {/* Favorite Icon */}
                   <button
-                    onClick={() => toggleWishlist(hotel.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleWishlist(hotel.id);
+                    }}
                     className={`absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 transform hover:scale-110 ${
                       wishlist.includes(String(hotel.id))
                         ? 'bg-red-500 shadow-lg'
@@ -739,7 +743,7 @@ const FeaturedHotels = ({ selectedCategory = 'Hotel' }) => {
                     {/* View Hotel Info Button */}
                     <div className="flex justify-center pt-2">
                       <button
-                        onClick={() => navigate('/hotelInfo')}
+                        onClick={() => navigate(`/hotel/${hotel.id}`)}
                         className="py-2.5 px-6 rounded-lg font-semibold text-sm transition-all duration-300 flex items-center justify-center gap-2 shadow-md bg-[#00AB9A] text-white hover:bg-gray-900 hover:shadow-lg transform hover:scale-105 active:scale-95"
                         style={{
                           letterSpacing: '0.3px'
