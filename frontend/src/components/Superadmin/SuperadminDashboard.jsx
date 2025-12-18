@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './SuperadminDashboard.css';
 import { useNavigate } from 'react-router-dom';
 import UserManagement from './Usermanagement';
@@ -7,6 +7,11 @@ import HotelManagement from './HotelManagement';
 const SuperadminDashboard = () => {
   const [darkMode, setDarkMode] = useState(false);
   const [activeNav, setActiveNav] = useState('dashboard');
+
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   const navigationItems = [
     { id: 'dashboard', label: 'Dashboard', icon: 'dashboard',path: '/superadmindashboard', active: true },
