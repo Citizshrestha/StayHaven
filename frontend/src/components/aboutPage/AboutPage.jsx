@@ -241,7 +241,7 @@ const AboutPage = () => {
                 </button>
                 <button
                   className="secondary-cta"
-                  onClick={() => window.location.href = '/contact'}
+                  onClick={() => window.location.href = '/contactus'}
                 >
                   Contact Us
                 </button>
