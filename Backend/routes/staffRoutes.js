@@ -21,6 +21,7 @@ import {
   createOrder,
   getOrders,
   updateOrderStatus,
+  updateOrder,
   getOrderById,
   deleteOrder
 } from "../controllers/orderController.js";
@@ -67,6 +68,14 @@ router.put(
   protect,
   authorize("waiter", "chief", "manager"),
   updateOrderStatus
+);
+
+// Update order details - waiter, manager can update
+router.put(
+  "/orders/:orderId",
+  protect,
+  authorize("waiter", "manager"),
+  updateOrder
 );
 
 // MANAGER/ADMIN/OWNER ONLY ROUTES

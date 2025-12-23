@@ -111,15 +111,15 @@ export const staffLogin = asyncHandler(async (req, res) => {
     });
   }
 
-  // Find user with role
-  const user = await User.findOne({ email: email.toLowerCase() })
+  const identifier = String(email).trim().toLowerCase();
+
+  // Find user with role (allow login via email or username)
+  const user = await User.findOne({
+    $or: [{ email: identifier }, { username: identifier }],
+  })
     .populate("role")
     .populate("company")
     .populate("assignedProperties");
-
-  // console.log("🔍 DEBUG - User found:", user ? "Yes" : "No");
-  // console.log("🔍 DEBUG - User role object:", user?.role);
-  // console.log("🔍 DEBUG - User companyRole:", user?.companyRole);
 
   if (!user) {
     return res.status(401).json({
@@ -206,8 +206,9 @@ export const staffLogin = asyncHandler(async (req, res) => {
   await user.save();
 
   // Determine redirect path based on role
+  const roleForRouting = String(userRoleName || "").toLowerCase();
   let redirectPath = "/";
-  switch (user.role.name) {
+  switch (roleForRouting) {
     case "chief":
       redirectPath = "/kitchen-dashboard";
       break;
@@ -234,7 +235,7 @@ export const staffLogin = asyncHandler(async (req, res) => {
       username: user.username,
       email: user.email,
       profilePicture: user.profilePicture,
-      role: user.role.name,
+      role: userRoleName,
       company: {
         _id: user.company._id,
         name: user.company.name,

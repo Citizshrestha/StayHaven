@@ -24,7 +24,6 @@ export const protect = asyncHandler(async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
-    console.log("Auth Middleware - Decoded Token:", decoded);
 
     req.user = await User.findById(decoded.id).select('-password').populate('role');
 
@@ -46,7 +45,6 @@ export const protect = asyncHandler(async (req, res, next) => {
     throw error;
   }
 
-  console.log("Auth Middleware - User found:", req.user._id, req.user.fullname);
   next();
 });
 
@@ -54,7 +52,7 @@ export const authorize = (...roles) => {
   return asyncHandler(async (req, res, next) => {
     const userRole = req.user?.role?.name || req.user?.companyRole;
 
-    console.log(`Authorize - User: ${req.user?._id}, Role: ${userRole}, Required: ${roles.join(',')}`);
+
 
     if (!userRole || !roles.includes(userRole)) {
       throw Object.assign(new Error(`User role '${userRole || 'unknown'}' is not authorized`), {
