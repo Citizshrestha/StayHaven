@@ -1,11 +1,11 @@
-import React, { useState } from "react";
-import { Utensils, ClipboardList, Clock, Plus, X, Minus } from "lucide-react";
+import React, { useState, useMemo } from "react";
+import { Utensils, ClipboardList, Clock, Plus, X, Minus, CheckCircle, AlertCircle } from "lucide-react";
 import { useOrderContext } from "../../context/useOrderContext";
 import { toast } from "react-toastify";
 import useClickOutside from "../../hooks/useClickOutSide";
 
 
-const RightPanel = () => {
+const RightPanel = ({ orders = [] }) => {
   const { addOrder, loading } = useOrderContext();
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
@@ -19,14 +19,90 @@ const RightPanel = () => {
     items: [{ name: "", quantity: 1, price: 0, notes: "" }]
   });
 
-  const formRef  = useClickOutside(() => setShowForm(false));
+  const formRef = useClickOutside(() => setShowForm(false));
 
-  const assignedAreas = [
-    { id: 1, name: "Table 5", orderCount: 2 },
-    { id: 2, name: "Table 8A", orderCount: 1 },
-    { id: 3, name: "Room 204", orderCount: 1 },
-    { id: 4, name: "Table 12", orderCount: 1 },
-  ];
+  // Calculate assigned areas dynamically from orders
+  const assignedAreas = useMemo(() => {
+    const areaMap = new Map();
+
+    orders.forEach(order => {
+      const areaName = order.table || 'Unknown';
+      if (!areaMap.has(areaName)) {
+        areaMap.set(areaName, { id: areaName, name: areaName, orderCount: 0 });
+      }
+      // Only count active orders (not delivered)
+      if (order.status !== 'delivered') {
+        areaMap.get(areaName).orderCount++;
+      }
+    });
+
+    return Array.from(areaMap.values())
+      .filter(area => area.orderCount > 0)
+      .sort((a, b) => b.orderCount - a.orderCount)
+      .slice(0, 5); // Show top 5 areas
+  }, [orders]);
+
+  // Generate notifications from orders
+  const notifications = useMemo(() => {
+    const notifs = [];
+
+    orders.forEach(order => {
+      // New order notifications
+      if (order.status === 'new' || order.status === 'pending') {
+        const placedTime = new Date(order.placedAt);
+        const diffMins = Math.floor((new Date() - placedTime) / 60000);
+        if (diffMins < 30) {
+          notifs.push({
+            id: `new-${order.id}`,
+            type: "new_order",
+            Icon: Utensils,
+            iconBg: "#DBEAFE",
+            iconColor: "#2563EB",
+            message: `New order received for ${order.table}`,
+            time: diffMins === 0 ? "Just now" : `${diffMins}m ago`,
+            sortTime: placedTime,
+          });
+        }
+      }
+
+      // Ready for pickup notifications
+      if (order.status === 'ready') {
+        const readyTime = new Date(order.readyAt || order.placedAt);
+        const diffMins = Math.floor((new Date() - readyTime) / 60000);
+        notifs.push({
+          id: `ready-${order.id}`,
+          type: "order_ready",
+          Icon: CheckCircle,
+          iconBg: "#D1FAE5",
+          iconColor: "#059669",
+          message: `Order #${order.orderNumber || order.id?.slice?.(-5)?.toUpperCase()} ready for pickup`,
+          time: diffMins === 0 ? "Just now" : `${diffMins}m ago`,
+          sortTime: readyTime,
+        });
+      }
+
+      // Delayed order notifications
+      const placedTime = new Date(order.placedAt);
+      const diffMins = Math.floor((new Date() - placedTime) / 60000);
+      if (diffMins > 30 && order.status !== 'delivered' && order.status !== 'ready') {
+        notifs.push({
+          id: `delay-${order.id}`,
+          type: "kitchen_update",
+          Icon: Clock,
+          iconBg: "#FEF3C7",
+          iconColor: "#D97706",
+          message: `Order #${order.orderNumber || order.id?.slice?.(-5)?.toUpperCase()} delayed`,
+          time: `${diffMins}m waiting`,
+          sortTime: placedTime,
+        });
+      }
+    });
+
+    // Sort by time (newest first) and limit to 5
+    return notifs
+      .sort((a, b) => new Date(b.sortTime) - new Date(a.sortTime))
+      .slice(0, 5);
+  }, [orders]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -47,7 +123,7 @@ const RightPanel = () => {
     setFormData(prev => ({
       ...prev,
       items: [...prev.items, { name: "", quantity: 1, price: 0, notes: "" }],
-    }))
+    }));
   };
 
   const removeItem = (idx) => {
@@ -79,37 +155,6 @@ const RightPanel = () => {
       toast.error("Failed to add order: " + err.message);
     }
   };
-
-
-  const notifications = [
-    {
-      id: 1,
-      type: "new_order",
-      Icon: Utensils, // Using icon component directly
-      iconBg: "#DBEAFE", // Blue-100
-      iconColor: "#2563EB", // Blue-600
-      message: "New order received for Table 5",
-      time: "2 minutes ago",
-    },
-    {
-      id: 2,
-      type: "order_ready",
-      Icon: ClipboardList,
-      iconBg: "#D1FAE5", // Green-100
-      iconColor: "#059669", // Green-600
-      message: "Order #82299 is ready for pickup",
-      time: "5 minutes ago",
-    },
-    {
-      id: 3,
-      type: "kitchen_update",
-      Icon: Clock,
-      iconBg: "#FEF3C7", // Yellow-100
-      iconColor: "#D97706", // Yellow-600
-      message: "Kitchen update: Order #82300 delayed",
-      time: "10 minutes ago",
-    },
-  ];
 
   // Inline Styles
   const containerStyle = {
@@ -286,7 +331,7 @@ const RightPanel = () => {
             zIndex: 1000,
           }}>
           <div
-            ref = {formRef}
+            ref={formRef}
             style={{
               backgroundColor: "white",
               borderRadius: "24px",

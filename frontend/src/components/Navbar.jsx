@@ -163,8 +163,8 @@ const Navbar = () => {
 
   return (
     <nav
-      style={{ padding: "14px" }}
-      className="absolute top-0 left-0 right-0 z-50 w-full px-4 sm:px-6 lg:px-8 py-4 bg-[#fff6f6] shadow-sm"
+      style={{ padding: "14px", backgroundColor: 'var(--bg-navbar)' }}
+      className="absolute top-0 left-0 right-0 z-50 w-full px-4 sm:px-6 lg:px-8 py-4 shadow-sm"
     >
       <div className="max-w-8xl mx-auto">
         {/* Main Navigation */}
