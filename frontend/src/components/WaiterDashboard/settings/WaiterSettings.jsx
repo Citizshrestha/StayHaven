@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
     Bell, Settings as SettingsIcon, Zap, X,
     ChevronRight, Lock, Eye, EyeOff
@@ -7,9 +7,11 @@ import { useStaffAuth } from "../../../context/StaffAuthContext";
 import { toast } from "react-toastify";
 import "./WaiterSettings.css";
 import { changePassword } from "../../../api/auth";
+import { useTheme } from "../../../hooks/useTheme";
 
 const WaiterSettings = ({ onClose }) => {
     const { staffUser } = useStaffAuth();
+    const { theme, toggleTheme } = useTheme();
     const [showChangePassword, setShowChangePassword] = useState(false);
     const [passwordState, setPasswordState] = useState({
         currentPassword: "",
@@ -20,8 +22,6 @@ const WaiterSettings = ({ onClose }) => {
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [isChangingPassword, setIsChangingPassword] = useState(false);
-
-
 
     // Settings state (with localStorage persistence)
     const [settings, setSettings] = useState(() => {
@@ -41,6 +41,15 @@ const WaiterSettings = ({ onClose }) => {
             quickActions: ["Print Bill", "Split Table"],
         };
     });
+
+    // sync theme when modal opens
+    useEffect(() => {
+        if (settings.theme === 'dark' && theme === 'light') {
+            toggleTheme();
+        } else if (settings.theme === 'light' && theme === 'dark') {
+            toggleTheme();
+        }
+    }, [settings.theme, theme]); 
 
     // Save settings to localStorage
     const updateSetting = (key, value) => {
@@ -102,6 +111,9 @@ const WaiterSettings = ({ onClose }) => {
     // Handle save
     const handleSave = () => {
         localStorage.setItem("waiterSettings", JSON.stringify(settings));
+
+        // also save theme to theme context's localstorage key
+        localStorage.setItem("theme", settings.theme);
         toast.success("Settings saved!");
         onClose();
     };
@@ -262,20 +274,36 @@ const WaiterSettings = ({ onClose }) => {
 
                     <div className="ws-theme-toggle">
                         <button
-                            className={`ws-theme-btn ${settings.theme === 'light' ? 'active' : ''}`}
-                            onClick={() => updateSetting('theme', 'light')}
+                            className={`ws-theme-btn ${theme === 'light' ? 'active' : ''}`}
+                            onClick={() => {
+
+                                if (theme !== "light") {
+                                    toggleTheme();
+                                }
+
+                                updateSetting('theme', 'light')
+
+                            }}
                         >
                             Light
                         </button>
                         <button
-                            className={`ws-theme-btn ${settings.theme === 'dark' ? 'active' : ''}`}
-                            onClick={() => updateSetting('theme', 'dark')}
+                            className={`ws-theme-btn ${theme === 'dark' ? 'active' : ''}`}
+                            onClick={() => {
+                                // update context
+                                if (theme !== "dark") {
+                                    toggleTheme();
+                                }
+                                updateSetting('theme', 'dark')
+                            }}
                         >
                             Dark
                         </button>
                         <button
                             className={`ws-theme-btn ${settings.theme === 'auto' ? 'active' : ''}`}
                             onClick={() => updateSetting('theme', 'auto')}
+                            disabled
+                            style={{ opacity: 0.5, cursor: 'not-allowed' }}
                         >
                             Auto
                         </button>

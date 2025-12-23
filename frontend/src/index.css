@@ -95,32 +95,32 @@ select {
   --bg-secondary: #f9fafb;
   --bg-tertiary: #f3f4f6;
   --bg-navbar: #fff6f6;
-  
+
   /* Text Colors */
   --text-primary: #111827;
   --text-secondary: #374151;
   --text-tertiary: #6b7280;
   --text-inverse: #ffffff;
-  
+
   /* Accent Colors (Teal - stays same in both themes) */
   --color-primary: #10b981;
   --color-primary-hover: #059669;
   --color-accent: #10a394;
   --color-accent-light: #ccfbf1;
-  
+
   /* Borders */
   --border-color: #e5e7eb;
   --border-color-light: #f3f4f6;
-  
+
   /* Shadows */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
-  
+
   /* Cards */
   --card-bg: #ffffff;
   --card-border: #e5e7eb;
-  
+
   /* Inputs */
   --input-bg: #ffffff;
   --input-border: #d1d5db;
@@ -130,38 +130,52 @@ select {
 /* Dark Theme */
 .dark-theme {
   /* Backgrounds - From your screenshot */
-  --bg-primary: #0f1419;          /* Main dark background */
-  --bg-secondary: #1a1f2e;        /* Sidebar/Card background */
-  --bg-tertiary: #252d3d;         /* Hover states */
+  --bg-primary: #0f1419;
+  /* Main dark background */
+  --bg-secondary: #1a1f2e;
+  /* Sidebar/Card background */
+  --bg-tertiary: #252d3d;
+  /* Hover states */
   --bg-navbar: #1a1f2e;
-  
+
   /* Text Colors */
   --text-primary: #ffffff;
   --text-secondary: #e5e7eb;
   --text-tertiary: #9ca3af;
   --text-inverse: #0f1419;
-  
+
   /* Accent Colors (Same teal/green) */
   --color-primary: #34d399;
   --color-primary-hover: #10b981;
   --color-accent: #34d399;
   --color-accent-light: #1a4d3f;
-  
+
   /* Borders */
   --border-color: #2d3748;
   --border-color-light: #374151;
-  
+
   /* Shadows - Softer for dark mode */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
-  
+
   /* Cards */
   --card-bg: #1e2836;
   --card-border: #2d3748;
-  
+
   /* Inputs */
   --input-bg: #252d3d;
   --input-border: #374151;
   --input-focus: #34d399;
+}
+
+/* Spin animation for refresh button */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }

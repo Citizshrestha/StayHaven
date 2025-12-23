@@ -1,8 +1,8 @@
-import { createContext,  useEffect, useState } from "react"
+import { createContext, useEffect, useState } from "react"
 
 
 // create an context
-const ThemeContext = createContext();
+export const ThemeContext = createContext();
 
 
 // provider

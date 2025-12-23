@@ -1,19 +1,53 @@
+import { useMemo } from "react";
+import { Bell, ChefHat, CheckCircle2, ListFilter } from "lucide-react";
 import OrderCard from "./OrderCard";
 
 const DashboardContent = ({ orders, activeFilter, setActiveFilter, onUpdateOrderStatus }) => {
-  // Kitchen only sees active orders (not completed)
-  const activeOrders = orders.filter(o => o.status !== "completed");
+  // Kitchen only sees active orders (not delivered)
+  const activeOrders = orders.filter((o) => o.status !== "delivered");
+
+  const getCompletionDate = (order) => {
+    const raw = order?.deliveredAt || order?.servedAt || order?.updatedAt;
+    if (!raw) return null;
+    const d = raw instanceof Date ? raw : new Date(raw);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+
+  const formatCompletionTime = (order) => {
+    const d = getCompletionDate(order);
+    if (!d) return "";
+    return d.toLocaleString([], {
+      month: "short",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const recentlyCompleted = useMemo(() => {
+    const now = Date.now();
+    const windowMs = 60 * 60 * 1000; // last 60 minutes
+
+    return orders
+      .filter((o) => o.status === "delivered")
+      .map((o) => ({ order: o, completedAt: getCompletionDate(o) }))
+      .filter((x) => x.completedAt && now - x.completedAt.getTime() <= windowMs)
+      .sort((a, b) => b.completedAt.getTime() - a.completedAt.getTime())
+      .slice(0, 20)
+      .map((x) => x.order);
+  }, [orders]);
 
   const filters = [
-    { id: "all", label: "All Active", count: activeOrders.length },
-    { id: "new", label: "🔔 New", count: orders.filter((o) => o.status === "new").length },
-    { id: "preparing", label: "🍳 Preparing", count: orders.filter((o) => o.status === "preparing").length },
-    { id: "ready", label: "✅ Ready", count: orders.filter((o) => o.status === "ready").length },
+    { id: "all", label: "All", count: activeOrders.length, Icon: ListFilter },
+    { id: "new", label: "New", count: activeOrders.filter((o) => o.status === "new").length, Icon: Bell },
+    { id: "preparing", label: "Preparing", count: activeOrders.filter((o) => o.status === "preparing").length, Icon: ChefHat },
+    { id: "ready", label: "Ready for Pickup", count: activeOrders.filter((o) => o.status === "ready").length, Icon: CheckCircle2 },
+    { id: "completed", label: "Completed", count: recentlyCompleted.length, Icon: CheckCircle2 },
   ];
 
   const filteredOrders = (activeFilter === "all"
     ? activeOrders
-    : orders.filter((order) => order.status === activeFilter)
+    : activeOrders.filter((order) => order.status === activeFilter)
   ).sort((a, b) => {
     // Real orders (isReal: true) come first
     if (a.isReal && !b.isReal) return -1;
@@ -39,8 +73,8 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onUpdateOrder
             key={filter.id}
             onClick={() => setActiveFilter(filter.id)}
             style={{
-              padding: "12px 24px",
-              borderRadius: "12px",
+              padding: "12px 18px",
+              borderRadius: "14px",
               border: "none",
               cursor: "pointer",
               fontWeight: "700",
@@ -49,15 +83,41 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onUpdateOrder
               color: activeFilter === filter.id ? "white" : "#6B7280",
               transition: "all 0.2s",
               whiteSpace: "nowrap",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "10px",
             }}
           >
-            {filter.label} ({filter.count})
+            <filter.Icon size={18} />
+            <span>{filter.label}</span>
           </button>
         ))}
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-        {filteredOrders.length === 0 ? (
+        {activeFilter === "completed" ? (
+          recentlyCompleted.length === 0 ? (
+            <div style={{
+              padding: "48px",
+              textAlign: "center",
+              backgroundColor: "white",
+              borderRadius: "24px",
+              border: "2px dashed #E5E7EB"
+            }}>
+              <p style={{ fontSize: "16px", color: "#6B7280", fontWeight: "600" }}>
+                No completed orders in the last 60 minutes
+              </p>
+            </div>
+          ) : (
+            recentlyCompleted.map((order) => (
+              <OrderCard
+                key={order._id || order.id}
+                order={order}
+                onUpdateOrderStatus={onUpdateOrderStatus}
+              />
+            ))
+          )
+        ) : filteredOrders.length === 0 ? (
           <div style={{
             padding: "48px",
             textAlign: "center",
