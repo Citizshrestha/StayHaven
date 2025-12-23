@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import OrderCard from "./order/OrderCard";
 
-const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed, onDeleteOrder }) => {
+const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed, onDeleteOrder, onRefresh, isRefreshing, onUpdateOrder }) => {
   const [isMobile, setIsMobile] = useState(false);
   const [isTablet, setIsTablet] = useState(false);
 
@@ -36,7 +36,9 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
   });
 
   const handleRefresh = () => {
-    console.log("Refreshing orders...");
+    if (onRefresh) {
+      onRefresh();
+    }
   };
 
   const filters = [
@@ -44,14 +46,13 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
     { id: "new", label: "New", icon: BellIcon },
     { id: "preparing", label: "Preparing", icon: ChefHat },
     { id: "ready", label: "Ready for Pickup", icon: CheckCircle },
-    { id: "completed", label: "Completed", icon: CheckCircle },
+    { id: "delivered", label: "Completed", icon: CheckCircle },
   ];
 
   // Responsive Inline Styles
   const containerStyle = {
-    minHeight: "100vh",
-    paddingBottom: isMobile ? "5rem" : "6rem",
-    backgroundColor: "#F8F9FB",
+    paddingBottom: isMobile ? "5rem" : "0",
+    backgroundColor: "var(--bg-secondary)",
     fontFamily: "'Nunito', sans-serif",
   };
 
@@ -59,7 +60,7 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
     position: "sticky",
     top: 0,
     zIndex: 20,
-    backgroundColor: "#F8F9FB",
+    backgroundColor: "var(--bg-secondary)",
     padding: isMobile ? "16px" : isTablet ? "24px 32px 20px 32px" : "32px 48px 24px 48px",
   };
 
@@ -75,7 +76,7 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
   const titleStyle = {
     fontSize: isMobile ? "28px" : isTablet ? "32px" : "40px",
     fontWeight: "800",
-    color: "#111827",
+    color: "var(--text-primary)",
     marginBottom: "8px",
     letterSpacing: "-0.025em",
     lineHeight: "1.1",
@@ -83,7 +84,7 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
 
   const subtitleStyle = {
     fontSize: isMobile ? "14px" : "18px",
-    color: "#6B7280",
+    color: "var(--text-secondary)",
     fontWeight: "500",
   };
 
@@ -127,14 +128,14 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
     transition: "all 0.2s",
     border: "none",
     cursor: "pointer",
-    backgroundColor: isActive ? "#D1FAE5" : "white",
-    color: isActive ? "#059669" : "#6B7280",
+    backgroundColor: isActive ? "var(--color-accent-light)" : "var(--bg-primary)",
+    color: isActive ? "var(--color-primary)" : "var(--text-tertiary)",
     boxShadow: isActive ? "none" : "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
     flexShrink: 0,
   });
 
   const ordersGridStyle = {
-    padding: isMobile ? "0 16px 80px 16px" : isTablet ? "0 32px 48px 32px" : "0 48px 48px 48px",
+    padding: isMobile ? "0 16px 80px 16px" : isTablet ? "0 32px 32px 32px" : "0 48px 32px 48px",
   };
 
   const ordersListStyle = {
@@ -155,9 +156,17 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
           </div>
 
           {/* Refresh Button */}
-          <button onClick={handleRefresh} style={refreshButtonStyle}>
-            <RefreshCw size={20} />
-            <span>Refresh Orders</span>
+          <button
+            onClick={handleRefresh}
+            style={{
+              ...refreshButtonStyle,
+              opacity: isRefreshing ? 0.7 : 1,
+              cursor: isRefreshing ? 'not-allowed' : 'pointer'
+            }}
+            disabled={isRefreshing}
+          >
+            <RefreshCw size={20} style={{ animation: isRefreshing ? 'spin 1s linear infinite' : 'none' }} />
+            <span>{isRefreshing ? 'Refreshing...' : 'Refresh Orders'}</span>
           </button>
         </div>
 
@@ -185,7 +194,7 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
       <div style={ordersGridStyle}>
         <div style={ordersListStyle}>
           {filteredOrders.map((order) => {
-            return <OrderCard key={order.id} order={order} onMarkServed={onMarkServed} onDelete={onDeleteOrder} />;
+            return <OrderCard key={order.id} order={order} onMarkServed={onMarkServed} onDelete={onDeleteOrder} onUpdate={onUpdateOrder} />;
           })}
         </div>
 

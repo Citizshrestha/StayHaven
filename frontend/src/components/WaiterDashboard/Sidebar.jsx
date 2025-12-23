@@ -12,15 +12,16 @@ import { staffLogout } from "../../api/staff";
 import { useStaffAuth } from "../../context/StaffAuthContext";
 import WaiterSettings from "./settings/WaiterSettings";
 
-const Sidebar = () => {
-  const [activeMenu, setActiveMenu] = useState("dashboard");
+const Sidebar = ({ activeView = "dashboard", onViewChange, notificationCount = 0 }) => {
   const navigate = useNavigate();
   const { staffUser, logout } = useStaffAuth();
   const [showSettings, setShowSettings] = useState(false);
 
 
   const handleMenuClick = (menu) => {
-    setActiveMenu(menu);
+    if (onViewChange) {
+      onViewChange(menu);
+    }
   };
 
   const handleLogout = async () => {
@@ -37,10 +38,10 @@ const Sidebar = () => {
 
   const containerStyle = {
     height: "100%",
-    backgroundColor: "white",
+    backgroundColor: "var(--bg-primary)",
     display: "flex",
     flexDirection: "column",
-    borderRight: "1px solid #E5E7EB",
+    borderRight: "1px solid var(--border-color)",
     fontFamily: "'Nunito', sans-serif",
   };
 
@@ -86,8 +87,8 @@ const Sidebar = () => {
     border: "none",
     outline: "none",
     cursor: "pointer",
-    backgroundColor: isActive ? "#D1FAE5" : "transparent",
-    color: isActive ? "#059669" : "#374151",
+    backgroundColor: isActive ? "var(--color-accent-light)" : "transparent",
+    color: isActive ? "var(--color-primary)" : "var(--text-secondary)",
     fontWeight: isActive ? "600" : "500",
   });
 
@@ -115,10 +116,10 @@ const Sidebar = () => {
           style={profileImageStyle}
         />
         <div style={{ minWidth: 0 }}>
-          <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "700", color: "#111827" }}>
+          <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "700", color: "var(--text-primary)" }}>
             {staffUser?.fullname ?? "Staff Member"}
           </h3>
-          <p style={{ margin: 0, fontSize: "14px", color: "#6B7280", textTransform: "capitalize" }}>{staffUser?.role ?? "Waiter"}</p>
+          <p style={{ margin: 0, fontSize: "14px", color: "var(--text-tertiary)", textTransform: "capitalize" }}>{staffUser?.role ?? "Waiter"}</p>
         </div>
       </div>
 
@@ -126,7 +127,7 @@ const Sidebar = () => {
       <nav style={navSectionStyle}>
         {/* Dashboard Button */}
         <button
-          style={getMenuItemStyle(activeMenu === "dashboard")}
+          style={getMenuItemStyle(activeView === "dashboard")}
           onClick={() => handleMenuClick("dashboard")}
         >
           <LayoutDashboard size={20} />
@@ -135,7 +136,7 @@ const Sidebar = () => {
 
         {/* Assigned Tables Button */}
         <button
-          style={getMenuItemStyle(activeMenu === "assignedTables")}
+          style={getMenuItemStyle(activeView === "assignedTables")}
           onClick={() => handleMenuClick("assignedTables")}
         >
           <UtensilsCrossed size={20} />
@@ -144,19 +145,21 @@ const Sidebar = () => {
 
         {/* Notifications Button */}
         <button
-          style={getMenuItemStyle(activeMenu === "notifications")}
+          style={getMenuItemStyle(activeView === "notifications")}
           onClick={() => handleMenuClick("notifications")}
         >
           <Bell size={20} />
           <span style={{ fontSize: "14px" }}>Notifications</span>
-          <span style={badgeStyle}>3</span>
+          {notificationCount > 0 && (
+            <span style={badgeStyle}>{notificationCount > 99 ? '99+' : notificationCount}</span>
+          )}
         </button>
       </nav>
 
       {/* Bottom Actions */}
       <div style={bottomSectionStyle}>
         <button
-          style={getMenuItemStyle(activeMenu === "settings")}
+          style={getMenuItemStyle(activeView === "settings")}
           onClick={() => setShowSettings(true)}
         >
           <Settings size={20} />
@@ -164,7 +167,7 @@ const Sidebar = () => {
         </button>
 
         <button
-          style={getMenuItemStyle(activeMenu === "logout")}
+          style={getMenuItemStyle(activeView === "logout")}
           onClick={handleLogout}
         >
           <LogOut size={20} />

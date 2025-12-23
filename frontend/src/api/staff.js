@@ -72,6 +72,12 @@ export const getActiveProperty = () => {
   return property ? JSON.parse(property) : null;
 };
 
+// Update order status (for cross-dashboard sync)
+export const updateOrderStatus = async (orderId, status) => {
+  const response = await axiosClient.put(`/api/staff/orders/${orderId}/status`, { status });
+  return response.data;
+};
+
 
 // create order
 export const createOrder = async (orderData) => {
@@ -106,5 +112,11 @@ export const forgotPassword = async (email) => {
 
 export const resetPassword = async (token, newPassword) => {
   const response = await axiosClient.post("/api/staff/reset-password", { token, newPassword });
+  return response.data;
+}
+
+// Update an order
+export const updateOrder = async (orderId, orderData) => {
+  const response = await axiosClient.put(`/api/staff/orders/${orderId}`, orderData);
   return response.data;
 }
