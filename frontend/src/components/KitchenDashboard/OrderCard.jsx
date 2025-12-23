@@ -2,12 +2,30 @@ import { useState } from "react";
 import { X, ChevronRight, Clock, User } from "lucide-react";
 import ItemCarousel from "../shared/ItemCarousel";
 import useRelativeTime from "../../hooks/useRelativeTime";
+import OrderDetailsModal from "../WaiterDashboard/order/OrderDetailsModal";
 
 const OrderCard = ({ order, onUpdateOrderStatus }) => {
   const [showStatusModal, setShowStatusModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const placedAtRelativeTime = useRelativeTime(order?.placedAt, true);
 
+  const isHighPriority = (order?.priority || "").toLowerCase() === "high";
+
+  const getCompletionDate = (o) => {
+    const raw = o?.deliveredAt || o?.servedAt || o?.updatedAt;
+    if (!raw) return null;
+    const d = raw instanceof Date ? raw : new Date(raw);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+
+  const formatCompletionTime = (o) => {
+    const d = getCompletionDate(o);
+    if (!d) return "";
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  };
+
   const handleUpdateStatus = () => {
+    if (order?.status === "delivered") return;
     setShowStatusModal(true);
   };
 
@@ -32,6 +50,12 @@ const OrderCard = ({ order, onUpdateOrderStatus }) => {
     const readyTime = new Date(order.readyAt);
     const diffMins = Math.floor((now - readyTime) / 60000);
     return diffMins === 0 ? `Ready - Just now` : `Ready for ${diffMins}m`;
+  }
+
+  // For "delivered" status, show completion time
+  else if (order.status === "delivered") {
+    const t = formatCompletionTime(order);
+    return t ? `Served at ${t}` : "Completed";
   }
   
   // For "new" or other status, use relative time
@@ -62,6 +86,8 @@ const OrderCard = ({ order, onUpdateOrderStatus }) => {
         return { backgroundColor: "#FEF3C7", color: "#D97706", label: "Preparing" };
       case "ready":
         return { backgroundColor: "#D1FAE5", color: "#059669", label: "Ready" };
+      case "delivered":
+        return { backgroundColor: "#E5E7EB", color: "#6B7280", label: "Delivered ✓" };
       default:
         return { backgroundColor: "#F3F4F6", color: "#4B5563", label: status };
     }
@@ -100,6 +126,17 @@ const OrderCard = ({ order, onUpdateOrderStatus }) => {
     cursor: "pointer",
   };
 
+  const secondaryButtonStyle = {
+    padding: "12px 32px",
+    backgroundColor: "#E5E7EB",
+    color: "#374151",
+    borderRadius: "9999px",
+    fontWeight: "700",
+    fontSize: "14px",
+    border: "none",
+    cursor: "pointer",
+  };
+
   return (
     <div style={cardStyle}>
       <div style={{ flex: 1 }}>
@@ -118,25 +155,20 @@ const OrderCard = ({ order, onUpdateOrderStatus }) => {
               🍽️ {getTotalItemCount()} items
             </span>
           )}
-          {(() => {
-            const now = new Date();
-            const placedTime = new Date(order.placedAt);
-            const diffMins = Math.floor((now - placedTime) / 60000);
-            if (diffMins > 30 && order.status !== "ready") {
-              return (
-                <span style={{
-                  padding: "4px 12px",
-                  borderRadius: "8px",
-                  fontSize: "11px",
-                  fontWeight: "700",
-                  backgroundColor: "#FEE2E2",
-                  color: "#DC2626",
-                }}>
-                  ⚠ Urgent
-                </span>
-              );
-            }
-          })()}
+          {isHighPriority ? (
+            <span
+              style={{
+                padding: "4px 12px",
+                borderRadius: "8px",
+                fontSize: "11px",
+                fontWeight: "700",
+                backgroundColor: "#FEE2E2",
+                color: "#DC2626",
+              }}
+            >
+              Urgent
+            </span>
+          ) : null}
           <span style={{ color: "#6B7280", fontSize: "14px", fontWeight: "500" }}>
             {order.table} • {getStatusDuration(order)}
           </span>
@@ -198,13 +230,37 @@ const OrderCard = ({ order, onUpdateOrderStatus }) => {
           </div>
         )}
 
-        {order.status !== "ready" && (
+        {order.status === "delivered" ? (
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+            <div
+              style={{
+                padding: "12px 16px",
+                backgroundColor: "#D1FAE5",
+                borderRadius: "12px",
+                border: "1px solid #A7F3D0",
+                minWidth: "220px",
+              }}
+            >
+              <div style={{ fontSize: "16px", fontWeight: "800", color: "#059669", marginBottom: "4px" }}>
+                ✓ Order Completed
+              </div>
+              <div style={{ fontSize: "13px", fontWeight: "700", color: "#6B7280" }}>
+                {(() => {
+                  const t = formatCompletionTime(order);
+                  return t ? `Served at ${t}` : "Completed";
+                })()}
+              </div>
+            </div>
+
+            <button onClick={() => setShowDetailsModal(true)} style={secondaryButtonStyle}>
+              View Details
+            </button>
+          </div>
+        ) : order.status !== "ready" ? (
           <button onClick={handleUpdateStatus} style={primaryButtonStyle}>
             {order.status === "new" ? "Accept & Start Cooking" : "Mark as Ready"}
           </button>
-        )}
-        
-        {order.status === "ready" && (
+        ) : (
           <div style={{
             display: "inline-flex",
             alignItems: "center",
@@ -380,6 +436,10 @@ const OrderCard = ({ order, onUpdateOrderStatus }) => {
             </div>
           </div>
         </div>
+      )}
+
+      {showDetailsModal && (
+        <OrderDetailsModal order={order} onClose={() => setShowDetailsModal(false)} />
       )}
     </div>
   );

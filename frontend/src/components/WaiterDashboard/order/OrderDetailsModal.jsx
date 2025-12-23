@@ -3,6 +3,14 @@ import { X, Clock, MapPin, User } from "lucide-react";
 const OrderDetailsModal = ({ order, onClose }) => {
   if (!order) return null;
 
+  const itemsArray = Array.isArray(order.items)
+    ? order.items
+    : typeof order.items === "string"
+      ? order.items.split(", ").map((name, index) => ({ id: index, name, quantity: 1 }))
+      : typeof order.itemsText === "string"
+        ? order.itemsText.split(", ").map((name, index) => ({ id: index, name, quantity: 1 }))
+        : [];
+
   const overlayStyle = {
     position: "fixed",
     top: 0,
@@ -238,16 +246,21 @@ const OrderDetailsModal = ({ order, onClose }) => {
             </div>
             <div style={infoRowStyle}>
               <User size={20} style={iconStyle} />
-              <span style={infoTextStyle}>Assigned to: Alex Miller</span>
+              <span style={infoTextStyle}>Customer: {order.customerName || "Walk-in Guest"}</span>
             </div>
           </div>
 
           <div style={sectionStyle}>
             <h3 style={sectionTitleStyle}>Order Items</h3>
             <ul style={itemsListStyle}>
-              {order.items.split(", ").map((item, index) => (
-                <li key={index} style={itemStyle}>
-                  {item}
+              {itemsArray.map((item, index) => (
+                <li key={item.id || index} style={itemStyle}>
+                  {item.quantity ? `${item.quantity}× ` : ""}{item.name}
+                  {item.notes ? (
+                    <div style={specialInstructionsStyle}>
+                      📝 {item.notes}
+                    </div>
+                  ) : null}
                 </li>
               ))}
             </ul>

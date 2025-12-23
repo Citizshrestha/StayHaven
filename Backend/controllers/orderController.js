@@ -238,6 +238,73 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
   });
 });
 
+// Update order details (items, customer info, priority, notes)
+export const updateOrder = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+  const { customerName, customerPhone, priority, notes, items } = req.body;
+
+  const order = await Order.findById(orderId);
+  if (!order) {
+    return res.status(404).json({
+      success: false,
+      message: "Order not found",
+    });
+  }
+
+  // Only allow editing pending or confirmed orders
+  const editableStatuses = ["pending", "confirmed"];
+  if (!editableStatuses.includes(order.status)) {
+    return res.status(400).json({
+      success: false,
+      message: `Cannot edit order with status "${order.status}". Only pending or confirmed orders can be edited.`,
+    });
+  }
+
+  // Update customer info
+  if (customerName !== undefined) order.customerName = customerName;
+  if (customerPhone !== undefined) order.customerPhone = customerPhone;
+  if (notes !== undefined) order.notes = notes;
+  if (priority && ["normal", "high"].includes(priority)) {
+    order.priority = priority;
+  }
+
+  // Update items if provided
+  if (items && Array.isArray(items) && items.length > 0) {
+    let totalPrice = 0;
+    const validatedItems = [];
+
+    for (const item of items) {
+      if (!item.name || !item.quantity || item.quantity < 1) {
+        return res.status(400).json({
+          success: false,
+          message: "Each item must have a name and valid quantity (minimum 1)",
+        });
+      }
+
+      const itemPrice = parseFloat(item.price) || 0;
+      totalPrice += itemPrice * item.quantity;
+
+      validatedItems.push({
+        name: item.name,
+        quantity: item.quantity,
+        price: itemPrice,
+        notes: item.notes || "",
+      });
+    }
+
+    order.items = validatedItems;
+    order.totalPrice = totalPrice;
+  }
+
+  await order.save();
+
+  return res.status(200).json({
+    success: true,
+    message: "Order updated successfully",
+    order,
+  });
+});
+
 export const getOrderById = asyncHandler(async (req, res) => {
   const { orderId } = req.params;
 
@@ -339,7 +406,7 @@ export const deleteOrder = asyncHandler(async (req, res) => {
 
   // allowing deletion only of pending, cancelled, and new orders
   const deletableStatus = ["pending", "cancelled", "new"];
-  if (!deletableStatus.includes(order.status)){
+  if (!deletableStatus.includes(order.status)) {
     return res.status(400).json({
       success: false,
       message: `Cannot delete order with status "${order.status}". Only pending, new, or cancelled orders can be deleted.`,

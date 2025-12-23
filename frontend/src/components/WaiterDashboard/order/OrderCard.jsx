@@ -5,12 +5,14 @@ import { deleteOrder } from "../../../api/staff";
 import { toast } from "react-toastify";
 import useClickOutside from "../../../hooks/useClickOutSide";
 import useRelativeTime from "../../../hooks/useRelativeTime";
+import EditOrderModal from "./EditOrderModal";
 
 
-const OrderCard = ({ order, onMarkServed, onDelete }) => {
+const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const [isMobile, setIsMobile] = useState(false);
@@ -19,25 +21,45 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
   // use custom hook for handling click outside
   const menuRef = useClickOutside(() => setShowMenu(false));
   const placedAtRelativeTime = useRelativeTime(order?.placedAt, true);
-  
+
+  const isHighPriority = (order?.priority || "").toLowerCase() === "high";
+
+  const getCompletionDate = (o) => {
+    const raw = o?.deliveredAt || o?.servedAt || o?.updatedAt;
+    if (!raw) return null;
+    const d = raw instanceof Date ? raw : new Date(raw);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+
+  const formatCompletionTime = (o) => {
+    const d = getCompletionDate(o);
+    if (!d) return "";
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  };
+
   // Handle responsive breakpoints
   useEffect(() => {
     const checkScreenSize = () => {
       setIsMobile(window.innerWidth < 640);
       setIsTablet(window.innerWidth >= 640 && window.innerWidth < 1024);
     };
-    
+
     checkScreenSize();
     window.addEventListener('resize', checkScreenSize);
     return () => window.removeEventListener('resize', checkScreenSize);
-  }, []);
+}, []);
 
 
 
-  // Safety check - if no order, don't render (AFTER all hooks)
   if (!order) {
     return null;
   }
+
+  // Calculate order total from items
+  const calculateOrderTotal = () => {
+    if (!order.items || !Array.isArray(order.items)) return '0.00';
+    return order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0).toFixed(2);
+  };
 
   const handleViewDetails = () => {
     setShowDetailsModal(true);
@@ -47,6 +69,7 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
     onMarkServed(order.id);
   };
 
+  
   // Helper to get items display text (supports both old string and new array format)
   const getItemsDisplay = () => {
     if (Array.isArray(order.items)) {
@@ -63,33 +86,34 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
     return 0;
   };
 
- const getStatusDuration = (order) => {
-  const now = new Date();
-  
-  // For "preparing" status, show how long it's been preparing
-  if (order.status === "preparing" && order.startedPreparingAt) {
-    const startTime = new Date(order.startedPreparingAt);
-    const diffMins = Math.floor((now - startTime) / 60000);
-    return diffMins === 0 ? `Preparing - Just now` : `Preparing for ${diffMins}m`;
-  } 
-  
-  // For "ready" status, show how long it's been ready
-  else if (order.status === "ready" && order.readyAt) {
-    const readyTime = new Date(order.readyAt);
-    const diffMins = Math.floor((now - readyTime) / 60000);
-    return diffMins === 0 ? `Ready - Just now` : `Ready for ${diffMins}m`;
-  } 
-  
-  // For "completed" status, show completion time
-  else if (order.status === "completed" && order.servedAt) {
-    return `Completed at ${order.servedAt}`;
-  }
-  
-  // For "new" or other status, use relative time
-  return placedAtRelativeTime;
-};
+  const getStatusDuration = (order) => {
+    const now = new Date();
 
-  
+    // For "preparing" status, show how long it's been preparing
+    if (order.status === "preparing" && order.startedPreparingAt) {
+      const startTime = new Date(order.startedPreparingAt);
+      const diffMins = Math.floor((now - startTime) / 60000);
+      return diffMins === 0 ? `Preparing - Just now` : `Preparing for ${diffMins}m`;
+    }
+
+    // For "ready" status, show how long it's been ready
+    else if (order.status === "ready" && order.readyAt) {
+      const readyTime = new Date(order.readyAt);
+      const diffMins = Math.floor((now - readyTime) / 60000);
+      return diffMins === 0 ? `Ready - Just now` : `Ready for ${diffMins}m`;
+    }
+
+    // For "delivered" status, show completion time
+    else if (order.status === "delivered") {
+      const t = formatCompletionTime(order);
+      return t ? `Served at ${t}` : "Completed";
+    }
+
+    // For "new" or other status, use relative time
+    return placedAtRelativeTime;
+  };
+
+
 
   const getStatusStyles = (status) => {
     switch (status) {
@@ -111,11 +135,11 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
           color: "#059669",
           label: "Ready for Pickup",
         };
-      case "completed":
+      case "delivered":
         return {
           backgroundColor: "#E5E7EB",
           color: "#6B7280",
-          label: "Completed ✓",
+          label: "Delivered ✓",
         };
       default:
         return {
@@ -255,7 +279,7 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
 
   const handleDelete = async () => {
     if (!order) return;
-    
+
     setIsDeleting(true);
     setDeleteError("");
     try {
@@ -306,12 +330,26 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
         openDeleteConfirm();
         break;
       case "edit":
-        // TODO: Implement edit order
-        console.log("Edit order:", order._id || order.id);
+        // Backend only allows editing for pending/confirmed orders.
+        // Frontend displays pending as "new".
+        if (order?.isReal && !["new", "confirmed"].includes(order.status)) {
+          toast.error(
+            `Cannot edit order with status "${order.status}". Only new/confirmed orders can be edited.`
+          );
+          return;
+        }
+        setShowEditModal(true);
         break;
       default:
         break;
     }
+  };
+
+  const handleSaveOrder = async (updatedOrder) => {
+    if (onUpdate) {
+      await onUpdate(updatedOrder);
+    }
+    setShowEditModal(false);
   };
 
   return (
@@ -419,29 +457,20 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
               🍽️ {getTotalItemCount()} items
             </span>
           )}
-          {(() => {
-            const now = new Date();
-            const placedTime = new Date(order.placedAt);
-            const diffMins = Math.floor((now - placedTime) / 60000);
-
-            if (diffMins > 30 && order.status !== "completed") {
-              return (
-                <span
-                  style={{
-                    padding: "4px 12px",
-                    borderRadius: "8px",
-                    fontSize: "11px",
-                    fontWeight: "700",
-                    backgroundColor: "#FEE2E2",
-                    color: "#DC2626",
-                  }}
-                >
-                  ⚠ Delayed
-                </span>
-              );
-            }
-            return null;
-          })()}
+          {isHighPriority ? (
+            <span
+              style={{
+                padding: "4px 12px",
+                borderRadius: "8px",
+                fontSize: "11px",
+                fontWeight: "700",
+                backgroundColor: "#FEE2E2",
+                color: "#DC2626",
+              }}
+            >
+              Urgent
+            </span>
+          ) : null}
           <span style={metaStyle}>
             {order.table} - {getStatusDuration(order)}
           </span>
@@ -455,14 +484,14 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
               alignItems: "center",
               gap: "10px",
               marginBottom: "12px",
-             
+
             }}
           >
             <User size={20} style={{ color: "#0284C7", flexShrink: 0 }} />
             <span
-              style={{ 
-                fontSize: "16px", 
-                fontWeight: "800", 
+              style={{
+                fontSize: "16px",
+                fontWeight: "800",
                 letterSpacing: "0.01em",
                 color: "#0284C7"
               }}
@@ -483,10 +512,10 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
             borderLeft: "3px solid #F59E0B",
             maxWidth: "280px",
           }}>
-            <div style={{ 
-              fontSize: "11px", 
-              fontWeight: "700", 
-              color: "#B45309", 
+            <div style={{
+              fontSize: "11px",
+              fontWeight: "700",
+              color: "#B45309",
               marginBottom: "4px",
               textTransform: "uppercase",
               letterSpacing: "0.5px",
@@ -494,8 +523,8 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
               📝 Special Instructions
             </div>
             {order.items.filter(item => item.notes).slice(0, 2).map(item => (
-              <div key={item.id} style={{ 
-                fontSize: "11px", 
+              <div key={item.id} style={{
+                fontSize: "11px",
                 color: "#78350F",
                 marginBottom: "2px",
                 lineHeight: "1.3",
@@ -513,7 +542,7 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
         )}
 
         <div style={buttonsContainerStyle}>
-          {order.status === "completed" ? (
+          {order.status === "delivered" ? (
             <div
               style={{
                 padding: "12px",
@@ -533,7 +562,10 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
                 ✓ Order Completed
               </div>
               <div style={{ fontSize: "14px", color: "#6B7280" }}>
-                Served at {order.servedAt}
+                {(() => {
+                  const t = formatCompletionTime(order);
+                  return t ? `Served at ${t}` : "Completed";
+                })()}
               </div>
             </div>
           ) : order.status === "ready" ? (
@@ -583,15 +615,15 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
         </div>
       </div>
 
-      
+
 
       {/* Right Image Carousel */}
       <div style={imageContainerStyle}>
         {Array.isArray(order.items) && order.items.length > 0 ? (
-          <ItemCarousel 
-            items={order.items} 
-            width={isMobile ? "100%" : isTablet ? 180 : 240} 
-            height={isMobile ? 200 : 180} 
+          <ItemCarousel
+            items={order.items}
+            width={isMobile ? "100%" : isTablet ? 180 : 240}
+            height={isMobile ? 200 : 180}
           />
         ) : (
           <img src={order.image} alt="Food" style={imageStyle} />
@@ -693,6 +725,7 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
                 >
                   Order Information
                 </h3>
+                {/* Table/Room Location */}
                 <div
                   style={{
                     display: "flex",
@@ -712,6 +745,7 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
                     {order.table}
                   </span>
                 </div>
+                {/* Time Placed */}
                 <div
                   style={{
                     display: "flex",
@@ -728,14 +762,16 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
                     style={{ color: "#10B981", flexShrink: 0 }}
                   />
                   <span style={{ fontSize: "15px", fontWeight: "600" }}>
-                    Placed {order.time}
+                    Placed {placedAtRelativeTime}
                   </span>
                 </div>
+                {/* Customer Name */}
                 <div
                   style={{
                     display: "flex",
                     alignItems: "center",
                     gap: "12px",
+                    marginBottom: "12px",
                     padding: "12px",
                     backgroundColor: "#F9FAFB",
                     borderRadius: "12px",
@@ -743,7 +779,82 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
                 >
                   <User size={20} style={{ color: "#10B981", flexShrink: 0 }} />
                   <span style={{ fontSize: "15px", fontWeight: "600" }}>
-                    Assigned to: Alex Miller
+                    Customer: {order.customerName || "Walk-in Guest"}
+                  </span>
+                </div>
+                {/* Customer Phone - if available */}
+                {order.customerPhone && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "12px",
+                      marginBottom: "12px",
+                      padding: "12px",
+                      backgroundColor: "#F9FAFB",
+                      borderRadius: "12px",
+                    }}
+                  >
+                    <span style={{ fontSize: "20px", flexShrink: 0 }}>📞</span>
+                    <span style={{ fontSize: "15px", fontWeight: "600" }}>
+                      {order.customerPhone}
+                    </span>
+                  </div>
+                )}
+                {/* Order Type */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                    marginBottom: "12px",
+                    padding: "12px",
+                    backgroundColor: "#F9FAFB",
+                    borderRadius: "12px",
+                  }}
+                >
+                  <span style={{ fontSize: "20px", flexShrink: 0 }}>
+                    {order.orderType === "roomService" ? "🛏️" : order.orderType === "takeaway" ? "🥡" : "🍽️"}
+                  </span>
+                  <span style={{ fontSize: "15px", fontWeight: "600" }}>
+                    {order.orderType === "roomService" ? "Room Service" : order.orderType === "takeaway" ? "Takeaway" : "Dine-In"}
+                  </span>
+                </div>
+                {/* Priority - if high */}
+                {order.priority === "high" && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "12px",
+                      marginBottom: "12px",
+                      padding: "12px",
+                      backgroundColor: "#FEE2E2",
+                      borderRadius: "12px",
+                    }}
+                  >
+                    <span style={{ fontSize: "20px", flexShrink: 0 }}>🔥</span>
+                    <span style={{ fontSize: "15px", fontWeight: "600", color: "#DC2626" }}>
+                      High Priority Order
+                    </span>
+                  </div>
+                )}
+                {/* Total Price */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "12px",
+                    backgroundColor: "#ECFDF5",
+                    borderRadius: "12px",
+                  }}
+                >
+                  <span style={{ fontSize: "15px", fontWeight: "600", color: "#059669" }}>
+                    Total Amount
+                  </span>
+                  <span style={{ fontSize: "18px", fontWeight: "800", color: "#059669" }}>
+                    ${order.totalPrice?.toFixed?.(2) || calculateOrderTotal()}
                   </span>
                 </div>
               </div>
@@ -841,8 +952,12 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
                   Order Images
                 </h3>
                 {Array.isArray(order.items) && order.items.length > 0 ? (
-                  <div style={{ display: "flex", justifyContent: "center" }}>
-                    <ItemCarousel items={order.items} width={400} height={250} />
+                  <div style={{ display: "flex", justifyContent: "center", width: "100%" }}>
+                    <ItemCarousel
+                      items={order.items}
+                      width={isMobile ? "100%" : isTablet ? 360 : 400}
+                      height={isMobile ? 220 : 250}
+                    />
                   </div>
                 ) : (
                   <img
@@ -1177,6 +1292,15 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
           to { transform: rotate(360deg); }
         }
       `}</style>
+
+      {/* Edit Order Modal */}
+      {showEditModal && (
+        <EditOrderModal
+          order={order}
+          onClose={() => setShowEditModal(false)}
+          onSave={handleSaveOrder}
+        />
+      )}
     </div>
   );
 };
