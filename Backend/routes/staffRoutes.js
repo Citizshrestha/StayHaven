@@ -16,6 +16,7 @@ import {
   changePassword,
   forgotPassword,
   resetPassword,
+  updateProfilePicture,
 } from "../controllers/staffController.js";
 import {
   createOrder,
@@ -27,6 +28,7 @@ import {
 } from "../controllers/orderController.js";
 import { getMenuItems, getMenuCategories } from "../controllers/menuController.js";
 import { protect, authorize } from "../middleware/authMiddleware.js";
+import { upload } from "../middleware/upload.js";
 
 const router = express.Router();
 
@@ -38,10 +40,12 @@ router.post("/complete-onboard", completeOnBoarding);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
 
+
 // PROTECTED ROUTES (Requires valid access token)
 router.get("/me", protect, getStaffProfile);
 router.post("/logout", protect, staffLogout);
 router.put("/change-password", protect, changePassword);
+router.patch("/profile-picture", protect, upload.single("profilePicture"), updateProfilePicture);
 
 // MENU ROUTES (Any authenticated staff can access)
 router.get("/menu-items", protect, getMenuItems);

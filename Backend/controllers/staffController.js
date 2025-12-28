@@ -12,6 +12,7 @@ import {
 } from "../utils/tokenUtils.js";
 import { validatePasswordStrength } from "../utils/passwordValidation.js";
 import { transporter } from "../config/nodemailer.js";
+import { uploadToCloudinary } from "../middleware/upload.js";
 // import { JWT } from "google-auth-library";
 
 const getStaffInviteEmailTemplate = ({
@@ -23,7 +24,7 @@ const getStaffInviteEmailTemplate = ({
   expiresIn,
 }) => {
   // Ensure role is displayed properly
-  const roleDisplay = String(role || 'Staff Member');
+  const roleDisplay = String(role || "Staff Member");
 
   return `
     <!DOCTYPE html>
@@ -139,13 +140,24 @@ export const staffLogin = asyncHandler(async (req, res) => {
 
   // Check if user has a staff role
   // Use companyRole as fallback if role.name is not available
-  const allowedRoles = ["chief", "waiter", "manager", "admin", "owner", "receptionist"];
+  const allowedRoles = [
+    "chief",
+    "waiter",
+    "manager",
+    "admin",
+    "owner",
+    "receptionist",
+  ];
   const userRoleName = user.role?.name || user.companyRole;
 
   console.log("🔍 DEBUG - Role name being checked:", userRoleName);
 
   // Make role check case-insensitive
-  const isAllowedRole = userRoleName && allowedRoles.some(role => role.toLowerCase() === userRoleName.toLowerCase());
+  const isAllowedRole =
+    userRoleName &&
+    allowedRoles.some(
+      (role) => role.toLowerCase() === userRoleName.toLowerCase()
+    );
 
   if (!isAllowedRole) {
     // console.log("❌ Access denied. User role:", userRoleName, "| Allowed roles:", allowedRoles);
@@ -247,9 +259,9 @@ export const staffLogin = asyncHandler(async (req, res) => {
       // Current active property (first one or selected)
       activeProperty: user.assignedProperties[0]
         ? {
-          _id: user.assignedProperties[0]._id,
-          name: user.assignedProperties[0].name,
-        }
+            _id: user.assignedProperties[0]._id,
+            name: user.assignedProperties[0].name,
+          }
         : null,
     },
     redirectPath,
@@ -281,9 +293,9 @@ export const getStaffProfile = asyncHandler(async (req, res) => {
       role: user.role?.name,
       company: user.company
         ? {
-          _id: user.company._id,
-          name: user.company.name,
-        }
+            _id: user.company._id,
+            name: user.company.name,
+          }
         : null,
       assignedProperties:
         user.assignedProperties?.map((prop) => ({
@@ -382,8 +394,9 @@ export const registerStaff = asyncHandler(async (req, res) => {
 
   return res.status(201).json({
     success: true,
-    message: `${role.charAt(0).toUpperCase() + role.slice(1)
-      } staff registered successfully`,
+    message: `${
+      role.charAt(0).toUpperCase() + role.slice(1)
+    } staff registered successfully`,
     staff: {
       _id: newStaff._id,
       fullname: newStaff.fullname,
@@ -703,8 +716,9 @@ export const inviteStaff = asyncHandler(async (req, res) => {
       from: `"${property.name} via StayHaven" <${process.env.SENDER_EMAIL}>`,
       replyTo: property.contact?.email || process.env.SENDER_EMAIL,
       to: email,
-      subject: `You're Invited to Join as ${role.charAt(0).toUpperCase() + role.slice(1)
-        } at ${property.name}`,
+      subject: `You're Invited to Join as ${
+        role.charAt(0).toUpperCase() + role.slice(1)
+      } at ${property.name}`,
       html: emailTemplate,
     });
   } catch (emailError) {
@@ -744,11 +758,11 @@ export const verifyInviteToken = asyncHandler(async (req, res) => {
   // find user with matching token and 'invited' status
   const user = await User.findOne({
     inviteToken: hashedToken,
-    accountStatus: 'invited',
+    accountStatus: "invited",
   })
-    .populate('role', 'name')  // get role name
-    .populate('company', 'name') // get company name
-    .populate('assignedProperties', 'name'); // get Property name
+    .populate("role", "name") // get role name
+    .populate("company", "name") // get company name
+    .populate("assignedProperties", "name"); // get Property name
 
   // check if user found
   if (!user) {
@@ -761,9 +775,10 @@ export const verifyInviteToken = asyncHandler(async (req, res) => {
   if (user.inviteTokenExpireAt < new Date()) {
     return res.status(400).json({
       success: false,
-      message: "Invite link has been expired. please ask your manager for a new one",
+      message:
+        "Invite link has been expired. please ask your manager for a new one",
       expired: true, // frontend can show "Request new invite" button
-    })
+    });
   }
 
   // token is valid now it can return info for onboarding form
@@ -775,17 +790,16 @@ export const verifyInviteToken = asyncHandler(async (req, res) => {
       email: user.email,
       role: user.role?.name || user.companyRole,
       company: user.company?.name,
-      assignedProperties: user.assignedProperties?.map(prop => ({
-        _id: prop._id,
-        name: prop.name,
-      })) || [],
+      assignedProperties:
+        user.assignedProperties?.map((prop) => ({
+          _id: prop._id,
+          name: prop.name,
+        })) || [],
     },
   });
 });
 
-
 export const completeOnBoarding = asyncHandler(async (req, res) => {
-
   // extract data from body
   const { token, password, username } = req.body;
 
@@ -796,7 +810,6 @@ export const completeOnBoarding = asyncHandler(async (req, res) => {
       message: "Token and password are required",
     });
   }
-
 
   // Validate password strength
   const passwordErrors = validatePasswordStrength(password);
@@ -815,11 +828,11 @@ export const completeOnBoarding = asyncHandler(async (req, res) => {
 
   const user = await User.findOne({
     inviteToken: hashedToken,
-    accountStatus: 'invited',
+    accountStatus: "invited",
   })
-    .populate('role', 'name')
-    .populate('company', 'name')
-    .populate('assignedProperties', 'name');
+    .populate("role", "name")
+    .populate("company", "name")
+    .populate("assignedProperties", "name");
 
   if (!user) {
     return res.status(400).json({
@@ -832,17 +845,18 @@ export const completeOnBoarding = asyncHandler(async (req, res) => {
   if (user.inviteTokenExpireAt < new Date()) {
     return res.status(400).json({
       success: false,
-      message: "Invite link has been expired. please ask your manager for a new one",
+      message:
+        "Invite link has been expired. please ask your manager for a new one",
       expired: true,
     });
   }
 
-  // check if username is taken 
+  // check if username is taken
   if (username) {
     const existingUsername = await User.findOne({
       username: username.toLowerCase(),
       _id: { $ne: user._id }, // exclude this user
-    })
+    });
 
     if (existingUsername) {
       return res.status(400).json({
@@ -862,7 +876,7 @@ export const completeOnBoarding = asyncHandler(async (req, res) => {
   user.inviteTokenExpireAt = null;
 
   // Change status from 'invited' to 'active'
-  user.accountStatus = 'active';
+  user.accountStatus = "active";
 
   // Enable login
   user.isActive = true;
@@ -882,14 +896,14 @@ export const completeOnBoarding = asyncHandler(async (req, res) => {
       username: user.username,
       role: user.role?.name || user.companyRole,
       company: user.company?.name,
-      assignedProperties: user.assignedProperties?.map(prop => ({
-        _id: prop._id,
-        name: prop.name,
-      })) || [],
+      assignedProperties:
+        user.assignedProperties?.map((prop) => ({
+          _id: prop._id,
+          name: prop.name,
+        })) || [],
     },
   });
 });
-
 
 //  Resend invite email to staff with expired token
 export const resendInvite = asyncHandler(async (req, res) => {
@@ -897,7 +911,7 @@ export const resendInvite = asyncHandler(async (req, res) => {
   const { staffId } = req.params;
 
   // Only managers/admins/owners can resend invites
-  const allowedRoles = ['manager', 'admin', 'owner'];
+  const allowedRoles = ["manager", "admin", "owner"];
   if (!req.user.role || !allowedRoles.includes(req.user.role.name)) {
     return res.status(403).json({
       success: false,
@@ -907,8 +921,8 @@ export const resendInvite = asyncHandler(async (req, res) => {
 
   //  Find the staff member
   const staff = await User.findById(staffId)
-    .populate('assignedProperties', 'name contact')
-    .populate('company', 'name');
+    .populate("assignedProperties", "name contact")
+    .populate("company", "name");
 
   if (!staff) {
     return res.status(404).json({
@@ -927,7 +941,7 @@ export const resendInvite = asyncHandler(async (req, res) => {
 
   //  Check status - can only resend for 'invited' accounts
   // If status is 'active', they already onboarded - no need to resend
-  if (staff.accountStatus !== 'invited') {
+  if (staff.accountStatus !== "invited") {
     return res.status(400).json({
       success: false,
       message: "Can only resend invites for pending invitations",
@@ -946,22 +960,25 @@ export const resendInvite = asyncHandler(async (req, res) => {
   await staff.save();
 
   // Build invite link and send email
-  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
   const inviteLink = `${frontendUrl}/staff/onboard?token=${newToken}`;
 
   const property = staff.assignedProperties[0];
   const emailTemplate = getStaffInviteEmailTemplate({
     staffName: staff.fullname,
-    managerName: req.user.fullname || 'Your Manager',
-    propertyName: property?.name || 'Property',
-    role: staff.companyRole?.charAt(0).toUpperCase() + staff.companyRole?.slice(1),
+    managerName: req.user.fullname || "Your Manager",
+    propertyName: property?.name || "Property",
+    role:
+      staff.companyRole?.charAt(0).toUpperCase() + staff.companyRole?.slice(1),
     inviteLink: inviteLink,
-    expiresIn: '48 hours',
+    expiresIn: "48 hours",
   });
 
   try {
     await transporter.sendMail({
-      from: `"${property?.name || 'StayHaven'} via StayHaven" <${process.env.SENDER_EMAIL}>`,
+      from: `"${property?.name || "StayHaven"} via StayHaven" <${
+        process.env.SENDER_EMAIL
+      }>`,
       replyTo: property?.contact?.email,
       to: staff.email,
       subject: `[Reminder] You're invited to join as ${staff.companyRole}`,
@@ -987,7 +1004,7 @@ export const resendInvite = asyncHandler(async (req, res) => {
 //  Get all pending invitations for manager's company
 export const getPendingInvites = asyncHandler(async (req, res) => {
   //  Authorization check
-  const allowedRoles = ['manager', 'admin', 'owner'];
+  const allowedRoles = ["manager", "admin", "owner"];
   if (!req.user.role || !allowedRoles.includes(req.user.role.name)) {
     return res.status(403).json({
       success: false,
@@ -998,18 +1015,20 @@ export const getPendingInvites = asyncHandler(async (req, res) => {
   //Get all pending invites for this company
   const pendingInvites = await User.find({
     company: req.user.company,
-    accountStatus: 'invited',
+    accountStatus: "invited",
   })
-    .populate('assignedProperties', 'name')
-    .populate('createdBy', 'fullname')  // Who invited them
-    .select('fullname email companyRole assignedProperties invitedAt inviteTokenExpireAt createdBy')
-    .sort({ invitedAt: -1 });  // Newest first
+    .populate("assignedProperties", "name")
+    .populate("createdBy", "fullname") // Who invited them
+    .select(
+      "fullname email companyRole assignedProperties invitedAt inviteTokenExpireAt createdBy"
+    )
+    .sort({ invitedAt: -1 }); // Newest first
 
   //  Format and return response
   return res.status(200).json({
     success: true,
     count: pendingInvites.length,
-    invites: pendingInvites.map(invite => ({
+    invites: pendingInvites.map((invite) => ({
       _id: invite._id,
       fullname: invite.fullname,
       email: invite.email,
@@ -1017,19 +1036,18 @@ export const getPendingInvites = asyncHandler(async (req, res) => {
       assignedProperties: invite.assignedProperties,
       invitedAt: invite.invitedAt,
       expiresAt: invite.inviteTokenExpireAt,
-      isExpired: invite.inviteTokenExpireAt < new Date(),  // true/false
-      invitedBy: invite.createdBy?.fullname || 'Unknown',
+      isExpired: invite.inviteTokenExpireAt < new Date(), // true/false
+      invitedBy: invite.createdBy?.fullname || "Unknown",
     })),
   });
 });
-
 
 // delete/cancel a pending staff invite
 export const deleteInvite = asyncHandler(async (req, res) => {
   const { staffId } = req.params;
 
   // Check permissions - consistent with other functions
-  const allowedRoles = ['manager', 'admin', 'owner'];
+  const allowedRoles = ["manager", "admin", "owner"];
   if (!req.user.role || !allowedRoles.includes(req.user.role.name)) {
     return res.status(403).json({
       success: false,
@@ -1041,7 +1059,7 @@ export const deleteInvite = asyncHandler(async (req, res) => {
   if (!staff) {
     return res.status(404).json({
       success: false,
-      message: "Staff invite not found"
+      message: "Staff invite not found",
     });
   }
 
@@ -1057,37 +1075,36 @@ export const deleteInvite = asyncHandler(async (req, res) => {
   if (staff.accountStatus !== "invited") {
     return res.status(400).json({
       success: false,
-      message: "Cannot delete invite for staff who have been already onboarded"
+      message: "Cannot delete invite for staff who have been already onboarded",
     });
   }
 
   await User.findByIdAndDelete(staffId);
   res.status(200).json({
     success: true,
-    message: "Invite deleted successfully"
+    message: "Invite deleted successfully",
   });
 });
 
 export const changePassword = asyncHandler(async (req, res) => {
-
   // extracting currentpassword and password from frontend request body
   const { currentPassword, newPassword } = req.body;
 
   if (!currentPassword || !newPassword) {
     return res.status(400).json({
       success: false,
-      message: "Current Password and New Password are required"
+      message: "Current Password and New Password are required",
     });
   }
 
-  // find logged-in user 
+  // find logged-in user
   const user = req.user._id;
   const currentUser = await User.findById(user).select("+password");
 
   if (!currentUser) {
     return res.status(404).json({
       success: false,
-      message: "User not found!"
+      message: "User not found!",
     });
   }
 
@@ -1133,7 +1150,6 @@ export const changePassword = asyncHandler(async (req, res) => {
   });
 });
 
-
 export const forgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
 
@@ -1144,7 +1160,9 @@ export const forgotPassword = asyncHandler(async (req, res) => {
     });
   }
 
-  const user = await User.findOne({ email: email.toLowerCase() }).populate('role').populate('assignedProperties', "name");
+  const user = await User.findOne({ email: email.toLowerCase() })
+    .populate("role")
+    .populate("assignedProperties", "name");
 
   if (!user) {
     return res.status(404).json({
@@ -1153,17 +1171,24 @@ export const forgotPassword = asyncHandler(async (req, res) => {
     });
   }
 
-  const staffRoles = ['chief', 'manager', 'waiter', 'receptionist', 'admin', 'owner'];
+  const staffRoles = [
+    "chief",
+    "manager",
+    "waiter",
+    "receptionist",
+    "admin",
+    "owner",
+  ];
   const userRole = (user.role?.name || user.companyRole).toLowerCase();
 
   if (!userRole || !staffRoles.includes(userRole)) {
     return res.status(404).json({
       success: false,
       message: "User with this email and role not found!",
-    })
+    });
   }
 
-  // generate a secure random token 
+  // generate a secure random token
   const resetToken = generateSecureToken();
 
   // Hashing the token before storing in db
@@ -1277,7 +1302,6 @@ export const forgotPassword = asyncHandler(async (req, res) => {
   });
 });
 
-
 // Reset Password - Complete the password reset with token
 export const resetPassword = asyncHandler(async (req, res) => {
   //Extract token and newPassword from request body
@@ -1316,7 +1340,8 @@ export const resetPassword = asyncHandler(async (req, res) => {
   if (!user) {
     return res.status(400).json({
       success: false,
-      message: "Invalid or expired reset token. Please request a new reset link.",
+      message:
+        "Invalid or expired reset token. Please request a new reset link.",
     });
   }
 
@@ -1336,6 +1361,51 @@ export const resetPassword = asyncHandler(async (req, res) => {
   // Return success response
   return res.status(200).json({
     success: true,
-    message: "Password reset successfully. You can now login with your new password.",
+    message:
+      "Password reset successfully. You can now login with your new password.",
   });
+});
+
+// update profilePic
+export const updateProfilePicture = asyncHandler(async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({
+      success: false,
+      message: "No image file provided",
+    });
+  }
+
+  try {
+    // Get staff details for folder structure
+    const staffDetails = {
+      role: req.user.companyRole || req.user.role?.name || 'staff',
+      fullname: req.user.fullname || 'unknown'
+    };
+
+    // upload to cloudinary with staff-specific folder structure
+    const result = await uploadToCloudinary(
+      req.file.buffer,
+      staffDetails
+    );
+
+    // update user in db
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { profilePicture: result.secure_url },
+      { new: true }
+    ).select("-password");
+
+    res.status(200).json({
+      success: true,
+      message: "Profile Picture Updated Successfully",
+      profilePicture: result.secure_url,
+      user,
+    });
+  } catch (err) {
+    console.error("Cloudinary upload error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to upload image",
+    });
+  }
 });
