@@ -1,18 +1,21 @@
-import { useEffect, useState } from "react";
+import { useState, useRef } from "react";
 import {
     Bell, Settings as SettingsIcon, Zap, X,
-    ChevronRight, Lock, Eye, EyeOff
+    ChevronRight, Lock, Eye, EyeOff, Camera
 } from "lucide-react";
 import { useStaffAuth } from "../../../context/StaffAuthContext";
 import { toast } from "react-toastify";
 import "./WaiterSettings.css";
 import { changePassword } from "../../../api/auth";
 import { useTheme } from "../../../hooks/useTheme";
+import axiosClient from "../../../axiosClient";
 
 const WaiterSettings = ({ onClose }) => {
-    const { staffUser } = useStaffAuth();
-    const { theme, toggleTheme } = useTheme();
+    const { staffUser, updateUser } = useStaffAuth();
+    const { theme, setTheme } = useTheme();
     const [showChangePassword, setShowChangePassword] = useState(false);
+    const [isUploadingPic, setIsUploadingPic] = useState(false);
+    const fileInputRef = useRef(null);
     const [passwordState, setPasswordState] = useState({
         currentPassword: "",
         newPassword: "",
@@ -34,28 +37,61 @@ const WaiterSettings = ({ onClose }) => {
 
             // Display    
             theme: "light", // light, dark, auto
-            autoRefresh: "1m",
-            compactView: false,
+            autoRefresh: "off",
 
             // Quick Actions
             quickActions: ["Print Bill", "Split Table"],
         };
     });
 
-    // sync theme when modal opens
-    useEffect(() => {
-        if (settings.theme === 'dark' && theme === 'light') {
-            toggleTheme();
-        } else if (settings.theme === 'light' && theme === 'dark') {
-            toggleTheme();
+    // Profile picture upload handlers
+    const handleAvatarClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Validate file size (5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error("Image must be less than 5MB");
+            return;
         }
-    }, [settings.theme, theme]); 
+
+        // Validate file type
+        const allowedTypes = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
+        if (!allowedTypes.includes(file.type)) {
+            toast.error("Only JPEG, PNG, and WEBP images are allowed");
+            return;
+        }
+
+        setIsUploadingPic(true);
+        try {
+            const formData = new FormData();
+            formData.append("profilePicture", file);
+
+            const response = await axiosClient.patch("/api/staff/profile-picture", formData, {
+                headers: { "Content-Type": "multipart/form-data" },
+            });
+
+            if (response.data.success && updateUser) {
+                updateUser({ profilePicture: response.data.profilePicture });
+            }
+            
+            toast.success("Profile picture updated!");
+        } catch (error) {
+            toast.error(error.response?.data?.message || "Failed to upload image");
+        } finally {
+            setIsUploadingPic(false);
+            e.target.value = "";
+        }
+    }; 
 
     // Save settings to localStorage
     const updateSetting = (key, value) => {
         const newSettings = { ...settings, [key]: value };
         setSettings(newSettings);
-        localStorage.setItem("waiterSettings", JSON.stringify(newSettings));
     };
 
     // Toggle alert type
@@ -101,8 +137,7 @@ const WaiterSettings = ({ onClose }) => {
                 confirmPassword: "",
             });
         } catch (err) {
-            toast.error(err.response.data.message || "Failed to change password");
-            setIsChangingPassword(false);
+            toast.error(err.response?.data?.message || "Failed to change password");
         } finally {
             setIsChangingPassword(false);
         }
@@ -111,9 +146,12 @@ const WaiterSettings = ({ onClose }) => {
     // Handle save
     const handleSave = () => {
         localStorage.setItem("waiterSettings", JSON.stringify(settings));
-
-        // also save theme to theme context's localstorage key
-        localStorage.setItem("theme", settings.theme);
+        
+        // Apply theme on save
+        if (settings.theme !== theme) {
+            setTheme(settings.theme);
+        }
+        
         toast.success("Settings saved!");
         onClose();
     };
@@ -132,80 +170,127 @@ const WaiterSettings = ({ onClose }) => {
             <div className="ws-content">
                 {/* Profile Section */}
                 <div className="ws-profile-section">
-                    <img
-                        src={staffUser?.profilePicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(staffUser?.fullname || 'Staff')}&background=10B981&color=fff`}
-                        alt="Profile"
-                        className="ws-profile-avatar"
+                    {/* Hidden file input */}
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        accept="image/jpeg,image/png,image/jpg,image/webp"
+                        style={{ display: "none" }}
                     />
+                    
+                    {/* Clickable Avatar */}
+                    <div 
+                        className="ws-avatar-wrapper"
+                        onClick={handleAvatarClick}
+                        style={{ cursor: isUploadingPic ? "wait" : "pointer" }}
+                        title="Click to change profile picture"
+                    >
+                        <img
+                            src={staffUser?.profilePicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(staffUser?.fullname || 'Staff')}&background=10B981&color=fff`}
+                            alt="Profile"
+                            className="ws-profile-avatar"
+                            style={{ opacity: isUploadingPic ? 0.5 : 1 }}
+                        />
+                        <div className="ws-avatar-overlay">
+                            {isUploadingPic ? (
+                                <span className="ws-avatar-spinner"></span>
+                            ) : (
+                                <Camera size={20} color="white" />
+                            )}
+                        </div>
+                    </div>
                     <div className="ws-profile-info">
                         <h3 className="ws-profile-name">{staffUser?.fullname || "Staff Member"}</h3>
-                        {/* Change Password Modal */}
                         <button className="ws-edit-profile-btn" onClick={() => setShowChangePassword(true)}>
                             <Lock size={12} />
                             Change Password <ChevronRight size={14} />
                         </button>
 
-
-                        {/* Change Password Modal Removed */}
-                        {
-                            showChangePassword && (
-                                <div className="ws-modal-overlay" onClick={() => setShowChangePassword(false)}>
-                                    <div className="ws-modal" onClick={(e) => e.stopPropagation()}>
-                                        <div className="ws-modal-header">
-                                            <h2>Change Password Form</h2>
-                                            <button onClick={() => setShowChangePassword(false)}>
-                                                <X size={20} />
-                                            </button>
-                                        </div>
-                                        <div className="ws-content">
-                                            <div className="ws-input-group">
-                                                <label htmlFor="currentPassword">Current Password</label>
-                                                <div className="ws-password-input">
-                                                    <input type={showCurrentPassword ? "text" : "password"} value={passwordState.currentPassword} onChange={(e) => setPasswordState({ ...passwordState, currentPassword: e.target.value })} placeholder="Enter your current password" />
-                                                    <button type="button" className="ws-eye-btn" onClick={() => setShowCurrentPassword(!showCurrentPassword)} aria-label={showCurrentPassword ? 'Hide current password' : 'Show current password'}>
-                                                        {showCurrentPassword ? <Eye size={20} /> : <EyeOff size={20} />}
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            <div className="ws-input-group">
-                                                <label htmlFor="newPassword">New Password</label>
-                                                <div className="ws-password-input">
-                                                    <input type={showNewPassword ? "text" : "password"} value={passwordState.newPassword} onChange={(e) => setPasswordState({ ...passwordState, newPassword: e.target.value })} placeholder="Enter your new password" />
-                                                    <button type="button" className="ws-eye-btn" onClick={() => setShowNewPassword(!showNewPassword)} aria-label={showNewPassword ? 'Hide new password' : 'Show new password'}>
-                                                        {showNewPassword ? <Eye size={20} /> : <EyeOff size={20} />}
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            <div className="ws-input-group">
-                                                <label htmlFor="confirmPassword">Confirm Password</label>
-                                                <div className="ws-password-input">
-                                                    <input type={showConfirmPassword ? "text" : "password"} value={passwordState.confirmPassword} onChange={(e) => setPasswordState({ ...passwordState, confirmPassword: e.target.value })} placeholder="Confirm your new password" />
-                                                    <button type="button" className="ws-eye-btn" onClick={() => setShowConfirmPassword(!showConfirmPassword)} aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}>
-                                                        {showConfirmPassword ? <Eye size={20} /> : <EyeOff size={20} />}
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            <div className="ws-modal-footer">
-                                                <button
-                                                    className="ws-save-btn"
-                                                    onClick={handleChangePassword}
-                                                    disabled={isChangingPassword}
+                        {/* Change Password Modal */}
+                        {showChangePassword && (
+                            <div className="ws-modal-overlay" onClick={() => setShowChangePassword(false)}>
+                                <div className="ws-modal" onClick={(e) => e.stopPropagation()}>
+                                    <div className="ws-modal-header">
+                                        <h2>Change Password</h2>
+                                        <button onClick={() => setShowChangePassword(false)}>
+                                            <X size={20} />
+                                        </button>
+                                    </div>
+                                    <div className="ws-modal-content">
+                                        <div className="ws-input-group">
+                                            <label>Current Password</label>
+                                            <div className="ws-password-input">
+                                                <input 
+                                                    type={showCurrentPassword ? "text" : "password"} 
+                                                    value={passwordState.currentPassword} 
+                                                    onChange={(e) => setPasswordState({ ...passwordState, currentPassword: e.target.value })} 
+                                                    placeholder="Enter your current password" 
+                                                />
+                                                <button 
+                                                    type="button" 
+                                                    className="ws-eye-btn" 
+                                                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
                                                 >
-                                                    {isChangingPassword ? "Changing..." : "Change Password"}
-                                                </button>
-                                                <button
-                                                    className="ws-cancel-btn"
-                                                    onClick={() => setShowChangePassword(false)}
-                                                >
-                                                    Cancel
+                                                    {showCurrentPassword ? <Eye size={20} /> : <EyeOff size={20} />}
                                                 </button>
                                             </div>
                                         </div>
-
+                                        <div className="ws-input-group">
+                                            <label>New Password</label>
+                                            <div className="ws-password-input">
+                                                <input 
+                                                    type={showNewPassword ? "text" : "password"} 
+                                                    value={passwordState.newPassword} 
+                                                    onChange={(e) => setPasswordState({ ...passwordState, newPassword: e.target.value })} 
+                                                    placeholder="Enter your new password" 
+                                                />
+                                                <button 
+                                                    type="button" 
+                                                    className="ws-eye-btn" 
+                                                    onClick={() => setShowNewPassword(!showNewPassword)}
+                                                >
+                                                    {showNewPassword ? <Eye size={20} /> : <EyeOff size={20} />}
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div className="ws-input-group">
+                                            <label>Confirm Password</label>
+                                            <div className="ws-password-input">
+                                                <input 
+                                                    type={showConfirmPassword ? "text" : "password"} 
+                                                    value={passwordState.confirmPassword} 
+                                                    onChange={(e) => setPasswordState({ ...passwordState, confirmPassword: e.target.value })} 
+                                                    placeholder="Confirm your new password" 
+                                                />
+                                                <button 
+                                                    type="button" 
+                                                    className="ws-eye-btn" 
+                                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                                >
+                                                    {showConfirmPassword ? <Eye size={20} /> : <EyeOff size={20} />}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="ws-modal-footer">
+                                        <button
+                                            className="ws-save-btn"
+                                            onClick={handleChangePassword}
+                                            disabled={isChangingPassword}
+                                        >
+                                            {isChangingPassword ? "Changing..." : "Change Password"}
+                                        </button>
+                                        <button
+                                            className="ws-cancel-btn"
+                                            onClick={() => setShowChangePassword(false)}
+                                        >
+                                            Cancel
+                                        </button>
                                     </div>
                                 </div>
-                            )
-                        }
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -274,28 +359,14 @@ const WaiterSettings = ({ onClose }) => {
 
                     <div className="ws-theme-toggle">
                         <button
-                            className={`ws-theme-btn ${theme === 'light' ? 'active' : ''}`}
-                            onClick={() => {
-
-                                if (theme !== "light") {
-                                    toggleTheme();
-                                }
-
-                                updateSetting('theme', 'light')
-
-                            }}
+                            className={`ws-theme-btn ${settings.theme === 'light' ? 'active' : ''}`}
+                            onClick={() => updateSetting('theme', 'light')}
                         >
                             Light
                         </button>
                         <button
-                            className={`ws-theme-btn ${theme === 'dark' ? 'active' : ''}`}
-                            onClick={() => {
-                                // update context
-                                if (theme !== "dark") {
-                                    toggleTheme();
-                                }
-                                updateSetting('theme', 'dark')
-                            }}
+                            className={`ws-theme-btn ${settings.theme === 'dark' ? 'active' : ''}`}
+                            onClick={() => updateSetting('theme', 'dark')}
                         >
                             Dark
                         </button>
@@ -316,6 +387,7 @@ const WaiterSettings = ({ onClose }) => {
                             onChange={(e) => updateSetting('autoRefresh', e.target.value)}
                             className="ws-select"
                         >
+                            <option value="off">Off</option>
                             <option value="30s">30s</option>
                             <option value="1m">1m</option>
                             <option value="2m">2m</option>
@@ -323,17 +395,6 @@ const WaiterSettings = ({ onClose }) => {
                         </select>
                     </div>
 
-                    <div className="ws-setting-row">
-                        <span>Compact View</span>
-                        <label className="ws-toggle">
-                            <input
-                                type="checkbox"
-                                checked={settings.compactView}
-                                onChange={(e) => updateSetting('compactView', e.target.checked)}
-                            />
-                            <span className="ws-toggle-slider"></span>
-                        </label>
-                    </div>
                 </div>
 
                 {/* Quick Actions Section */}
@@ -367,9 +428,6 @@ const WaiterSettings = ({ onClose }) => {
                     Cancel
                 </button>
             </div>
-
-
-
         </div>
     );
 };
