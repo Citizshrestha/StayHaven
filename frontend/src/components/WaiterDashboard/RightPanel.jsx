@@ -1,12 +1,15 @@
 import React, { useState, useMemo } from "react";
 import { Utensils, ClipboardList, Clock, Plus, X, Minus, CheckCircle, AlertCircle } from "lucide-react";
 import { useOrderContext } from "../../context/useOrderContext";
+import { useTheme } from "../../hooks/useTheme";  
 import { toast } from "react-toastify";
 import useClickOutside from "../../hooks/useClickOutSide";
+import "./RightPanel.css";  
 
 
 const RightPanel = ({ orders = [] }) => {
   const { addOrder, loading } = useOrderContext();
+  const { isDark } = useTheme();  // ADD THIS
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     orderType: "dineIn",
@@ -85,6 +88,19 @@ const RightPanel = ({ orders = [] }) => {
       const placedTime = new Date(order.placedAt);
       const diffMins = Math.floor((new Date() - placedTime) / 60000);
       if (diffMins > 30 && order.status !== 'delivered' && order.status !== 'ready') {
+        // Format time more reasonably
+        let timeDisplay;
+        if (diffMins < 60) {
+          timeDisplay = `${diffMins}m waiting`;
+        } else if (diffMins < 1440) { // Less than 24 hours
+          const hours = Math.floor(diffMins / 60);
+          const mins = diffMins % 60;
+          timeDisplay = mins > 0 ? `${hours}h ${mins}m waiting` : `${hours}h waiting`;
+        } else { // More than 24 hours - something is wrong
+          const days = Math.floor(diffMins / 1440);
+          timeDisplay = `${days}d waiting (check order)`;
+        }
+        
         notifs.push({
           id: `delay-${order.id}`,
           type: "kitchen_update",
@@ -92,7 +108,7 @@ const RightPanel = ({ orders = [] }) => {
           iconBg: "#FEF3C7",
           iconColor: "#D97706",
           message: `Order #${order.orderNumber || order.id?.slice?.(-5)?.toUpperCase()} delayed`,
-          time: `${diffMins}m waiting`,
+          time: timeDisplay,
           sortTime: placedTime,
         });
       }
@@ -156,135 +172,23 @@ const RightPanel = ({ orders = [] }) => {
     }
   };
 
-  // Inline Styles
-  const containerStyle = {
-    backgroundColor: "#F8F9FB", // Light gray background for panel
-    height: "100%",
-    overflowY: "auto",
-    padding: "32px",
-    display: "flex",
-    flexDirection: "column",
-    gap: "32px",
-    fontFamily: "'Nunito', sans-serif",
-  };
-
-  const sectionTitleStyle = {
-    fontSize: "20px",
-    fontWeight: "700",
-    color: "#111827", // Gray-900
-    marginBottom: "16px",
-  };
-
-  const cardContainerStyle = {
-    backgroundColor: "white",
-    borderRadius: "24px",
-    padding: "24px",
-    boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-  };
-
-  const assignedListStyle = {
-    display: "flex",
-    flexDirection: "column",
-    gap: "12px",
-  };
-
-  const assignedItemStyle = {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "12px 16px",
-    backgroundColor: "#F9FAFB", // Gray-50
-    borderRadius: "12px",
-  };
-
-  const assignedNameStyle = {
-    fontWeight: "600",
-    color: "#1F2937", // Gray-800
-    fontSize: "15px",
-  };
-
-  const assignedCountStyle = {
-    fontSize: "14px",
-    color: "#9CA3AF", // Gray-400
-    fontWeight: "500",
-  };
-
-  const notificationListStyle = {
-    display: "flex",
-    flexDirection: "column",
-    gap: "24px",
-  };
-
-  const notificationItemStyle = {
-    display: "flex",
-    gap: "16px",
-    alignItems: "flex-start",
-  };
-
-  const getIconContainerStyle = (bgColor) => ({
-    flexShrink: 0,
-    width: "48px",
-    height: "48px",
-    backgroundColor: bgColor,
-    borderRadius: "50%",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  });
-
-  const notificationContentStyle = {
-    flex: 1,
-  };
-
-  const notificationMessageStyle = {
-    fontSize: "14px",
-    color: "#111827", // Gray-900
-    fontWeight: "600",
-    lineHeight: "1.4",
-    marginBottom: "4px",
-  };
-
-  const notificationTimeStyle = {
-    fontSize: "12px",
-    color: "#6B7280", // Gray-500
-    fontWeight: "500",
-  };
-
   return (
-    <div style={containerStyle}>
+    <div className={`rp-container ${isDark ? 'dark' : ''}`}>
       {/* New Order Button */}
-      <button
-        onClick={() => setShowForm(true)}
-        style={{
-          width: "100%",
-          padding: "16px",
-          backgroundColor: "#10B981",
-          color: "white",
-          borderRadius: "12px",
-          border: "none",
-          cursor: "pointer",
-          fontSize: "16px",
-          fontWeight: "700",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: "8px",
-          marginBottom: "24px",
-        }}
-      >
+      <button onClick={() => setShowForm(true)} className="rp-new-order-btn">
         <Plus size={20} />
         New Order
       </button>
-      {/* Assigned Areas Section */}
-      <div>
-        <h2 style={sectionTitleStyle}>Assigned Areas</h2>
 
-        <div style={cardContainerStyle}>
-          <div style={assignedListStyle}>
+      {/* Assigned Areas Section */}
+      <div className="rp-section">
+        <h2 className="rp-section-title">Assigned Areas</h2>
+        <div className="rp-card">
+          <div className="rp-assigned-list">
             {assignedAreas.map((area) => (
-              <div key={area.id} style={assignedItemStyle}>
-                <span style={assignedNameStyle}>{area.name}</span>
-                <span style={assignedCountStyle}>
+              <div key={area.id} className="rp-assigned-item">
+                <span className="rp-assigned-name">{area.name}</span>
+                <span className="rp-assigned-count">
                   {area.orderCount} {area.orderCount === 1 ? "Order" : "Orders"}
                 </span>
               </div>
@@ -294,23 +198,23 @@ const RightPanel = ({ orders = [] }) => {
       </div>
 
       {/* Notifications Section */}
-      <div>
-        <h2 style={sectionTitleStyle}>Notifications</h2>
-
-        <div style={cardContainerStyle}>
-          <div style={notificationListStyle}>
+      <div className="rp-section">
+        <h2 className="rp-section-title">Notifications</h2>
+        <div className="rp-card">
+          <div className="rp-notification-list">
             {notifications.map((notification) => {
               const { Icon, iconBg, iconColor } = notification;
               return (
-                <div key={notification.id} style={notificationItemStyle}>
-                  <div style={getIconContainerStyle(iconBg)}>
+                <div key={notification.id} className="rp-notification-item">
+                  <div 
+                    className="rp-notification-icon"
+                    style={{ backgroundColor: iconBg }}
+                  >
                     <Icon size={20} color={iconColor} />
                   </div>
-                  <div style={notificationContentStyle}>
-                    <p style={notificationMessageStyle}>
-                      {notification.message}
-                    </p>
-                    <p style={notificationTimeStyle}>{notification.time}</p>
+                  <div className="rp-notification-content">
+                    <p className="rp-notification-message">{notification.message}</p>
+                    <p className="rp-notification-time">{notification.time}</p>
                   </div>
                 </div>
               );
@@ -318,29 +222,11 @@ const RightPanel = ({ orders = [] }) => {
           </div>
         </div>
       </div>
-      {/* Order Form Modal */}
+
+      {/* Order Form Modal - Keep the existing modal code but update classes similarly */}
       {showForm && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: "rgba(0,0,0,0.6)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-          }}>
-          <div
-            ref={formRef}
-            style={{
-              backgroundColor: "white",
-              borderRadius: "24px",
-              padding: "40px",
-              width: "90%",
-              maxWidth: "460px",
-              maxHeight: "90vh",
-              overflowY: "auto",
-            }}>
+        <div className="rp-modal-overlay">
+          <div ref={formRef} className={`rp-modal ${isDark ? 'dark' : ''}`}>
             {/* Header */}
             <div style={{ marginBottom: "32px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "4px" }}>

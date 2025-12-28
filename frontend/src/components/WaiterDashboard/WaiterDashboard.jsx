@@ -27,30 +27,8 @@ const WaiterDashboard = () => {
     };
   }, []);
 
-  // Notifications state (will be moved to context later)
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      type: "new_order",
-      message: "New order received for Table 5",
-      time: new Date(Date.now() - 2 * 60 * 1000),
-      isRead: false,
-    },
-    {
-      id: 2,
-      type: "order_ready",
-      message: "Order #82299 is ready for pickup",
-      time: new Date(Date.now() - 5 * 60 * 1000),
-      isRead: false,
-    },
-    {
-      id: 3,
-      type: "kitchen_update",
-      message: "Kitchen update: Order #82300 delayed",
-      time: new Date(Date.now() - 10 * 60 * 1000),
-      isRead: true,
-    },
-  ]);
+  // Notifications are now generated from orders in RightPanel
+  const [notifications, setNotifications] = useState([]);
 
   const unreadCount = useMemo(() =>
     notifications.filter(n => !n.isRead).length,
