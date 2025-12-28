@@ -1,6 +1,8 @@
+import dotenv from "dotenv";
+dotenv.config();
+
 import express from "express";
 import connectDB from "./config/db.js";
-import dotenv from "dotenv";
 import cors from "cors";
 import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
@@ -9,8 +11,11 @@ import companyRoutes from "./routes/companyRoutes.js";
 import { Role } from "./models/role.schema.js";
 import staffRoutes from "./routes/staffRoutes.js";
 import cookieParser from "cookie-parser";
+import { initCloudinary } from "./config/cloudinary.js";
 
-dotenv.config();
+// Initialize cloudinary with env vars
+initCloudinary();
+
 const app = express();
 
 // Connect to DB
