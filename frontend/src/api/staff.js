@@ -120,3 +120,16 @@ export const updateOrder = async (orderId, orderData) => {
   const response = await axiosClient.put(`/api/staff/orders/${orderId}`, orderData);
   return response.data;
 }
+
+export const updateProfilePicture = async (file) => {
+  const formData = new FormData();
+  formData.append("profilePicture", file);
+
+  const response = await axiosClient.patch("/staff/profile-picture", formData, {
+    headers: {
+      "Content-Type" : "multipart/form-data",
+    },
+  });
+
+  return response.data;
+}
