@@ -164,35 +164,6 @@ const FilteredHotels = () => {
 
               {/* Hotel Grid */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '24px', marginBottom: '32px' }}>
-                          <input
-                            type="checkbox"
-                            id={item.id}
-                            checked={amenities[item.id]}
-                            onChange={() => handleAmenityChange(item.id)}
-                            style={{
-                              width: '22px',
-                              height: '22px',
-                              borderRadius: '6px',
-                              border: '2px solid #D1D5DB',
-                              cursor: 'pointer',
-                              appearance: 'none',
-                              WebkitAppearance: 'none',
-                              MozAppearance: 'none',
-                              backgroundColor: amenities[item.id] ? '#14B8A6' : '#ffffff',
-                              borderColor: amenities[item.id] ? '#14B8A6' : '#D1D5DB',
-                              outline: 'none'
-                            }}
-                          />
-                          {amenities[item.id] && (
-                            <svg
-                              style={{ position: 'absolute', top: '3px', left: '3px', width: '16px', height: '16px', color: '#ffffff', pointerEvents: 'none' }}
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
-                            </svg>
-                          )}
                     <div style={{ position: 'relative', height: '200px', overflow: 'hidden', backgroundColor: '#E5E7EB' }}>
                       <img
                         src={hotel.image}
