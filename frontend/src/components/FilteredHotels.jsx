@@ -44,7 +44,7 @@ const FilteredHotels = () => {
                 <div style={{ marginBottom: '20px' }}>
                   <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#374151', marginBottom: '8px' }}>City</label>
                   <div style={{ position: 'relative' }}>
-                    <select style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: '8px', appearance: 'none', backgroundColor: '#ffffff', color: '#374151', fontSize: '0.875rem', outline: 'none' }}>
+                    <select style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: '8px', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', backgroundColor: '#ffffff', backgroundImage: 'none', color: '#374151', fontSize: '0.875rem', outline: 'none' }}>
                       <option>Kathmandu</option>
                       <option>Pokhara</option>
                       <option>Lalitpur</option>
@@ -151,7 +151,7 @@ const FilteredHotels = () => {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
                 <h1 style={{ fontSize: '1.875rem', fontWeight: '700', color: '#111827', fontFamily: 'Nunito, sans-serif' }}>Hotels in Kathmandu</h1>
                 <div style={{ position: 'relative', width: '200px' }}>
-                  <select style={{ width: '100%', padding: '10px 12px', paddingRight: '36px', border: '1px solid #D1D5DB', borderRadius: '8px', appearance: 'none', backgroundColor: '#ffffff', color: '#374151', fontSize: '0.875rem', outline: 'none' }}>
+                  <select style={{ width: '100%', padding: '10px 12px', paddingRight: '36px', border: '1px solid #D1D5DB', borderRadius: '8px', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', backgroundColor: '#ffffff', backgroundImage: 'none', color: '#374151', fontSize: '0.875rem', outline: 'none' }}>
                     <option>Sort by Price</option>
                     <option>Sort by Rating</option>
                     <option>Sort by Newest</option>
@@ -164,33 +164,35 @@ const FilteredHotels = () => {
 
               {/* Hotel Grid */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '24px', marginBottom: '32px' }}>
-                {(() => {
-                  // Filter hotels based on rating and price
-                  let filtered = allProperties.filter(hotel => {
-                    const matchesRating = !selectedRating || hotel.rating >= selectedRating;
-                    const matchesPrice = hotel.price <= priceRange;
-                    return matchesRating && matchesPrice;
-                  });
-                  
-                  // Pagination
-                  const startIndex = (currentPage - 1) * itemsPerPage;
-                  const endIndex = startIndex + itemsPerPage;
-                  const paginatedHotels = filtered.slice(startIndex, endIndex);
-                  
-                  return paginatedHotels.map((hotel) => (<div
-                    key={hotel.id}
-                    style={{
-                      backgroundColor: '#ffffff',
-                      borderRadius: '16px',
-                      overflow: 'hidden',
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                      border: '1px solid #F3F4F6',
-                      transition: 'box-shadow 0.3s'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 10px 25px rgba(0,0,0,0.15)'}
-                    onMouseLeave={(e) => e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)'}
-                  >
-                    {/* Image Container */}
+                          <input
+                            type="checkbox"
+                            id={item.id}
+                            checked={amenities[item.id]}
+                            onChange={() => handleAmenityChange(item.id)}
+                            style={{
+                              width: '22px',
+                              height: '22px',
+                              borderRadius: '6px',
+                              border: '2px solid #D1D5DB',
+                              cursor: 'pointer',
+                              appearance: 'none',
+                              WebkitAppearance: 'none',
+                              MozAppearance: 'none',
+                              backgroundColor: amenities[item.id] ? '#14B8A6' : '#ffffff',
+                              borderColor: amenities[item.id] ? '#14B8A6' : '#D1D5DB',
+                              outline: 'none'
+                            }}
+                          />
+                          {amenities[item.id] && (
+                            <svg
+                              style={{ position: 'absolute', top: '3px', left: '3px', width: '16px', height: '16px', color: '#ffffff', pointerEvents: 'none' }}
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
                     <div style={{ position: 'relative', height: '200px', overflow: 'hidden', backgroundColor: '#E5E7EB' }}>
                       <img
                         src={hotel.image}
