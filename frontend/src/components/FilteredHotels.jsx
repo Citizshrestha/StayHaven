@@ -113,9 +113,9 @@ const FilteredHotels = () => {
                             checked={amenities[item.id]}
                             onChange={() => handleAmenityChange(item.id)}
                             style={{
-                              width: '22px',
-                              height: '22px',
-                              borderRadius: '6px',
+                              width: '12px',
+                              height: '12px',
+                              borderRadius: '4px',
                               border: '2px solid #D1D5DB',
                               cursor: 'pointer',
                               appearance: 'none',
@@ -128,12 +128,12 @@ const FilteredHotels = () => {
                           />
                           {amenities[item.id] && (
                             <svg
-                              style={{ position: 'absolute', top: '3px', left: '3px', width: '16px', height: '16px', color: '#ffffff', pointerEvents: 'none' }}
+                              style={{ position: 'absolute', top: '2px', left: '2px', width: '14px', height: '14px', color: '#ffffff', pointerEvents: 'none' }}
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
                             >
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
                             </svg>
                           )}
                         </div>
