@@ -113,12 +113,14 @@ const FilteredHotels = () => {
                             checked={amenities[item.id]}
                             onChange={() => handleAmenityChange(item.id)}
                             style={{
-                              width: '18px',
-                              height: '18px',
-                              borderRadius: '4px',
+                              width: '22px',
+                              height: '22px',
+                              borderRadius: '6px',
                               border: '2px solid #D1D5DB',
                               cursor: 'pointer',
                               appearance: 'none',
+                              WebkitAppearance: 'none',
+                              MozAppearance: 'none',
                               backgroundColor: amenities[item.id] ? '#14B8A6' : '#ffffff',
                               borderColor: amenities[item.id] ? '#14B8A6' : '#D1D5DB',
                               outline: 'none'
@@ -126,7 +128,7 @@ const FilteredHotels = () => {
                           />
                           {amenities[item.id] && (
                             <svg
-                              style={{ position: 'absolute', top: '2px', left: '2px', width: '14px', height: '14px', color: '#ffffff', pointerEvents: 'none' }}
+                              style={{ position: 'absolute', top: '3px', left: '3px', width: '16px', height: '16px', color: '#ffffff', pointerEvents: 'none' }}
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -164,6 +166,33 @@ const FilteredHotels = () => {
 
               {/* Hotel Grid */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '24px', marginBottom: '32px' }}>
+                {(() => {
+                  // Filter hotels based on rating and price
+                  let filtered = allProperties.filter(hotel => {
+                    const matchesRating = !selectedRating || hotel.rating >= selectedRating;
+                    const matchesPrice = hotel.price <= priceRange;
+                    return matchesRating && matchesPrice;
+                  });
+                  
+                  // Pagination
+                  const startIndex = (currentPage - 1) * itemsPerPage;
+                  const endIndex = startIndex + itemsPerPage;
+                  const paginatedHotels = filtered.slice(startIndex, endIndex);
+                  
+                  return paginatedHotels.map((hotel) => (<div
+                    key={hotel.id}
+                    style={{
+                      backgroundColor: '#ffffff',
+                      borderRadius: '16px',
+                      overflow: 'hidden',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                      border: '1px solid #F3F4F6',
+                      transition: 'box-shadow 0.3s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 10px 25px rgba(0,0,0,0.15)'}
+                    onMouseLeave={(e) => e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)'}
+                  >
+                    {/* Image Container */}
                     <div style={{ position: 'relative', height: '200px', overflow: 'hidden', backgroundColor: '#E5E7EB' }}>
                       <img
                         src={hotel.image}
