@@ -19,6 +19,7 @@ import WaiterDashboard from "./components/WaiterDashboard/WaiterDashboard";
 import KitchenDashboard from "./components/KitchenDashboard/KitchenDashboard";
 import { OrderProvider } from "./context/OrderContext";
 import { StaffAuthProvider } from "./context/StaffAuthContext";
+import { SocketProvider } from "./context/SocketContext";
 import ProtectedStaffRoute from "./routes/ProtectedStaffRoute";
 import AboutPage from "./components/aboutPage/AboutPage";
 import StaffLogin from "./components/staff/StaffLogin";
@@ -42,60 +43,62 @@ const App = () => {
     <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
       <Router>
         <StaffAuthProvider>
-          <OrderProvider>
-            {/* Page Routes */}
-            <div className="w-screen min-h-screen overflow-x-hidden">
-              <Routes>
-                {/* Public Routes */}
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/reset-password" element={<ResetPassword />} />
-                <Route path="/" element={<Home />} />
-                <Route path="/about" element={<AboutPage />} />
-                <Route path="/offers" element={<OffersPage />} />
-                <Route path="/memberships" element={<MembershipPage />} />
-                <Route path="/membership" element={<MembershipPage />} />
-                <Route path="/hotel/:id" element={<HotelDetailsPage />} />
-                <Route path="/hotels" element={<FilteredHotels />} />
-                <Route path="/booking-confirmed" element={<BookingConfirmed />} />
+          <SocketProvider>
+            <OrderProvider>
+              {/* Page Routes */}
+              <div className="w-screen min-h-screen overflow-x-hidden">
+                <Routes>
+                  {/* Public Routes */}
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/register" element={<Register />} />
+                  <Route path="/forgot-password" element={<ForgotPassword />} />
+                  <Route path="/reset-password" element={<ResetPassword />} />
+                  <Route path="/" element={<Home />} />
+                  <Route path="/about" element={<AboutPage />} />
+                  <Route path="/offers" element={<OffersPage />} />
+                  <Route path="/memberships" element={<MembershipPage />} />
+                  <Route path="/membership" element={<MembershipPage />} />
+                  <Route path="/hotel/:id" element={<HotelDetailsPage />} />
+                  <Route path="/hotels" element={<FilteredHotels />} />
+                  <Route path="/booking-confirmed" element={<BookingConfirmed />} />
 
-                {/* Staff Routes */}
-                <Route path="/staff/login" element={<StaffLogin />} />
-                <Route path="/staff/forgot-password" element={<StaffForgotPassword />} />
-                <Route path="/staff/reset-password/:token" element={<StaffResetPassword />} />
+                  {/* Staff Routes */}
+                  <Route path="/staff/login" element={<StaffLogin />} />
+                  <Route path="/staff/forgot-password" element={<StaffForgotPassword />} />
+                  <Route path="/staff/reset-password/:token" element={<StaffResetPassword />} />
 
-                {/* Dashboard Routes (protected) */}
-                <Route
-                  path="/waiter-dashboard"
-                  element={
-                    <ProtectedStaffRoute allowedRoles={["waiter"]}>
-                      <WaiterDashboard />
-                    </ProtectedStaffRoute>
-                  }
-                />
-                <Route
-                  path="/kitchen-dashboard"
-                  element={
-                    <ProtectedStaffRoute allowedRoles={["chief"]}>
-                      <KitchenDashboard />
-                    </ProtectedStaffRoute>
-                  }
-                />
+                  {/* Dashboard Routes (protected) */}
+                  <Route
+                    path="/waiter-dashboard"
+                    element={
+                      <ProtectedStaffRoute allowedRoles={["waiter"]}>
+                        <WaiterDashboard />
+                      </ProtectedStaffRoute>
+                    }
+                  />
+                  <Route
+                    path="/kitchen-dashboard"
+                    element={
+                      <ProtectedStaffRoute allowedRoles={["chief"]}>
+                        <KitchenDashboard />
+                      </ProtectedStaffRoute>
+                    }
+                  />
 
-                {/*   Superadmin & Hotel Admin Routes (commented out until files exist) */}
-                <Route path="/superadmindashboard" element={<SuperadminDashboard />} />
-                <Route path="/usermanagement" element={<UserManagement />} />
-                <Route path="/hotelmanagement" element={<HotelManagement />} />
-                <Route path="/addhotel" element={<AddHotel />} />
-                <Route path="/hoteladmin-dashboard" element={<HoteladminDashboard />} />
-                <Route path="/roommanagement" element={<RoomManagement />} />
-                <Route path="/restaurantmanagement" element={<RestaurantManagement />} />
-                <Route path="/feedback" element={<Feedback />} />
-                <Route path="/contactus" element={<ContactUs />} />
-              </Routes>
-            </div>
-          </OrderProvider>
+                  {/*   Superadmin & Hotel Admin Routes (commented out until files exist) */}
+                  <Route path="/superadmindashboard" element={<SuperadminDashboard />} />
+                  <Route path="/usermanagement" element={<UserManagement />} />
+                  <Route path="/hotelmanagement" element={<HotelManagement />} />
+                  <Route path="/addhotel" element={<AddHotel />} />
+                  <Route path="/hoteladmin-dashboard" element={<HoteladminDashboard />} />
+                  <Route path="/roommanagement" element={<RoomManagement />} />
+                  <Route path="/restaurantmanagement" element={<RestaurantManagement />} />
+                  <Route path="/feedback" element={<Feedback />} />
+                  <Route path="/contactus" element={<ContactUs />} />
+                </Routes>
+              </div>
+            </OrderProvider>
+          </SocketProvider>
         </StaffAuthProvider>
 
         {/* Toast Container */}

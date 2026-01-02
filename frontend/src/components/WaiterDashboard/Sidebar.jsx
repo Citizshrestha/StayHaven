@@ -4,6 +4,8 @@ import {
   Bell,
   Settings,
   LogOut,
+  Phone,
+  History,
 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -12,9 +14,9 @@ import { staffLogout } from "../../api/staff";
 import { useStaffAuth } from "../../context/StaffAuthContext";
 import WaiterSettings from "./settings/WaiterSettings";
 
-const Sidebar = ({ activeView = "dashboard", onViewChange, notificationCount = 0 }) => {
+const Sidebar = ({ activeView = "dashboard", onViewChange, notificationCount = 0, waiterCallCount = 0 }) => {
   const navigate = useNavigate();
-  const { staffUser, logout } = useStaffAuth();
+  const { staffUser,activeProperty, logout } = useStaffAuth();
   const [showSettings, setShowSettings] = useState(false);
 
 
@@ -120,6 +122,21 @@ const Sidebar = ({ activeView = "dashboard", onViewChange, notificationCount = 0
             {staffUser?.fullname ?? "Staff Member"}
           </h3>
           <p style={{ margin: 0, fontSize: "14px", color: "var(--text-tertiary)", textTransform: "capitalize" }}>{staffUser?.role ?? "Waiter"}</p>
+          {
+            activeProperty?.name && (
+              <p style={{ 
+              margin: "4px 0 0 0", 
+              fontSize: "12px", 
+              color: "var(--color-primary)", 
+              fontWeight: "600",
+              display: "flex",
+              alignItems: "center",
+              gap: "4px"
+            }}>
+               🏨 {activeProperty.name}
+              </p>
+            )
+          }
         </div>
       </div>
 
@@ -153,6 +170,27 @@ const Sidebar = ({ activeView = "dashboard", onViewChange, notificationCount = 0
           {notificationCount > 0 && (
             <span style={badgeStyle}>{notificationCount > 99 ? '99+' : notificationCount}</span>
           )}
+        </button>
+
+        {/* Waiter Calls Button */}
+        <button
+          style={getMenuItemStyle(activeView === "waiterCalls")}
+          onClick={() => handleMenuClick("waiterCalls")}
+        >
+          <Phone size={20} />
+          <span style={{ fontSize: "14px" }}>Guest Calls</span>
+          {waiterCallCount > 0 && (
+            <span style={{...badgeStyle, backgroundColor: "#EF4444"}}>{waiterCallCount > 99 ? '99+' : waiterCallCount}</span>
+          )}
+        </button>
+
+        {/* Order History Button */}
+        <button
+          style={getMenuItemStyle(activeView === "orderHistory")}
+          onClick={() => handleMenuClick("orderHistory")}
+        >
+          <History size={20} />
+          <span style={{ fontSize: "14px" }}>Order History</span>
         </button>
       </nav>
 
