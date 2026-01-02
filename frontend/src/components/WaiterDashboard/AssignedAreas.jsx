@@ -1,8 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
-import { MapPin, Users, Clock, ChefHat, CheckCircle, AlertCircle, X } from "lucide-react";
+import { MapPin, Users, Clock, ChefHat, CheckCircle, AlertCircle, X, Calendar } from "lucide-react";
+import axiosClient from "../../axiosClient";
 
 const AssignedAreas = ({ orders = [], onFilterByArea, onClose }) => {
   const [isMobile, setIsMobile] = useState(false);
+  const [myAssignment, setMyAssignment] = useState(null);
+  const [loadingAssignment, setLoadingAssignment] = useState(true);
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -11,6 +14,23 @@ const AssignedAreas = ({ orders = [], onFilterByArea, onClose }) => {
     checkScreenSize();
     window.addEventListener('resize', checkScreenSize);
     return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
+
+  // Fetch waiter's assigned tables/rooms
+  useEffect(() => {
+    const fetchMyAssignment = async () => {
+      try {
+        const response = await axiosClient.get('/api/staff/table-assignments/my');
+        if (response.data.success) {
+          setMyAssignment(response.data.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch table assignment:', error);
+      } finally {
+        setLoadingAssignment(false);
+      }
+    };
+    fetchMyAssignment();
   }, []);
 
   // Calculate assigned areas from actual orders
@@ -213,7 +233,65 @@ const AssignedAreas = ({ orders = [], onFilterByArea, onClose }) => {
           <p>Orders will appear here as they come in</p>
         </div>
       ) : (
-        <div style={gridStyle}>
+        <>
+          {/* My Table Assignment Info */}
+          {myAssignment && (myAssignment.tables?.length > 0 || myAssignment.rooms?.length > 0) && (
+            <div style={{
+              backgroundColor: 'var(--card-bg)',
+              borderRadius: '16px',
+              padding: '20px',
+              marginBottom: '24px',
+              border: '1px solid var(--border-color)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                <Calendar size={20} color="var(--color-primary)" />
+                <span style={{ fontWeight: '700', color: 'var(--text-primary)', fontSize: '16px' }}>
+                  My Assignment
+                </span>
+                {myAssignment.shift && (
+                  <span style={{
+                    padding: '4px 10px',
+                    borderRadius: '12px',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    backgroundColor: 'var(--color-accent-light)',
+                    color: 'var(--color-primary)',
+                    textTransform: 'capitalize',
+                  }}>
+                    {myAssignment.shift} Shift
+                  </span>
+                )}
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {myAssignment.tables?.map(table => (
+                  <span key={`table-${table}`} style={{
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    backgroundColor: '#D1FAE5',
+                    color: '#065F46',
+                  }}>
+                    🍽️ Table {table}
+                  </span>
+                ))}
+                {myAssignment.rooms?.map(room => (
+                  <span key={`room-${room}`} style={{
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    backgroundColor: '#DBEAFE',
+                    color: '#1E40AF',
+                  }}>
+                    🛏️ Room {room}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div style={gridStyle}>
           {assignedAreas.map((area) => {
             const statusColor = getStatusColor(area);
             const activeOrders = area.pendingOrders + area.preparingOrders + area.readyOrders;
@@ -315,7 +393,8 @@ const AssignedAreas = ({ orders = [], onFilterByArea, onClose }) => {
               </div>
             );
           })}
-        </div>
+          </div>
+        </>
       )}
     </div>
   );
