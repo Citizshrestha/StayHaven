@@ -24,8 +24,24 @@ import {
   updateOrderStatus,
   updateOrder,
   getOrderById,
-  deleteOrder
+  deleteOrder,
+  getOrderHistory,
 } from "../controllers/orderController.js";
+import {
+  createWaiterCall,
+  getActiveWaiterCalls,
+  acknowledgeWaiterCall,
+  resolveWaiterCall,
+  getWaiterCallHistory,
+} from "../controllers/waitercall.controller.js";
+import {
+  assignTables,
+  getTableAssignments,
+  getMyAssignment,
+  lookupAssignedWaiter,
+  removeAssignment,
+  bulkUpdateAssignments,
+} from "../controllers/tableAssignment.controller.js";
 import { getMenuItems, getMenuCategories } from "../controllers/menuController.js";
 import { protect, authorize } from "../middleware/authMiddleware.js";
 import { upload } from "../middleware/upload.js";
@@ -137,6 +153,78 @@ router.delete(
   protect,
   authorize("waiter", "manager", "receptionist", "admin"),
   deleteOrder
+);
+
+// ORDER HISTORY - Get today's completed orders
+router.get("/orders/history", protect, getOrderHistory);
+
+// WAITER CALL ROUTES
+// Create a waiter call (from guest room or table)
+router.post(
+  "/waiter-calls",
+  protect,
+  createWaiterCall
+);
+
+// Get all active waiter calls for a hotel
+router.get("/waiter-calls", protect, getActiveWaiterCalls);
+
+// Get waiter call history (today)
+router.get("/waiter-calls/history", protect, getWaiterCallHistory);
+
+// Acknowledge a waiter call
+router.put(
+  "/waiter-calls/:callId/acknowledge",
+  protect,
+  authorize("waiter", "manager"),
+  acknowledgeWaiterCall
+);
+
+// Resolve a waiter call
+router.put(
+  "/waiter-calls/:callId/resolve",
+  protect,
+  authorize("waiter", "manager"),
+  resolveWaiterCall
+);
+
+// TABLE ASSIGNMENT ROUTES
+// Get current waiter's table assignment
+router.get("/table-assignments/my", protect, getMyAssignment);
+
+// Lookup which waiter is assigned to a specific table or room
+router.get("/table-assignments/lookup", protect, lookupAssignedWaiter);
+
+// Get all table assignments for a hotel (manager+)
+router.get(
+  "/table-assignments",
+  protect,
+  authorize("manager", "admin", "owner"),
+  getTableAssignments
+);
+
+// Assign tables to a waiter (manager+)
+router.post(
+  "/table-assignments",
+  protect,
+  authorize("manager", "admin", "owner"),
+  assignTables
+);
+
+// Remove a table assignment (manager+)
+router.delete(
+  "/table-assignments/:assignmentId",
+  protect,
+  authorize("manager", "admin", "owner"),
+  removeAssignment
+);
+
+// Bulk update table assignments (manager+)
+router.put(
+  "/table-assignments/bulk",
+  protect,
+  authorize("manager", "admin", "owner"),
+  bulkUpdateAssignments
 );
 
 export default router;
