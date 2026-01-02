@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import express from "express";
+import { createServer } from "http";
 import connectDB from "./config/db.js";
 import cors from "cors";
 import authRoutes from "./routes/authRoutes.js";
@@ -12,11 +13,17 @@ import { Role } from "./models/role.schema.js";
 import staffRoutes from "./routes/staffRoutes.js";
 import cookieParser from "cookie-parser";
 import { initCloudinary } from "./config/cloudinary.js";
+import { initSocket } from "./config/socket.js";
 
 // Initialize cloudinary with env vars
 initCloudinary();
 
 const app = express();
+// Create HTTP server for Socket.io
+const httpServer = createServer(app);
+
+// Initialize Socket.io
+initSocket(httpServer);
 
 // Connect to DB
 connectDB();
@@ -109,7 +116,8 @@ app.use("/api/hotels", hotelRoutes);
 app.use("/api/company", companyRoutes);
 app.use("/api/staff", staffRoutes);
 
-// start server
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+// start server - use httpServer instead of app for Socket.io support
+httpServer.listen(PORT, () => {
+  console.log(`🚀 Server is running on port ${PORT}`);
+  console.log(`🔌 WebSocket server ready for connections`);
 });
