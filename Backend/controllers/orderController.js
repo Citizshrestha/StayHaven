@@ -3,6 +3,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { Room } from "../models/room.schema.js";
 import { Hotel } from "../models/hotel.schema.js";
 import { MenuItem } from "../models/menuItem.schema.js";
+import { emitToHotel, emitToWaiters, emitToKitchen } from "../config/socket.js";
 
 export const createOrder = asyncHandler(async (req, res) => {
   const {
@@ -163,6 +164,24 @@ export const createOrder = asyncHandler(async (req, res) => {
 
   await order.save();
 
+  // Emit real-time event for new order
+  // Kitchen staff needs to know about new orders immediately
+  emitToHotel(hotelId, "new-order", {
+    order: {
+      _id: order._id,
+      orderNumber: order.orderNumber,
+      orderType: order.orderType,
+      tableNumber: order.tableNumber,
+      roomNumber: order.roomNumber,
+      status: order.status,
+      priority: order.priority,
+      items: order.items,
+      totalPrice: order.totalPrice,
+      customerName: order.customerName,
+      createdAt: order.createdAt,
+    },
+  });
+
   return res.status(201).json({
     success: true,
     message: "Order created successfully",
@@ -230,6 +249,31 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
   }
 
   await order.save();
+
+  // Emit real-time event for order status update
+  // Different events based on status change
+  const eventData = {
+    orderId: order._id,
+    orderNumber: order.orderNumber,
+    status: order.status,
+    tableNumber: order.tableNumber,
+    roomNumber: order.roomNumber,
+    orderType: order.orderType,
+    updatedAt: new Date(),
+  };
+
+  // Broadcast to all staff in the hotel
+  emitToHotel(order.hotel.toString(), "order-status-updated", eventData);
+
+  // Special event for waiters when order is ready
+  if (status === "ready") {
+    emitToWaiters(order.hotel.toString(), "order-ready", {
+      ...eventData,
+      message: `Order #${order.orderNumber} is ready for pickup!`,
+      customerName: order.customerName,
+      items: order.items,
+    });
+  }
 
   return res.status(200).json({
     success: true,
@@ -417,5 +461,61 @@ export const deleteOrder = asyncHandler(async (req, res) => {
   return res.status(200).json({
     success: true,
     message: "Order deleted successfully",
+  });
+});
+
+/**
+ * Get order history for today (completed/delivered orders)
+ * GET /api/staff/orders/history?hotelId=xxx
+ */
+export const getOrderHistory = asyncHandler(async (req, res) => {
+  const { hotelId, date } = req.query;
+
+  if (!hotelId) {
+    return res.status(400).json({
+      success: false,
+      message: "Hotel ID is required",
+    });
+  }
+
+  // Default to today's orders
+  let startDate, endDate;
+  
+  if (date) {
+    // If specific date provided, use it
+    startDate = new Date(date);
+    startDate.setHours(0, 0, 0, 0);
+    endDate = new Date(date);
+    endDate.setHours(23, 59, 59, 999);
+  } else {
+    // Default: today
+    startDate = new Date();
+    startDate.setHours(0, 0, 0, 0);
+    endDate = new Date();
+    endDate.setHours(23, 59, 59, 999);
+  }
+
+  const orders = await Order.find({
+    hotel: hotelId,
+    status: 'delivered',
+    deliveredAt: { $gte: startDate, $lte: endDate },
+  })
+    .populate('orderBy', 'fullname')
+    .sort({ deliveredAt: -1 });
+
+  // Calculate statistics
+  const totalOrders = orders.length;
+  const totalRevenue = orders.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
+  const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+  return res.status(200).json({
+    success: true,
+    count: totalOrders,
+    statistics: {
+      totalOrders,
+      totalRevenue: totalRevenue.toFixed(2),
+      averageOrderValue: averageOrderValue.toFixed(2),
+    },
+    orders,
   });
 });
