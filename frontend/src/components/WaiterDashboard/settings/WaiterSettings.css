@@ -4,12 +4,19 @@
     background-color: #ffffff;
     border-radius: 24px;
     width: 100%;
-    max-width: 400px;
+    max-width: 520px;
     max-height: 90vh;
     display: flex;
     flex-direction: column;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
     overflow: hidden;
+}
+
+/* Make container wider on desktop for better visibility */
+@media (min-width: 768px) {
+    .ws-container {
+        max-width: 600px;
+    }
 }
 
 /* Header */
@@ -21,11 +28,25 @@
     border-bottom: 1px solid #F3F4F6;
 }
 
+/* Enhanced header padding for desktop */
+@media (min-width: 768px) {
+    .ws-header {
+        padding: 24px 32px;
+    }
+}
+
 .ws-title {
     font-size: 22px;
     font-weight: 800;
     color: #10B981;
     margin: 0;
+}
+
+/* Larger title on desktop */
+@media (min-width: 768px) {
+    .ws-title {
+        font-size: 24px;
+    }
 }
 
 .ws-close-btn {
@@ -51,6 +72,13 @@
     padding: 0 20px;
 }
 
+/* Add more spacing on desktop */
+@media (min-width: 768px) {
+    .ws-content {
+        padding: 0 28px;
+    }
+}
+
 /* Profile Section */
 .ws-profile-section {
     display: flex;
@@ -58,6 +86,14 @@
     gap: 16px;
     padding: 20px 0;
     border-bottom: 1px solid #F3F4F6;
+}
+
+/* Enhanced profile section spacing for desktop */
+@media (min-width: 768px) {
+    .ws-profile-section {
+        padding: 24px 0;
+        gap: 20px;
+    }
 }
 
 .ws-profile-avatar {
@@ -152,6 +188,13 @@
 
 .ws-section:last-child {
     border-bottom: none;
+}
+
+/* Enhanced section spacing for desktop */
+@media (min-width: 768px) {
+    .ws-section {
+        padding: 24px 0;
+    }
 }
 
 .ws-section-header {
@@ -353,6 +396,14 @@
     gap: 10px;
 }
 
+/* Enhanced footer spacing for desktop */
+@media (min-width: 768px) {
+    .ws-footer {
+        padding: 20px 28px 28px;
+        gap: 12px;
+    }
+}
+
 .ws-save-btn {
     width: 100%;
     padding: 14px;
@@ -391,6 +442,19 @@
 .ws-cancel-btn:hover {
     background: #F9FAFB;
     border-color: #D1D5DB;
+}
+
+/* Enhanced button sizes for desktop */
+@media (min-width: 768px) {
+    .ws-save-btn {
+        padding: 16px;
+        font-size: 15px;
+    }
+    
+    .ws-cancel-btn {
+        padding: 14px;
+        font-size: 15px;
+    }
 }
 
 /* Modal */
@@ -552,5 +616,218 @@
         width: 48px;
         height: 48px;
     }
+}
+
+/* ===== Dark Mode Support (Both Kitchen and Waiter Dashboards) ===== */
+/* Support both .kitchen-dark (legacy) and .dark-theme (ThemeContext) */
+.kitchen-dark .ws-container,
+.dark-theme .ws-container {
+    background: #1E293B;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.kitchen-dark .ws-header,
+.dark-theme .ws-header {
+    border-bottom-color: #334155;
+}
+
+.kitchen-dark .ws-title,
+.dark-theme .ws-title {
+    color: #10B981;
+}
+
+.kitchen-dark .ws-close-btn,
+.dark-theme .ws-close-btn {
+    color: #94A3B8;
+}
+
+.kitchen-dark .ws-close-btn:hover,
+.dark-theme .ws-close-btn:hover {
+    color: #F1F5F9;
+}
+
+.kitchen-dark .ws-profile-section,
+.dark-theme .ws-profile-section {
+    border-bottom-color: #334155;
+}
+
+.kitchen-dark .ws-profile-avatar,
+.dark-theme .ws-profile-avatar {
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+.kitchen-dark .ws-profile-name,
+.dark-theme .ws-profile-name {
+    color: #F1F5F9;
+}
+
+.kitchen-dark .ws-edit-profile-btn,
+.dark-theme .ws-edit-profile-btn {
+    color: #10B981;
+}
+
+.kitchen-dark .ws-section,
+.dark-theme .ws-section {
+    border-bottom-color: #334155;
+}
+
+.kitchen-dark .ws-section-header,
+.dark-theme .ws-section-header {
+    color: #F1F5F9;
+}
+
+.kitchen-dark .ws-setting-row,
+.dark-theme .ws-setting-row {
+    color: #E2E8F0;
+}
+
+.kitchen-dark .ws-toggle-slider,
+.dark-theme .ws-toggle-slider {
+    background-color: #475569;
+}
+
+.kitchen-dark .ws-alert-label,
+.dark-theme .ws-alert-label {
+    color: #94A3B8;
+}
+
+.kitchen-dark .ws-chip,
+.dark-theme .ws-chip {
+    background: #334155;
+    border-color: #475569;
+    color: #CBD5E1;
+}
+
+.kitchen-dark .ws-chip:hover,
+.dark-theme .ws-chip:hover {
+    border-color: #10B981;
+    color: #10B981;
+}
+
+.kitchen-dark .ws-chip.active,
+.dark-theme .ws-chip.active {
+    background: #10B981;
+    border-color: #10B981;
+    color: #fff;
+}
+
+.kitchen-dark .ws-chip.action-chip,
+.dark-theme .ws-chip.action-chip {
+    border-color: #10B981;
+    color: #10B981;
+    background: rgba(16, 185, 129, 0.15);
+}
+
+.kitchen-dark .ws-chip.add-chip,
+.dark-theme .ws-chip.add-chip {
+    border-color: #10B981;
+    color: #10B981;
+    background: transparent;
+}
+
+.kitchen-dark .ws-theme-toggle,
+.dark-theme .ws-theme-toggle {
+    border-color: #475569;
+}
+
+.kitchen-dark .ws-theme-btn,
+.dark-theme .ws-theme-btn {
+    background: #334155;
+    color: #CBD5E1;
+    border-right-color: #475569;
+}
+
+.kitchen-dark .ws-theme-btn.active,
+.dark-theme .ws-theme-btn.active {
+    background: #10B981;
+    color: white;
+}
+
+.kitchen-dark .ws-theme-btn:hover:not(.active),
+.dark-theme .ws-theme-btn:hover:not(.active) {
+    background: #475569;
+}
+
+.kitchen-dark .ws-select,
+.dark-theme .ws-select {
+    background: #334155;
+    border-color: #475569;
+    color: #E2E8F0;
+}
+
+.kitchen-dark .ws-select:focus,
+.dark-theme .ws-select:focus {
+    border-color: #10B981;
+}
+
+.kitchen-dark .ws-cancel-btn,
+.dark-theme .ws-cancel-btn {
+    background: #334155;
+    border-color: #475569;
+    color: #CBD5E1;
+}
+
+.kitchen-dark .ws-cancel-btn:hover,
+.dark-theme .ws-cancel-btn:hover {
+    background: #475569;
+    border-color: #64748B;
+}
+
+.kitchen-dark .ws-modal,
+.dark-theme .ws-modal {
+    background: #1E293B;
+}
+
+.kitchen-dark .ws-modal-header,
+.dark-theme .ws-modal-header {
+    border-bottom-color: #334155;
+}
+
+.kitchen-dark .ws-modal-header h2,
+.dark-theme .ws-modal-header h2 {
+    color: #F1F5F9;
+}
+
+.kitchen-dark .ws-modal-header button,
+.dark-theme .ws-modal-header button {
+    color: #94A3B8;
+}
+
+.kitchen-dark .ws-input-group label,
+.dark-theme .ws-input-group label {
+    color: #CBD5E1;
+}
+
+.kitchen-dark .ws-input-group input,
+.dark-theme .ws-input-group input {
+    background: #0F172A;
+    border-color: #475569;
+    color: #F1F5F9;
+}
+
+.kitchen-dark .ws-input-group input::placeholder,
+.dark-theme .ws-input-group input::placeholder {
+    color: #64748B;
+}
+
+.kitchen-dark .ws-input-group input:focus,
+.dark-theme .ws-input-group input:focus {
+    border-color: #10B981;
+}
+
+.kitchen-dark .ws-eye-btn,
+.dark-theme .ws-eye-btn {
+    color: #94A3B8;
+}
+
+.kitchen-dark .ws-eye-btn:hover,
+.dark-theme .ws-eye-btn:hover {
+    color: #CBD5E1;
+}
+
+/* Manage button dark mode */
+.kitchen-dark .ws-manage-btn,
+.dark-theme .ws-manage-btn {
+    color: #10B981;
 }
 
