@@ -20,6 +20,7 @@ import KitchenDashboard from "./components/KitchenDashboard/KitchenDashboard";
 import { OrderProvider } from "./context/OrderContext";
 import { StaffAuthProvider } from "./context/StaffAuthContext";
 import { SocketProvider } from "./context/SocketContext";
+import { NotificationProvider } from "./context/NotificationContext";
 import ProtectedStaffRoute from "./routes/ProtectedStaffRoute";
 import AboutPage from "./components/aboutPage/AboutPage";
 import StaffLogin from "./components/staff/StaffLogin";
@@ -44,9 +45,10 @@ const App = () => {
       <Router>
         <StaffAuthProvider>
           <SocketProvider>
-            <OrderProvider>
-              {/* Page Routes */}
-              <div className="w-screen min-h-screen overflow-x-hidden">
+            <NotificationProvider>
+              <OrderProvider>
+                {/* Page Routes */}
+                <div className="w-screen min-h-screen overflow-x-hidden">
                 <Routes>
                   {/* Public Routes */}
                   <Route path="/login" element={<Login />} />
@@ -97,7 +99,8 @@ const App = () => {
                   <Route path="/contactus" element={<ContactUs />} />
                 </Routes>
               </div>
-            </OrderProvider>
+              </OrderProvider>
+            </NotificationProvider>
           </SocketProvider>
         </StaffAuthProvider>
 
