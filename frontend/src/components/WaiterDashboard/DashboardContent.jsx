@@ -24,9 +24,18 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
-  const filteredOrders = (activeFilter === "all"
-    ? orders
-    : orders.filter((order) => order.status === activeFilter)
+  const filteredOrders = (
+    activeFilter === "all"
+      ? orders
+      : activeFilter.startsWith('area:')
+      ? orders.filter((order) => {
+          const areaName = activeFilter.replace('area:', '');
+          // support different property names that might hold table/room info
+          const table = order.tableNumber || order.table || order.table_no || '';
+          const room = order.roomNumber || order.room || '';
+          return String(table) === String(areaName) || String(room) === String(areaName) || String(`${order.orderType === 'roomService' ? `Room ${order.roomNumber}` : `Table ${order.tableNumber}`}`) === String(areaName) || String(areaName).toLowerCase().includes(String(table).toLowerCase());
+        })
+      : orders.filter((order) => order.status === activeFilter)
   ).sort((a, b) => {
     // Real orders (isReal: true) come first
     if (a.isReal && !b.isReal) return -1;
