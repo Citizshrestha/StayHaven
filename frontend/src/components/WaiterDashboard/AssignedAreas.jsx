@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { MapPin, Users, Clock, ChefHat, CheckCircle, AlertCircle, X, Calendar } from "lucide-react";
 import axiosClient from "../../axiosClient";
 
-const AssignedAreas = ({ orders = [], onFilterByArea, onClose }) => {
+const AssignedAreas = ({ orders = [], onFilterByArea, onClose, isDarkMode = false }) => {
   const [isMobile, setIsMobile] = useState(false);
   const [myAssignment, setMyAssignment] = useState(null);
   const [loadingAssignment, setLoadingAssignment] = useState(true);
@@ -292,107 +292,107 @@ const AssignedAreas = ({ orders = [], onFilterByArea, onClose }) => {
           )}
 
           <div style={gridStyle}>
-          {assignedAreas.map((area) => {
-            const statusColor = getStatusColor(area);
-            const activeOrders = area.pendingOrders + area.preparingOrders + area.readyOrders;
+            {assignedAreas.map((area) => {
+              const statusColor = getStatusColor(area);
+              const activeOrders = area.pendingOrders + area.preparingOrders + area.readyOrders;
 
-            return (
-              <div
-                key={area.id}
-                style={cardStyle}
-                onClick={() => handleAreaClick(area.name)}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = 'var(--shadow-md)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
-                }}
-              >
-                <div style={cardHeaderStyle}>
-                  <div style={areaNameStyle}>
-                    {area.type === 'room' ? (
-                      <div style={{
-                        width: '36px',
-                        height: '36px',
-                        borderRadius: '10px',
-                        backgroundColor: '#DBEAFE',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}>
-                        🛏️
-                      </div>
-                    ) : (
-                      <div style={{
-                        width: '36px',
-                        height: '36px',
-                        borderRadius: '10px',
-                        backgroundColor: '#D1FAE5',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}>
-                        🍽️
+              return (
+                <div
+                  key={area.id}
+                  style={cardStyle}
+                  onClick={() => handleAreaClick(area.name)}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                  }}
+                >
+                  <div style={cardHeaderStyle}>
+                    <div style={areaNameStyle}>
+                      {area.type === 'room' ? (
+                        <div style={{
+                          width: '36px',
+                          height: '36px',
+                          borderRadius: '10px',
+                          backgroundColor: '#DBEAFE',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}>
+                          🛏️
+                        </div>
+                      ) : (
+                        <div style={{
+                          width: '36px',
+                          height: '36px',
+                          borderRadius: '10px',
+                          backgroundColor: '#D1FAE5',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}>
+                          🍽️
+                        </div>
+                      )}
+                      <span>{area.name}</span>
+                    </div>
+                    <span style={badgeStyle(statusColor)}>
+                      {getStatusText(area)}
+                    </span>
+                  </div>
+
+                  <div style={statsRowStyle}>
+                    {area.pendingOrders > 0 && (
+                      <div style={statItemStyle}>
+                        <AlertCircle size={14} color="#3B82F6" />
+                        <span>{area.pendingOrders} new</span>
                       </div>
                     )}
-                    <span>{area.name}</span>
+                    {area.preparingOrders > 0 && (
+                      <div style={statItemStyle}>
+                        <ChefHat size={14} color="#F59E0B" />
+                        <span>{area.preparingOrders} preparing</span>
+                      </div>
+                    )}
+                    {area.readyOrders > 0 && (
+                      <div style={statItemStyle}>
+                        <CheckCircle size={14} color="#10B981" />
+                        <span>{area.readyOrders} ready</span>
+                      </div>
+                    )}
+                    {activeOrders === 0 && (
+                      <div style={statItemStyle}>
+                        <Clock size={14} />
+                        <span>{area.deliveredOrders} delivered</span>
+                      </div>
+                    )}
                   </div>
-                  <span style={badgeStyle(statusColor)}>
-                    {getStatusText(area)}
-                  </span>
-                </div>
 
-                <div style={statsRowStyle}>
-                  {area.pendingOrders > 0 && (
-                    <div style={statItemStyle}>
-                      <AlertCircle size={14} color="#3B82F6" />
-                      <span>{area.pendingOrders} new</span>
-                    </div>
-                  )}
-                  {area.preparingOrders > 0 && (
-                    <div style={statItemStyle}>
-                      <ChefHat size={14} color="#F59E0B" />
-                      <span>{area.preparingOrders} preparing</span>
-                    </div>
-                  )}
-                  {area.readyOrders > 0 && (
-                    <div style={statItemStyle}>
-                      <CheckCircle size={14} color="#10B981" />
-                      <span>{area.readyOrders} ready</span>
-                    </div>
-                  )}
-                  {activeOrders === 0 && (
-                    <div style={statItemStyle}>
-                      <Clock size={14} />
-                      <span>{area.deliveredOrders} delivered</span>
-                    </div>
-                  )}
-                </div>
-
-                <div style={{
-                  marginTop: '16px',
-                  paddingTop: '16px',
-                  borderTop: '1px solid var(--border-color)',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}>
-                  <span style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>
-                    Total orders: {area.totalOrders}
-                  </span>
-                  <span style={{
-                    fontSize: '13px',
-                    color: 'var(--color-primary)',
-                    fontWeight: '600',
+                  <div style={{
+                    marginTop: '16px',
+                    paddingTop: '16px',
+                    borderTop: '1px solid var(--border-color)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
                   }}>
-                    View Orders →
-                  </span>
+                    <span style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>
+                      Total orders: {area.totalOrders}
+                    </span>
+                    <span style={{
+                      fontSize: '13px',
+                      color: 'var(--color-primary)',
+                      fontWeight: '600',
+                    }}>
+                      View Orders →
+                    </span>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
           </div>
         </>
       )}
