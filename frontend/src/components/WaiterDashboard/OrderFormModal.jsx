@@ -2,9 +2,35 @@ import React, { useState } from "react";
 import { X } from "lucide-react";
 import { useOrderContext } from "../../context/useOrderContext";
 import { toast } from "react-toastify";
+import { useTheme } from "../../hooks/useTheme";
 
 const OrderFormModal = ({ onClose }) => {
     const { addOrder, loading } = useOrderContext();
+    const { isDark } = useTheme();
+    
+    // Theme-aware colors
+    const colors = {
+        bg: isDark ? '#1E293B' : 'white',
+        cardBg: isDark ? '#334155' : '#F9FAFB',
+        text: isDark ? '#F8FAFC' : '#111827',
+        textSecondary: isDark ? '#CBD5E1' : '#6B7280',
+        textTertiary: isDark ? '#94A3B8' : '#9CA3AF',
+        border: isDark ? '#475569' : '#E5E7EB',
+        inputBg: isDark ? '#0F172A' : 'white',
+        inputBorder: isDark ? '#475569' : '#E5E7EB',
+        buttonInactive: isDark ? '#334155' : '#F3F4F6',
+        buttonInactiveText: isDark ? '#CBD5E1' : '#6B7280',
+        closeBtn: isDark ? '#475569' : '#F3F4F6',
+        closeBtnIcon: isDark ? '#CBD5E1' : '#6B7280',
+        itemBadgeBg: isDark ? 'rgba(16, 185, 129, 0.2)' : '#D1FAE5',
+        itemBadgeText: isDark ? '#34D399' : '#059669',
+        dashedBorder: isDark ? '#475569' : '#DBEAFE',
+        dashedText: isDark ? '#60A5FA' : '#2563EB',
+        removeBtnBg: isDark ? 'rgba(220, 38, 38, 0.2)' : '#FEE2E2',
+        cancelBtnBg: isDark ? '#475569' : '#F3F4F6',
+        cancelBtnText: isDark ? '#E2E8F0' : '#374151',
+    };
+    
     const [formData, setFormData] = useState({
         orderType: "dineIn",
         roomId: "",
@@ -68,20 +94,23 @@ const OrderFormModal = ({ onClose }) => {
             padding: "16px"
         }}>
             <div style={{
-                backgroundColor: "white",
+                backgroundColor: colors.bg,
                 borderRadius: "24px",
                 padding: "32px",
                 width: "100%",
                 maxWidth: "460px",
                 maxHeight: "90vh",
                 overflowY: "auto",
+                boxShadow: isDark 
+                    ? "0 25px 50px -12px rgba(0, 0, 0, 0.5)" 
+                    : "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
             }}>
                 {/* Header */}
                 <div style={{ marginBottom: "24px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "4px" }}>
-                        <h2 style={{ fontSize: "24px", fontWeight: "800", color: "#111827", margin: 0, lineHeight: "1.2" }}>Create New Order</h2>
+                        <h2 style={{ fontSize: "24px", fontWeight: "800", color: colors.text, margin: 0, lineHeight: "1.2" }}>Create New Order</h2>
                         <button onClick={onClose} style={{
-                            background: "#F3F4F6",
+                            background: colors.closeBtn,
                             border: "none",
                             cursor: "pointer",
                             width: "36px",
@@ -91,10 +120,10 @@ const OrderFormModal = ({ onClose }) => {
                             alignItems: "center",
                             justifyContent: "center",
                         }}>
-                            <X size={20} color="#6B7280" />
+                            <X size={20} color={colors.closeBtnIcon} />
                         </button>
                     </div>
-                    <p style={{ fontSize: "14px", color: "#9CA3AF", margin: 0 }}>Add menu items and customer details</p>
+                    <p style={{ fontSize: "14px", color: colors.textTertiary, margin: 0 }}>Add menu items and customer details</p>
                 </div>
 
                 <form onSubmit={handleSubmit}>
@@ -104,7 +133,7 @@ const OrderFormModal = ({ onClose }) => {
                             display: "block",
                             fontSize: "11px",
                             fontWeight: "700",
-                            color: "#6B7280",
+                            color: colors.textSecondary,
                             textTransform: "uppercase",
                             letterSpacing: "0.5px",
                             marginBottom: "10px"
@@ -115,8 +144,8 @@ const OrderFormModal = ({ onClose }) => {
                                 style={{
                                     flex: 1,
                                     padding: "12px 16px",
-                                    backgroundColor: formData.orderType === "dineIn" ? "#10B981" : "#F3F4F6",
-                                    color: formData.orderType === "dineIn" ? "white" : "#6B7280",
+                                    backgroundColor: formData.orderType === "dineIn" ? "#10B981" : colors.buttonInactive,
+                                    color: formData.orderType === "dineIn" ? "white" : colors.buttonInactiveText,
                                     border: "none",
                                     borderRadius: "12px",
                                     cursor: "pointer",
@@ -130,8 +159,8 @@ const OrderFormModal = ({ onClose }) => {
                                 style={{
                                     flex: 1,
                                     padding: "12px 16px",
-                                    backgroundColor: formData.orderType === "roomService" ? "#10B981" : "#F3F4F6",
-                                    color: formData.orderType === "roomService" ? "white" : "#6B7280",
+                                    backgroundColor: formData.orderType === "roomService" ? "#10B981" : colors.buttonInactive,
+                                    color: formData.orderType === "roomService" ? "white" : colors.buttonInactiveText,
                                     border: "none",
                                     borderRadius: "12px",
                                     cursor: "pointer",
@@ -149,7 +178,7 @@ const OrderFormModal = ({ onClose }) => {
                             display: "block",
                             fontSize: "11px",
                             fontWeight: "700",
-                            color: "#6B7280",
+                            color: colors.textSecondary,
                             textTransform: "uppercase",
                             letterSpacing: "0.5px",
                             marginBottom: "10px"
@@ -165,7 +194,9 @@ const OrderFormModal = ({ onClose }) => {
                                 width: "100%",
                                 padding: "14px",
                                 borderRadius: "12px",
-                                border: "1px solid #E5E7EB",
+                                border: `1px solid ${colors.inputBorder}`,
+                                backgroundColor: colors.inputBg,
+                                color: colors.text,
                                 fontSize: "15px",
                                 outline: "none",
                                 boxSizing: "border-box"
@@ -178,7 +209,7 @@ const OrderFormModal = ({ onClose }) => {
                             display: "block",
                             fontSize: "11px",
                             fontWeight: "700",
-                            color: "#6B7280",
+                            color: colors.textSecondary,
                             textTransform: "uppercase",
                             letterSpacing: "0.5px",
                             marginBottom: "10px"
@@ -193,7 +224,9 @@ const OrderFormModal = ({ onClose }) => {
                                 width: "100%",
                                 padding: "14px",
                                 borderRadius: "12px",
-                                border: "1px solid #E5E7EB",
+                                border: `1px solid ${colors.inputBorder}`,
+                                backgroundColor: colors.inputBg,
+                                color: colors.text,
                                 fontSize: "15px",
                                 outline: "none",
                                 boxSizing: "border-box"
@@ -203,10 +236,10 @@ const OrderFormModal = ({ onClose }) => {
                     {/* Order Items */}
                     <div style={{ marginBottom: "20px" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-                            <span style={{ fontSize: "14px", fontWeight: "700", color: "#111827" }}>Order Items</span>
+                            <span style={{ fontSize: "14px", fontWeight: "700", color: colors.text }}>Order Items</span>
                             <span style={{
-                                backgroundColor: "#D1FAE5",
-                                color: "#059669",
+                                backgroundColor: colors.itemBadgeBg,
+                                color: colors.itemBadgeText,
                                 padding: "4px 10px",
                                 borderRadius: "12px",
                                 fontSize: "12px",
@@ -215,8 +248,8 @@ const OrderFormModal = ({ onClose }) => {
                         </div>
                         {formData.items.map((item, index) => (
                             <div key={index} style={{
-                                backgroundColor: "#F9FAFB",
-                                border: "1px solid #E5E7EB",
+                                backgroundColor: colors.cardBg,
+                                border: `1px solid ${colors.border}`,
                                 borderRadius: "12px",
                                 padding: "14px",
                                 marginBottom: "10px",
@@ -234,7 +267,7 @@ const OrderFormModal = ({ onClose }) => {
                                         border: "none",
                                         fontSize: "15px",
                                         fontWeight: "600",
-                                        color: "#111827",
+                                        color: colors.text,
                                         outline: "none",
                                         background: "transparent"
                                     }} />
@@ -249,7 +282,7 @@ const OrderFormModal = ({ onClose }) => {
                                         marginBottom: "12px",
                                         border: "none",
                                         fontSize: "13px",
-                                        color: "#9CA3AF",
+                                        color: colors.textTertiary,
                                         outline: "none",
                                         background: "transparent"
                                     }} />
@@ -261,26 +294,28 @@ const OrderFormModal = ({ onClose }) => {
                                                 width: "30px",
                                                 height: "30px",
                                                 borderRadius: "50%",
-                                                border: "1px solid #E5E7EB",
-                                                background: "white",
+                                                border: `1px solid ${colors.border}`,
+                                                background: colors.inputBg,
+                                                color: colors.text,
                                                 cursor: "pointer",
                                                 fontSize: "16px",
                                             }}>−</button>
-                                        <span style={{ fontSize: "15px", fontWeight: "600", minWidth: "20px", textAlign: "center" }}>{item.quantity}</span>
+                                        <span style={{ fontSize: "15px", fontWeight: "600", minWidth: "20px", textAlign: "center", color: colors.text }}>{item.quantity}</span>
                                         <button type="button"
                                             onClick={() => handleItemChange(index, "quantity", item.quantity + 1)}
                                             style={{
                                                 width: "30px",
                                                 height: "30px",
                                                 borderRadius: "50%",
-                                                border: "1px solid #E5E7EB",
-                                                background: "white",
+                                                border: `1px solid ${colors.border}`,
+                                                background: colors.inputBg,
+                                                color: colors.text,
                                                 cursor: "pointer",
                                                 fontSize: "16px",
                                             }}>+</button>
                                     </div>
                                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                                        <span style={{ fontSize: "16px", fontWeight: "700" }}>$</span>
+                                        <span style={{ fontSize: "16px", fontWeight: "700", color: colors.text }}>$</span>
                                         <input
                                             type="number"
                                             value={item.price || 0}
@@ -292,6 +327,7 @@ const OrderFormModal = ({ onClose }) => {
                                                 border: "none",
                                                 fontSize: "16px",
                                                 fontWeight: "700",
+                                                color: colors.text,
                                                 outline: "none",
                                                 background: "transparent"
                                             }} />
@@ -303,7 +339,7 @@ const OrderFormModal = ({ onClose }) => {
                                                     height: "26px",
                                                     borderRadius: "50%",
                                                     border: "none",
-                                                    background: "#FEE2E2",
+                                                    background: colors.removeBtnBg,
                                                     cursor: "pointer",
                                                     display: "flex",
                                                     alignItems: "center",
@@ -320,9 +356,9 @@ const OrderFormModal = ({ onClose }) => {
                             style={{
                                 width: "100%",
                                 padding: "12px",
-                                backgroundColor: "white",
-                                color: "#2563EB",
-                                border: "2px dashed #DBEAFE",
+                                backgroundColor: "transparent",
+                                color: colors.dashedText,
+                                border: `2px dashed ${colors.dashedBorder}`,
                                 borderRadius: "12px",
                                 cursor: "pointer",
                                 fontWeight: "600",
@@ -339,8 +375,8 @@ const OrderFormModal = ({ onClose }) => {
                             style={{
                                 flex: 1,
                                 padding: "14px",
-                                backgroundColor: "#F3F4F6",
-                                color: "#374151",
+                                backgroundColor: colors.cancelBtnBg,
+                                color: colors.cancelBtnText,
                                 border: "none",
                                 borderRadius: "12px",
                                 cursor: "pointer",

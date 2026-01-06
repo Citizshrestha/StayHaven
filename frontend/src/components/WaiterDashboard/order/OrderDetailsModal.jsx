@@ -1,7 +1,18 @@
-import { X, Clock, MapPin, User } from "lucide-react";
+import { X, Clock, MapPin, User, Check } from "lucide-react";
+import ItemCarousel from "../../shared/ItemCarousel";
 
-const OrderDetailsModal = ({ order, onClose }) => {
+const OrderDetailsModal = ({ order, onClose, isDarkMode = false }) => {
   if (!order) return null;
+
+  // Theme colors
+  const colors = {
+    bg: isDarkMode ? "#1E293B" : "white",
+    text: isDarkMode ? "#F8FAFC" : "#111827",
+    textSecondary: isDarkMode ? "#94A3B8" : "#6B7280",
+    border: isDarkMode ? "#334155" : "#F3F4F6",
+    cardBg: isDarkMode ? "#334155" : "#F9FAFB",
+    accent: "#10B981",
+  };
 
   const itemsArray = Array.isArray(order.items)
     ? order.items
@@ -26,22 +37,25 @@ const OrderDetailsModal = ({ order, onClose }) => {
   };
 
   const modalStyle = {
-    backgroundColor: "white",
+    backgroundColor: colors.bg,
     borderRadius: "24px",
     maxWidth: "600px",
     width: "100%",
     maxHeight: "90vh",
     overflow: "hidden",
     position: "relative",
-    boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)",
+    boxShadow: isDarkMode 
+      ? "0 20px 25px -5px rgba(0, 0, 0, 0.4)" 
+      : "0 20px 25px -5px rgba(0, 0, 0, 0.1)",
     display: "flex",
     flexDirection: "column",
+    border: isDarkMode ? `1px solid ${colors.border}` : "none",
   };
 
   const headerStyle = {
     padding: "20px",
-    borderBottom: "1px solid #F3F4F6",
-    backgroundColor: "white",
+    borderBottom: `1px solid ${colors.border}`,
+    backgroundColor: colors.bg,
     zIndex: 10,
     borderTopLeftRadius: "24px",
     borderTopRightRadius: "24px",
@@ -55,7 +69,7 @@ const OrderDetailsModal = ({ order, onClose }) => {
     background: "none",
     border: "none",
     cursor: "pointer",
-    color: "#6B7280",
+    color: colors.textSecondary,
     padding: "8px",
     borderRadius: "50%",
     display: "flex",
@@ -66,7 +80,7 @@ const OrderDetailsModal = ({ order, onClose }) => {
   const titleStyle = {
     fontSize: "20px",
     fontWeight: "800",
-    color: "#111827",
+    color: colors.text,
     marginBottom: "8px",
     paddingRight: "40px",
   };
@@ -75,6 +89,7 @@ const OrderDetailsModal = ({ order, onClose }) => {
     padding: "20px",
     overflowY: "auto",
     flex: 1,
+    backgroundColor: colors.bg,
   };
 
   const sectionStyle = {
@@ -84,7 +99,7 @@ const OrderDetailsModal = ({ order, onClose }) => {
   const sectionTitleStyle = {
     fontSize: "12px",
     fontWeight: "700",
-    color: "#6B7280",
+    color: colors.textSecondary,
     textTransform: "uppercase",
     letterSpacing: "0.05em",
     marginBottom: "12px",
@@ -96,7 +111,7 @@ const OrderDetailsModal = ({ order, onClose }) => {
     gap: "12px",
     marginBottom: "8px",
     padding: "12px",
-    backgroundColor: "#F9FAFB",
+    backgroundColor: colors.cardBg,
     borderRadius: "12px",
   };
 
@@ -107,7 +122,7 @@ const OrderDetailsModal = ({ order, onClose }) => {
 
   const infoTextStyle = {
     fontSize: "14px",
-    color: "#111827",
+    color: colors.text,
     fontWeight: "600",
   };
 
@@ -119,20 +134,24 @@ const OrderDetailsModal = ({ order, onClose }) => {
 
   const itemStyle = {
     padding: "12px",
-    backgroundColor: "#F9FAFB",
+    backgroundColor: colors.cardBg,
     borderRadius: "12px",
     marginBottom: "8px",
     fontSize: "14px",
-    color: "#111827",
+    color: colors.text,
     fontWeight: "600",
     wordWrap: "break-word",
     overflowWrap: "break-word",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "12px",
   };
 
   const specialInstructionsStyle = {
     fontSize: "12px",
-    color: "#D97706",
-    backgroundColor: "#FEF3C7",
+    color: isDarkMode ? "#FCD34D" : "#D97706",
+    backgroundColor: isDarkMode ? "rgba(217, 119, 6, 0.2)" : "#FEF3C7",
     padding: "6px 10px",
     borderRadius: "8px",
     marginTop: "6px",
@@ -143,82 +162,70 @@ const OrderDetailsModal = ({ order, onClose }) => {
     overflowWrap: "break-word",
   };
 
-  // Image container with horizontal scroll
-  const imageContainerStyle = {
-    display: "flex",
-    gap: "12px",
-    overflowX: "auto",
-    overflowY: "hidden",
-    paddingBottom: "12px",
-    marginTop: "12px",
-    WebkitOverflowScrolling: "touch",
-    scrollbarWidth: "thin",
-    position: "relative",
-  };
-
-  const imageWrapperStyle = {
-    position: "relative",
-  };
-
-  const imageStyle = {
-    minWidth: "85vw",
-    maxWidth: "85vw",
-    height: "220px",
-    objectFit: "cover",
-    borderRadius: "12px",
-    flexShrink: 0,
-    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-  };
-
-  const scrollIndicatorStyle = {
-    position: "absolute",
-    top: "50%",
-    transform: "translateY(-50%)",
-    backgroundColor: "rgba(255,255,255,0.9)",
-    borderRadius: "50%",
-    width: "32px",
-    height: "32px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
-    fontSize: "18px",
-    fontWeight: "bold",
-    color: "#10B981",
-    zIndex: 5,
-  };
-
   const getStatusStyles = (status) => {
     switch (status) {
       case "new":
-        return { backgroundColor: "#DBEAFE", color: "#2563EB", label: "New" };
+        return { 
+          backgroundColor: isDarkMode ? "rgba(37, 99, 235, 0.2)" : "#DBEAFE", 
+          color: isDarkMode ? "#60A5FA" : "#2563EB", 
+          label: "New" 
+        };
       case "preparing":
         return {
-          backgroundColor: "#FEF3C7",
-          color: "#D97706",
+          backgroundColor: isDarkMode ? "rgba(217, 119, 6, 0.2)" : "#FEF3C7",
+          color: isDarkMode ? "#FBBF24" : "#D97706",
           label: "Preparing",
         };
       case "ready":
         return {
-          backgroundColor: "#D1FAE5",
-          color: "#059669",
+          backgroundColor: isDarkMode ? "rgba(5, 150, 105, 0.2)" : "#D1FAE5",
+          color: isDarkMode ? "#34D399" : "#059669",
           label: "Ready for Pickup",
         };
+      case "delivered":
+        return {
+          backgroundColor: isDarkMode ? "rgba(5, 150, 105, 0.2)" : "#D1FAE5",
+          color: isDarkMode ? "#6EE7B7" : "#059669",
+          label: "Delivered",
+          showCheck: true,
+        };
       default:
-        return { backgroundColor: "#F3F4F6", color: "#4B5563", label: status };
+        return { 
+          backgroundColor: isDarkMode ? "#334155" : "#F3F4F6", 
+          color: isDarkMode ? "#94A3B8" : "#4B5563", 
+          label: status 
+        };
     }
   };
 
   const statusStyle = getStatusStyles(order.status);
 
   const badgeStyle = {
-    display: "inline-block",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "6px",
     padding: "6px 12px",
     borderRadius: "8px",
     fontSize: "12px",
     fontWeight: "700",
     backgroundColor: statusStyle.backgroundColor,
     color: statusStyle.color,
+  };
+
+  // Quantity badge style like in screenshot
+  const quantityBadgeStyle = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: "28px",
+    height: "28px",
+    padding: "0 8px",
+    borderRadius: "14px",
+    fontSize: "12px",
+    fontWeight: "700",
+    backgroundColor: colors.accent,
+    color: "white",
+    flexShrink: 0,
   };
 
   return (
@@ -230,10 +237,33 @@ const OrderDetailsModal = ({ order, onClose }) => {
           </button>
 
           <h2 style={titleStyle}>Order #{order.orderNumber || order.id?.slice?.(-5)?.toUpperCase() || order.id}</h2>
-          <span style={badgeStyle}>{statusStyle.label}</span>
+          <span style={badgeStyle}>
+            {statusStyle.showCheck && <Check size={14} />}
+            {statusStyle.label}
+          </span>
         </div>
 
         <div style={bodyStyle}>
+          {/* Total Amount - if available */}
+          {order.totalAmount && (
+            <div style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              padding: "12px 16px",
+              backgroundColor: colors.cardBg,
+              borderRadius: "12px",
+              marginBottom: "24px",
+            }}>
+              <span style={{ fontSize: "14px", fontWeight: "600", color: colors.accent }}>
+                Total Amount
+              </span>
+              <span style={{ fontSize: "18px", fontWeight: "800", color: colors.accent }}>
+                ${typeof order.totalAmount === 'number' ? order.totalAmount.toFixed(2) : order.totalAmount}
+              </span>
+            </div>
+          )}
+
           <div style={sectionStyle}>
             <h3 style={sectionTitleStyle}>Order Information</h3>
             <div style={infoRowStyle}>
@@ -255,12 +285,17 @@ const OrderDetailsModal = ({ order, onClose }) => {
             <ul style={itemsListStyle}>
               {itemsArray.map((item, index) => (
                 <li key={item.id || index} style={itemStyle}>
-                  {item.quantity ? `${item.quantity}× ` : ""}{item.name}
-                  {item.notes ? (
-                    <div style={specialInstructionsStyle}>
-                      📝 {item.notes}
-                    </div>
-                  ) : null}
+                  <div style={{ flex: 1 }}>
+                    <span>{item.name}</span>
+                    {item.notes ? (
+                      <div style={specialInstructionsStyle}>
+                        📝 {item.notes}
+                      </div>
+                    ) : null}
+                  </div>
+                  {item.quantity && (
+                    <span style={quantityBadgeStyle}>×{item.quantity}</span>
+                  )}
                 </li>
               ))}
             </ul>
@@ -268,18 +303,34 @@ const OrderDetailsModal = ({ order, onClose }) => {
 
           <div style={sectionStyle}>
             <h3 style={sectionTitleStyle}>Order Images</h3>
-            <p style={{
-              fontSize: "11px",
-              color: "#9CA3AF",
-              marginBottom: "8px",
-              fontStyle: "italic"
-            }}>
-              👈 Swipe to view more images
-            </p>
-            <div style={imageContainerStyle}>
-              <img style={imageStyle} alt="order" src={order.image} />
-              {/* Add more images here if available */}
-              {/* Example: order.images?.map((img, i) => <img key={i} style={imageStyle} alt={`order-${i}`} src={img} />) */}
+            {itemsArray.length > 0 && (
+              <p style={{
+                fontSize: "12px",
+                color: colors.textSecondary,
+                marginBottom: "8px",
+              }}>
+                {itemsArray.length} items in order
+              </p>
+            )}
+            <div style={{ borderRadius: "16px", overflow: "hidden" }}>
+              {Array.isArray(order.items) && order.items.length > 0 ? (
+                <ItemCarousel 
+                  items={order.items} 
+                  width="100%" 
+                  height={280} 
+                />
+              ) : order.image ? (
+                <img 
+                  style={{
+                    width: "100%",
+                    height: "280px",
+                    objectFit: "cover",
+                    borderRadius: "16px",
+                  }} 
+                  alt="order" 
+                  src={order.image} 
+                />
+              ) : null}
             </div>
           </div>
         </div>

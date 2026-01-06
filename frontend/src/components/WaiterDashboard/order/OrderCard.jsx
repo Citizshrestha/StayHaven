@@ -47,7 +47,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
     checkScreenSize();
     window.addEventListener('resize', checkScreenSize);
     return () => window.removeEventListener('resize', checkScreenSize);
-}, []);
+  }, []);
 
 
 
@@ -69,7 +69,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
     onMarkServed(order.id);
   };
 
-  
+
   // Helper to get items display text (supports both old string and new array format)
   const getItemsDisplay = () => {
     if (Array.isArray(order.items)) {
@@ -89,18 +89,34 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
   const getStatusDuration = (order) => {
     const now = new Date();
 
+    // Helper function to format duration nicely
+    const formatDuration = (diffMins) => {
+      if (diffMins < 1) return "Just now";
+      if (diffMins < 60) return `${diffMins}m`;
+      const hours = Math.floor(diffMins / 60);
+      const mins = diffMins % 60;
+      if (hours < 24) {
+        return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+      }
+      const days = Math.floor(hours / 24);
+      const remHours = hours % 24;
+      return remHours > 0 ? `${days}d ${remHours}h` : `${days}d`;
+    };
+
     // For "preparing" status, show how long it's been preparing
     if (order.status === "preparing" && order.startedPreparingAt) {
       const startTime = new Date(order.startedPreparingAt);
       const diffMins = Math.floor((now - startTime) / 60000);
-      return diffMins === 0 ? `Preparing - Just now` : `Preparing for ${diffMins}m`;
+      const duration = formatDuration(diffMins);
+      return duration === "Just now" ? `Preparing - Just now` : `Preparing for ${duration}`;
     }
 
     // For "ready" status, show how long it's been ready
     else if (order.status === "ready" && order.readyAt) {
       const readyTime = new Date(order.readyAt);
       const diffMins = Math.floor((now - readyTime) / 60000);
-      return diffMins === 0 ? `Ready - Just now` : `Ready for ${diffMins}m`;
+      const duration = formatDuration(diffMins);
+      return duration === "Just now" ? `Ready - Just now` : `Ready for ${duration}`;
     }
 
     // For "delivered" status, show completion time
@@ -137,9 +153,10 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
         };
       case "delivered":
         return {
-          backgroundColor: "#E5E7EB",
-          color: "#6B7280",
+          backgroundColor: "#D1FAE5",
+          color: "#059669",
           label: "Delivered ✓",
+          isDelivered: true,
         };
       default:
         return {
@@ -154,14 +171,14 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
 
   // Responsive Inline Styles
   const cardStyle = {
-    backgroundColor: "white",
+    backgroundColor: "var(--card-bg)",
     borderRadius: isMobile ? "16px" : "24px",
     padding: isMobile ? "16px" : "24px",
     display: "flex",
     flexDirection: isMobile ? "column" : "row",
     gap: isMobile ? "16px" : "24px",
-    boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-    border: "1px solid #F3F4F6",
+    boxShadow: "var(--shadow-sm)",
+    border: "1px solid var(--card-border)",
   };
 
   const contentStyle = {
@@ -189,7 +206,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
   };
 
   const metaStyle = {
-    color: "#6B7280",
+    color: "var(--text-tertiary)",
     fontSize: isMobile ? "12px" : "14px",
     fontWeight: "500",
   };
@@ -197,14 +214,14 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
   const titleStyle = {
     fontSize: isMobile ? "18px" : isTablet ? "20px" : "24px",
     fontWeight: "800",
-    color: "#111827",
+    color: "var(--text-primary)",
     marginBottom: "8px",
     lineHeight: "1.2",
     wordBreak: "break-word",
   };
 
   const itemsStyle = {
-    color: "#6B7280",
+    color: "var(--text-tertiary)",
     fontSize: isMobile ? "13px" : "14px",
     lineHeight: "1.5",
     marginBottom: isMobile ? "16px" : "24px",
@@ -236,8 +253,8 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
   const secondaryButtonStyle = {
     flex: isMobile ? "none" : 1,
     padding: isMobile ? "10px 16px" : "12px 24px",
-    backgroundColor: "#E5E7EB",
-    color: "#374151",
+    backgroundColor: "var(--bg-tertiary)",
+    color: "var(--text-secondary)",
     borderRadius: "9999px",
     fontWeight: "700",
     fontSize: isMobile ? "13px" : "14px",
@@ -353,14 +370,17 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
   };
 
   return (
-    <div style={{ ...cardStyle, position: "relative" }}>
+    <div
+      style={{ ...cardStyle, position: "relative" }}
+      data-order-id={order._id}
+    >
       {/* Three-dot Menu Button */}
       <div ref={menuRef} style={{ position: "absolute", top: "16px", right: "16px", zIndex: 10 }}>
         <button
           onClick={() => setShowMenu(!showMenu)}
           style={{
-            background: "white",
-            border: "1px solid #E5E7EB",
+            background: "var(--card-bg)",
+            border: "1px solid var(--border-color)",
             borderRadius: "8px",
             padding: "8px",
             cursor: "pointer",
@@ -368,10 +388,10 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
             alignItems: "center",
             justifyContent: "center",
             transition: "all 0.2s",
-            boxShadow: showMenu ? "0 2px 8px rgba(0,0,0,0.1)" : "none",
+            boxShadow: showMenu ? "var(--shadow-md)" : "none",
           }}
         >
-          <MoreVertical size={18} color="#6B7280" />
+          <MoreVertical size={18} color="var(--text-tertiary)" />
         </button>
 
         {/* Dropdown Menu */}
@@ -382,10 +402,10 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
               top: "100%",
               right: 0,
               marginTop: "4px",
-              backgroundColor: "white",
+              backgroundColor: "var(--card-bg)",
               borderRadius: "12px",
-              boxShadow: "0 10px 40px rgba(0,0,0,0.15)",
-              border: "1px solid #E5E7EB",
+              boxShadow: "var(--shadow-lg)",
+              border: "1px solid var(--border-color)",
               minWidth: "180px",
               overflow: "hidden",
               zIndex: 100,
@@ -404,16 +424,16 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                 cursor: "pointer",
                 fontSize: "14px",
                 fontWeight: "500",
-                color: "#374151",
+                color: "var(--text-secondary)",
                 transition: "background 0.2s",
               }}
-              onMouseEnter={(e) => e.target.style.backgroundColor = "#F3F4F6"}
+              onMouseEnter={(e) => e.target.style.backgroundColor = "var(--bg-tertiary)"}
               onMouseLeave={(e) => e.target.style.backgroundColor = "transparent"}
             >
-              <Edit size={16} color="#6B7280" />
+              <Edit size={16} color="var(--text-tertiary)" />
               Edit Order
             </button>
-            <div style={{ height: "1px", backgroundColor: "#E5E7EB", margin: "4px 0" }} />
+            <div style={{ height: "1px", backgroundColor: "var(--border-color)", margin: "4px 0" }} />
             <button
               onClick={() => handleMenuAction("delete")}
               style={{
@@ -650,7 +670,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
         >
           <div
             style={{
-              backgroundColor: "white",
+              backgroundColor: "var(--card-bg)",
               borderRadius: "24px",
               maxWidth: "600px",
               width: "90%",
@@ -663,10 +683,10 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
             <div
               style={{
                 padding: "24px",
-                borderBottom: "1px solid #F3F4F6",
+                borderBottom: "1px solid var(--border-color)",
                 position: "sticky",
                 top: 0,
-                backgroundColor: "white",
+                backgroundColor: "var(--card-bg)",
                 borderTopLeftRadius: "24px",
                 borderTopRightRadius: "24px",
               }}
@@ -680,7 +700,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                   background: "none",
                   border: "none",
                   cursor: "pointer",
-                  color: "#6B7280",
+                  color: "var(--text-tertiary)",
                   padding: "8px",
                   borderRadius: "50%",
                 }}
@@ -692,6 +712,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                   fontSize: "24px",
                   fontWeight: "800",
                   marginBottom: "8px",
+                  color: "var(--text-primary)",
                 }}
               >
                 Order #{order.orderNumber || order.id?.slice?.(-5)?.toUpperCase() || order.id}
@@ -717,7 +738,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                   style={{
                     fontSize: "14px",
                     fontWeight: "700",
-                    color: "#6B7280",
+                    color: "var(--text-tertiary)",
                     textTransform: "uppercase",
                     letterSpacing: "0.05em",
                     marginBottom: "12px",
@@ -733,7 +754,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                     gap: "12px",
                     marginBottom: "12px",
                     padding: "12px",
-                    backgroundColor: "#F9FAFB",
+                    backgroundColor: "var(--bg-tertiary)",
                     borderRadius: "12px",
                   }}
                 >
@@ -741,7 +762,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                     size={20}
                     style={{ color: "#10B981", flexShrink: 0 }}
                   />
-                  <span style={{ fontSize: "15px", fontWeight: "600" }}>
+                  <span style={{ fontSize: "15px", fontWeight: "600", color: "var(--text-primary)" }}>
                     {order.table}
                   </span>
                 </div>
@@ -753,7 +774,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                     gap: "12px",
                     marginBottom: "12px",
                     padding: "12px",
-                    backgroundColor: "#F9FAFB",
+                    backgroundColor: "var(--bg-tertiary)",
                     borderRadius: "12px",
                   }}
                 >
@@ -761,7 +782,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                     size={20}
                     style={{ color: "#10B981", flexShrink: 0 }}
                   />
-                  <span style={{ fontSize: "15px", fontWeight: "600" }}>
+                  <span style={{ fontSize: "15px", fontWeight: "600", color: "var(--text-primary)" }}>
                     Placed {placedAtRelativeTime}
                   </span>
                 </div>
@@ -773,12 +794,12 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                     gap: "12px",
                     marginBottom: "12px",
                     padding: "12px",
-                    backgroundColor: "#F9FAFB",
+                    backgroundColor: "var(--bg-tertiary)",
                     borderRadius: "12px",
                   }}
                 >
                   <User size={20} style={{ color: "#10B981", flexShrink: 0 }} />
-                  <span style={{ fontSize: "15px", fontWeight: "600" }}>
+                  <span style={{ fontSize: "15px", fontWeight: "600", color: "var(--text-primary)" }}>
                     Customer: {order.customerName || "Walk-in Guest"}
                   </span>
                 </div>
@@ -791,12 +812,12 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                       gap: "12px",
                       marginBottom: "12px",
                       padding: "12px",
-                      backgroundColor: "#F9FAFB",
+                      backgroundColor: "var(--bg-tertiary)",
                       borderRadius: "12px",
                     }}
                   >
                     <span style={{ fontSize: "20px", flexShrink: 0 }}>📞</span>
-                    <span style={{ fontSize: "15px", fontWeight: "600" }}>
+                    <span style={{ fontSize: "15px", fontWeight: "600", color: "var(--text-primary)" }}>
                       {order.customerPhone}
                     </span>
                   </div>
@@ -809,14 +830,14 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                     gap: "12px",
                     marginBottom: "12px",
                     padding: "12px",
-                    backgroundColor: "#F9FAFB",
+                    backgroundColor: "var(--bg-tertiary)",
                     borderRadius: "12px",
                   }}
                 >
                   <span style={{ fontSize: "20px", flexShrink: 0 }}>
                     {order.orderType === "roomService" ? "🛏️" : order.orderType === "takeaway" ? "🥡" : "🍽️"}
                   </span>
-                  <span style={{ fontSize: "15px", fontWeight: "600" }}>
+                  <span style={{ fontSize: "15px", fontWeight: "600", color: "var(--text-primary)" }}>
                     {order.orderType === "roomService" ? "Room Service" : order.orderType === "takeaway" ? "Takeaway" : "Dine-In"}
                   </span>
                 </div>
@@ -864,7 +885,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                   style={{
                     fontSize: "14px",
                     fontWeight: "700",
-                    color: "#6B7280",
+                    color: "var(--text-tertiary)",
                     textTransform: "uppercase",
                     letterSpacing: "0.05em",
                     marginBottom: "12px",
@@ -879,7 +900,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                         key={item.id}
                         style={{
                           padding: "12px",
-                          backgroundColor: "#F9FAFB",
+                          backgroundColor: "var(--bg-tertiary)",
                           borderRadius: "12px",
                           marginBottom: "8px",
                         }}
@@ -890,7 +911,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                           justifyContent: "space-between",
                           marginBottom: item.notes ? "8px" : "0",
                         }}>
-                          <span style={{ fontSize: "15px", fontWeight: "600" }}>
+                          <span style={{ fontSize: "15px", fontWeight: "600", color: "var(--text-primary)" }}>
                             {item.name}
                           </span>
                           <span style={{
@@ -924,11 +945,12 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                         key={index}
                         style={{
                           padding: "12px",
-                          backgroundColor: "#F9FAFB",
+                          backgroundColor: "var(--bg-tertiary)",
                           borderRadius: "12px",
                           marginBottom: "8px",
                           fontSize: "15px",
                           fontWeight: "600",
+                          color: "var(--text-primary)",
                         }}
                       >
                         {item}
@@ -943,7 +965,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                   style={{
                     fontSize: "14px",
                     fontWeight: "700",
-                    color: "#6B7280",
+                    color: "var(--text-tertiary)",
                     textTransform: "uppercase",
                     letterSpacing: "0.05em",
                     marginBottom: "12px",
@@ -980,7 +1002,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                     style={{
                       fontSize: "14px",
                       fontWeight: "700",
-                      color: "#6B7280",
+                      color: "var(--text-tertiary)",
                       textTransform: "uppercase",
                       letterSpacing: "0.05em",
                       marginBottom: "12px",
@@ -999,7 +1021,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                         top: "8px",
                         bottom: "8px",
                         width: "2px",
-                        backgroundColor: "#E5E7EB",
+                        backgroundColor: "var(--border-color)",
                       }}
                     />
 
@@ -1024,8 +1046,8 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                             height: "16px",
                             borderRadius: "50%",
                             backgroundColor: "#10B981",
-                            border: "3px solid white",
-                            boxShadow: "0 0 0 1px #E5E7EB",
+                            border: "3px solid var(--card-bg)",
+                            boxShadow: "0 0 0 1px var(--border-color)",
                           }}
                         />
 
@@ -1035,13 +1057,13 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                             style={{
                               fontSize: "14px",
                               fontWeight: "700",
-                              color: "#111827",
+                              color: "var(--text-primary)",
                             }}
                           >
                             {entry.status.charAt(0).toUpperCase() +
                               entry.status.slice(1)}
                           </div>
-                          <div style={{ fontSize: "12px", color: "#6B7280" }}>
+                          <div style={{ fontSize: "12px", color: "var(--text-tertiary)" }}>
                             {entry.timestamp}
                           </div>
                         </div>
@@ -1075,12 +1097,12 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
         >
           <div
             style={{
-              backgroundColor: "white",
+              backgroundColor: "var(--card-bg)",
               borderRadius: "24px",
               padding: "32px",
               maxWidth: "400px",
               width: "90%",
-              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+              boxShadow: "var(--shadow-lg)",
               animation: "fadeIn 0.2s ease-out",
             }}
             onClick={(e) => e.stopPropagation()}
@@ -1106,7 +1128,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
               style={{
                 fontSize: "20px",
                 fontWeight: "700",
-                color: "#111827",
+                color: "var(--text-primary)",
                 textAlign: "center",
                 marginBottom: "8px",
               }}
@@ -1118,7 +1140,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
             <p
               style={{
                 fontSize: "14px",
-                color: "#6B7280",
+                color: "var(--text-tertiary)",
                 textAlign: "center",
                 marginBottom: "8px",
                 lineHeight: "1.5",
@@ -1130,7 +1152,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
             {/* Order Info */}
             <div
               style={{
-                backgroundColor: "#F9FAFB",
+                backgroundColor: "var(--bg-tertiary)",
                 borderRadius: "12px",
                 padding: "16px",
                 marginBottom: "24px",
@@ -1140,13 +1162,13 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                 style={{
                   fontSize: "15px",
                   fontWeight: "600",
-                  color: "#111827",
+                  color: "var(--text-primary)",
                   marginBottom: "4px",
                 }}
               >
                 Order #{order?.orderNumber || order?.id?.slice?.(-5)?.toUpperCase() || order?.id || "Unknown"}
               </div>
-              <div style={{ fontSize: "13px", color: "#6B7280" }}>
+              <div style={{ fontSize: "13px", color: "var(--text-tertiary)" }}>
                 {order?.table || "Unknown table"} • {getItemsDisplay()?.substring(0, 50) || "No items"}
                 {(getItemsDisplay()?.length || 0) > 50 ? "..." : ""}
               </div>
@@ -1222,8 +1244,8 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                 style={{
                   flex: 1,
                   padding: "14px 24px",
-                  backgroundColor: "#F3F4F6",
-                  color: "#374151",
+                  backgroundColor: "var(--bg-tertiary)",
+                  color: "var(--text-secondary)",
                   border: "none",
                   borderRadius: "12px",
                   fontSize: "15px",
