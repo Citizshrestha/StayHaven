@@ -1,5 +1,5 @@
 import React from "react";
-import { LayoutDashboard, UtensilsCrossed, Bell, History, Phone } from "lucide-react";
+import { LayoutDashboard, UtensilsCrossed, Bell, Phone } from "lucide-react";
 
 /**
  * MobileBottomNav Component
@@ -24,7 +24,6 @@ const MobileBottomNav = ({
     { id: "assignedTables", label: "Tables", icon: UtensilsCrossed },
     { id: "waiterCalls", label: "Calls", icon: Phone, badge: waiterCallCount },
     { id: "notifications", label: "Alerts", icon: Bell, badge: notificationCount },
-    { id: "orderHistory", label: "History", icon: History },
   ];
 
   const handleTabClick = (tabId) => {
