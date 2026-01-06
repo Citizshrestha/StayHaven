@@ -74,15 +74,21 @@ const useNotificationSound = () => {
     const handleInteraction = () => {
       if (!hasInteracted) {
         setHasInteracted(true);
-        // Play a silent "unlock" to enable audio
-        Object.values(audioRefs.current).forEach(audio => {
-          audio.play().then(() => {
-            audio.pause();
-            audio.currentTime = 0;
-          }).catch(() => {
-            // Ignore errors - will work after more interaction
-          });
-        });
+
+        // Try to unlock audio by resuming an AudioContext (silent, no audible playback)
+        try {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) {
+            const ctx = new AudioCtx();
+            if (ctx.state === 'suspended' && typeof ctx.resume === 'function') {
+              ctx.resume().catch(() => {
+                // ignore resume errors
+              });
+            }
+          }
+        } catch (e) {
+          // Fallback: do nothing. Avoid playing any audio to prevent audible click.
+        }
       }
     };
 
