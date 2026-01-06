@@ -1,13 +1,33 @@
-import { useState } from "react";
-import { X, ChevronRight, Clock, User } from "lucide-react";
+import { useState, useEffect } from "react";
+import { X, ChevronRight, Clock, User, Check } from "lucide-react";
 import ItemCarousel from "../shared/ItemCarousel";
 import useRelativeTime from "../../hooks/useRelativeTime";
 import OrderDetailsModal from "../WaiterDashboard/order/OrderDetailsModal";
 
-const OrderCard = ({ order, onUpdateOrderStatus }) => {
+const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const placedAtRelativeTime = useRelativeTime(order?.placedAt, true);
+
+  useEffect(() => {
+    const checkScreenSize = () => setIsMobile(window.innerWidth < 768);
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
+
+  // Dark mode colors
+  const colors = {
+    card: isDarkMode ? "#1E293B" : "white",
+    cardBorder: isDarkMode ? "#334155" : "#F3F4F6",
+    text: isDarkMode ? "#F8FAFC" : "#111827",
+    textSecondary: isDarkMode ? "#94A3B8" : "#6B7280",
+    notesBg: isDarkMode ? "#422006" : "#FFFBEB",
+    notesBorder: isDarkMode ? "#F59E0B" : "#F59E0B",
+    notesText: isDarkMode ? "#FCD34D" : "#B45309",
+    notesContent: isDarkMode ? "#FDE68A" : "#78350F",
+  };
 
   const isHighPriority = (order?.priority || "").toLowerCase() === "high";
 
@@ -38,18 +58,34 @@ const OrderCard = ({ order, onUpdateOrderStatus }) => {
   const getStatusDuration = (order) => {
   const now = new Date();
   
+  // Helper function to format duration nicely
+  const formatDuration = (diffMins) => {
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}m`;
+    const hours = Math.floor(diffMins / 60);
+    const mins = diffMins % 60;
+    if (hours < 24) {
+      return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+    }
+    const days = Math.floor(hours / 24);
+    const remHours = hours % 24;
+    return remHours > 0 ? `${days}d ${remHours}h` : `${days}d`;
+  };
+  
   // For "preparing" status, show how long it's been preparing
   if (order.status === "preparing" && order.startedPreparingAt) {
     const startTime = new Date(order.startedPreparingAt);
     const diffMins = Math.floor((now - startTime) / 60000);
-    return diffMins === 0 ? `Preparing - Just now` : `Preparing for ${diffMins}m`;
+    const duration = formatDuration(diffMins);
+    return duration === "Just now" ? `Preparing - Just now` : `Preparing for ${duration}`;
   } 
   
   // For "ready" status, show how long it's been ready
   else if (order.status === "ready" && order.readyAt) {
     const readyTime = new Date(order.readyAt);
     const diffMins = Math.floor((now - readyTime) / 60000);
-    return diffMins === 0 ? `Ready - Just now` : `Ready for ${diffMins}m`;
+    const duration = formatDuration(diffMins);
+    return duration === "Just now" ? `Ready - Just now` : `Ready for ${duration}`;
   }
 
   // For "delivered" status, show completion time
@@ -79,34 +115,63 @@ const OrderCard = ({ order, onUpdateOrderStatus }) => {
   };
 
   const getStatusStyles = (status) => {
+    // Status colors adjusted for dark mode
     switch (status) {
       case "new":
-        return { backgroundColor: "#DBEAFE", color: "#2563EB", label: "New Order" };
+      case "pending":
+        return { 
+          backgroundColor: isDarkMode ? "rgba(37, 99, 235, 0.2)" : "#DBEAFE", 
+          color: isDarkMode ? "#60A5FA" : "#2563EB", 
+          label: "New Order" 
+        };
       case "preparing":
-        return { backgroundColor: "#FEF3C7", color: "#D97706", label: "Preparing" };
+        return { 
+          backgroundColor: isDarkMode ? "rgba(217, 119, 6, 0.2)" : "#FEF3C7", 
+          color: isDarkMode ? "#FBBF24" : "#D97706", 
+          label: "Preparing" 
+        };
       case "ready":
-        return { backgroundColor: "#D1FAE5", color: "#059669", label: "Ready" };
+        return { 
+          backgroundColor: isDarkMode ? "rgba(5, 150, 105, 0.2)" : "#D1FAE5", 
+          color: isDarkMode ? "#34D399" : "#059669", 
+          label: "Ready" 
+        };
       case "delivered":
-        return { backgroundColor: "#E5E7EB", color: "#6B7280", label: "Delivered ✓" };
+        return { 
+          backgroundColor: isDarkMode ? "rgba(5, 150, 105, 0.15)" : "#D1FAE5", 
+          color: isDarkMode ? "#6EE7B7" : "#059669", 
+          label: "Delivered",
+          showCheck: true,
+        };
       default:
-        return { backgroundColor: "#F3F4F6", color: "#4B5563", label: status };
+        return { 
+          backgroundColor: isDarkMode ? "#334155" : "#F3F4F6", 
+          color: isDarkMode ? "#94A3B8" : "#4B5563", 
+          label: status 
+        };
     }
   };
 
   const statusStyle = getStatusStyles(order.status);
 
   const cardStyle = {
-    backgroundColor: "white",
-    borderRadius: "24px",
-    padding: "24px",
+    backgroundColor: colors.card,
+    borderRadius: isMobile ? "16px" : "24px",
+    padding: isMobile ? "16px" : "24px",
     display: "flex",
-    flexDirection: "row",
-    gap: "24px",
-    boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-    border: "1px solid #F3F4F6",
+    flexDirection: isMobile ? "column" : "row",
+    gap: isMobile ? "16px" : "24px",
+    boxShadow: isDarkMode 
+      ? "0 4px 6px -1px rgba(0, 0, 0, 0.3)" 
+      : "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+    border: `1px solid ${colors.cardBorder}`,
+    transition: "all 0.2s ease",
   };
 
   const badgeStyle = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "4px",
     padding: "4px 12px",
     borderRadius: "8px",
     fontSize: "12px",
@@ -138,10 +203,13 @@ const OrderCard = ({ order, onUpdateOrderStatus }) => {
   };
 
   return (
-    <div style={cardStyle}>
+    <div style={cardStyle} data-order-id={order._id}>
       <div style={{ flex: 1 }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
-          <span style={badgeStyle}>{statusStyle.label}</span>
+          <span style={badgeStyle}>
+            {statusStyle.showCheck && <Check size={14} />}
+            {statusStyle.label}
+          </span>
           {/* Item count badge */}
           {Array.isArray(order.items) && order.items.length > 1 && (
             <span style={{
@@ -149,8 +217,8 @@ const OrderCard = ({ order, onUpdateOrderStatus }) => {
               borderRadius: "8px",
               fontSize: "11px",
               fontWeight: "700",
-              backgroundColor: "#EDE9FE",
-              color: "#7C3AED",
+              backgroundColor: isDarkMode ? "rgba(124, 58, 237, 0.2)" : "#EDE9FE",
+              color: isDarkMode ? "#A78BFA" : "#7C3AED",
             }}>
               🍽️ {getTotalItemCount()} items
             </span>
@@ -162,19 +230,19 @@ const OrderCard = ({ order, onUpdateOrderStatus }) => {
                 borderRadius: "8px",
                 fontSize: "11px",
                 fontWeight: "700",
-                backgroundColor: "#FEE2E2",
-                color: "#DC2626",
+                backgroundColor: isDarkMode ? "rgba(220, 38, 38, 0.2)" : "#FEE2E2",
+                color: isDarkMode ? "#F87171" : "#DC2626",
               }}
             >
               Urgent
             </span>
           ) : null}
-          <span style={{ color: "#6B7280", fontSize: "14px", fontWeight: "500" }}>
+          <span style={{ color: colors.textSecondary, fontSize: "14px", fontWeight: "500" }}>
             {order.table} • {getStatusDuration(order)}
           </span>
         </div>
 
-        <h3 style={{ fontSize: "24px", fontWeight: "800", color: "#111827", marginBottom: "8px" }}>
+        <h3 style={{ fontSize: isMobile ? "20px" : "24px", fontWeight: "800", color: colors.text, marginBottom: "8px" }}>
           Order #{order.orderNumber || order.id?.slice?.(-5)?.toUpperCase() || order.id}
         </h3>
         
@@ -192,7 +260,7 @@ const OrderCard = ({ order, onUpdateOrderStatus }) => {
           </div>
         )}
 
-        <p style={{ color: "#6B7280", fontSize: "14px", lineHeight: "1.5", marginBottom: "24px" }}>
+        <p style={{ color: colors.textSecondary, fontSize: "14px", lineHeight: "1.5", marginBottom: "24px" }}>
           {getItemsDisplay()}
         </p>
 
@@ -201,15 +269,15 @@ const OrderCard = ({ order, onUpdateOrderStatus }) => {
           <div style={{
             marginBottom: "16px",
             padding: "10px 14px",
-            backgroundColor: "#FFFBEB",
+            backgroundColor: colors.notesBg,
             borderRadius: "10px",
-            borderLeft: "3px solid #F59E0B",
+            borderLeft: `3px solid ${colors.notesBorder}`,
             maxWidth: "360px",
           }}>
             <div style={{ 
               fontSize: "11px", 
               fontWeight: "700", 
-              color: "#B45309", 
+              color: colors.notesText, 
               marginBottom: "6px",
               textTransform: "uppercase",
               letterSpacing: "0.5px",
@@ -219,12 +287,12 @@ const OrderCard = ({ order, onUpdateOrderStatus }) => {
             {order.items.filter(item => item.notes).map(item => (
               <div key={item.id} style={{ 
                 fontSize: "12px", 
-                color: "#78350F",
+                color: colors.notesContent,
                 marginBottom: "3px",
                 lineHeight: "1.4",
               }}>
                 <span style={{ fontWeight: "600" }}>{item.name}:</span>{" "}
-                <span style={{ color: "#92400E" }}>{item.notes}</span>
+                <span style={{ color: isDarkMode ? "#FCD34D" : "#92400E" }}>{item.notes}</span>
               </div>
             ))}
           </div>
@@ -235,16 +303,16 @@ const OrderCard = ({ order, onUpdateOrderStatus }) => {
             <div
               style={{
                 padding: "12px 16px",
-                backgroundColor: "#D1FAE5",
+                backgroundColor: isDarkMode ? "rgba(5, 150, 105, 0.15)" : "#D1FAE5",
                 borderRadius: "12px",
-                border: "1px solid #A7F3D0",
+                border: `1px solid ${isDarkMode ? "rgba(5, 150, 105, 0.3)" : "#A7F3D0"}`,
                 minWidth: "220px",
               }}
             >
-              <div style={{ fontSize: "16px", fontWeight: "800", color: "#059669", marginBottom: "4px" }}>
+              <div style={{ fontSize: "16px", fontWeight: "800", color: isDarkMode ? "#6EE7B7" : "#059669", marginBottom: "4px" }}>
                 ✓ Order Completed
               </div>
-              <div style={{ fontSize: "13px", fontWeight: "700", color: "#6B7280" }}>
+              <div style={{ fontSize: "13px", fontWeight: "700", color: colors.textSecondary }}>
                 {(() => {
                   const t = formatCompletionTime(order);
                   return t ? `Served at ${t}` : "Completed";
@@ -252,7 +320,14 @@ const OrderCard = ({ order, onUpdateOrderStatus }) => {
               </div>
             </div>
 
-            <button onClick={() => setShowDetailsModal(true)} style={secondaryButtonStyle}>
+            <button 
+              onClick={() => setShowDetailsModal(true)} 
+              style={{
+                ...secondaryButtonStyle,
+                backgroundColor: isDarkMode ? "#334155" : "#E5E7EB",
+                color: isDarkMode ? "#F8FAFC" : "#374151",
+              }}
+            >
               View Details
             </button>
           </div>
@@ -266,18 +341,18 @@ const OrderCard = ({ order, onUpdateOrderStatus }) => {
             alignItems: "center",
             gap: "8px",
             padding: "10px 20px",
-            backgroundColor: "#D1FAE5",
+            backgroundColor: isDarkMode ? "rgba(5, 150, 105, 0.15)" : "#D1FAE5",
             borderRadius: "9999px",
-            border: "1px solid #A7F3D0",
+            border: `1px solid ${isDarkMode ? "rgba(5, 150, 105, 0.3)" : "#A7F3D0"}`,
           }}>
-            <span style={{ fontSize: "14px", fontWeight: "700", color: "#059669" }}>
+            <span style={{ fontSize: "14px", fontWeight: "700", color: isDarkMode ? "#6EE7B7" : "#059669" }}>
               ✓ Ready for Pickup
             </span>
             <span style={{ 
               fontSize: "12px", 
-              color: "#6B7280",
+              color: isDarkMode ? "#94A3B8" : "#6B7280",
               padding: "2px 8px",
-              backgroundColor: "white",
+              backgroundColor: isDarkMode ? "#334155" : "white",
               borderRadius: "9999px",
             }}>
               Awaiting waiter
@@ -439,7 +514,7 @@ const OrderCard = ({ order, onUpdateOrderStatus }) => {
       )}
 
       {showDetailsModal && (
-        <OrderDetailsModal order={order} onClose={() => setShowDetailsModal(false)} />
+        <OrderDetailsModal order={order} onClose={() => setShowDetailsModal(false)} isDarkMode={isDarkMode} />
       )}
     </div>
   );
