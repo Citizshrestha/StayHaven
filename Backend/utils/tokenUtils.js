@@ -3,7 +3,7 @@ import crypto from "crypto";
 
 export const generateAccessToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE || "15m",
+    expiresIn: process.env.JWT_EXPIRE || "1h", // 1 hour for better session stability
   });
 };
 
