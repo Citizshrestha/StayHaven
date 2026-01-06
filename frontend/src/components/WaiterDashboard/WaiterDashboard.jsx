@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import Sidebar from "./Sidebar";
 import MobileHeader from "./MobileHeader";
 import DashboardContent from "./DashboardContent";
@@ -7,11 +7,11 @@ import MobileBottomNav from "./MobileBottomNav";
 import OrderFormModal from "./OrderFormModal";
 import AssignedAreas from "./AssignedAreas";
 import NotificationPanel from "./NotificationPanel";
-import OrderHistory from "./OrderHistory";
 import WaiterCallsPanel from "./WaiterCallsPanel";
 import { useOrderContext } from "../../context/useOrderContext";
 import { useSocket } from "../../context/SocketContext";
-import useNotificationSound from "../../hooks/useNotificationSound";
+import { useNotifications } from "../../context/useNotifications";
+import { useTheme } from "../../hooks/useTheme";
 import { Plus } from "lucide-react";
 
 const WaiterDashboard = () => {
@@ -20,15 +20,21 @@ const WaiterDashboard = () => {
   const { orders, markServed, removeOrder, fetchOrders, loading, updateOrder } =
     useOrderContext();
   const [showOrderForm, setShowOrderForm] = useState(false);
+  const { isDark } = useTheme(); // Get theme state
 
-  // Socket.io integration for real-time updates
+  // Use centralized notification context (Socket + Context API)
+  const {
+    notifications,
+    unreadCount,
+    waiterCallCount,
+    markRead,
+    markAllRead,
+    clearAll,
+    setWaiterCallCount
+  } = useNotifications();
+
+  // Socket.io for order refresh (notifications handled by context)
   const { subscribe } = useSocket();
-  
-  // Sound notifications
-  const { playWithVibration } = useNotificationSound();
-
-  // Waiter calls count (for badge)
-  const [waiterCallCount, setWaiterCallCount] = useState(0);
 
   useEffect(() => {
     const prevBodyOverflow = document.body.style.overflow;
@@ -41,117 +47,60 @@ const WaiterDashboard = () => {
     };
   }, []);
 
-  // Notifications state - generated from orders and real-time events
-  const [notifications, setNotifications] = useState([]);
-
-  // Subscribe to real-time socket events
+  // Subscribe to socket events for order data refresh only
+  // (Notifications are handled by NotificationContext)
   useEffect(() => {
     if (!subscribe) return;
 
-    // Listen for new orders
-    const unsubscribeNewOrder = subscribe('new-order', (data) => {
-      console.log('📦 New order received:', data);
-      playWithVibration('newOrder');
-      
-      // Add notification
-      setNotifications(prev => [{
-        id: `new-order-${data.order._id}-${Date.now()}`,
-        type: 'new_order',
-        message: `New order #${data.order.orderNumber} for ${
-          data.order.orderType === 'roomService' 
-            ? `Room ${data.order.roomNumber}` 
-            : `Table ${data.order.tableNumber}`
-        }`,
-        orderId: data.order._id,
-        createdAt: new Date(),
-        isRead: false,
-      }, ...prev]);
-      
-      // Refresh orders to get the new one
+    // Refresh orders when status changes
+    const unsubscribeStatusUpdate = subscribe('order-status-updated', () => {
       fetchOrders({ silent: true });
     });
 
-    // Listen for order status updates
-    const unsubscribeStatusUpdate = subscribe('order-status-updated', (data) => {
-      console.log('📝 Order status updated:', data);
-      // Refresh orders to reflect the change
+    // Refresh orders when new order arrives
+    const unsubscribeNewOrder = subscribe('new-order', () => {
       fetchOrders({ silent: true });
-    });
-
-    // Listen for order ready notifications
-    const unsubscribeOrderReady = subscribe('order-ready', (data) => {
-      console.log('🔔 Order ready for pickup:', data);
-      playWithVibration('orderReady');
-      
-      // Add notification
-      setNotifications(prev => [{
-        id: `order-ready-${data.orderId}-${Date.now()}`,
-        type: 'order_ready',
-        message: data.message || `Order #${data.orderNumber} is ready!`,
-        orderId: data.orderId,
-        createdAt: new Date(),
-        isRead: false,
-      }, ...prev]);
-    });
-
-    // Listen for new waiter calls
-    const unsubscribeWaiterCall = subscribe('new-waiter-call', (data) => {
-      console.log('📞 New waiter call:', data);
-      playWithVibration('waiterCall');
-      setWaiterCallCount(prev => prev + 1);
-      
-      // Add notification
-      setNotifications(prev => [{
-        id: `waiter-call-${data.call._id}-${Date.now()}`,
-        type: 'waiter_call',
-        message: `${data.call.priority} priority request from Room ${data.call.roomNumber}`,
-        callId: data.call._id,
-        createdAt: new Date(),
-        isRead: false,
-      }, ...prev]);
-    });
-
-    // Listen for resolved waiter calls
-    const unsubscribeCallResolved = subscribe('waiter-call-resolved', () => {
-      setWaiterCallCount(prev => Math.max(0, prev - 1));
     });
 
     return () => {
-      unsubscribeNewOrder();
       unsubscribeStatusUpdate();
-      unsubscribeOrderReady();
-      unsubscribeWaiterCall();
-      unsubscribeCallResolved();
+      unsubscribeNewOrder();
     };
-  }, [subscribe, fetchOrders, playWithVibration]);
-
-  const unreadCount = useMemo(
-    () => notifications.filter((n) => !n.isRead).length,
-    [notifications]
-  );
+  }, [subscribe, fetchOrders]);
 
   const handleViewChange = (view) => {
     setActiveView(view);
   };
 
-  const handleMarkNotificationRead = (notificationId) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === notificationId ? { ...n, isRead: true } : n))
-    );
-  };
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
 
-  const handleMarkAllNotificationsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-  };
-
-  const handleClearNotifications = () => {
-    setNotifications([]);
-  };
-
-  const handleFilterByArea = () => {
+  const handleFilterByArea = (areaName) => {
     // Switch to dashboard view and set filter to show orders for this area
-    // Future enhancement: Add area-based filtering to DashboardContent
+    setActiveFilter(`area:${areaName}`);
     setActiveView("dashboard");
+  };
+
+  // Handle notification click - navigate to that order in dashboard
+  const handleNotificationClick = (notification) => {
+    if (notification.orderId) {
+      setSelectedOrderId(notification.orderId);
+      setActiveFilter("all"); // Show all orders to ensure the order is visible
+      setActiveView("dashboard");
+
+      // Scroll to the order after a short delay to allow view to render
+      setTimeout(() => {
+        const orderElement = document.querySelector(`[data-order-id="${notification.orderId}"]`);
+        if (orderElement) {
+          orderElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Add highlight effect
+          orderElement.style.boxShadow = '0 0 0 3px #3B82F6';
+          setTimeout(() => {
+            orderElement.style.boxShadow = '';
+          }, 2000);
+        }
+        setSelectedOrderId(null);
+      }, 100);
+    }
   };
 
   // Render main content based on active view
@@ -163,16 +112,19 @@ const WaiterDashboard = () => {
             orders={orders}
             onFilterByArea={handleFilterByArea}
             onClose={() => setActiveView("dashboard")}
+            isDarkMode={isDark}
           />
         );
       case "notifications":
         return (
           <NotificationPanel
             notifications={notifications}
-            onMarkRead={handleMarkNotificationRead}
-            onMarkAllRead={handleMarkAllNotificationsRead}
-            onClear={handleClearNotifications}
+            onMarkRead={markRead}
+            onMarkAllRead={markAllRead}
+            onClear={clearAll}
             onClose={() => setActiveView("dashboard")}
+            onNotificationClick={handleNotificationClick}
+            isDarkMode={isDark}
           />
         );
       case "waiterCalls":
@@ -182,12 +134,7 @@ const WaiterDashboard = () => {
             onCallCountChange={setWaiterCallCount}
           />
         );
-      case "orderHistory":
-        return (
-          <OrderHistory
-            onClose={() => setActiveView("dashboard")}
-          />
-        );
+      /* Order history view removed */
       default:
         return (
           <DashboardContent
@@ -271,8 +218,8 @@ const WaiterDashboard = () => {
       {/* Mobile Bottom Navigation */}
       <nav className="lg:hidden">
         <MobileBottomNav
-          activeView={activeView} 
-          onViewChange={handleViewChange} 
+          activeView={activeView}
+          onViewChange={handleViewChange}
           notificationCount={unreadCount}
           waiterCallCount={waiterCallCount}
         />

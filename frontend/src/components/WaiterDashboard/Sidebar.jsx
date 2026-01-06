@@ -5,19 +5,21 @@ import {
   Settings,
   LogOut,
   Phone,
-  History,
 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { staffLogout } from "../../api/staff";
 import { useStaffAuth } from "../../context/StaffAuthContext";
-import WaiterSettings from "./settings/WaiterSettings";
+import StaffSettings from "../shared/StaffSettings";
 
 const Sidebar = ({ activeView = "dashboard", onViewChange, notificationCount = 0, waiterCallCount = 0 }) => {
   const navigate = useNavigate();
-  const { staffUser,activeProperty, logout } = useStaffAuth();
+  const { staffUser,activeProperty, logout, staffRole } = useStaffAuth();
   const [showSettings, setShowSettings] = useState(false);
+
+  // Determine if user is chief/kitchen staff (hide waiter-specific items)
+  const isChief = staffRole === 'chief' || staffRole === 'kitchen';
 
 
   const handleMenuClick = (menu) => {
@@ -151,14 +153,16 @@ const Sidebar = ({ activeView = "dashboard", onViewChange, notificationCount = 0
           <span style={{ fontSize: "14px" }}>Dashboard</span>
         </button>
 
-        {/* Assigned Tables Button */}
-        <button
-          style={getMenuItemStyle(activeView === "assignedTables")}
-          onClick={() => handleMenuClick("assignedTables")}
-        >
-          <UtensilsCrossed size={20} />
-          <span style={{ fontSize: "14px" }}>Assigned Tables</span>
-        </button>
+        {/* Assigned Tables Button - Only for waiters, not chiefs */}
+        {!isChief && (
+          <button
+            style={getMenuItemStyle(activeView === "assignedTables")}
+            onClick={() => handleMenuClick("assignedTables")}
+          >
+            <UtensilsCrossed size={20} />
+            <span style={{ fontSize: "14px" }}>Assigned Tables</span>
+          </button>
+        )}
 
         {/* Notifications Button */}
         <button
@@ -172,26 +176,21 @@ const Sidebar = ({ activeView = "dashboard", onViewChange, notificationCount = 0
           )}
         </button>
 
-        {/* Waiter Calls Button */}
-        <button
-          style={getMenuItemStyle(activeView === "waiterCalls")}
-          onClick={() => handleMenuClick("waiterCalls")}
-        >
-          <Phone size={20} />
-          <span style={{ fontSize: "14px" }}>Guest Calls</span>
-          {waiterCallCount > 0 && (
-            <span style={{...badgeStyle, backgroundColor: "#EF4444"}}>{waiterCallCount > 99 ? '99+' : waiterCallCount}</span>
-          )}
-        </button>
+        {/* Waiter Calls Button - Only for waiters, not chiefs */}
+        {!isChief && (
+          <button
+            style={getMenuItemStyle(activeView === "waiterCalls")}
+            onClick={() => handleMenuClick("waiterCalls")}
+          >
+            <Phone size={20} />
+            <span style={{ fontSize: "14px" }}>Guest Calls</span>
+            {waiterCallCount > 0 && (
+              <span style={{...badgeStyle, backgroundColor: "#EF4444"}}>{waiterCallCount > 99 ? '99+' : waiterCallCount}</span>
+            )}
+          </button>
+        )}
 
-        {/* Order History Button */}
-        <button
-          style={getMenuItemStyle(activeView === "orderHistory")}
-          onClick={() => handleMenuClick("orderHistory")}
-        >
-          <History size={20} />
-          <span style={{ fontSize: "14px" }}>Order History</span>
-        </button>
+        {/* Order History removed */}
       </nav>
 
       {/* Bottom Actions */}
@@ -230,7 +229,7 @@ const Sidebar = ({ activeView = "dashboard", onViewChange, notificationCount = 0
             onClick={() => setShowSettings(false)}
           >
             <div onClick={(e) => e.stopPropagation()}>
-              <WaiterSettings onClose={() => setShowSettings(false)} />
+              <StaffSettings onClose={() => setShowSettings(false)} variant="waiter" />
             </div>
           </div>
         )}
