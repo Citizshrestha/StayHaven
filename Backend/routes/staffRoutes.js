@@ -25,7 +25,6 @@ import {
   updateOrder,
   getOrderById,
   deleteOrder,
-  getOrderHistory,
 } from "../controllers/orderController.js";
 import {
   createWaiterCall,
@@ -155,8 +154,7 @@ router.delete(
   deleteOrder
 );
 
-// ORDER HISTORY - Get today's completed orders
-router.get("/orders/history", protect, getOrderHistory);
+// ORDER HISTORY route removed
 
 // WAITER CALL ROUTES
 // Create a waiter call (from guest room or table)

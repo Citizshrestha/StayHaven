@@ -164,8 +164,8 @@ export const createOrder = asyncHandler(async (req, res) => {
 
   await order.save();
 
-  // Emit real-time event for new order
-  // Kitchen staff needs to know about new orders immediately
+  // Emit real-time event for new order to ALL staff in hotel
+  // (Chiefs/kitchen are already in the hotel room, no need for separate emission)
   emitToHotel(hotelId, "new-order", {
     order: {
       _id: order._id,
@@ -180,6 +180,8 @@ export const createOrder = asyncHandler(async (req, res) => {
       customerName: order.customerName,
       createdAt: order.createdAt,
     },
+    creatorId: req.user._id.toString(), // Include creator ID to filter self-notifications
+    message: `New order #${order.orderNumber} placed by ${order.orderByName}`,
   });
 
   return res.status(201).json({
@@ -250,6 +252,10 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
 
   await order.save();
 
+  // Get the role of the user making this update
+  const updaterRole = req.user?.role || 'staff';
+  const updaterName = req.user?.fullname || 'Staff';
+
   // Emit real-time event for order status update
   // Different events based on status change
   const eventData = {
@@ -260,19 +266,43 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     roomNumber: order.roomNumber,
     orderType: order.orderType,
     updatedAt: new Date(),
+    updatedBy: updaterName,
+    updaterId: req.user?._id?.toString(), // For frontend to filter self-notifications
+    updaterRole: updaterRole,
   };
 
-  // Broadcast to all staff in the hotel
-  emitToHotel(order.hotel.toString(), "order-status-updated", eventData);
+  const location = order.orderType === 'roomService' 
+    ? `Room ${order.roomNumber}` 
+    : `Table ${order.tableNumber}`;
 
-  // Special event for waiters when order is ready
-  if (status === "ready") {
-    emitToWaiters(order.hotel.toString(), "order-ready", {
+  // Cross-role notifications only (no broadcast to everyone):
+  // When chief/kitchen updates status -> notify ONLY waiters (not chiefs)
+  if (updaterRole === 'chief' || updaterRole === 'kitchen') {
+    emitToWaiters(order.hotel.toString(), "order-status-updated", {
       ...eventData,
-      message: `Order #${order.orderNumber} is ready for pickup!`,
-      customerName: order.customerName,
-      items: order.items,
+      message: `🍳 Kitchen: Order #${order.orderNumber} (${location}) is now "${status}"`,
     });
+    
+    // Special event for waiters when order is ready
+    if (status === "ready") {
+      emitToWaiters(order.hotel.toString(), "order-ready", {
+        ...eventData,
+        message: `Order #${order.orderNumber} is ready for pickup!`,
+        customerName: order.customerName,
+        items: order.items,
+      });
+    }
+  }
+  // When waiter updates status -> notify ONLY kitchen/chiefs (not waiters)
+  else if (updaterRole === 'waiter') {
+    emitToKitchen(order.hotel.toString(), "order-status-updated", {
+      ...eventData,
+      message: `🍽️ Waiter ${updaterName}: Order #${order.orderNumber} (${location}) marked as "${status}"`,
+    });
+  }
+  // Fallback for other roles - broadcast to hotel
+  else {
+    emitToHotel(order.hotel.toString(), "order-status-updated", eventData);
   }
 
   return res.status(200).json({
@@ -464,58 +494,4 @@ export const deleteOrder = asyncHandler(async (req, res) => {
   });
 });
 
-/**
- * Get order history for today (completed/delivered orders)
- * GET /api/staff/orders/history?hotelId=xxx
- */
-export const getOrderHistory = asyncHandler(async (req, res) => {
-  const { hotelId, date } = req.query;
-
-  if (!hotelId) {
-    return res.status(400).json({
-      success: false,
-      message: "Hotel ID is required",
-    });
-  }
-
-  // Default to today's orders
-  let startDate, endDate;
-  
-  if (date) {
-    // If specific date provided, use it
-    startDate = new Date(date);
-    startDate.setHours(0, 0, 0, 0);
-    endDate = new Date(date);
-    endDate.setHours(23, 59, 59, 999);
-  } else {
-    // Default: today
-    startDate = new Date();
-    startDate.setHours(0, 0, 0, 0);
-    endDate = new Date();
-    endDate.setHours(23, 59, 59, 999);
-  }
-
-  const orders = await Order.find({
-    hotel: hotelId,
-    status: 'delivered',
-    deliveredAt: { $gte: startDate, $lte: endDate },
-  })
-    .populate('orderBy', 'fullname')
-    .sort({ deliveredAt: -1 });
-
-  // Calculate statistics
-  const totalOrders = orders.length;
-  const totalRevenue = orders.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
-  const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
-
-  return res.status(200).json({
-    success: true,
-    count: totalOrders,
-    statistics: {
-      totalOrders,
-      totalRevenue: totalRevenue.toFixed(2),
-      averageOrderValue: averageOrderValue.toFixed(2),
-    },
-    orders,
-  });
-});
+// Order history endpoint removed
