@@ -118,13 +118,16 @@ export const emitToWaiters = (hotelId, event, data) => {
 
 /**
  * Emit event to kitchen staff in a specific hotel
+ * (Includes both 'chief' and 'kitchen' roles)
  * @param {string} hotelId - The hotel ID
  * @param {string} event - Event name
  * @param {object} data - Event data
  */
 export const emitToKitchen = (hotelId, event, data) => {
   if (io) {
+    // Emit to both 'chiefs' and 'kitchens' rooms (different role names, same function)
     io.to(`hotel-${hotelId}-chiefs`).emit(event, data);
+    io.to(`hotel-${hotelId}-kitchens`).emit(event, data);
   }
 };
 
