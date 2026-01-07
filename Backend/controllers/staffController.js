@@ -259,12 +259,22 @@ export const staffLogin = asyncHandler(async (req, res) => {
       assignedProperties: user.assignedProperties.map((prop) => ({
         _id: prop._id,
         name: prop.name,
+        address: prop.location?.address || '',
+        city: prop.location?.city || '',
+        phone: prop.contact?.phone || '',
+        email: prop.contact?.email || '',
+        website: prop.contact?.website || '',
       })),
       // Current active property (first one or selected)
       activeProperty: user.assignedProperties[0]
         ? {
             _id: user.assignedProperties[0]._id,
             name: user.assignedProperties[0].name,
+            address: user.assignedProperties[0].location?.address || '',
+            city: user.assignedProperties[0].location?.city || '',
+            phone: user.assignedProperties[0].contact?.phone || '',
+            email: user.assignedProperties[0].contact?.email || '',
+            website: user.assignedProperties[0].contact?.website || '',
           }
         : null,
     },

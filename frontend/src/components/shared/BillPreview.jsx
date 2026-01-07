@@ -209,14 +209,12 @@ const BillPreview = ({ order, onClose, isDarkMode = false, hotelInfo = {} }) => 
                 {hotelInfo.name || "Hotel Restaurant"}
               </h1>
               <p style={{ fontSize: "12px", color: "#6B7280", margin: "0 0 4px 0" }}>
-                {hotelInfo.address || "Kathmandu, Nepal"}
+                {hotelInfo.address || "Address not available"}
               </p>
-              <p style={{ fontSize: "12px", color: "#6B7280", margin: 0 }}>
-                Tel: {hotelInfo.phone || "+977-1-XXXXXXX"}
+              <p style={{ fontSize: "12px", color: "#6B7280", margin: "0 0 4px 0" }}>
+                Tel: {hotelInfo.phone || "Phone not available"}
               </p>
-              <p style={{ fontSize: "11px", color: "#9CA3AF", margin: "4px 0 0 0" }}>
-                PAN: {hotelInfo.pan || "XXXXXXXXX"}
-              </p>
+             
             </div>
 
             {/* Bill Info */}
