@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { OrderContext } from "./OrderContextDef";
 import { getActiveProperty, getOrders, createOrder, updateOrder as updateOrderApi, updateOrderStatus as updateOrderStatusApi } from "../api/staff";
 
@@ -298,6 +298,7 @@ export const OrderProvider = ({ children }) => {
       setRealOrders(transformedOrders);
     } catch (err) {
       setError(err.message);
+      console.error("Failed to fetch orders:", err);
     } finally {
       if (!silent) {
         setLoading(false);
@@ -488,12 +489,46 @@ export const OrderProvider = ({ children }) => {
     }
   };
 
-  // combine: real orders first, then dummy orders, sorted by newest first
-  const allOrders = [...realOrders, ...orders].sort((a, b) => {
-    const dateA = new Date(a.placedAt || a.createdAt || 0);
-    const dateB = new Date(b.placedAt || b.createdAt || 0);
-    return dateB - dateA; // Newest first
-  });
+  // Combine real orders with dummy orders
+  // Real orders from DB take priority, sorted by newest first
+  const allOrders = useMemo(() => {
+    // Combine both arrays, preferring real orders
+    const combined = [...realOrders, ...orders];
+    
+    // Remove duplicates - keep real orders over dummy ones
+    const uniqueOrders = combined.reduce((acc, order) => {
+      // Check if we already have an order with same ID or same table/time combo
+      const isDuplicate = acc.some(existing => 
+        existing.id === order.id || 
+        (existing.isReal && !order.isReal && existing.table === order.table)
+      );
+      
+      // If it's a real order, always add. If dummy and no duplicate, add.
+      if (order.isReal || !isDuplicate) {
+        // If this is a real order but we have a dummy with same ID, replace
+        if (order.isReal) {
+          const dummyIndex = acc.findIndex(o => !o.isReal && o.id === order.id);
+          if (dummyIndex >= 0) {
+            acc[dummyIndex] = order;
+            return acc;
+          }
+        }
+        acc.push(order);
+      }
+      return acc;
+    }, []);
+    
+    // Sort by newest first
+    return uniqueOrders.sort((a, b) => {
+      // Real orders first
+      if (a.isReal && !b.isReal) return -1;
+      if (!a.isReal && b.isReal) return 1;
+      // Then by date
+      const dateA = new Date(a.placedAt || a.createdAt || 0);
+      const dateB = new Date(b.placedAt || b.createdAt || 0);
+      return dateB - dateA;
+    });
+  }, [realOrders, orders]);
 
   // Save to localStorage when orders change AND dispatch custom event for same-tab updates
   useEffect(() => {
