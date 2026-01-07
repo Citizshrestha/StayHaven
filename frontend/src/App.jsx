@@ -25,6 +25,7 @@ import ProtectedStaffRoute from "./routes/ProtectedStaffRoute";
 import AboutPage from "./components/aboutPage/AboutPage";
 import StaffLogin from "./components/staff/StaffLogin";
 import StaffForgotPassword from "./components/staff/StaffForgotPassword";
+import Destination from "./components/Destination";
 
 // Superadmin & Hotel Admin Components (commented out until files exist)
 import SuperadminDashboard from "./components/Superadmin/SuperadminDashboard";
@@ -63,6 +64,7 @@ const App = () => {
                   <Route path="/hotel/:id" element={<HotelDetailsPage />} />
                   <Route path="/hotels" element={<FilteredHotels />} />
                   <Route path="/booking-confirmed" element={<BookingConfirmed />} />
+                  <Route path="/destinations" element={<Destination />} />
 
                   {/* Staff Routes */}
                   <Route path="/staff/login" element={<StaffLogin />} />
