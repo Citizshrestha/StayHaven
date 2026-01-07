@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { X, Clock, MapPin, User, Trash2, MoreVertical, Edit, Copy, AlertTriangle, Printer, Send } from "lucide-react";
 import ItemCarousel from "../../shared/ItemCarousel";
 import BillPreview from "../../shared/BillPreview";
@@ -7,6 +7,7 @@ import { toast } from "react-toastify";
 import useClickOutside from "../../../hooks/useClickOutSide";
 import useRelativeTime from "../../../hooks/useRelativeTime";
 import EditOrderModal from "./EditOrderModal";
+import { useStaffAuth } from "../../../context/StaffAuthContext";
 
 
 const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
@@ -20,11 +21,38 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
   const [isMobile, setIsMobile] = useState(false);
   const [isTablet, setIsTablet] = useState(false);
 
+  // Get staff auth context for hotel info
+  const { staffUser } = useStaffAuth();
+
   // use custom hook for handling click outside
   const menuRef = useClickOutside(() => setShowMenu(false));
   const placedAtRelativeTime = useRelativeTime(order?.placedAt, true);
 
   const isHighPriority = (order?.priority || "").toLowerCase() === "high";
+
+  // Prepare hotel info for bill
+  const hotelInfo = useMemo(() => {
+    const property = staffUser?.activeProperty;
+    if (!property) return {};
+    
+    // Construct full address from available parts
+    let fullAddress = '';
+    if (property.address && property.city) {
+      fullAddress = `${property.address}, ${property.city}`;
+    } else if (property.address) {
+      fullAddress = property.address;
+    } else if (property.city) {
+      fullAddress = property.city;
+    }
+    
+    return {
+      name: property.name || '',
+      address: fullAddress,
+      phone: property.phone || '',
+      email: property.email || '',
+      website: property.website || '',
+    };
+  }, [staffUser?.activeProperty]);
 
   const getCompletionDate = (o) => {
     const raw = o?.deliveredAt || o?.servedAt || o?.updatedAt;
@@ -1384,6 +1412,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
           order={order}
           onClose={() => setShowBillPreview(false)}
           isDarkMode={false}
+          hotelInfo={hotelInfo}
         />
       )}
     </div>

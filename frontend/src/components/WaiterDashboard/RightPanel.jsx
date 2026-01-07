@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
-import { Utensils, ClipboardList, Clock, Plus, X, Minus, CheckCircle, AlertCircle } from "lucide-react";
+import { Plus, X, Minus, CheckCircle, AlertCircle, Package, Phone, Bell, Sparkles } from "lucide-react";
 import { useOrderContext } from "../../context/useOrderContext";
+import { useNotifications, NOTIFICATION_TYPES } from "../../context/useNotifications";
 import { useTheme } from "../../hooks/useTheme";
 import { toast } from "react-toastify";
 import useClickOutside from "../../hooks/useClickOutSide";
@@ -10,6 +11,7 @@ import "./RightPanel.css";
 const RightPanel = ({ orders = [] }) => {
   const { addOrder, loading } = useOrderContext();
   const { isDark } = useTheme();
+  const { notifications: contextNotifications } = useNotifications();
   const [showForm, setShowForm] = useState(false);
   const [locationError, setLocationError] = useState(""); // Validation error for duplicate room/table
   const [formData, setFormData] = useState({
@@ -117,80 +119,74 @@ const RightPanel = ({ orders = [] }) => {
       .slice(0, 5); // Show top 5 latest areas
   }, [orders]);
 
-  // Generate notifications from orders
+  // Helper function to get time ago string
+  const getTimeAgo = (date) => {
+    if (!date) return "Just now";
+    const now = new Date();
+    const notifDate = date instanceof Date ? date : new Date(date);
+    const diffMs = now - notifDate;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return `${diffDays}d ago`;
+  };
+
+  // Get the top 5 latest notifications from context, sorted by createdAt (newest first)
   const notifications = useMemo(() => {
-    const notifs = [];
-
-    orders.forEach(order => {
-      // New order notifications
-      if (order.status === 'new' || order.status === 'pending') {
-        const placedTime = new Date(order.placedAt);
-        const diffMins = Math.floor((new Date() - placedTime) / 60000);
-        if (diffMins < 30) {
-          notifs.push({
-            id: `new-${order.id}`,
-            type: "new_order",
-            Icon: Utensils,
-            iconBg: "#DBEAFE",
-            iconColor: "#2563EB",
-            message: `New order received for ${order.table}`,
-            time: diffMins === 0 ? "Just now" : `${diffMins}m ago`,
-            sortTime: placedTime,
-          });
-        }
+    // Helper function to get icon and colors for notification type (inline to avoid dependency issues)
+    const getNotificationStyle = (type) => {
+      switch (type) {
+        case NOTIFICATION_TYPES.NEW_ORDER:
+          return { 
+            Icon: Package, 
+            iconBg: isDark ? "rgba(37, 99, 235, 0.2)" : "#DBEAFE", 
+            iconColor: isDark ? "#60A5FA" : "#2563EB" 
+          };
+        case NOTIFICATION_TYPES.ORDER_READY:
+          return { 
+            Icon: CheckCircle, 
+            iconBg: isDark ? "rgba(5, 150, 105, 0.2)" : "#D1FAE5", 
+            iconColor: isDark ? "#34D399" : "#059669" 
+          };
+        case NOTIFICATION_TYPES.ORDER_STATUS:
+          return { 
+            Icon: Sparkles, 
+            iconBg: isDark ? "rgba(79, 70, 229, 0.2)" : "#E0E7FF", 
+            iconColor: isDark ? "#A5B4FC" : "#4F46E5" 
+          };
+        case NOTIFICATION_TYPES.WAITER_CALL:
+          return { 
+            Icon: Phone, 
+            iconBg: isDark ? "rgba(220, 38, 38, 0.2)" : "#FEE2E2", 
+            iconColor: isDark ? "#F87171" : "#DC2626" 
+          };
+        default:
+          return { 
+            Icon: Bell, 
+            iconBg: isDark ? "#334155" : "#F3F4F6", 
+            iconColor: isDark ? "#94A3B8" : "#6B7280" 
+          };
       }
+    };
 
-      // Ready for pickup notifications
-      if (order.status === 'ready') {
-        const readyTime = new Date(order.readyAt || order.placedAt);
-        const diffMins = Math.floor((new Date() - readyTime) / 60000);
-        notifs.push({
-          id: `ready-${order.id}`,
-          type: "order_ready",
-          Icon: CheckCircle,
-          iconBg: "#D1FAE5",
-          iconColor: "#059669",
-          message: `Order #${order.orderNumber || order.id?.slice?.(-5)?.toUpperCase()} ready for pickup`,
-          time: diffMins === 0 ? "Just now" : `${diffMins}m ago`,
-          sortTime: readyTime,
-        });
-      }
-
-      // Delayed order notifications
-      const placedTime = new Date(order.placedAt);
-      const diffMins = Math.floor((new Date() - placedTime) / 60000);
-      if (diffMins > 30 && order.status !== 'delivered' && order.status !== 'ready') {
-        // Format time more reasonably
-        let timeDisplay;
-        if (diffMins < 60) {
-          timeDisplay = `${diffMins}m waiting`;
-        } else if (diffMins < 1440) { // Less than 24 hours
-          const hours = Math.floor(diffMins / 60);
-          const mins = diffMins % 60;
-          timeDisplay = mins > 0 ? `${hours}h ${mins}m waiting` : `${hours}h waiting`;
-        } else { // More than 24 hours - something is wrong
-          const days = Math.floor(diffMins / 1440);
-          timeDisplay = `${days}d waiting (check order)`;
-        }
-
-        notifs.push({
-          id: `delay-${order.id}`,
-          type: "kitchen_update",
-          Icon: Clock,
-          iconBg: "#FEF3C7",
-          iconColor: "#D97706",
-          message: `Order #${order.orderNumber || order.id?.slice?.(-5)?.toUpperCase()} delayed`,
-          time: timeDisplay,
-          sortTime: placedTime,
-        });
-      }
-    });
-
-    // Sort by time (newest first) and limit to 5
-    return notifs
-      .sort((a, b) => new Date(b.sortTime) - new Date(a.sortTime))
-      .slice(0, 5);
-  }, [orders]);
+    return [...contextNotifications]
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, 5)
+      .map(notification => {
+        const { Icon, iconBg, iconColor } = getNotificationStyle(notification.type);
+        return {
+          ...notification,
+          Icon,
+          iconBg,
+          iconColor,
+          time: getTimeAgo(notification.createdAt),
+        };
+      });
+  }, [contextNotifications, isDark]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -315,23 +311,38 @@ const RightPanel = ({ orders = [] }) => {
         <h2 className="rp-section-title">Notifications</h2>
         <div className="rp-card">
           <div className="rp-notification-list">
-            {notifications.map((notification) => {
-              const { Icon, iconBg, iconColor } = notification;
-              return (
-                <div key={notification.id} className="rp-notification-item">
-                  <div
-                    className="rp-notification-icon"
-                    style={{ backgroundColor: iconBg }}
-                  >
-                    <Icon size={20} color={iconColor} />
+            {notifications.length === 0 ? (
+              <div className="rp-notification-empty" style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '24px 16px',
+                color: isDark ? '#94A3B8' : '#9CA3AF',
+                textAlign: 'center',
+              }}>
+                <Bell size={32} style={{ marginBottom: '8px', opacity: 0.5 }} />
+                <p style={{ margin: 0, fontSize: '14px' }}>No notifications yet</p>
+              </div>
+            ) : (
+              notifications.map((notification) => {
+                const { Icon, iconBg, iconColor } = notification;
+                return (
+                  <div key={notification.id} className="rp-notification-item">
+                    <div
+                      className="rp-notification-icon"
+                      style={{ backgroundColor: iconBg }}
+                    >
+                      <Icon size={20} color={iconColor} />
+                    </div>
+                    <div className="rp-notification-content">
+                      <p className="rp-notification-message">{notification.message}</p>
+                      <p className="rp-notification-time">{notification.time}</p>
+                    </div>
                   </div>
-                  <div className="rp-notification-content">
-                    <p className="rp-notification-message">{notification.message}</p>
-                    <p className="rp-notification-time">{notification.time}</p>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         </div>
       </div>
