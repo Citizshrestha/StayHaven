@@ -29,7 +29,6 @@ const WaiterDashboard = () => {
     waiterCallCount,
     markRead,
     markAllRead,
-    clearAll,
     setWaiterCallCount
   } = useNotifications();
 
@@ -118,10 +117,9 @@ const WaiterDashboard = () => {
       case "notifications":
         return (
           <NotificationPanel
-            notifications={notifications}
+            notifications={notifications.slice(0, 5)}
             onMarkRead={markRead}
             onMarkAllRead={markAllRead}
-            onClear={clearAll}
             onClose={() => setActiveView("dashboard")}
             onNotificationClick={handleNotificationClick}
             isDarkMode={isDark}

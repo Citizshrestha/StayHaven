@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { X, Clock, MapPin, User, Trash2, MoreVertical, Edit, Copy, AlertTriangle } from "lucide-react";
+import { X, Clock, MapPin, User, Trash2, MoreVertical, Edit, Copy, AlertTriangle, Printer, Send } from "lucide-react";
 import ItemCarousel from "../../shared/ItemCarousel";
+import BillPreview from "../../shared/BillPreview";
 import { deleteOrder } from "../../../api/staff";
 import { toast } from "react-toastify";
 import useClickOutside from "../../../hooks/useClickOutSide";
@@ -13,6 +14,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
   const [showMenu, setShowMenu] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showBillPreview, setShowBillPreview] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const [isMobile, setIsMobile] = useState(false);
@@ -563,29 +565,81 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
 
         <div style={buttonsContainerStyle}>
           {order.status === "delivered" ? (
-            <div
-              style={{
-                padding: "12px",
-                backgroundColor: "#D1FAE5",
-                borderRadius: "12px",
-                textAlign: "center",
-              }}
-            >
+            <div style={{ width: "100%" }}>
               <div
                 style={{
-                  fontSize: "16px",
-                  fontWeight: "700",
-                  color: "#059669",
-                  marginBottom: "4px",
+                  padding: "12px",
+                  backgroundColor: "#D1FAE5",
+                  borderRadius: "12px",
+                  textAlign: "center",
+                  marginBottom: "12px",
                 }}
               >
-                ✓ Order Completed
+                <div
+                  style={{
+                    fontSize: "16px",
+                    fontWeight: "700",
+                    color: "#059669",
+                    marginBottom: "4px",
+                  }}
+                >
+                  ✓ Order Completed
+                </div>
+                <div style={{ fontSize: "14px", color: "#6B7280" }}>
+                  {(() => {
+                    const t = formatCompletionTime(order);
+                    return t ? `Served at ${t}` : "Completed";
+                  })()}
+                </div>
               </div>
-              <div style={{ fontSize: "14px", color: "#6B7280" }}>
-                {(() => {
-                  const t = formatCompletionTime(order);
-                  return t ? `Served at ${t}` : "Completed";
-                })()}
+              {/* Print Bill & Send Bill Buttons */}
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                <button
+                  onClick={() => setShowBillPreview(true)}
+                  style={{
+                    flex: 1,
+                    minWidth: isMobile ? "100%" : "120px",
+                    padding: "10px 16px",
+                    backgroundColor: "#10B981",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "10px",
+                    fontSize: "13px",
+                    fontWeight: "700",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "6px",
+                    transition: "all 0.2s",
+                  }}
+                >
+                  <Printer size={16} />
+                  Print Bill
+                </button>
+                <button
+                  onClick={() => setShowBillPreview(true)}
+                  style={{
+                    flex: 1,
+                    minWidth: isMobile ? "100%" : "120px",
+                    padding: "10px 16px",
+                    backgroundColor: "#3B82F6",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "10px",
+                    fontSize: "13px",
+                    fontWeight: "700",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "6px",
+                    transition: "all 0.2s",
+                  }}
+                >
+                  <Send size={16} />
+                  Send Bill
+                </button>
               </div>
             </div>
           ) : order.status === "ready" ? (
@@ -875,7 +929,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                     Total Amount
                   </span>
                   <span style={{ fontSize: "18px", fontWeight: "800", color: "#059669" }}>
-                    ${order.totalPrice?.toFixed?.(2) || calculateOrderTotal()}
+                    Rs. {order.totalPrice?.toFixed?.(2) || calculateOrderTotal()}
                   </span>
                 </div>
               </div>
@@ -1321,6 +1375,15 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
           order={order}
           onClose={() => setShowEditModal(false)}
           onSave={handleSaveOrder}
+        />
+      )}
+
+      {/* Bill Preview Modal */}
+      {showBillPreview && (
+        <BillPreview
+          order={order}
+          onClose={() => setShowBillPreview(false)}
+          isDarkMode={false}
         />
       )}
     </div>

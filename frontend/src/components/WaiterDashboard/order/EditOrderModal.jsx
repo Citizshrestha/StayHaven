@@ -412,7 +412,7 @@ const EditOrderModal = ({ order, onClose, onSave }) => {
                     }}>
                         <span style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-secondary)" }}>Total</span>
                         <span style={{ fontSize: "24px", fontWeight: "800", color: "var(--text-primary)" }}>
-                            ${calculateTotal().toFixed(2)}
+                            Rs. {calculateTotal().toFixed(2)}
                         </span>
                     </div>
 
