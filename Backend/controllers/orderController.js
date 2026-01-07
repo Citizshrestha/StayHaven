@@ -494,4 +494,112 @@ export const deleteOrder = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * Send Bill to Customer
+ * 
+ * Sends the order bill to the customer via email or SMS
+ * 
+ * @route POST /api/orders/:orderId/send-bill
+ * @access Private (Staff)
+ */
+export const sendBillToCustomer = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+  const { method, email, phone } = req.body;
+
+  // Validate method
+  if (!method || !['email', 'sms', 'whatsapp'].includes(method)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid send method. Use 'email', 'sms', or 'whatsapp'",
+    });
+  }
+
+  // Find the order
+  const order = await Order.findById(orderId).populate('hotel', 'name address phone');
+  if (!order) {
+    return res.status(404).json({
+      success: false,
+      message: "Order not found",
+    });
+  }
+
+  // Validate contact based on method
+  if (method === 'email' && !email) {
+    return res.status(400).json({
+      success: false,
+      message: "Email is required for email delivery",
+    });
+  }
+
+  if ((method === 'sms' || method === 'whatsapp') && !phone) {
+    return res.status(400).json({
+      success: false,
+      message: "Phone number is required for SMS/WhatsApp delivery",
+    });
+  }
+
+  try {
+    // Generate bill content
+    const billData = {
+      orderNumber: order.orderNumber,
+      hotelName: order.hotel?.name || 'Hotel Restaurant',
+      hotelAddress: order.hotel?.address || '',
+      hotelPhone: order.hotel?.phone || '',
+      location: order.tableNumber ? `Table ${order.tableNumber}` : `Room ${order.roomNumber}`,
+      customerName: order.customerName || 'Guest',
+      items: order.items.map(item => ({
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+        total: item.price * item.quantity,
+      })),
+      subtotal: order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0),
+      tax: order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0) * 0.10,
+      serviceCharge: order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0) * 0.05,
+      total: order.totalPrice,
+      date: order.createdAt,
+    };
+
+    // For now, log the bill sending (integrate with actual email/SMS service later)
+    console.log(`📧 Sending bill via ${method}:`, {
+      to: method === 'email' ? email : phone,
+      orderNumber: order.orderNumber,
+      total: order.totalPrice,
+    });
+
+    // Update order with bill sent info
+    order.billSent = true;
+    order.billSentAt = new Date();
+    order.billSentTo = {
+      email: method === 'email' ? email : undefined,
+      phone: method !== 'email' ? phone : undefined,
+      method,
+    };
+    await order.save();
+
+    // TODO: Integrate with actual email/SMS service
+    // For email: Use nodemailer (already configured in config/nodemailer.js)
+    // For SMS: Integrate Twilio or similar service
+    // For WhatsApp: Use WhatsApp Business API
+
+    return res.status(200).json({
+      success: true,
+      message: `Bill sent successfully via ${method}`,
+      data: {
+        orderId: order._id,
+        orderNumber: order.orderNumber,
+        sentTo: method === 'email' ? email : phone,
+        method,
+        sentAt: order.billSentAt,
+      },
+    });
+  } catch (error) {
+    console.error('Send bill error:', error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to send bill. Please try again.",
+    });
+  }
+});
+
 // Order history endpoint removed

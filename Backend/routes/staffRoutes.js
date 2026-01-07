@@ -25,6 +25,7 @@ import {
   updateOrder,
   getOrderById,
   deleteOrder,
+  sendBillToCustomer,
 } from "../controllers/orderController.js";
 import {
   createWaiterCall,
@@ -95,6 +96,14 @@ router.put(
   protect,
   authorize("waiter", "manager"),
   updateOrder
+);
+
+// Send bill to customer - waiter, manager can send
+router.post(
+  "/orders/:orderId/send-bill",
+  protect,
+  authorize("waiter", "receptionist", "manager"),
+  sendBillToCustomer
 );
 
 // MANAGER/ADMIN/OWNER ONLY ROUTES
