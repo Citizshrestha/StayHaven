@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
-import { Bell, Check, CheckCircle, Trash2, X, Clock, ChefHat, AlertCircle, Utensils, Package, Phone, Sparkles } from "lucide-react";
+import { Bell, Check, CheckCircle, X, Clock, ChefHat, AlertCircle, Utensils, Package, Phone, Sparkles } from "lucide-react";
 
 const NotificationPanel = ({
     notifications = [],
     onMarkRead,
     onMarkAllRead,
-    onClear,
     onClose,
     onNotificationClick, // New: callback when clicking a notification to navigate
     isDarkMode = false, // New: dark mode support
@@ -282,19 +281,6 @@ const NotificationPanel = ({
                         >
                             <Check size={16} />
                             Mark all read
-                        </button>
-                    )}
-                    {notifications.length > 0 && (
-                        <button
-                            onClick={onClear}
-                            style={{
-                                ...actionButtonStyle,
-                                backgroundColor: colors.bgTertiary,
-                                color: colors.textSecondary,
-                            }}
-                        >
-                            <Trash2 size={16} />
-                            Clear all
                         </button>
                     )}
                     {onClose && (

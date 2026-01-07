@@ -315,7 +315,7 @@ const OrderFormModal = ({ onClose }) => {
                                             }}>+</button>
                                     </div>
                                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                                        <span style={{ fontSize: "16px", fontWeight: "700", color: colors.text }}>$</span>
+                                        <span style={{ fontSize: "16px", fontWeight: "700", color: colors.text }}>Rs.</span>
                                         <input
                                             type="number"
                                             value={item.price || 0}
@@ -323,13 +323,14 @@ const OrderFormModal = ({ onClose }) => {
                                             min="0"
                                             onChange={(e) => handleItemChange(index, "price", parseFloat(e.target.value) || 0)}
                                             style={{
-                                                width: "70px",
+                                                width: "90px",
                                                 border: "none",
                                                 fontSize: "16px",
                                                 fontWeight: "700",
                                                 color: colors.text,
                                                 outline: "none",
-                                                background: "transparent"
+                                                background: "transparent",
+                                                boxSizing: "border-box"
                                             }} />
                                         {formData.items.length > 1 && (
                                             <button type="button"
