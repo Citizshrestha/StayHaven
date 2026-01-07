@@ -667,7 +667,7 @@ const RightPanel = ({ orders = [] }) => {
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                         <div style={{ display: "flex", alignItems: "center", fontSize: "18px", fontWeight: "700", color: colors.text }}>
-                          <span>$</span>
+                          <span>Rs.</span>
                           <input
                             type="number"
                             value={item.price || 0}
@@ -675,7 +675,7 @@ const RightPanel = ({ orders = [] }) => {
                             min="0"
                             onChange={(e) => handleItemChange(index, "price", parseFloat(e.target.value) || 0)}
                             style={{
-                              width: "80px",
+                              width: "140px", // increased to allow at least 4 digits to be visible on desktop
                               border: "none",
                               fontSize: "18px",
                               fontWeight: "700",
