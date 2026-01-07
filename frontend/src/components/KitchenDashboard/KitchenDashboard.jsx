@@ -24,8 +24,7 @@ const KitchenDashboard = () => {
     notifications, 
     unreadCount, 
     markRead, 
-    markAllRead, 
-    clearAll 
+    markAllRead
   } = useNotifications();
 
   // Socket.io for order refresh (notifications handled by context)
@@ -102,10 +101,9 @@ const KitchenDashboard = () => {
       case "notifications":
         return (
           <NotificationPanel
-            notifications={notifications}
+            notifications={notifications.slice(0, 5)}
             onMarkRead={markRead}
             onMarkAllRead={markAllRead}
-            onClear={clearAll}
             onClose={() => setActiveView("dashboard")}
             onNotificationClick={handleNotificationClick}
             isDarkMode={isDarkMode}
