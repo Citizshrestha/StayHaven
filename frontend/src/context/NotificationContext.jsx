@@ -128,12 +128,13 @@ export const NotificationProvider = ({ children }) => {
   useEffect(() => {
     if (!subscribe || !isAuthenticated) return;
 
+    console.log(`📡 [NotificationContext] Setting up subscriptions for role: ${staffRole}`);
     const unsubscribers = [];
 
     // New order notification (skip if current user is the creator)
     unsubscribers.push(
       subscribe('new-order', (data) => {
-        console.log('📦 [NotificationContext] New order:', data);
+        console.log('📦 [NotificationContext] New order received:', data);
         
         // Skip notification if current user created this order (self-notification)
         if (data.creatorId && currentUserId && data.creatorId === currentUserId) {
@@ -141,6 +142,7 @@ export const NotificationProvider = ({ children }) => {
           return;
         }
         
+        console.log('🔊 [NotificationContext] Playing sound for new order');
         playWithVibration('newOrder');
         
         const location = data.order.orderType === 'roomService'
