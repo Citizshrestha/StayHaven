@@ -68,6 +68,7 @@ export const SocketProvider = ({ children }) => {
     // Connection established
     socketInstance.on("connect", () => {
       console.log("🔌 Socket connected:", socketInstance.id);
+      console.log(`👤 Socket joining as role: ${staffUser.role} for hotel: ${activeProperty._id}`);
       setIsConnected(true);
 
       // Join hotel room to receive hotel-specific updates

@@ -1,20 +1,4 @@
-/**
- * useNotificationSound Hook
- * 
- * This hook manages sound notifications for the waiter dashboard.
- * 
- * WHY SOUND NOTIFICATIONS?
- * In a busy restaurant, waiters can't always look at their screen.
- * Sound notifications alert them immediately when:
- * - A new order arrives
- * - An order is ready for pickup
- * - A guest calls for assistance
- * 
- * BROWSER LIMITATIONS:
- * - Browsers block autoplay of sounds by default
- * - User must interact with page first (click, tap, etc.)
- * - We handle this by playing a silent sound on first interaction
- */
+
 
 import { useCallback, useRef, useEffect, useState } from "react";
 
@@ -31,22 +15,54 @@ const SOUND_URLS = {
 };
 
 /**
+ * Helper function to check if sound is currently enabled in settings
+ * Reads directly from localStorage to always get the latest value
+ * Supports both waiter and kitchen settings
+ */
+const isSoundEnabledInSettings = () => {
+  // Get role directly from localStorage (simpler and more reliable)
+  const currentRole = localStorage.getItem("staffRole");
+  
+  // Check the appropriate settings based on role
+  if (currentRole === 'chief' || currentRole === 'kitchen') {
+    // Kitchen staff - check kitchenSettings
+    const kitchenSaved = localStorage.getItem("kitchenSettings");
+    if (kitchenSaved) {
+      try {
+        const settings = JSON.parse(kitchenSaved);
+        return settings.sound !== false; // Explicitly check for false
+      } catch (e) {
+        // Ignore parse errors, default to enabled
+      }
+    }
+    // No kitchenSettings found, default to enabled
+    return true;
+  } else if (currentRole === 'waiter') {
+    // Waiter - check waiterSettings
+    const waiterSaved = localStorage.getItem("waiterSettings");
+    if (waiterSaved) {
+      try {
+        const settings = JSON.parse(waiterSaved);
+        return settings.sound !== false; // Explicitly check for false
+      } catch (e) {
+        // Ignore parse errors, default to enabled
+      }
+    }
+    // No waiterSettings found, default to enabled
+    return true;
+  }
+  
+  // Unknown role - default to enabled
+  return true;
+};
+
+/**
  * Custom hook for playing notification sounds
- * @returns {object} - { playSound, isEnabled, setIsEnabled, hasInteracted }
+ * @returns {object} - { playSound, playWithVibration, hasInteracted }
  */
 const useNotificationSound = () => {
   // Refs to store Audio objects (persist across renders)
   const audioRefs = useRef({});
-  
-  // State for sound enabled/disabled (persisted in localStorage)
-  const [isEnabled, setIsEnabled] = useState(() => {
-    const saved = localStorage.getItem("waiterSettings");
-    if (saved) {
-      const settings = JSON.parse(saved);
-      return settings.sound !== false; // Default to true
-    }
-    return true;
-  });
 
   // Track if user has interacted with page (required for autoplay)
   const [hasInteracted, setHasInteracted] = useState(false);
@@ -74,21 +90,8 @@ const useNotificationSound = () => {
     const handleInteraction = () => {
       if (!hasInteracted) {
         setHasInteracted(true);
-
-        // Try to unlock audio by resuming an AudioContext (silent, no audible playback)
-        try {
-          const AudioCtx = window.AudioContext || window.webkitAudioContext;
-          if (AudioCtx) {
-            const ctx = new AudioCtx();
-            if (ctx.state === 'suspended' && typeof ctx.resume === 'function') {
-              ctx.resume().catch(() => {
-                // ignore resume errors
-              });
-            }
-          }
-        } catch (e) {
-          // Fallback: do nothing. Avoid playing any audio to prevent audible click.
-        }
+        // Note: Using HTML5 Audio elements (not Web Audio API)
+        // Browser autoplay restrictions are handled by the .play() call catching errors
       }
     };
 
@@ -104,22 +107,20 @@ const useNotificationSound = () => {
     };
   }, [hasInteracted]);
 
-  // Save preference to localStorage when changed
-  useEffect(() => {
-    const saved = localStorage.getItem("waiterSettings");
-    const settings = saved ? JSON.parse(saved) : {};
-    settings.sound = isEnabled;
-    localStorage.setItem("waiterSettings", JSON.stringify(settings));
-  }, [isEnabled]);
-
   /**
    * Play a notification sound
+   * IMPORTANT: Reads sound setting directly from localStorage each time
+   * to ensure it always respects the current setting
    * @param {string} type - Type of sound: 'newOrder', 'orderReady', 'waiterCall', 'notification'
    */
   const playSound = useCallback((type = "notification") => {
-    // Don't play if disabled or browser hasn't allowed audio yet
-    if (!isEnabled) {
-      console.log("🔇 Sound disabled by user");
+    // Read current sound setting directly from localStorage (not from React state)
+    // This ensures the setting is always up-to-date even if changed in settings
+    const soundEnabled = isSoundEnabledInSettings();
+    const currentRole = localStorage.getItem("staffRole") || 'unknown';
+    
+    if (!soundEnabled) {
+      console.log(`🔇 [${currentRole}] Sound disabled in settings`);
       return;
     }
 
@@ -130,44 +131,28 @@ const useNotificationSound = () => {
       audio.currentTime = 0;
       
       // Play the sound
-      audio.play().catch(error => {
-        console.warn("⚠️ Could not play sound:", error.message);
-        // This usually happens if user hasn't interacted with page yet
-      });
+      audio.play()
+        .then(() => {
+          console.log(`🔊 [${currentRole}] Sound played: ${type}`);
+        })
+        .catch(error => {
+          console.warn(`⚠️ [${currentRole}] Could not play sound (${type}):`, error.message);
+        });
     }
-  }, [isEnabled]);
+  }, []);
 
   /**
-   * Play sound with vibration (for mobile devices)
+   * Play sound (vibration removed as per requirements)
    * @param {string} type - Type of sound
    */
   const playWithVibration = useCallback((type = "notification") => {
+    // Just play the sound - vibration feature has been removed
     playSound(type);
-    
-    // Vibrate if supported and enabled
-    const saved = localStorage.getItem("waiterSettings");
-    const settings = saved ? JSON.parse(saved) : {};
-    
-    if (settings.vibration && navigator.vibrate) {
-      // Different vibration patterns for different notifications
-      switch (type) {
-        case "waiterCall":
-          navigator.vibrate([200, 100, 200, 100, 200]); // Urgent pattern
-          break;
-        case "orderReady":
-          navigator.vibrate([200, 100, 200]); // Medium pattern
-          break;
-        default:
-          navigator.vibrate(200); // Single vibration
-      }
-    }
   }, [playSound]);
 
   return {
     playSound,
     playWithVibration,
-    isEnabled,
-    setIsEnabled,
     hasInteracted,
   };
 };
