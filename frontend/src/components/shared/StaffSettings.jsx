@@ -42,7 +42,6 @@ const StaffSettings = ({ onClose, variant = "waiter" }) => {
     const defaultSettings = {
       // Notifications
       sound: true,
-      vibration: false,
       alertTypes: ["newOrders"],
       // Display
       theme: theme || "light",
@@ -339,18 +338,6 @@ const StaffSettings = ({ onClose, variant = "waiter" }) => {
                 type="checkbox"
                 checked={settings.sound}
                 onChange={(e) => updateSetting("sound", e.target.checked)}
-              />
-              <span className="ws-toggle-slider"></span>
-            </label>
-          </div>
-
-          <div className="ws-setting-row">
-            <span>Vibration</span>
-            <label className="ws-toggle">
-              <input
-                type="checkbox"
-                checked={settings.vibration}
-                onChange={(e) => updateSetting("vibration", e.target.checked)}
               />
               <span className="ws-toggle-slider"></span>
             </label>
