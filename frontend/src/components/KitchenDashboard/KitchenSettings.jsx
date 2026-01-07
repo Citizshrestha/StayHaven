@@ -29,7 +29,6 @@ const KitchenSettings = ({ onClose, isDarkMode, onToggleDarkMode }) => {
     const saved = localStorage.getItem("kitchenSettings");
     return saved ? JSON.parse(saved) : {
       sound: true,
-      vibration: false,
       alertTypes: ["newOrders"],
       theme: isDarkMode ? "dark" : "light",
     };
@@ -298,18 +297,6 @@ const KitchenSettings = ({ onClose, isDarkMode, onToggleDarkMode }) => {
                 type="checkbox"
                 checked={settings.sound}
                 onChange={(e) => updateSetting('sound', e.target.checked)}
-              />
-              <span className="ws-toggle-slider"></span>
-            </label>
-          </div>
-
-          <div className="ws-setting-row">
-            <span>Vibration</span>
-            <label className="ws-toggle">
-              <input
-                type="checkbox"
-                checked={settings.vibration}
-                onChange={(e) => updateSetting('vibration', e.target.checked)}
               />
               <span className="ws-toggle-slider"></span>
             </label>

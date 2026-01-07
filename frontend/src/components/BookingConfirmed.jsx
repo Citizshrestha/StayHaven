@@ -257,7 +257,7 @@ const BookingConfirmed = () => {
               fontWeight: '700',
               color: '#111827'
             }}>
-              ${totalPaid.toFixed(2)}
+              Rs. {totalPaid.toFixed(2)}
             </p>
           </div>
 
