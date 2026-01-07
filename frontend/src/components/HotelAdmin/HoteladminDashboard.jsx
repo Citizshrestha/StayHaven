@@ -21,16 +21,16 @@ const HoteladminDashboard = () => {
 
   // State for rooms data
   const [roomsData, setRoomsData] = useState([
-    { id: 1, roomNumber: '101', roomType: 'Standard', status: 'available', cleanliness: 'Clean', price: '$150', amenities: ['WiFi', 'TV', 'AC'] },
-    { id: 2, roomNumber: '102', roomType: 'Deluxe', status: 'occupied', cleanliness: 'Dirty', price: '$250', amenities: ['WiFi', 'TV', 'AC', 'Mini Bar'] },
-    { id: 3, roomNumber: '103', roomType: 'Suite', status: 'maintenance', cleanliness: 'Clean', price: '$450', amenities: ['WiFi', 'TV', 'AC', 'Mini Bar', 'Jacuzzi'] },
-    { id: 4, roomNumber: '104', roomType: 'Standard', status: 'available', cleanliness: 'Clean', price: '$150', amenities: ['WiFi', 'TV', 'AC'] },
-    { id: 5, roomNumber: '105', roomType: 'Deluxe', status: 'occupied', cleanliness: 'Dirty', price: '$250', amenities: ['WiFi', 'TV', 'AC', 'Mini Bar'] },
-    { id: 6, roomNumber: '106', roomType: 'Suite', status: 'available', cleanliness: 'Clean', price: '$450', amenities: ['WiFi', 'TV', 'AC', 'Mini Bar', 'Jacuzzi'] },
-    { id: 7, roomNumber: '107', roomType: 'Standard', status: 'occupied', cleanliness: 'Dirty', price: '$150', amenities: ['WiFi', 'TV', 'AC'] },
-    { id: 8, roomNumber: '108', roomType: 'Deluxe', status: 'maintenance', cleanliness: 'Clean', price: '$250', amenities: ['WiFi', 'TV', 'AC', 'Mini Bar'] },
-    { id: 9, roomNumber: '109', roomType: 'Suite', status: 'available', cleanliness: 'Clean', price: '$450', amenities: ['WiFi', 'TV', 'AC', 'Mini Bar', 'Jacuzzi'] },
-    { id: 10, roomNumber: '110', roomType: 'Standard', status: 'occupied', cleanliness: 'Dirty', price: '$150', amenities: ['WiFi', 'TV', 'AC'] }
+    { id: 1, roomNumber: '101', roomType: 'Standard', status: 'available', cleanliness: 'Clean', price: 'Rs. 15,000', amenities: ['WiFi', 'TV', 'AC'] },
+    { id: 2, roomNumber: '102', roomType: 'Deluxe', status: 'occupied', cleanliness: 'Dirty', price: 'Rs. 25,000', amenities: ['WiFi', 'TV', 'AC', 'Mini Bar'] },
+    { id: 3, roomNumber: '103', roomType: 'Suite', status: 'maintenance', cleanliness: 'Clean', price: 'Rs. 45,000', amenities: ['WiFi', 'TV', 'AC', 'Mini Bar', 'Jacuzzi'] },
+    { id: 4, roomNumber: '104', roomType: 'Standard', status: 'available', cleanliness: 'Clean', price: 'Rs. 15,000', amenities: ['WiFi', 'TV', 'AC'] },
+    { id: 5, roomNumber: '105', roomType: 'Deluxe', status: 'occupied', cleanliness: 'Dirty', price: 'Rs. 25,000', amenities: ['WiFi', 'TV', 'AC', 'Mini Bar'] },
+    { id: 6, roomNumber: '106', roomType: 'Suite', status: 'available', cleanliness: 'Clean', price: 'Rs. 45,000', amenities: ['WiFi', 'TV', 'AC', 'Mini Bar', 'Jacuzzi'] },
+    { id: 7, roomNumber: '107', roomType: 'Standard', status: 'occupied', cleanliness: 'Dirty', price: 'Rs. 15,000', amenities: ['WiFi', 'TV', 'AC'] },
+    { id: 8, roomNumber: '108', roomType: 'Deluxe', status: 'maintenance', cleanliness: 'Clean', price: 'Rs. 25,000', amenities: ['WiFi', 'TV', 'AC', 'Mini Bar'] },
+    { id: 9, roomNumber: '109', roomType: 'Suite', status: 'available', cleanliness: 'Clean', price: 'Rs. 45,000', amenities: ['WiFi', 'TV', 'AC', 'Mini Bar', 'Jacuzzi'] },
+    { id: 10, roomNumber: '110', roomType: 'Standard', status: 'occupied', cleanliness: 'Dirty', price: 'Rs. 15,000', amenities: ['WiFi', 'TV', 'AC'] }
   ]);
 
   // State for new room form
@@ -110,12 +110,12 @@ const HoteladminDashboard = () => {
   };
 
   const invoicesData = [
-    { id: '#INV-001', guest: 'Ethan Harper', amount: '$450.00', status: 'Paid', date: '2024-07-25', method: 'Card' },
-    { id: '#INV-002', guest: 'Olivia Bennett', amount: '$2,100.00', status: 'Pending', date: '2024-07-24', method: 'Bank Transfer' },
-    { id: '#INV-003', guest: 'Noah Carter', amount: '$150.00', status: 'Paid', date: '2024-07-23', method: 'Cash' },
-    { id: '#INV-004', guest: 'Ava Foster', amount: '$900.00', status: 'Paid', date: '2024-07-22', method: 'Card' },
-    { id: '#INV-005', guest: 'Liam Walker', amount: '$75.00', status: 'Pending', date: '2024-07-21', method: 'Cash' },
-    { id: '#INV-006', guest: 'Mason Scott', amount: '$1,500.00', status: 'Paid', date: '2024-07-20', method: 'Card' },
+    { id: '#INV-001', guest: 'Ethan Harper', amount: 'Rs. 45,000', status: 'Paid', date: '2024-07-25', method: 'Card' },
+    { id: '#INV-002', guest: 'Olivia Bennett', amount: 'Rs. 2,10,000', status: 'Pending', date: '2024-07-24', method: 'Bank Transfer' },
+    { id: '#INV-003', guest: 'Noah Carter', amount: 'Rs. 15,000', status: 'Paid', date: '2024-07-23', method: 'Cash' },
+    { id: '#INV-004', guest: 'Ava Foster', amount: 'Rs. 90,000', status: 'Paid', date: '2024-07-22', method: 'Card' },
+    { id: '#INV-005', guest: 'Liam Walker', amount: 'Rs. 7,500', status: 'Pending', date: '2024-07-21', method: 'Cash' },
+    { id: '#INV-006', guest: 'Mason Scott', amount: 'Rs. 1,50,000', status: 'Paid', date: '2024-07-20', method: 'Card' },
   ];
 
   // Invoice UI state
@@ -124,18 +124,18 @@ const HoteladminDashboard = () => {
   const [selectedInvoices, setSelectedInvoices] = useState(new Set());
 
   const transactionsData = [
-    { id: 'TRX-9876', type: 'Credit', amount: '$450.00', status: 'Success', date: '2024-07-25', ref: 'INV-001' },
-    { id: 'TRX-5432', type: 'Debit', amount: '$50.00', status: 'Success', date: '2024-07-24', ref: 'RES-345' },
-    { id: 'TRX-1098', type: 'Credit', amount: '$150.00', status: 'Success', date: '2024-07-23', ref: 'INV-003' },
-    { id: 'TRX-7654', type: 'Credit', amount: '$900.00', status: 'Success', date: '2024-07-22', ref: 'INV-004' },
-    { id: 'TRX-3210', type: 'Credit', amount: '$1,000.00', status: 'Failed', date: '2024-07-21', ref: 'BOOK-567' },
+    { id: 'TRX-9876', type: 'Credit', amount: 'Rs. 45,000', status: 'Success', date: '2024-07-25', ref: 'INV-001' },
+    { id: 'TRX-5432', type: 'Debit', amount: 'Rs. 5,000', status: 'Success', date: '2024-07-24', ref: 'RES-345' },
+    { id: 'TRX-1098', type: 'Credit', amount: 'Rs. 15,000', status: 'Success', date: '2024-07-23', ref: 'INV-003' },
+    { id: 'TRX-7654', type: 'Credit', amount: 'Rs. 90,000', status: 'Success', date: '2024-07-22', ref: 'INV-004' },
+    { id: 'TRX-3210', type: 'Credit', amount: 'Rs. 1,00,000', status: 'Failed', date: '2024-07-21', ref: 'BOOK-567' },
   ];
 
   const paymentMethodsData = [
-    { method: 'Credit Card (Visa)', count: 120, revenue: '$65,000' },
-    { method: 'Cash', count: 50, revenue: '$15,000' },
-    { method: 'Bank Transfer', count: 20, revenue: '$30,000' },
-    { method: 'Online Payment (PayPal)', count: 35, revenue: '$20,500' },
+    { method: 'Credit Card (Visa)', count: 120, revenue: 'Rs. 65,00,000' },
+    { method: 'Cash', count: 50, revenue: 'Rs. 15,00,000' },
+    { method: 'Bank Transfer', count: 20, revenue: 'Rs. 30,00,000' },
+    { method: 'Online Payment (PayPal)', count: 35, revenue: 'Rs. 20,50,000' },
   ];
   
   // Handle navigation click
@@ -188,7 +188,7 @@ const HoteladminDashboard = () => {
       const newRoomWithId = {
         ...newRoom,
         id: roomsData.length + 1,
-        price: newRoom.price.startsWith('$') ? newRoom.price : `$${newRoom.price}`
+        price: newRoom.price.startsWith('Rs.') ? newRoom.price : `Rs. ${newRoom.price}`
       };
       
       setRoomsData([...roomsData, newRoomWithId]);
@@ -338,7 +338,7 @@ const HoteladminDashboard = () => {
             <div className="analytics-header">
               <h3>Sales Analytics</h3>
               <div className="analytics-value">
-                <div className="amount">$12,500</div>
+                <div className="amount">Rs. 12,50,000</div>
                 <div className="trend positive">Last 7 Days +15%</div>
               </div>
             </div>
