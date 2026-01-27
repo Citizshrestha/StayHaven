@@ -39,6 +39,7 @@ import Feedback from "./components/Feedback";
 import Footer from "./components/Footer";
 import ContactUs from "./components/Contactus";
 import StaffResetPassword from "./components/staff/StaffResetPassword";
+import ReceptionDashboard from "./components/ReceptionDashboard/ReceptionDashboard";
 
 const App = () => {
   return (
@@ -88,6 +89,21 @@ const App = () => {
                       </ProtectedStaffRoute>
                     }
                   />
+                  {/* Temporarily unprotected for development/testing */}
+                  <Route
+                    path="/reception-dashboard"
+                    element={<ReceptionDashboard />}
+                  />
+                  {/* Protected version - uncomment when ready:
+                  <Route
+                    path="/reception-dashboard"
+                    element={
+                      <ProtectedStaffRoute allowedRoles={["receptionist"]}>
+                        <ReceptionDashboard />
+                      </ProtectedStaffRoute>
+                    }
+                  />
+                  */}
 
                   {/*   Superadmin & Hotel Admin Routes (commented out until files exist) */}
                   <Route path="/superadmindashboard" element={<SuperadminDashboard />} />
