@@ -64,6 +64,27 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
   const formatCompletionTime = (o) => {
     const d = getCompletionDate(o);
     if (!d) return "";
+    
+    const now = new Date();
+    const diffMs = now - d;
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    
+    // More than 48 hours - show exact date and time
+    if (diffHours > 48) {
+      const day = d.getDate();
+      const month = d.toLocaleString('en-US', { month: 'short' });
+      const year = d.getFullYear();
+      const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      return `${day} ${month}, ${year} at ${time}`;
+    }
+    
+    // More than 24 hours - show "Yesterday at [time]"
+    if (diffHours > 24) {
+      const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      return `Yesterday at ${time}`;
+    }
+    
+    // Within 24 hours - show just the time
     return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
@@ -152,7 +173,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
     // For "delivered" status, show completion time
     else if (order.status === "delivered") {
       const t = formatCompletionTime(order);
-      return t ? `Served at ${t}` : "Completed";
+      return t ? `Served on ${t}` : "Completed";
     }
 
     // For "new" or other status, use relative time
@@ -616,7 +637,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                 <div style={{ fontSize: "14px", color: "#6B7280" }}>
                   {(() => {
                     const t = formatCompletionTime(order);
-                    return t ? `Served at ${t}` : "Completed";
+                    return t ? `Served on ${t}` : "Completed";
                   })()}
                 </div>
               </div>
