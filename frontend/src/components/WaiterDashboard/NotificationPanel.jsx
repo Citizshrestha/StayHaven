@@ -1,5 +1,20 @@
 import { useState, useEffect } from "react";
 import { Bell, Check, CheckCircle, X, Clock, ChefHat, AlertCircle, Utensils, Package, Phone, Sparkles } from "lucide-react";
+import useRelativeTime from "../../hooks/useRelativeTime";
+
+// Separate component to use hook for each notification's time
+const NotificationTime = ({ date, color }) => {
+    const relativeTime = useRelativeTime(date, true);
+    return (
+        <span style={{
+            fontSize: '12px',
+            color: color,
+            fontWeight: '500',
+        }}>
+            {relativeTime || 'Just now'}
+        </span>
+    );
+};
 
 const NotificationPanel = ({
     notifications = [],
@@ -19,21 +34,6 @@ const NotificationPanel = ({
         window.addEventListener('resize', checkScreenSize);
         return () => window.removeEventListener('resize', checkScreenSize);
     }, []);
-
-    const getTimeAgo = (date) => {
-        if (!date) return "Just now";
-        const now = new Date();
-        const notifDate = date instanceof Date ? date : new Date(date);
-        const diffMs = now - notifDate;
-        const diffMins = Math.floor(diffMs / 60000);
-        const diffHours = Math.floor(diffMins / 60);
-        const diffDays = Math.floor(diffHours / 24);
-
-        if (diffMins < 1) return "Just now";
-        if (diffMins < 60) return `${diffMins}m ago`;
-        if (diffHours < 24) return `${diffHours}h ago`;
-        return `${diffDays}d ago`;
-    };
 
     // Status-based colors matching OrderCard exactly, theme-aware
     const STATUS_COLORS = {
@@ -338,13 +338,10 @@ const NotificationPanel = ({
                                         }}>
                                             {label}
                                         </span>
-                                        <span style={{
-                                            fontSize: '12px',
-                                            color: colors.textTertiary,
-                                            fontWeight: '500',
-                                        }}>
-                                            {getTimeAgo(notification.createdAt || notification.time)}
-                                        </span>
+                                        <NotificationTime 
+                                            date={notification.createdAt || notification.time} 
+                                            color={colors.textTertiary}
+                                        />
                                     </div>
                                     <p style={{
                                         fontSize: '15px',
