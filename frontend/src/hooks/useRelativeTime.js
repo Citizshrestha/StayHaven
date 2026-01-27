@@ -16,7 +16,7 @@ const useRelativeTime = (dateInput, autoUpdate = false) => {
       if (isNaN(target.getTime())) {
         return 'Invalid date';
       }
-    } catch (error) {
+    } catch {
       return 'Invalid date';
     }
     
@@ -26,9 +26,6 @@ const useRelativeTime = (dateInput, autoUpdate = false) => {
     const diffMinutes = Math.floor(diffSeconds / 60);
     const diffHours = Math.floor(diffMinutes / 60);
     const diffDays = Math.floor(diffHours / 24);
-    const diffWeeks = Math.floor(diffDays / 7);
-    const diffMonths = Math.floor(diffDays / 30.44); // Average month length
-    const diffYears = Math.floor(diffDays / 365.25); // Account for leap years
     
     // Future dates
     if (diffMs < 0) {
@@ -100,28 +97,18 @@ const useRelativeTime = (dateInput, autoUpdate = false) => {
       return `${diffDays}d ago`;
     }
     
-    // 1 week to 4 weeks
-    if (diffDays < 30) {
-      return `${diffWeeks}w ago`;
+    // More than 7 days - show exact date with year
+    if (diffDays > 7) {
+      const day = target.getDate();
+      const month = target.toLocaleString('en-US', { month: 'short' });
+      const targetYear = target.getFullYear();
+      
+      return `${day} ${month}, ${targetYear}`;
     }
     
-    // 1 month to 12 months
-    if (diffDays < 365) {
-      // For exactly 1 month, show "1 month ago" instead of "1mo ago"
-      if (diffMonths === 1) {
-        return '1 month ago';
-      }
-      return `${diffMonths} months ago`;
-    }
-    
-    // More than 1 year
-    // For exactly 1 year
-    if (diffYears === 1) {
-      return '1 year ago';
-    }
-    
-    return `${diffYears} years ago`;
-  }, [dateInput]);
+    // 1 week (exactly 7 days)
+    return `${diffDays}d ago`;
+  }, []);
 
   useEffect(() => {
     // Clear any existing interval
