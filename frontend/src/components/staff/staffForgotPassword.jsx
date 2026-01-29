@@ -260,7 +260,7 @@ const StaffForgotPassword = () => {
                 {/* Icon */}
                 <div 
                   className="mx-auto bg-teal-100 rounded-full flex items-center justify-center"
-                  style={{ width: "64px", height: "64px", marginBottom: "20px" }}
+                  style={{ width: "64px", height: "64px", marginBottom: "20px", marginLeft: "7rem" }}
                 >
                   <svg
                     className="text-teal-500"
@@ -443,7 +443,7 @@ const StaffForgotPassword = () => {
                 {/* Success Icon */}
                 <div 
                   className="mx-auto bg-green-100 rounded-full flex items-center justify-center"
-                  style={{ width: "80px", height: "80px", marginBottom: "24px" }}
+                  style={{ width: "80px", height: "80px", marginBottom: "24px", marginLeft: "6.5rem" }}
                 >
                   <svg
                     className="text-green-500"

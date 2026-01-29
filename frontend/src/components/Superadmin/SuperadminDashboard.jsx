@@ -9,7 +9,7 @@ const SuperadminDashboard = () => {
   const [activeNav, setActiveNav] = useState('dashboard');
 
   const navigationItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', active: true },
+    { id: 'dashboard', label: 'Dashboard', icon: 'dashboard',path: '/superadmindashboard', active: true },
     { id: 'users', label: 'User Management', icon: 'group', path: '/usermanagement' },
     { id: 'hotels', label: 'Hotel Management', icon: 'apartment' , path: '/hotelmanagement'},
     { id: 'bookings', label: 'Booking Management', icon: 'book_online' },

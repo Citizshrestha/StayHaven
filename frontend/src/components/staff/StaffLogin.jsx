@@ -59,16 +59,15 @@ const StaffLogin = () => {
     }
   };
 
-  // const handleForgotPassword = async() => {
-  //    try {
-  //       const response =  await forgotPassword(formData.email);
-  //       if (response.success){
-  //         navigate("/staff/forgot-password");
-  //       }
-  //    } catch (err) {
-  //       toast.error("Some Error Occured", err.message);
-  //    }
-  // };
+  const handleForgotPasswordClick = async() => {
+     try {
+        
+          navigate("/staff/forgot-password");
+         
+     } catch (err) {
+        toast.error("Some Error Occured", err.message);
+     }
+  };
 
   const handleGuestBookings = () => {
     navigate("/");
@@ -446,6 +445,7 @@ const StaffLogin = () => {
                 Remember this device
               </label>
               <button
+              onClick={handleForgotPasswordClick}
                 type="button"
                 className="text-teal-500 font-medium hover:text-teal-600 hover:underline transition-colors duration-200"
                 style={{ fontSize: "14px" }}

@@ -14,7 +14,7 @@ const HoteladminDashboard = () => {
   const [orderStatusFilter, setOrderStatusFilter] = useState('all');
   const [staffRoleFilter, setStaffRoleFilter] = useState('all');
   const [staffStatusFilter, setStaffStatusFilter] = useState('all');
-  const [showAddStaffModal, setShowAddStaffModal] = useState(false);
+  // const [showAddStaffModal, setShowAddStaffModal] = useState(false);
   const [roomFilter, setRoomFilter] = useState('all');
   const [showAddRoomModal, setShowAddRoomModal] = useState(false);
   const [showEditRoomModal, setShowEditRoomModal] = useState(false);
@@ -145,7 +145,9 @@ const HoteladminDashboard = () => {
     try {
       // update URL hash for deep-linking and back/forward support
       if (typeof window !== 'undefined') window.location.hash = `#${sectionId}`;
-    } catch (e) {}
+    } catch (e) {
+      console.error('Failed to update URL hash:', e);
+    }
     console.log(`Navigating to ${sectionId}`);
   };
 
