@@ -1,0 +1,647 @@
+.loyalty-points-container {
+  width: 100%;
+  padding: 24px;
+  background: #f5f6fa;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Header */
+.loyalty-header {
+  margin-bottom: 30px;
+}
+
+.loyalty-header h1 {
+  font-size: 2rem;
+  color: #2c3e50;
+  margin: 0 0 8px 0;
+  font-weight: 700;
+}
+
+.loyalty-header p {
+  color: #7f8c8d;
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+/* Filters Section */
+.loyalty-filters-section {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  margin-bottom: 24px;
+}
+
+.search-box {
+  position: relative;
+  margin-bottom: 16px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 12px 40px 12px 16px;
+  border: 1px solid #e0e4eb;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  background: #f9fafb;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #17a2b8;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(23, 162, 184, 0.1);
+}
+
+.search-icon {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #7f8c8d;
+  pointer-events: none;
+}
+
+.filters-group {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 180px;
+}
+
+.filter-item label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #2c3e50;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.filter-select {
+  padding: 10px 12px;
+  border: 1px solid #e0e4eb;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: #2c3e50;
+}
+
+.filter-select:hover {
+  border-color: #17a2b8;
+  background: #f9fafb;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #17a2b8;
+  box-shadow: 0 0 0 3px rgba(23, 162, 184, 0.1);
+}
+
+.btn-reset,
+.btn-export {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-reset {
+  background: #ecf0f1;
+  color: #2c3e50;
+  border: 1px solid #bdc3c7;
+}
+
+.btn-reset:hover {
+  background: #d5dbdd;
+  border-color: #95a5a6;
+}
+
+.btn-export {
+  background: #17a2b8;
+  color: white;
+}
+
+.btn-export:hover {
+  background: #138496;
+  box-shadow: 0 4px 12px rgba(23, 162, 184, 0.3);
+}
+
+/* Results Info */
+.results-info {
+  color: #7f8c8d;
+  font-size: 0.9rem;
+  margin-bottom: 12px;
+  padding: 0 4px;
+}
+
+/* Table */
+.loyalty-table-wrapper {
+  background: white;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  margin-bottom: 24px;
+}
+
+.loyalty-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.loyalty-table thead {
+  background: #17a2b8;
+  color: white;
+}
+
+.loyalty-table thead th {
+  padding: 14px 12px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 2px solid #138496;
+}
+
+.loyalty-table tbody tr {
+  border-bottom: 1px solid #ecf0f1;
+  transition: all 0.3s ease;
+}
+
+.loyalty-table tbody tr:hover {
+  background: #f9fafb;
+}
+
+.loyalty-table tbody tr.selected {
+  background: #e8f4f8;
+}
+
+.loyalty-table tbody td {
+  padding: 12px;
+  color: #2c3e50;
+}
+
+.checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #17a2b8;
+}
+
+.guest-name {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.points-column {
+  text-align: center;
+}
+
+.points-badge {
+  background: #e8f4f8;
+  color: #17a2b8;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-weight: 700;
+  display: inline-block;
+  font-size: 0.9rem;
+}
+
+.tier-badge {
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-weight: 600;
+  color: white;
+  display: inline-block;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.activity-column {
+  font-weight: 500;
+}
+
+.activity-positive {
+  color: #27ae60;
+}
+
+.activity-negative {
+  color: #e74c3c;
+}
+
+.actions-column {
+  text-align: center;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-view {
+  background: #17a2b8;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-view:hover {
+  background: #138496;
+  box-shadow: 0 2px 6px rgba(23, 162, 184, 0.3);
+}
+
+.action-dropdown {
+  position: relative;
+}
+
+.btn-action {
+  background: #ecf0f1;
+  border: 1px solid #bdc3c7;
+  color: #2c3e50;
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 32px;
+}
+
+.btn-action:hover {
+  background: #d5dbdd;
+  border-color: #95a5a6;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: white;
+  border: 1px solid #e0e4eb;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  min-width: 140px;
+  display: none;
+}
+
+.action-dropdown:hover .dropdown-menu {
+  display: block;
+}
+
+.dropdown-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 14px;
+  background: none;
+  border: none;
+  color: #2c3e50;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.dropdown-menu button:first-child {
+  border-radius: 5px 5px 0 0;
+}
+
+.dropdown-menu button:last-child {
+  border-radius: 0 0 5px 5px;
+}
+
+.dropdown-menu button:hover {
+  background: #f9fafb;
+  color: #17a2b8;
+}
+
+.no-data {
+  text-align: center;
+  color: #7f8c8d;
+  padding: 40px 12px !important;
+  font-size: 0.95rem;
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+
+.pagination-btn {
+  padding: 8px 12px;
+  border: 1px solid #e0e4eb;
+  background: white;
+  color: #2c3e50;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  min-width: 36px;
+  text-align: center;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  border-color: #17a2b8;
+  color: #17a2b8;
+  background: #f9fafb;
+}
+
+.pagination-btn.active {
+  background: #17a2b8;
+  color: white;
+  border-color: #17a2b8;
+  font-weight: 700;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #ecf0f1;
+}
+
+.pagination-dots {
+  color: #7f8c8d;
+  padding: 0 4px;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modal {
+  background: white;
+  border-radius: 10px;
+  max-width: 500px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #ecf0f1;
+  background: #f9fafb;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.3rem;
+  color: #2c3e50;
+  font-weight: 700;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.8rem;
+  color: #7f8c8d;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.modal-close:hover {
+  color: #e74c3c;
+  background: #ecf0f1;
+  border-radius: 4px;
+}
+
+.modal-content {
+  padding: 20px;
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.detail-item.full-width {
+  grid-column: 1 / -1;
+}
+
+.detail-item label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #7f8c8d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.detail-item p {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.detail-item p.highlight {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #17a2b8;
+}
+
+.status-badge {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-badge.active {
+  background: #d4edda;
+  color: #155724;
+}
+
+.status-badge.inactive {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 12px;
+  padding: 20px;
+  border-top: 1px solid #ecf0f1;
+  background: #f9fafb;
+  justify-content: flex-end;
+}
+
+.btn-primary,
+.btn-secondary {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-primary {
+  background: #17a2b8;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #138496;
+  box-shadow: 0 4px 12px rgba(23, 162, 184, 0.3);
+}
+
+.btn-secondary {
+  background: #ecf0f1;
+  color: #2c3e50;
+  border: 1px solid #bdc3c7;
+}
+
+.btn-secondary:hover {
+  background: #d5dbdd;
+  border-color: #95a5a6;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .loyalty-points-container {
+    padding: 16px;
+  }
+
+  .loyalty-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .filters-group {
+    flex-direction: column;
+  }
+
+  .filter-item {
+    width: 100%;
+    min-width: unset;
+  }
+
+  .btn-reset,
+  .btn-export {
+    width: 100%;
+  }
+
+  .loyalty-table {
+    font-size: 0.8rem;
+  }
+
+  .loyalty-table thead th,
+  .loyalty-table tbody td {
+    padding: 8px;
+  }
+
+  .actions-column {
+    flex-direction: column;
+  }
+
+  .btn-view {
+    width: 100%;
+  }
+
+  .details-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .modal {
+    max-width: 90%;
+  }
+}
+
+@media (max-width: 480px) {
+  .loyalty-points-container {
+    padding: 12px;
+  }
+
+  .loyalty-header h1 {
+    font-size: 1.2rem;
+  }
+
+  .loyalty-table {
+    font-size: 0.75rem;
+  }
+
+  .loyalty-table thead th,
+  .loyalty-table tbody td {
+    padding: 6px 4px;
+  }
+
+  .loyalty-table-wrapper {
+    overflow-x: auto;
+  }
+
+  .pagination {
+    gap: 4px;
+  }
+
+  .pagination-btn {
+    padding: 6px 8px;
+    min-width: 30px;
+    font-size: 0.8rem;
+  }
+}

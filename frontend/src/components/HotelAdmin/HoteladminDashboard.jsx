@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './HoteladminDashboard.css';
 import RestaurantManagement from './RestaurantManagement';
+import Loyaltypoints from './Loyaltypoints';
 
 const HoteladminDashboard = () => {
   const [activeSection, setActiveSection] = useState(() => {
@@ -276,7 +277,7 @@ const HoteladminDashboard = () => {
       case 'billing':
         return renderBillingPayments();
       case 'loyalty':
-        return <div className="page-content">Loyalty Points</div>;
+        return <Loyaltypoints />;
       case 'reports':
         return <div className="page-content">Reports & Analytics</div>;
       case 'notifications':
@@ -1067,7 +1068,7 @@ const HoteladminDashboard = () => {
     </div>
   );
 
-const renderBillingPayments = () => {
+  const renderBillingPayments = () => {
 
     const renderInvoicesTab = () => (
       <div className="tab-content">
