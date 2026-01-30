@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './HoteladminDashboard.css';
 import RestaurantManagement from './RestaurantManagement';
 import Loyaltypoints from './Loyaltypoints';
+import HotelReport from './HotelReport';
 
 const HoteladminDashboard = () => {
   const [activeSection, setActiveSection] = useState(() => {
@@ -281,7 +282,7 @@ const HoteladminDashboard = () => {
       case 'loyalty':
         return <Loyaltypoints />;
       case 'reports':
-        return <div className="page-content">Reports & Analytics</div>;
+        return <HotelReport />;
       case 'notifications':
         return <div className="page-content">Notifications</div>;
       default:

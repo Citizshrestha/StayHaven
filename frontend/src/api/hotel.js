@@ -128,3 +128,90 @@ export const getFeaturedHotels = async () => {
     throw error.response?.data || error;
   }
 };
+
+// Get hotel report (protected - owner/admin only)
+export const getHotelReport = async (hotelId, dateRange = 'month') => {
+  try {
+    const token = localStorage.getItem('accessToken');
+    const response = await axiosClient.get(`/hotels/${hotelId}/report?dateRange=${dateRange}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching hotel report:', error);
+    throw error.response?.data || error;
+  }
+};
+
+// Get hotel revenue report (protected - owner/admin only)
+export const getHotelRevenueReport = async (hotelId, startDate, endDate) => {
+  try {
+    const token = localStorage.getItem('accessToken');
+    const response = await axiosClient.get(`/hotels/${hotelId}/revenue-report`, {
+      params: { startDate, endDate },
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching revenue report:', error);
+    throw error.response?.data || error;
+  }
+};
+
+// Get occupancy report (protected - owner/admin only)
+export const getOccupancyReport = async (hotelId, dateRange = 'month') => {
+  try {
+    const token = localStorage.getItem('accessToken');
+    const response = await axiosClient.get(`/hotels/${hotelId}/occupancy-report?dateRange=${dateRange}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching occupancy report:', error);
+    throw error.response?.data || error;
+  }
+};
+
+// Get loyalty points data (protected - owner/admin only)
+export const getLoyaltyPoints = async (hotelId, filters = {}) => {
+  try {
+    const token = localStorage.getItem('accessToken');
+    const queryParams = new URLSearchParams(filters).toString();
+    const response = await axiosClient.get(`/hotels/${hotelId}/loyalty-points${queryParams ? `?${queryParams}` : ''}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching loyalty points:', error);
+    throw error.response?.data || error;
+  }
+};
+
+// Get user loyalty details (protected - guest/user)
+export const getUserLoyaltyDetails = async () => {
+  try {
+    const token = localStorage.getItem('accessToken');
+    const response = await axiosClient.get('/loyalty/my-details', {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching user loyalty details:', error);
+    throw error.response?.data || error;
+  }
+};
+
+// Update loyalty points (protected - owner/admin only)
+export const updateLoyaltyPoints = async (hotelId, userId, points) => {
+  try {
+    const token = localStorage.getItem('accessToken');
+    const response = await axiosClient.post(`/hotels/${hotelId}/loyalty-points/update`, 
+      { userId, points },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error updating loyalty points:', error);
+    throw error.response?.data || error;
+  }
+};
