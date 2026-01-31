@@ -1,6 +1,29 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'react-toastify';
 import './HoteladminDashboard.css';
 import RestaurantManagement from './RestaurantManagement';
+
+// Empty State Component
+const EmptyState = ({ icon, title, description, actionLabel, onAction }) => (
+  <div className="empty-state">
+    <div className="empty-state-icon">{icon}</div>
+    <h3 className="empty-state-title">{title}</h3>
+    <p className="empty-state-description">{description}</p>
+    {actionLabel && onAction && (
+      <button className="btn-primary" onClick={onAction}>
+        {actionLabel}
+      </button>
+    )}
+  </div>
+);
+
+// Loading Spinner Component
+const LoadingSpinner = ({ message = 'Loading...' }) => (
+  <div className="loading-container">
+    <div className="loading-spinner"></div>
+    <p className="loading-message">{message}</p>
+  </div>
+);
 
 const HoteladminDashboard = () => {
   const [activeSection, setActiveSection] = useState(() => {
@@ -8,6 +31,21 @@ const HoteladminDashboard = () => {
     const hash = typeof window !== 'undefined' ? window.location.hash.replace('#', '') : '';
     return hash || 'dashboard';
   });
+  
+  // Dark mode state with localStorage persistence
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('hoteladmin-dark-mode');
+    return saved ? JSON.parse(saved) : false;
+  });
+
+  // Toggle dark mode
+  const toggleDarkMode = () => {
+    setDarkMode(prev => {
+      const newMode = !prev;
+      localStorage.setItem('hoteladmin-dark-mode', JSON.stringify(newMode));
+      return newMode;
+    });
+  };
   const [orderSearch, setOrderSearch] = useState('');
   const [orderTypeFilter, setOrderTypeFilter] = useState('all');
   const [orderStatusFilter, setOrderStatusFilter] = useState('all');
@@ -87,16 +125,26 @@ const HoteladminDashboard = () => {
   };
 
 
-  // Top selling items
-  const topSellingItems = ['Item 1', 'Item 2', 'Item 3', 'Item 4', 'Item 5', 'Item 6', 'Item 7'];
+  // Updated top selling items with proper names
+  const topSellingItems = [
+    'Fresh Item',
+    'Poticon Item', 
+    'Stanffard Item',
+    'Vanituraaf Item',
+    'Cithamer Item',
+    'Wowbang Item',
+    'Premium Item'
+  ];
   
-  // Recent bookings (used by the dashboard recent bookings table)
+  // Recent bookings data for the new design
   const recentBookings = [
-    { guestName: 'Liam Carter', roomNumber: '101', checkIn: '2024-07-20', checkOut: '2024-07-25', orderNumber: '12345', status: 'Confirmed' },
-    { guestName: 'Olivia Bennett', roomNumber: '205', checkIn: '2024-07-21', checkOut: '2024-07-24', orderNumber: '67890', status: 'Completed' },
-    { guestName: 'Ethan Harper', roomNumber: '310', checkIn: '2024-07-22', checkOut: '2024-07-26', orderNumber: '11223', status: 'Pending' },
-    { guestName: 'Ava Foster', roomNumber: '112', checkIn: '2024-07-23', checkOut: '2024-07-27', orderNumber: '33445', status: 'Confirmed' },
-    { guestName: 'Noah Parker', roomNumber: '215', checkIn: '2024-07-24', checkOut: '2024-07-28', orderNumber: '55667', status: 'Completed' }
+    { bookingId: '3007-26173330', guestName: 'Danaorae Sharnat', roomType: 'Deluxe Suite', status: 'Confirmed', lastUpdate: '19 minutes ago' },
+    { bookingId: '3007-20100090', guestName: 'Both Vakery', roomType: 'Standard Room', status: 'Completed', lastUpdate: '10 hours ago' },
+    { bookingId: '3007-17000000', guestName: 'Panny Ranala', roomType: 'Premium Suite', status: 'Pending', lastUpdate: '10 hours ago' },
+    { bookingId: '3007-15234567', guestName: 'John Smith', roomType: 'Executive Room', status: 'Confirmed', lastUpdate: '1 day ago' },
+    { bookingId: '3007-14987654', guestName: 'Sarah Johnson', roomType: 'Deluxe Suite', status: 'Cancelled', lastUpdate: '2 days ago' },
+    { bookingId: '3007-13456789', guestName: 'Mike Wilson', roomType: 'Standard Room', status: 'Completed', lastUpdate: '3 days ago' },
+    { bookingId: '3007-12345678', guestName: 'Emily Davis', roomType: 'Premium Suite', status: 'Pending', lastUpdate: '4 days ago' },
   ];
 
   // --- New State for Billing & Payments ---
@@ -160,6 +208,40 @@ const HoteladminDashboard = () => {
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
 
+  // Handle Escape key to close modals
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        if (showAddRoomModal) {
+          setShowAddRoomModal(false);
+        }
+        if (showEditRoomModal) {
+          setShowEditRoomModal(false);
+          setEditingRoom(null);
+        }
+        if (invoiceModalOpen) {
+          setInvoiceModalOpen(false);
+          setActiveInvoice(null);
+        }
+      }
+    };
+    
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [showAddRoomModal, showEditRoomModal, invoiceModalOpen]);
+
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (showAddRoomModal || showEditRoomModal || invoiceModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [showAddRoomModal, showEditRoomModal, invoiceModalOpen]);
+
   // Filter rooms based on status
   const filteredRooms = roomFilter === 'all' 
     ? roomsData 
@@ -181,7 +263,7 @@ const HoteladminDashboard = () => {
     if (newRoom.roomNumber && newRoom.price) {
       const roomExists = roomsData.some(room => room.roomNumber === newRoom.roomNumber);
       if (roomExists) {
-        alert('Room number already exists! Please use a different room number.');
+        toast.error('Room number already exists! Please use a different room number.');
         return;
       }
 
@@ -201,9 +283,9 @@ const HoteladminDashboard = () => {
         price: '',
         amenities: []
       });
-      alert('Room added successfully!');
+      toast.success('Room added successfully!');
     } else {
-      alert('Please fill in all required fields');
+      toast.error('Please fill in all required fields');
     }
   };
 
@@ -215,9 +297,9 @@ const HoteladminDashboard = () => {
       ));
       setShowEditRoomModal(false);
       setEditingRoom(null);
-      alert('Room updated successfully!');
+      toast.success('Room updated successfully!');
     } else {
-      alert('Please fill in all required fields');
+      toast.error('Please fill in all required fields');
     }
   };
 
@@ -225,7 +307,7 @@ const HoteladminDashboard = () => {
   const handleDeleteRoom = (roomId) => {
     if (window.confirm('Are you sure you want to delete this room?')) {
       setRoomsData(roomsData.filter(room => room.id !== roomId));
-      alert('Room deleted successfully!');
+      toast.success('Room deleted successfully!');
     }
   };
 
@@ -289,173 +371,319 @@ const HoteladminDashboard = () => {
   };
 
   const renderDashboard = () => (
-    <div className="dashboard-content">
-      <div className="dashboard-header">
-        <h1>Dashboard</h1>
-        <p className="welcome-text">Welcome back, Bhushal! Here's a snapshot of your hotel's operations.</p>
-      </div>
-
-      {/* Stats Grid */}
-        <div className="stats-grid">
-        <div className="stat-card clickable" onClick={() => handleNavigation('rooms')} role="button" tabIndex={0}>
-          <div className="stat-icon">🏨</div>
-          <div className="stat-info">
-            <h3>Total Rooms</h3>
-            <div className="stat-number">250</div>
-          </div>
+    <div style={{marginLeft: "20px", padding: "24px 32px 48px 32px"}} className="bg-gray-50 dark:bg-gray-900 min-h-screen">
+      {/* Dashboard Header */}
+      <div style={{marginBottom: "32px"}} className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Dashboard</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Welcome back! Here's what's happening today.</p>
         </div>
-
-        <div className="stat-card clickable" onClick={() => handleNavigation('orders')} role="button" tabIndex={0}>
-          <div className="stat-icon">🍽</div>
-          <div className="stat-info">
-            <h3>Active Restaurant Orders</h3>
-            <div className="stat-number">15</div>
-          </div>
-        </div>
-
-        <div className="stat-card clickable" onClick={() => handleNavigation('billing')} role="button" tabIndex={0}>
-          <div className="stat-icon">💰</div>
-          <div className="stat-info">
-            <h3>Today's Revenue</h3>
-            <div className="stat-number">$5,200</div>
-          </div>
-        </div>
-
-        <div className="stat-card clickable" onClick={() => handleNavigation('loyalty')} role="button" tabIndex={0}>
-          <div className="stat-icon">⭐</div>
-          <div className="stat-info">
-            <h3>Loyalty Points Redeemed</h3>
-            <div className="stat-number">300</div>
+        <div style={{gap: "16px"}} className="flex items-center">
+          <button style={{padding: "10px"}} className="rounded-xl bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shadow-sm border border-gray-200 dark:border-gray-700">
+            <svg className="w-5 h-5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
+          <button style={{padding: "10px"}} className="rounded-xl bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shadow-sm border border-gray-200 dark:border-gray-700 relative">
+            <svg className="w-5 h-5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+            <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[10px] text-white flex items-center justify-center font-medium">3</span>
+          </button>
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold text-sm shadow-md">
+            H
           </div>
         </div>
       </div>
 
-      {/* Analytics Section */}
-      <div className="analytics-section">
-        <h2>Analytics</h2>
-        <div className="analytics-grid">
-          <div className="analytics-card">
-            <div className="analytics-header">
-              <h3>Sales Analytics</h3>
-              <div className="analytics-value">
-                <div className="amount">Rs. 12,50,000</div>
-                <div className="trend positive">Last 7 Days +15%</div>
-              </div>
+      {/* Stats Cards - 4 columns */}
+      <div style={{gap: "24px", marginBottom: "32px"}} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Total Rooms */}
+        <div 
+          style={{padding: "24px"}}
+          className="bg-white dark:bg-gray-800 rounded-2xl cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-gray-100 dark:border-gray-700 group"
+          onClick={() => handleNavigation('rooms')}
+          role="button"
+          tabIndex={0}
+        >
+          <div style={{marginBottom: "16px"}} className="flex items-center justify-between">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
             </div>
-            <div className="chart-placeholder">
-              <div className="chart-bars">
-                <div className="bar" style={{height: '60%'}}></div>
-                <div className="bar" style={{height: '80%'}}></div>
-                <div className="bar" style={{height: '45%'}}></div>
-                <div className="bar" style={{height: '90%'}}></div>
-                <div className="bar" style={{height: '70%'}}></div>
-                <div className="bar" style={{height: '85%'}}></div>
-                <div className="bar" style={{height: '95%'}}></div>
-              </div>
-              <div className="chart-labels">
-                <span>Mon</span>
-                <span>Tue</span>
-                <span>Wed</span>
-                <span>Thu</span>
-                <span>Fri</span>
-                <span>Sat</span>
-                <span>Sun</span>
-              </div>
+            <span style={{padding: "4px 10px"}} className="text-xs font-medium text-green-500 bg-green-50 dark:bg-green-900/30 rounded-full">+12%</span>
+          </div>
+          <div style={{marginBottom: "4px"}} className="text-3xl font-bold text-gray-900 dark:text-white">{roomStats.total}</div>
+          <span className="text-sm text-gray-500 dark:text-gray-400">Total Rooms</span>
+        </div>
+
+        {/* Active Orders */}
+        <div 
+          style={{padding: "24px"}}
+          className="bg-white dark:bg-gray-800 rounded-2xl cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-gray-100 dark:border-gray-700 group"
+          onClick={() => handleNavigation('orders')}
+          role="button"
+          tabIndex={0}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-lg shadow-purple-500/20">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+              </svg>
+            </div>
+            <span className="text-xs font-medium text-amber-500 bg-amber-50 dark:bg-amber-900/30 px-2.5 py-1 rounded-full">Active</span>
+          </div>
+          <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">{ordersData.filter(o => o.status !== 'Fulfilled').length}</div>
+          <span className="text-sm text-gray-500 dark:text-gray-400">Active Orders</span>
+        </div>
+
+        {/* Today's Revenue */}
+        <div 
+          style={{padding: "24px"}}
+          className="bg-white dark:bg-gray-800 rounded-2xl cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-gray-100 dark:border-gray-700 group"
+          onClick={() => handleNavigation('billing')}
+          role="button"
+          tabIndex={0}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <span className="text-xs font-medium text-green-500 bg-green-50 dark:bg-green-900/30 px-2.5 py-1 rounded-full">+8.2%</span>
+          </div>
+          <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">{billingStats.totalRevenue}</div>
+          <span className="text-sm text-gray-500 dark:text-gray-400">Today's Revenue</span>
+        </div>
+
+        {/* Loyalty Points */}
+        <div 
+          style={{padding: "24px"}}
+          className="bg-white dark:bg-gray-800 rounded-2xl cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-gray-100 dark:border-gray-700 group"
+          onClick={() => handleNavigation('loyalty')}
+          role="button"
+          tabIndex={0}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+              </svg>
+            </div>
+            <span className="text-xs font-medium text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-2.5 py-1 rounded-full">Premium</span>
+          </div>
+          <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">300</div>
+          <span className="text-sm text-gray-500 dark:text-gray-400">Loyalty Points</span>
+        </div>
+      </div>
+
+      {/* Analytics Section - 3 columns */}
+      <div style={{marginTop: "20px", gap: "24px", marginBottom: "32px"}} className="grid grid-cols-1 lg:grid-cols-3">
+        {/* Sales Analytics */}
+        <div style={{padding: "24px"}} className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="font-semibold text-gray-900 dark:text-white">Sales Analytics</h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Weekly overview</p>
+            </div>
+            <button className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 dark:hover:text-gray-300 transition-colors">
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+              </svg>
+            </button>
+          </div>
+          <div className="flex items-baseline gap-3 mb-2">
+            <span className="text-3xl font-bold text-gray-900 dark:text-white">Rs. 12,50,000</span>
+            <span className="text-sm text-emerald-500 font-semibold flex items-center gap-1">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+              </svg>
+              +15%
+            </span>
+          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">Compared to last week</p>
+          {/* Line Chart */}
+          <div className="h-32 mt-4">
+            <svg viewBox="0 0 300 100" className="w-full h-full">
+              <defs>
+                <linearGradient id="chartGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="rgb(99, 102, 241)" stopOpacity="0.3" />
+                  <stop offset="100%" stopColor="rgb(99, 102, 241)" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              <path
+                d="M0,80 Q30,70 60,50 T120,40 T180,60 T240,30 T300,45"
+                fill="none"
+                stroke="rgb(99, 102, 241)"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+              />
+              <path
+                d="M0,80 Q30,70 60,50 T120,40 T180,60 T240,30 T300,45 L300,100 L0,100 Z"
+                fill="url(#chartGradient)"
+              />
+            </svg>
+            <div className="flex justify-between text-xs text-gray-400 mt-2">
+              <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
             </div>
           </div>
+        </div>
 
-          <div className="analytics-card">
-            <div className="analytics-header">
-              <h3>Order Status</h3>
-              <div className="analytics-value">
-                <div className="amount">150</div>
-                <div className="trend positive">Today +5%</div>
+        {/* Order Status */}
+        <div style={{padding: "24px"}} className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+          <div style={{marginBottom: "24px"}} className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-gray-900 dark:text-white">Order Status</h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Current distribution</p>
+            </div>
+            <button className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 dark:hover:text-gray-300 transition-colors">
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+              </svg>
+            </button>
+          </div>
+          <div style={{display: "flex", flexDirection: "column", gap: "20px"}}>
+            {/* Pending */}
+            <div>
+              <div style={{marginBottom: "8px"}} className="flex items-center justify-between">
+                <div style={{display: "flex", alignItems: "center", gap: "8px"}}>
+                  <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Pending</span>
+                </div>
+                <span className="text-sm font-semibold text-gray-900 dark:text-white">30%</span>
+              </div>
+              <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                <div className="h-full bg-amber-500 rounded-full transition-all duration-500" style={{width: '30%'}}></div>
               </div>
             </div>
-            <div className="status-chart">
-              <div className="status-bars">
-                <div className="status-bar pending" style={{width: '30%'}}>
-                  <span>Pending</span>
+            
+            {/* Completed */}
+            <div>
+              <div style={{marginBottom: "8px"}} className="flex items-center justify-between">
+                <div style={{display: "flex", alignItems: "center", gap: "8px"}}>
+                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Completed</span>
                 </div>
-                <div className="status-bar completed" style={{width: '50%'}}>
-                  <span>Completed</span>
-                </div>
-                <div className="status-bar canceled" style={{width: '20%'}}>
-                  <span>Canceled</span>
-                </div>
+                <span className="text-sm font-semibold text-gray-900 dark:text-white">50%</span>
               </div>
-              <div className="status-legend">
-                <div className="legend-item">
-                  <span className="color-dot pending"></span>
-                  <span>Pending</span>
+              <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                <div className="h-full bg-emerald-500 rounded-full transition-all duration-500" style={{width: '50%'}}></div>
+              </div>
+            </div>
+            
+            {/* Canceled */}
+            <div>
+              <div style={{marginBottom: "8px"}} className="flex items-center justify-between">
+                <div style={{display: "flex", alignItems: "center", gap: "8px"}}>
+                  <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Canceled</span>
                 </div>
-                <div className="legend-item">
-                  <span className="color-dot completed"></span>
-                  <span>Completed</span>
-                </div>
-                <div className="legend-item">
-                  <span className="color-dot canceled"></span>
-                  <span>Canceled</span>
-                </div>
+                <span className="text-sm font-semibold text-gray-900 dark:text-white">20%</span>
+              </div>
+              <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                <div className="h-full bg-red-500 rounded-full transition-all duration-500" style={{width: '20%'}}></div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Bottom Section */}
-      <div className="bottom-section">
-        <div className="top-selling">
-          <div className="section-header">
-            <h3>Top Selling Items</h3>
-            <div className="section-stats">
-              <span className="number">10</span>
-              <span className="trend positive">This Month +10%</span>
+        {/* Top Selling Items */}
+        <div style={{padding: "24px", display: "flex", flexDirection: "column"}} className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+          <div style={{marginBottom: "16px"}} className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-gray-900 dark:text-white">Top Selling Items</h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Best performers</p>
             </div>
           </div>
-          <div className="items-list">
+          <div style={{display: "flex", flexDirection: "column", gap: "12px", maxHeight: "220px", overflowY: "auto", paddingRight: "8px"}}>
             {topSellingItems.map((item, index) => (
-              <div key={index} className="item">
-                <span className="item-rank">{index + 1}</span>
-                <span className="item-name">{item}</span>
+              <div key={index} style={{padding: "12px", display: "flex", alignItems: "center", gap: "16px"}} className="rounded-xl bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer">
+                <span className="w-8 h-8 flex items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 text-white text-xs font-bold shadow-sm">
+                  {index + 1}
+                </span>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{item}</span>
+                <span className="ml-auto text-xs text-gray-500">#{index + 1} selling</span>
               </div>
             ))}
           </div>
         </div>
+      </div>
 
-        <div className="recent-bookings">
-          <div className="section-header">
-            <h3>Recent Bookings / Orders</h3>
+      {/* Recent Bookings */}
+      <div style={{marginTop: "20px", marginBottom: "24px"}} className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+        <div style={{padding: "24px"}} className="border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+          <div>
+            <h3 className="font-semibold text-gray-900 dark:text-white">Recent Bookings</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Latest booking activities</p>
           </div>
-          <div className="table-container">
-            <table className="bookings-table">
-              <thead>
-                <tr>
-                  <th>Guest Name</th>
-                  <th>Room Number</th>
-                  <th>Check-In</th>
-                  <th>Check-Out</th>
-                  <th>Order Number</th>
-                  <th>Status</th>
+          <button className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors flex items-center gap-1">
+            View All
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+        <div style={{maxHeight: "350px", overflowY: "auto"}} className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-gray-50 dark:bg-gray-700/50">
+                <th style={{padding: "16px 24px"}} className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Booking ID</th>
+                <th style={{padding: "16px 24px"}} className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Guest Name</th>
+                <th style={{padding: "16px 24px"}} className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Room Type</th>
+                <th style={{padding: "16px 24px"}} className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                <th style={{padding: "16px 24px"}} className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Last Update</th>
+                <th style={{padding: "16px 24px"}}></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+              {recentBookings.map((booking, index) => (
+                <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                  <td style={{padding: "16px 24px"}}>
+                    <span className="text-sm font-medium text-indigo-600 dark:text-indigo-400">{booking.bookingId}</span>
+                  </td>
+                  <td style={{padding: "16px 24px"}}>
+                    <div style={{gap: "12px"}} className="flex items-center">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-600 dark:to-gray-700 flex items-center justify-center text-xs font-semibold text-gray-600 dark:text-gray-300">
+                        {booking.guestName.split(' ').map(n => n[0]).join('')}
+                      </div>
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">{booking.guestName}</span>
+                    </div>
+                  </td>
+                  <td style={{padding: "16px 24px"}} className="text-sm text-gray-600 dark:text-gray-400">{booking.roomType}</td>
+                  <td style={{padding: "16px 24px"}}>
+                    <span 
+                      style={{padding: "6px 12px"}}
+                      className={`rounded-lg text-xs font-semibold
+                        ${booking.status === 'Confirmed' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-400' : ''}
+                        ${booking.status === 'Completed' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' : ''}
+                        ${booking.status === 'Pending' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400' : ''}
+                        ${booking.status === 'Cancelled' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400' : ''}
+                      `}
+                    >
+                      {booking.status}
+                    </span>
+                  </td>
+                  <td style={{padding: "16px 24px"}} className="text-sm text-gray-500 dark:text-gray-400">{booking.lastUpdate}</td>
+                  <td style={{padding: "16px 24px"}}>
+                    <button style={{padding: "8px"}} className="rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 dark:hover:text-gray-300 transition-colors">
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                      </svg>
+                    </button>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {recentBookings.map((booking, index) => (
-                  <tr key={index}>
-                    <td className="guest-name">{booking.guestName}</td>
-                    <td className="room-number">{booking.roomNumber}</td>
-                    <td className="check-in">{booking.checkIn}</td>
-                    <td className="check-out">{booking.checkOut}</td>
-                    <td className="order-number">{booking.orderNumber}</td>
-                    <td>
-                      <span className={`status-badge ${booking.status.toLowerCase()}`}>
-                        {booking.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {/* Table Footer */}
+        <div style={{padding: "16px 24px"}} className="border-t border-gray-100 dark:border-gray-700 flex items-center justify-between bg-gray-50 dark:bg-gray-700/30">
+          <span className="text-sm text-gray-500 dark:text-gray-400">Showing 7 of 24 bookings</span>
+          <div style={{display: "flex", alignItems: "center", gap: "8px"}}>
+            <button style={{padding: "6px 12px"}} className="text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors">Previous</button>
+            <button style={{padding: "6px 12px"}} className="text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors">Next</button>
           </div>
         </div>
       </div>
@@ -568,62 +796,91 @@ const HoteladminDashboard = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredRooms.map((room) => (
-                <tr key={room.id}>
-                  <td className="room-number">{room.roomNumber}</td>
-                  <td className="room-type">{room.roomType}</td>
-                  <td>
-                    <span className={`status-badge ${room.status}`}>
-                      {room.status === 'available' && 'Available'}
-                      {room.status === 'occupied' && 'Occupied'}
-                      {room.status === 'maintenance' && 'Under Maintenance'}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={`cleanliness-badge ${room.cleanliness.toLowerCase()}`}>
-                      {room.cleanliness}
-                    </span>
-                  </td>
-                  <td className="room-price">{room.price}</td>
-                  <td>
-                    <div className="action-buttons">
-                      <button 
-                        className="btn-edit"
-                        onClick={() => handleRoomAction(room.id, 'edit')}
-                      >
-                        Edit
-                      </button>
-                      <button 
-                        className="btn-view"
-                        onClick={() => handleRoomAction(room.id, 'view')}
-                      >
-                        View
-                      </button>
-                    </div>
+              {filteredRooms.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="no-data-cell">
+                    <EmptyState
+                      icon="🛏️"
+                      title={roomFilter === 'all' ? "No Rooms Found" : `No ${roomFilter.charAt(0).toUpperCase() + roomFilter.slice(1)} Rooms`}
+                      description={roomFilter === 'all' 
+                        ? "You haven't added any rooms yet. Add your first room to get started."
+                        : `There are currently no ${roomFilter} rooms.`}
+                      actionLabel={roomFilter === 'all' ? "Add First Room" : null}
+                      onAction={roomFilter === 'all' ? () => setShowAddRoomModal(true) : null}
+                    />
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredRooms.map((room) => (
+                  <tr key={room.id}>
+                    <td className="room-number">{room.roomNumber}</td>
+                    <td className="room-type">{room.roomType}</td>
+                    <td>
+                      <span className={`status-badge ${room.status}`}>
+                        {room.status === 'available' && 'Available'}
+                        {room.status === 'occupied' && 'Occupied'}
+                        {room.status === 'maintenance' && 'Under Maintenance'}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`cleanliness-badge ${room.cleanliness.toLowerCase()}`}>
+                        {room.cleanliness}
+                      </span>
+                    </td>
+                    <td className="room-price">{room.price}</td>
+                    <td>
+                      <div className="action-buttons">
+                        <button 
+                          className="btn-edit"
+                          onClick={() => handleRoomAction(room.id, 'edit')}
+                          aria-label={`Edit room ${room.roomNumber}`}
+                        >
+                          Edit
+                        </button>
+                        <button 
+                          className="btn-view"
+                          onClick={() => handleRoomAction(room.id, 'view')}
+                          aria-label={`View room ${room.roomNumber} details`}
+                        >
+                          View
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
 
         {/* Mobile Cards View for smaller screens */}
         <div className="mobile-rooms-cards">
-          {filteredRooms.map((room) => (
-            <div key={room.id} className="room-card">
-              <div className="room-card-header">
-                <h4>Room {room.roomNumber}</h4>
-                <span className={`status-badge ${room.status}`}>
-                  {room.status === 'available' && 'Available'}
-                  {room.status === 'occupied' && 'Occupied'}
-                  {room.status === 'maintenance' && 'Maintenance'}
-                </span>
-              </div>
-              <div className="room-card-details">
-                <div className="detail-item">
-                  <span className="label">Type:</span>
-                  <span className="value">{room.roomType}</span>
+          {filteredRooms.length === 0 ? (
+            <EmptyState
+              icon="🛏️"
+              title={roomFilter === 'all' ? "No Rooms Found" : `No ${roomFilter.charAt(0).toUpperCase() + roomFilter.slice(1)} Rooms`}
+              description={roomFilter === 'all' 
+                ? "You haven't added any rooms yet. Add your first room to get started."
+                : `There are currently no ${roomFilter} rooms.`}
+              actionLabel={roomFilter === 'all' ? "Add First Room" : null}
+              onAction={roomFilter === 'all' ? () => setShowAddRoomModal(true) : null}
+            />
+          ) : (
+            filteredRooms.map((room) => (
+              <div key={room.id} className="room-card">
+                <div className="room-card-header">
+                  <h4>Room {room.roomNumber}</h4>
+                  <span className={`status-badge ${room.status}`}>
+                    {room.status === 'available' && 'Available'}
+                    {room.status === 'occupied' && 'Occupied'}
+                    {room.status === 'maintenance' && 'Maintenance'}
+                  </span>
                 </div>
+                <div className="room-card-details">
+                  <div className="detail-item">
+                    <span className="label">Type:</span>
+                    <span className="value">{room.roomType}</span>
+                  </div>
                 <div className="detail-item">
                   <span className="label">Cleanliness:</span>
                   <span className={`value cleanliness ${room.cleanliness.toLowerCase()}`}>
@@ -637,7 +894,7 @@ const HoteladminDashboard = () => {
                 <div className="detail-item">
                   <span className="label">Amenities:</span>
                   <span className="value amenities">
-                    {room.amenities.join(', ')}
+                    {room.amenities.join(', ') || 'None'}
                   </span>
                 </div>
               </div>
@@ -650,37 +907,49 @@ const HoteladminDashboard = () => {
                 </button>
               </div>
             </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
 
       {/* Add Room Modal */}
       {showAddRoomModal && (
-        <div className="modal-overlay">
-          <div className="modal">
+        <div 
+          className="modal-overlay"
+          onClick={(e) => e.target === e.currentTarget && setShowAddRoomModal(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="add-room-title"
+        >
+          <div className="modal" role="document">
             <div className="modal-header">
-              <h3>Add New Room</h3>
+              <h3 id="add-room-title">Add New Room</h3>
               <button 
                 className="modal-close"
                 onClick={() => setShowAddRoomModal(false)}
+                aria-label="Close modal"
+                type="button"
               >
                 ×
               </button>
             </div>
             <div className="modal-content">
               <div className="form-group">
-                <label>Room Number *</label>
+                <label htmlFor="room-number">Room Number *</label>
                 <input
+                  id="room-number"
                   type="text"
                   value={newRoom.roomNumber}
                   onChange={(e) => handleNewRoomChange('roomNumber', e.target.value)}
                   placeholder="e.g., 101"
                   className="form-input"
+                  autoFocus
                 />
               </div>
               <div className="form-group">
-                <label>Room Type *</label>
+                <label htmlFor="room-type">Room Type *</label>
                 <select
+                  id="room-type"
                   value={newRoom.roomType}
                   onChange={(e) => handleNewRoomChange('roomType', e.target.value)}
                   className="form-input"
@@ -763,24 +1032,38 @@ const HoteladminDashboard = () => {
 
       {/* Edit Room Modal */}
       {showEditRoomModal && editingRoom && (
-        <div className="modal-overlay">
-          <div className="modal">
+        <div 
+          className="modal-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowEditRoomModal(false);
+              setEditingRoom(null);
+            }
+          }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="edit-room-title"
+        >
+          <div className="modal" role="document">
             <div className="modal-header">
-              <h3>Edit Room {editingRoom.roomNumber}</h3>
+              <h3 id="edit-room-title">Edit Room {editingRoom.roomNumber}</h3>
               <button 
                 className="modal-close"
                 onClick={() => {
                   setShowEditRoomModal(false);
                   setEditingRoom(null);
                 }}
+                aria-label="Close modal"
+                type="button"
               >
                 ×
               </button>
             </div>
             <div className="modal-content">
               <div className="form-group">
-                <label>Room Number *</label>
+                <label htmlFor="edit-room-number">Room Number *</label>
                 <input
+                  id="edit-room-number"
                   type="text"
                   value={editingRoom.roomNumber}
                   onChange={(e) => handleEditRoomChange('roomNumber', e.target.value)}
@@ -788,8 +1071,9 @@ const HoteladminDashboard = () => {
                 />
               </div>
               <div className="form-group">
-                <label>Room Type *</label>
+                <label htmlFor="edit-room-type">Room Type *</label>
                 <select
+                  id="edit-room-type"
                   value={editingRoom.roomType}
                   onChange={(e) => handleEditRoomChange('roomType', e.target.value)}
                   className="form-input"
@@ -1449,7 +1733,7 @@ const renderBillingPayments = () => {
   };
 
   return (
-    <div className="hotel-dashboard">
+    <div className={`hotel-dashboard ${darkMode ? 'dark' : ''}`}>
       {/* Sidebar Navigation */}
       <div className="sidebar">
         <div className="sidebar-header">
@@ -1457,6 +1741,15 @@ const renderBillingPayments = () => {
             <h2>Hotel Admin</h2>
             <p className="admin-role">Hotel Admin</p>
           </div>
+          {/* Dark Mode Toggle */}
+          <button
+            onClick={toggleDarkMode}
+            className="theme-toggle-btn"
+            aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {darkMode ? '☀️' : '🌙'}
+          </button>
         </div>
         <nav className="sidebar-nav">
           {navItems.map((item) => (
