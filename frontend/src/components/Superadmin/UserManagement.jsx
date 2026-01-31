@@ -92,7 +92,7 @@ const UserManagement = () => {
 
   return (
     <div className={`user-management ${darkMode ? 'dark' : 'light'}`}>
-      <div className="flex min-h-screen w-full">
+      <div className="layout-wrapper">
         {/* SideNavBar */}
         <aside className="sidebar">
           <div className="sidebar-content">

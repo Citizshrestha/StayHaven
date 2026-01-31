@@ -40,6 +40,13 @@
   color: var(--text-dark);
 }
 
+/* Layout Wrapper */
+.layout-wrapper {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+}
+
 /* Sidebar Styles */
 .sidebar {
   width: 12rem;

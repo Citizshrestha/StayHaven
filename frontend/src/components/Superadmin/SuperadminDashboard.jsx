@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './SuperadminDashboard.css';
 import { useNavigate } from 'react-router-dom';
-import UserManagement from './Usermanagement';
-import HotelManagement from './HotelManagement';
+import { toast } from 'react-toastify';
 
 const SuperadminDashboard = () => {
   const [darkMode, setDarkMode] = useState(false);
@@ -58,14 +57,35 @@ const SuperadminDashboard = () => {
     }
   };
 
-  const handleLogout = () => {
-    // Add logout logic here
-    console.log('Logging out...');
-  };
+  const handleLogout = useCallback(() => {
+    // Clear any stored auth tokens
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('user');
+    sessionStorage.clear();
+    toast.success('Logged out successfully');
+    navigate('/login');
+  }, [navigate]);
+
+  // Handle dark mode toggle with localStorage persistence
+  const toggleDarkMode = useCallback(() => {
+    setDarkMode(prev => {
+      const newMode = !prev;
+      localStorage.setItem('superadmin-dark-mode', JSON.stringify(newMode));
+      return newMode;
+    });
+  }, []);
+
+  // Initialize dark mode from localStorage
+  useEffect(() => {
+    const savedMode = localStorage.getItem('superadmin-dark-mode');
+    if (savedMode !== null) {
+      setDarkMode(JSON.parse(savedMode));
+    }
+  }, []);
 
   return (
     <div className={`superadmin-dashboard ${darkMode ? 'dark' : 'light'}`}>
-      <div className="relative flex min-h-screen w-full">
+      <div className="dashboard-layout">
         {/* SideNavBar */}
         <aside className="sidebar">
           <div className="sidebar-header">
@@ -132,7 +152,8 @@ const SuperadminDashboard = () => {
               
               <button 
                 className="icon-button"
-                onClick={() => setDarkMode(!darkMode)}
+                onClick={toggleDarkMode}
+                aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
               >
                 <span className="material-symbols-outlined">
                   {darkMode ? 'light_mode' : 'dark_mode'}
@@ -154,15 +175,21 @@ const SuperadminDashboard = () => {
           </header>
 
           {/* Page Content */}
-          <div className="page-content">
-            {/* Stats */}
-            <div className="stats-grid">
+          <div style={{padding: "24px 32px"}} className="bg-gray-50 dark:bg-gray-900 min-h-[calc(100vh-64px)]">
+            {/* Stats Grid */}
+            <div style={{gap: "24px", marginBottom: "32px"}} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
               {stats.map((stat, index) => (
-                <div key={index} className="stat-card">
-                  <p className="stat-label">{stat.label}</p>
-                  <p className="stat-value">{stat.value}</p>
-                  <div className={`stat-trend ${stat.trendUp === true ? 'success' : stat.trendUp === false ? 'error' : 'warning'}`}>
-                    <span className="material-symbols-outlined">
+                <div 
+                  key={index} 
+                  style={{padding: "24px"}}
+                  className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
+                >
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{stat.label}</p>
+                  <p style={{marginTop: "8px"}} className="text-3xl font-bold text-gray-900 dark:text-white">{stat.value}</p>
+                  <div style={{marginTop: "12px"}} className={`flex items-center text-sm font-semibold
+                    ${stat.trendUp === true ? 'text-emerald-500' : stat.trendUp === false ? 'text-red-500' : 'text-amber-500'}`}
+                  >
+                    <span className="material-symbols-outlined text-base">
                       {stat.trendUp === true ? 'trending_up' : 
                        stat.trendUp === false ? 'trending_down' : 'sync'}
                     </span>
@@ -172,20 +199,26 @@ const SuperadminDashboard = () => {
               ))}
             </div>
 
-            {/* Charts */}
-            <div className="charts-grid">
-              <div className="chart-card main-chart">
-                <p className="chart-title">Booking Trends</p>
-                <div className="chart-header">
-                  <p className="chart-value">1,482 Bookings</p>
-                  <div className="chart-trend success">
-                    <span className="material-symbols-outlined">arrow_upward</span>
+            {/* Charts Grid */}
+            <div style={{gap: "24px", marginBottom: "32px"}} className="grid grid-cols-1 lg:grid-cols-3">
+              {/* Booking Trends Chart */}
+              <div style={{padding: "24px"}} className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Booking Trends</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Last 30 Days</p>
+                  </div>
+                  <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 px-3 py-1.5 rounded-lg text-sm font-semibold">
+                    <span className="material-symbols-outlined text-base">arrow_upward</span>
                     <span>+12.5%</span>
                   </div>
                 </div>
-                <p className="chart-subtitle">Last 30 Days</p>
-                <div className="chart-container">
-                  <svg className="booking-chart" viewBox="-3 0 478 150" preserveAspectRatio="none">
+                <div className="flex items-baseline gap-3 mb-4">
+                  <span className="text-3xl font-bold text-gray-900 dark:text-white">1,482</span>
+                  <span className="text-gray-500 dark:text-gray-400">Bookings</span>
+                </div>
+                <div className="h-40">
+                  <svg className="w-full h-full" viewBox="-3 0 478 150" preserveAspectRatio="none">
                     <path 
                       d="M0 109C18.1538 109 18.1538 21 36.3077 21C54.4615 21 54.4615 41 72.6154 41C90.7692 41 90.7692 93 108.923 93C127.077 93 127.077 33 145.231 33C163.385 33 163.385 101 181.538 101C199.692 101 199.692 61 217.846 61C236 61 236 45 254.154 45C272.308 45 272.308 121 290.462 121C308.615 121 308.615 149 326.769 149C344.923 149 344.923 1 363.077 1C381.231 1 381.231 81 399.385 81C417.538 81 417.538 129 435.692 129C453.846 129 453.846 25 472 25V149H326.769H0V109Z" 
                       fill="url(#paint0_linear_chart)"
@@ -206,23 +239,34 @@ const SuperadminDashboard = () => {
                 </div>
               </div>
 
-              <div className="chart-card revenue-chart">
-                <p className="chart-title">Revenue by Hotel Type</p>
-                <div className="chart-header">
-                  <p className="chart-value">$320,890</p>
-                  <div className="chart-trend success">
-                    <span className="material-symbols-outlined">arrow_upward</span>
-                    <span>+8.2%</span>
+              {/* Revenue by Hotel Type */}
+              <div style={{padding: "24px"}} className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                <div style={{marginBottom: "24px"}} className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Revenue by Hotel Type</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Distribution breakdown</p>
                   </div>
                 </div>
-                <p className="chart-subtitle">Last 30 Days</p>
-                <div className="revenue-bars">
+                <div className="flex items-baseline gap-3 mb-2">
+                  <span className="text-3xl font-bold text-gray-900 dark:text-white">$320,890</span>
+                </div>
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="flex items-center gap-1 text-emerald-500 text-sm font-semibold">
+                    <span className="material-symbols-outlined text-base">arrow_upward</span>
+                    <span>+8.2%</span>
+                  </div>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">vs last month</span>
+                </div>
+                <div className="space-y-5">
                   {revenueData.map((item, index) => (
-                    <div key={index} className="revenue-bar">
-                      <p className="bar-label">{item.type}</p>
-                      <div className="bar-container">
+                    <div key={index} className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600 dark:text-gray-400 font-medium">{item.type}</span>
+                        <span className="font-semibold text-gray-900 dark:text-white">{item.percentage}%</span>
+                      </div>
+                      <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
                         <div 
-                          className="bar-fill"
+                          className="h-full bg-gradient-to-r from-teal-500 to-teal-400 rounded-full transition-all duration-500"
                           style={{ width: `${item.percentage}%` }}
                         ></div>
                       </div>
@@ -233,39 +277,64 @@ const SuperadminDashboard = () => {
             </div>
 
             {/* Recent Bookings Table */}
-            <div className="table-card">
-              <h2 className="table-title">Recent Bookings</h2>
-              <div className="table-container">
-                <table className="bookings-table">
-                  <thead>
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+              <div style={{padding: "20px 24px"}} className="border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Bookings</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Latest booking activities</p>
+                </div>
+                <button className="text-sm text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 font-semibold flex items-center gap-1 transition-colors">
+                  View All
+                  <span className="material-symbols-outlined text-base">chevron_right</span>
+                </button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 dark:bg-gray-700/50">
                     <tr>
-                      <th>Guest</th>
-                      <th>Hotel</th>
-                      <th>Date</th>
-                      <th>Amount</th>
-                      <th>Status</th>
-                      <th>Actions</th>
+                      <th style={{padding: "16px 24px"}} className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Guest</th>
+                      <th style={{padding: "16px 24px"}} className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Hotel</th>
+                      <th style={{padding: "16px 24px"}} className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">Date</th>
+                      <th style={{padding: "16px 24px"}} className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
+                      <th style={{padding: "16px 24px"}} className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                      <th style={{padding: "16px 24px"}} className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                     {recentBookings.map((booking, index) => (
-                      <tr key={index}>
-                        <td className="guest-name">{booking.guest}</td>
-                        <td>{booking.hotel}</td>
-                        <td>{booking.date}</td>
-                        <td>{booking.amount}</td>
-                        <td>
-                          <span className={`status-badge ${booking.statusType}`}>
+                      <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                        <td style={{padding: "16px 24px"}}>
+                          <span className="font-medium text-gray-900 dark:text-white">{booking.guest}</span>
+                        </td>
+                        <td style={{padding: "16px 24px"}} className="text-gray-600 dark:text-gray-400">{booking.hotel}</td>
+                        <td style={{padding: "16px 24px"}} className="text-gray-600 dark:text-gray-400 hidden md:table-cell">{booking.date}</td>
+                        <td style={{padding: "16px 24px"}} className="font-semibold text-gray-900 dark:text-white">{booking.amount}</td>
+                        <td style={{padding: "16px 24px"}}>
+                          <span className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold
+                            ${booking.statusType === 'success' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' : ''}
+                            ${booking.statusType === 'warning' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400' : ''}
+                            ${booking.statusType === 'error' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400' : ''}
+                          `}>
                             {booking.status}
                           </span>
                         </td>
-                        <td>
-                          <button className="view-button">View</button>
+                        <td style={{padding: "16px 24px"}}>
+                          <button style={{padding: "8px 16px"}} className="text-sm text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/30 rounded-lg font-semibold transition-colors">
+                            View
+                          </button>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+              </div>
+              {/* Table Footer */}
+              <div style={{padding: "16px 24px"}} className="border-t border-gray-100 dark:border-gray-700 flex items-center justify-between bg-gray-50 dark:bg-gray-700/30">
+                <span className="text-sm text-gray-500 dark:text-gray-400">Showing 4 of 152 bookings</span>
+                <div className="flex items-center gap-2">
+                  <button className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors">Previous</button>
+                  <button className="px-4 py-2 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-lg transition-colors">Next</button>
+                </div>
               </div>
             </div>
           </div>
