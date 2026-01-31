@@ -789,6 +789,80 @@
   border-radius: 0 0.5rem 0.5rem 0;
 }
 
+/* Empty State Styles */
+.empty-state-cell {
+  text-align: center;
+  padding: 3rem 1rem !important;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 2rem;
+}
+
+.empty-state .empty-icon {
+  font-size: 3rem;
+  opacity: 0.7;
+}
+
+.empty-state h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-light);
+}
+
+.hotel-management.dark .empty-state h3 {
+  color: var(--text-dark);
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary-light);
+  max-width: 300px;
+}
+
+.hotel-management.dark .empty-state p {
+  color: var(--text-secondary-dark);
+}
+
+.empty-state .add-hotel-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  margin-top: 0.5rem;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.empty-state .add-hotel-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(15, 191, 159, 0.3);
+}
+
+.empty-state .add-hotel-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Accessibility */
+.action-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .page-content {
@@ -812,5 +886,22 @@
   .hotels-table th,
   .hotels-table td {
     padding: 0.75rem 1rem;
+  }
+  
+  .empty-state {
+    padding: 1.5rem;
+  }
+  
+  .empty-state .empty-icon {
+    font-size: 2.5rem;
+  }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .action-btn,
+  .add-hotel-btn,
+  .pagination-btn {
+    transition: none;
   }
 }

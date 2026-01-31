@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import AddHotel from './AddHotel'; // Adjust path as needed
 import './HotelManagement.css';
 
@@ -97,6 +98,7 @@ const HotelManagement = () => {
           ? { ...hotel, ...hotelData, id: editingHotel.id }
           : hotel
       ));
+      toast.success('Hotel updated successfully!');
     } else {
       setHotels(prevHotels => [
         ...prevHotels,
@@ -112,10 +114,45 @@ const HotelManagement = () => {
           toggleIcon: 'toggle_off'
         }
       ]);
+      toast.success('Hotel added successfully!');
     }
     setEditingHotel(null);
     setIsAddHotelOpen(false);
   };
+
+  // Handle delete hotel
+  const handleDeleteHotel = useCallback((hotelId) => {
+    if (window.confirm('Are you sure you want to delete this hotel? This action cannot be undone.')) {
+      setHotels(prevHotels => prevHotels.filter(hotel => hotel.id !== hotelId));
+      toast.success('Hotel deleted successfully!');
+    }
+  }, []);
+
+  // Handle toggle hotel status
+  const handleToggleStatus = useCallback((hotelId) => {
+    setHotels(prevHotels => prevHotels.map(hotel => {
+      if (hotel.id === hotelId) {
+        const newStatus = hotel.status === 'Active' ? 'Disabled' : 'Active';
+        const newStatusType = newStatus === 'Active' ? 'success' : 'error';
+        const newToggleIcon = newStatus === 'Active' ? 'toggle_off' : 'toggle_on';
+        toast.info(`Hotel status changed to ${newStatus}`);
+        return {
+          ...hotel,
+          status: newStatus,
+          statusType: newStatusType,
+          toggleIcon: newToggleIcon
+        };
+      }
+      return hotel;
+    }));
+  }, []);
+
+  // Filter hotels based on search term
+  const filteredHotels = hotels.filter(hotel => 
+    hotel.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    hotel.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    hotel.manager.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const filterOptions = [
     { label: 'Status', options: ['Active', 'Pending', 'Disabled'] },
@@ -270,27 +307,48 @@ const HotelManagement = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {hotels.map((hotel) => (
-                      <tr key={hotel.id} className="table-row">
-                        <td className="hotel-name-cell">
-                          <div className="hotel-info">
-                            <img 
-                              className="hotel-image" 
-                              src={hotel.image} 
-                              alt={`${hotel.name} thumbnail`}
-                            />
-                            <span className="hotel-name">{hotel.name}</span>
+                    {filteredHotels.length === 0 ? (
+                      <tr>
+                        <td colSpan="7" className="empty-state-cell">
+                          <div className="empty-state">
+                            <span className="empty-icon">🏨</span>
+                            <h3>No Hotels Found</h3>
+                            <p>{searchTerm ? `No hotels match "${searchTerm}"` : 'Add your first hotel to get started.'}</p>
+                            {!searchTerm && (
+                              <button 
+                                className="add-hotel-btn" 
+                                onClick={() => setIsAddHotelOpen(true)}
+                              >
+                                <span className="material-symbols-outlined">add</span>
+                                <span>Add First Hotel</span>
+                              </button>
+                            )}
                           </div>
                         </td>
-                        <td className="location-cell">{hotel.location}</td>
-                        <td className="rating-cell">
-                          <div className="rating-display">
-                            <span className="material-symbols-outlined fill">star</span>
-                            <span className="rating-value">{hotel.rating}</span>
-                          </div>
-                        </td>
-                        <td className="manager-cell">{hotel.manager}</td>
-                        <td className="status-cell">
+                      </tr>
+                    ) : (
+                      filteredHotels.map((hotel) => (
+                        <tr key={hotel.id} className="table-row">
+                          <td className="hotel-name-cell">
+                            <div className="hotel-info">
+                              <img 
+                                className="hotel-image" 
+                                src={hotel.image} 
+                                alt={`${hotel.name} thumbnail`}
+                                onError={(e) => { e.target.src = 'https://via.placeholder.com/40x40?text=Hotel'; }}
+                              />
+                              <span className="hotel-name">{hotel.name}</span>
+                            </div>
+                          </td>
+                          <td className="location-cell">{hotel.location}</td>
+                          <td className="rating-cell">
+                            <div className="rating-display">
+                              <span className="material-symbols-outlined fill">star</span>
+                              <span className="rating-value">{hotel.rating}</span>
+                            </div>
+                          </td>
+                          <td className="manager-cell">{hotel.manager}</td>
+                          <td className="status-cell">
                           <span className={`status-badge ${hotel.statusType}`}>
                             {hotel.status}
                           </span>
@@ -298,30 +356,48 @@ const HotelManagement = () => {
                         <td className="date-cell">{hotel.createdAt}</td>
                         <td className="actions-cell">
                           <div className="action-buttons">
-                            <button className="action-btn">
+                            <button 
+                              className="action-btn"
+                              onClick={() => toast.info(`Viewing details for ${hotel.name}`)}
+                              aria-label={`View ${hotel.name} details`}
+                              title="View Details"
+                            >
                               <span className="material-symbols-outlined">visibility</span>
                             </button>
                             
                             <button 
-                                className="action-btn"
-                                onClick={() => {
-                                    setEditingHotel(hotel);
-                                    setIsAddHotelOpen(true);
-                                }}
-                                >
-                                <span className="material-symbols-outlined">edit</span>
-                                </button>
+                              className="action-btn"
+                              onClick={() => {
+                                setEditingHotel(hotel);
+                                setIsAddHotelOpen(true);
+                              }}
+                              aria-label={`Edit ${hotel.name}`}
+                              title="Edit Hotel"
+                            >
+                              <span className="material-symbols-outlined">edit</span>
+                            </button>
 
-                            <button className="action-btn">
+                            <button 
+                              className="action-btn"
+                              onClick={() => handleToggleStatus(hotel.id)}
+                              aria-label={hotel.statusType === 'active' ? `Disable ${hotel.name}` : `Enable ${hotel.name}`}
+                              title={hotel.statusType === 'active' ? 'Disable Hotel' : 'Enable Hotel'}
+                            >
                               <span className="material-symbols-outlined">{hotel.toggleIcon}</span>
                             </button>
-                            <button className="action-btn delete">
+                            <button 
+                              className="action-btn delete"
+                              onClick={() => handleDeleteHotel(hotel.id)}
+                              aria-label={`Delete ${hotel.name}`}
+                              title="Delete Hotel"
+                            >
                               <span className="material-symbols-outlined">delete</span>
                             </button>
                           </div>
                         </td>
                       </tr>
-                    ))}
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
