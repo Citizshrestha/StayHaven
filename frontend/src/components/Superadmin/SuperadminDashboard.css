@@ -37,11 +37,24 @@
   min-height: 100vh;
   height: 100vh;
   overflow: hidden;
+  display: flex;
 }
 
 .superadmin-dashboard.dark {
   background-color: var(--background-dark);
   color: var(--text-dark);
+}
+
+.superadmin-dashboard .relative {
+  display: flex;
+  width: 100%;
+}
+
+/* Dashboard Layout */
+.dashboard-layout {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
 }
 
 /* Sidebar Styles */
@@ -657,6 +670,16 @@
 }
 
 /* Responsive Design */
+@media (max-width: 1024px) {
+  .sidebar {
+    display: none;
+  }
+  
+  .main-content {
+    margin-left: 0;
+  }
+}
+
 @media (max-width: 768px) {
   .page-content {
     padding: 1rem;
@@ -668,5 +691,59 @@
   
   .header-right {
     gap: 0.5rem;
+  }
+  
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .table-card {
+    margin: 0 -0.5rem;
+    border-radius: 0.5rem;
+  }
+  
+  .bookings-table th,
+  .bookings-table td {
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+  }
+  
+  .chart-value {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .top-header {
+    padding: 0.75rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  
+  .header-left h2 {
+    font-size: 1rem;
+  }
+  
+  .stat-card {
+    padding: 1rem;
+  }
+  
+  .stat-value {
+    font-size: 1.5rem;
+  }
+  
+  .icon-button {
+    width: 2rem;
+    height: 2rem;
+  }
+  
+  .user-avatar {
+    width: 2rem;
+    height: 2rem;
   }
 }
