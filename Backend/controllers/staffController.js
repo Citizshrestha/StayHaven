@@ -150,8 +150,6 @@ export const staffLogin = asyncHandler(async (req, res) => {
   ];
   const userRoleName = user.role?.name || user.companyRole;
 
-  console.log("🔍 DEBUG - Role name being checked:", userRoleName);
-
   // Make role check case-insensitive
   const isAllowedRole =
     userRoleName &&
