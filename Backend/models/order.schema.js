@@ -60,9 +60,6 @@ const orderSchema = new mongoose.Schema({
   customerPhone: {
     type: String,
   },
-  customerPhone: {
-    type: String,
-  },
   // order items 
   items: [
     {
