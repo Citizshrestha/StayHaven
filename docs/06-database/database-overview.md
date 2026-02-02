@@ -132,7 +132,7 @@ export default connectDB;
 MONGODB_URI=mongodb://localhost:27017/stayhaven
 
 # Production (MongoDB Atlas)
-MONGODB_URI=mongodb+srv://<username>:<password>@cluster0.mongodb.net/stayhaven?retryWrites=true&w=majority
+MONGODB_URI=mongodb+srv://<YOUR_USERNAME>:<YOUR_PASSWORD>@cluster0.mongodb.net/stayhaven?retryWrites=true&w=majority
 ```
 
 ### Connection String Format
@@ -147,13 +147,13 @@ mongodb://localhost:27017/stayhaven
 └─ Protocol
 
 // MongoDB Atlas (Cloud)
-mongodb+srv://username:password@cluster0.mongodb.net/stayhaven?retryWrites=true&w=majority
-│          │        │        │                      │          │
-│          │        │        │                      │          └─ Write concern
-│          │        │        │                      └─ Database name
-│          │        │        └─ Cluster hostname
-│          │        └─ Password
-│          └─ Username
+mongodb+srv://YOUR_USERNAME:YOUR_PASSWORD@cluster0.mongodb.net/stayhaven?retryWrites=true&w=majority
+│          │            │            │                      │          │
+│          │            │            │                      │          └─ Write concern
+│          │            │            │                      └─ Database name
+│          │            │            └─ Cluster hostname
+│          │            └─ Password placeholder
+│          └─ Username placeholder
 └─ Protocol (SRV record)
 ```
 
@@ -373,7 +373,7 @@ Current Setup:
 
 ```javascript
 // High availability and read scalability
-mongodb+srv://username:password@cluster0.mongodb.net/?replicaSet=rs0
+mongodb+srv://YOUR_USERNAME:YOUR_PASSWORD@cluster0.mongodb.net/?replicaSet=rs0
 
 Benefits:
 - Automatic failover
