@@ -1,6 +1,5 @@
 import React from "react";
 import "./AboutPage.css";
-import Navbar from "../Navbar";
 
 const AboutPage = () => {
   const teamMembers = [
@@ -87,7 +86,6 @@ const AboutPage = () => {
 
   return (
     <>
-      <Navbar />
       <div className="about-page">
         {/* Hero Section */}
         <section className="about-hero-section">

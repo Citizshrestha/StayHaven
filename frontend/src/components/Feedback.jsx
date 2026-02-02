@@ -1,6 +1,5 @@
 
 import React, { useState } from 'react';
-import Navbar from './Navbar';
 
 import axiosClient from '../axiosClient';
 
@@ -228,8 +227,6 @@ const Feedback = () => {
 
   return (
     <div style={styles.page}>
-      <Navbar />
-      
       <div style={styles.container}>
         <div style={styles.header}>
           <h1 style={styles.title}>We Value Your Feedback</h1>
