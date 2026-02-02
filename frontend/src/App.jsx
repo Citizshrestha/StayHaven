@@ -1,5 +1,5 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { GoogleOAuthProvider } from "@react-oauth/google";
@@ -36,10 +36,51 @@ import HoteladminDashboard from "./components/HotelAdmin/HoteladminDashboard";
 import RoomManagement from "./components/HotelAdmin/RoomManagement";
 import RestaurantManagement from "./components/HotelAdmin/RestaurantManagement";
 import Feedback from "./components/Feedback";
+import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ContactUs from "./components/Contactus";
 import StaffResetPassword from "./components/staff/StaffResetPassword";
 import ReceptionDashboard from "./components/ReceptionDashboard/ReceptionDashboard";
+
+// Layout wrapper to conditionally show Navbar and Footer
+const Layout = ({ children }) => {
+  const location = useLocation();
+  
+  // Routes that should NOT have Navbar and Footer (dashboards and auth pages)
+  const noLayoutRoutes = [
+    '/login',
+    '/register',
+    '/forgot-password',
+    '/reset-password',
+    '/staff/login',
+    '/staff/forgot-password',
+    '/staff/reset-password',
+    '/waiter-dashboard',
+    '/kitchen-dashboard',
+    '/reception-dashboard',
+    '/superadmindashboard',
+    '/usermanagement',
+    '/hotelmanagement',
+    '/addhotel',
+    '/hoteladmin-dashboard',
+    '/roommanagement',
+    '/restaurantmanagement'
+  ];
+
+  const shouldShowLayout = !noLayoutRoutes.some(route => 
+    location.pathname.startsWith(route)
+  );
+
+  return (
+    <>
+      {shouldShowLayout && <Navbar />}
+      <div>
+        {children}
+      </div>
+      {shouldShowLayout && <Footer />}
+    </>
+  );
+};
 
 const App = () => {
   return (
@@ -51,72 +92,74 @@ const App = () => {
               <OrderProvider>
                 {/* Page Routes */}
                 <div className="w-screen min-h-screen overflow-x-hidden">
-                <Routes>
-                  {/* Public Routes */}
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/register" element={<Register />} />
-                  <Route path="/forgot-password" element={<ForgotPassword />} />
-                  <Route path="/reset-password" element={<ResetPassword />} />
-                  <Route path="/" element={<Home />} />
-                  <Route path="/about" element={<AboutPage />} />
-                  <Route path="/offers" element={<OffersPage />} />
-                  <Route path="/memberships" element={<MembershipPage />} />
-                  <Route path="/membership" element={<MembershipPage />} />
-                  <Route path="/hotel/:id" element={<HotelDetailsPage />} />
-                  <Route path="/hotels" element={<FilteredHotels />} />
-                  <Route path="/booking-confirmed" element={<BookingConfirmed />} />
-                  <Route path="/destinations" element={<Destination />} />
+                  <Layout>
+                    <Routes>
+                      {/* Public Routes */}
+                      <Route path="/login" element={<Login />} />
+                      <Route path="/register" element={<Register />} />
+                      <Route path="/forgot-password" element={<ForgotPassword />} />
+                      <Route path="/reset-password" element={<ResetPassword />} />
+                      <Route path="/" element={<Home />} />
+                      <Route path="/about" element={<AboutPage />} />
+                      <Route path="/offers" element={<OffersPage />} />
+                      <Route path="/memberships" element={<MembershipPage />} />
+                      <Route path="/membership" element={<MembershipPage />} />
+                      <Route path="/hotel/:id" element={<HotelDetailsPage />} />
+                      <Route path="/hotels" element={<FilteredHotels />} />
+                      <Route path="/booking-confirmed" element={<BookingConfirmed />} />
+                      <Route path="/destinations" element={<Destination />} />
 
-                  {/* Staff Routes */}
-                  <Route path="/staff/login" element={<StaffLogin />} />
-                  <Route path="/staff/forgot-password" element={<StaffForgotPassword />} />
-                  <Route path="/staff/reset-password/:token" element={<StaffResetPassword />} />
+                      {/* Staff Routes */}
+                      <Route path="/staff/login" element={<StaffLogin />} />
+                      <Route path="/staff/forgot-password" element={<StaffForgotPassword />} />
+                      <Route path="/staff/reset-password/:token" element={<StaffResetPassword />} />
 
-                  {/* Dashboard Routes (protected) */}
-                  <Route
-                    path="/waiter-dashboard"
-                    element={
-                      <ProtectedStaffRoute allowedRoles={["waiter"]}>
-                        <WaiterDashboard />
-                      </ProtectedStaffRoute>
-                    }
-                  />
-                  <Route
-                    path="/kitchen-dashboard"
-                    element={
-                      <ProtectedStaffRoute allowedRoles={["chief"]}>
-                        <KitchenDashboard />
-                      </ProtectedStaffRoute>
-                    }
-                  />
-                  {/* Temporarily unprotected for development/testing */}
-                  <Route
-                    path="/reception-dashboard"
-                    element={<ReceptionDashboard />}
-                  />
-                  {/* Protected version - uncomment when ready:
-                  <Route
-                    path="/reception-dashboard"
-                    element={
-                      <ProtectedStaffRoute allowedRoles={["receptionist"]}>
-                        <ReceptionDashboard />
-                      </ProtectedStaffRoute>
-                    }
-                  />
-                  */}
+                      {/* Dashboard Routes (protected) */}
+                      <Route
+                        path="/waiter-dashboard"
+                        element={
+                          <ProtectedStaffRoute allowedRoles={["waiter"]}>
+                            <WaiterDashboard />
+                          </ProtectedStaffRoute>
+                        }
+                      />
+                      <Route
+                        path="/kitchen-dashboard"
+                        element={
+                          <ProtectedStaffRoute allowedRoles={["chief"]}>
+                            <KitchenDashboard />
+                          </ProtectedStaffRoute>
+                        }
+                      />
+                      {/* Temporarily unprotected for development/testing */}
+                      <Route
+                        path="/reception-dashboard"
+                        element={<ReceptionDashboard />}
+                      />
+                      {/* Protected version - uncomment when ready:
+                      <Route
+                        path="/reception-dashboard"
+                        element={
+                          <ProtectedStaffRoute allowedRoles={["receptionist"]}>
+                            <ReceptionDashboard />
+                          </ProtectedStaffRoute>
+                        }
+                      />
+                      */}
 
-                  {/*   Superadmin & Hotel Admin Routes (commented out until files exist) */}
-                  <Route path="/superadmindashboard" element={<SuperadminDashboard />} />
-                  <Route path="/usermanagement" element={<UserManagement />} />
-                  <Route path="/hotelmanagement" element={<HotelManagement />} />
-                  <Route path="/addhotel" element={<AddHotel />} />
-                  <Route path="/hoteladmin-dashboard" element={<HoteladminDashboard />} />
-                  <Route path="/roommanagement" element={<RoomManagement />} />
-                  <Route path="/restaurantmanagement" element={<RestaurantManagement />} />
-                  <Route path="/feedback" element={<Feedback />} />
-                  <Route path="/contactus" element={<ContactUs />} />
-                </Routes>
-              </div>
+                      {/*   Superadmin & Hotel Admin Routes (commented out until files exist) */}
+                      <Route path="/superadmindashboard" element={<SuperadminDashboard />} />
+                      <Route path="/usermanagement" element={<UserManagement />} />
+                      <Route path="/hotelmanagement" element={<HotelManagement />} />
+                      <Route path="/addhotel" element={<AddHotel />} />
+                      <Route path="/hoteladmin-dashboard" element={<HoteladminDashboard />} />
+                      <Route path="/roommanagement" element={<RoomManagement />} />
+                      <Route path="/restaurantmanagement" element={<RestaurantManagement />} />
+                      <Route path="/feedback" element={<Feedback />} />
+                      <Route path="/contactus" element={<ContactUs />} />
+                    </Routes>
+                  </Layout>
+                </div>
               </OrderProvider>
             </NotificationProvider>
           </SocketProvider>
