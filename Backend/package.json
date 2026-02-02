@@ -1,14 +1,14 @@
 {
-  "name": "backend",
+  "name": "stayhaven-backend",
   "version": "1.0.0",
-  "description": "",
+  "description": "StayHaven Backend API Server",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": ["hotel", "booking", "hospitality", "management"],
+  "author": "StayHaven Team",
   "license": "ISC",
   "type": "module",
   "dependencies": {
