@@ -1,6 +1,5 @@
 import { useState } from 'react';
 // import { useParams, useNavigate } from 'react-router-dom';
-import Navbar from './Navbar';
 import BookingSidebar from './HotelDetail/BookingSidebar';
 
 const HotelDetails = () => {
@@ -51,8 +50,6 @@ const HotelDetails = () => {
 
   return (
     <div className="min-h-screen ">
-      <Navbar />
-
       {/* Full-Screen Image Modal */}
       {showImageModal && (
         <div 
