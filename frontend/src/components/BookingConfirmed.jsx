@@ -1,5 +1,4 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import Navbar from './Navbar';
 
 const BookingConfirmed = () => {
   const location = useLocation();
@@ -20,8 +19,6 @@ const BookingConfirmed = () => {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#fff6f6' }}>
-      <Navbar />
-      
       <div style={{ 
         paddingTop: '120px', 
         paddingBottom: '60px',
