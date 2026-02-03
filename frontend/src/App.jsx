@@ -1,5 +1,5 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { GoogleOAuthProvider } from "@react-oauth/google";
@@ -63,6 +63,49 @@ import RoomQRManagement from "./components/features/dashboards/hotelAdmin/RoomQR
 import GuestTableView from "./components/features/guest/GuestTableView";
 import GuestRoomView from "./components/features/guest/GuestRoomView";
 
+// Navbar
+import Navbar from "./components/common/Navbar";
+
+// Layout wrapper to conditionally show Navbar and Footer
+const Layout = ({ children }) => {
+  const location = useLocation();
+  
+  // Routes that should NOT have Navbar and Footer (dashboards and auth pages)
+  const noLayoutRoutes = [
+    '/login',
+    '/register',
+    '/forgot-password',
+    '/reset-password',
+    '/staff/login',
+    '/staff/forgot-password',
+    '/staff/reset-password',
+    '/waiter-dashboard',
+    '/kitchen-dashboard',
+    '/reception-dashboard',
+    '/superadmindashboard',
+    '/usermanagement',
+    '/hotelmanagement',
+    '/addhotel',
+    '/hoteladmin-dashboard',
+    '/roommanagement',
+    '/restaurantmanagement'
+  ];
+
+  const shouldShowLayout = !noLayoutRoutes.some(route => 
+    location.pathname.startsWith(route)
+  );
+
+  return (
+    <>
+      {shouldShowLayout && <Navbar />}
+      <div>
+        {children}
+      </div>
+      {shouldShowLayout && <Footer />}
+    </>
+  );
+};
+
 const App = () => {
   return (
     <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
@@ -116,18 +159,8 @@ const App = () => {
                       path="/reception-dashboard"
                       element={<ReceptionDashboard />}
                     />
-                    {/* Protected version - uncomment when ready:
-                  <Route
-                    path="/reception-dashboard"
-                    element={
-                      <ProtectedStaffRoute allowedRoles={["receptionist"]}>
-                        <ReceptionDashboard />
-                      </ProtectedStaffRoute>
-                    }
-                  />
-                  */}
 
-                    {/*   Superadmin & Hotel Admin Routes (commented out until files exist) */}
+                    {/* Superadmin & Hotel Admin Routes */}
                     <Route path="/superadmindashboard" element={<SuperadminDashboard />} />
                     <Route path="/usermanagement" element={<UserManagement />} />
                     <Route path="/hotelmanagement" element={<HotelManagement />} />

@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import "./OffersPage.css";
-import Navbar from "./Navbar";
 
 const offers = [
   {
@@ -344,7 +343,6 @@ const OffersPage = () => {
 
   return (
     <div className="w-screen min-h-screen overflow-x-hidden">
-      <Navbar />
       <div className="offers-page">
         <header className="offers-header">
         <h1>Exclusive Offers & Deals</h1>
