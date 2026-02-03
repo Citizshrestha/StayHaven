@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import './HoteladminDashboard.css';
 import RestaurantManagement from './RestaurantManagement';
+import TableManagement from './TableManagement';
+import RoomQRManagement from './RoomQRManagement';
 
 // Empty State Component
 const EmptyState = ({ icon, title, description, actionLabel, onAction }) => (
@@ -86,6 +88,8 @@ const HoteladminDashboard = () => {
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
     { id: 'rooms', label: 'Rooms', icon: '🛏' },
     { id: 'restaurant', label: 'Restaurant', icon: '🍽' },
+    { id: 'tables', label: 'Table QR Codes', icon: '📱' },
+    { id: 'roomqr', label: 'Room QR Codes', icon: '🏨' },
     { id: 'orders', label: 'Orders', icon: '📦' },
     { id: 'stock', label: 'Stock / Inventory', icon: '📋' },
     { id: 'staff', label: 'Staff Management', icon: '👥' },
@@ -351,6 +355,10 @@ const HoteladminDashboard = () => {
         return renderRoomsManagement();
       case 'restaurant':
         return <RestaurantManagement embedded />;
+      case 'tables':
+        return <TableManagement />;
+      case 'roomqr':
+        return <RoomQRManagement />;
       case 'orders':
         return renderOrdersManagement();
       case 'stock':
@@ -1764,6 +1772,21 @@ const renderBillingPayments = () => {
             </button>
           ))}
         </nav>
+        
+        {/* Logout Button */}
+        <div className="sidebar-footer">
+          <button
+            type="button"
+            className="nav-item logout-btn"
+            onClick={() => {
+              localStorage.clear();
+              window.location.href = '/login';
+            }}
+          >
+            <span className="nav-icon">🚪</span>
+            <span className="nav-label">Logout</span>
+          </button>
+        </div>
       </div>
 
       {/* Main Content */}

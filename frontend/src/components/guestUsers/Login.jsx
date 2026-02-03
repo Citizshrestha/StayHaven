@@ -42,8 +42,10 @@ const Login = () => {
       if (response.success) {
         toast.success('Login successful! Welcome back.');
         // Navigate based on role
-        if (response.role === 'admin') {
-          navigate('/dashboard');
+        if (response.role === 'admin' || response.role === 'owner' || response.role === 'manager') {
+          navigate('/hoteladmin-dashboard');
+        } else if (response.role === 'superadmin') {
+          navigate('/superadmindashboard');
         } else {
           navigate('/');
         }
@@ -70,8 +72,10 @@ const Login = () => {
       if (result.success) {
         toast.success(`Welcome back!`);
         // Navigate based on role
-        if (result.role === 'admin') {
-          navigate('/dashboard');
+        if (result.role === 'admin' || result.role === 'owner' || result.role === 'manager') {
+          navigate('/hoteladmin-dashboard');
+        } else if (result.role === 'superadmin') {
+          navigate('/superadmindashboard');
         } else {
           navigate('/');
         }
@@ -111,8 +115,10 @@ const Login = () => {
         toast.success('Registration successful! Welcome to StayHaven!');
         setShowGoogleModal(false);
         // Navigate based on role
-        if (result.role === 'admin') {
-          navigate('/dashboard');
+        if (result.role === 'admin' || result.role === 'owner' || result.role === 'manager') {
+          navigate('/hoteladmin-dashboard');
+        } else if (result.role === 'superadmin') {
+          navigate('/superadmindashboard');
         } else {
           navigate('/');
         }

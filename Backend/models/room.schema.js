@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-
+import crypto from "crypto";
 
 const roomSchema = new mongoose.Schema({
     hotel: {
@@ -63,6 +63,23 @@ const roomSchema = new mongoose.Schema({
         type: String,
         enum: ['Single', 'Double', 'Queen', 'King', 'Twin'],
     },
+    // QR Code fields
+    uniqueToken: {
+        type: String,
+        unique: true,
+        sparse: true, // Allows null values while maintaining uniqueness for non-null
+    },
+    qrCodeData: {
+        type: String, // The full URL encoded in the QR code
+    },
+    qrCodeImage: {
+        type: String, // Base64 or Cloudinary URL of QR code image
+    },
+    isQrActive: {
+        type: Boolean,
+        default: true,
+    },
+    // Legacy QR field (deprecated - use uniqueToken, qrCodeData, qrCodeImage instead)
     QR: {
         type: String,
     }
@@ -71,5 +88,29 @@ const roomSchema = new mongoose.Schema({
 
 // Compound index for unique room numbers per hotel
 roomSchema.index({ hotel: 1, roomNumber: 1 }, { unique: true })
+
+// Note: uniqueToken index is already created by the unique: true field option (sparse)
+
+// Pre-save middleware to generate unique token if not exists
+roomSchema.pre('save', function(next) {
+  if (!this.uniqueToken) {
+    // Generate a unique token: RM-{random}
+    this.uniqueToken = `RM-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
+  }
+  next();
+});
+
+// Static method to generate new token (for regeneration)
+roomSchema.statics.generateNewToken = function() {
+  return `RM-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
+};
+
+// Instance method to regenerate QR token
+roomSchema.methods.regenerateToken = function() {
+  this.uniqueToken = `RM-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
+  this.qrCodeData = null;
+  this.qrCodeImage = null;
+  return this;
+};
 
 export const Room = mongoose.model("Room", roomSchema);
