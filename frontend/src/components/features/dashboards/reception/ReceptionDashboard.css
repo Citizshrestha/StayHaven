@@ -1,0 +1,52 @@
+/* Reception Dashboard Container */
+.reception-dashboard {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  background-color: #f8fafc;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.reception-dashboard.dark {
+  background-color: #0f172a;
+}
+
+/* Main Content Area */
+.reception-main-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Mobile Bottom Navigation */
+@media (max-width: 768px) {
+  .reception-dashboard {
+    flex-direction: column;
+  }
+
+  .reception-main-content {
+    padding-bottom: 70px;
+  }
+}
+
+/* Scrollbar Styling */
+.reception-main-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.reception-main-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.reception-main-content::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.reception-dashboard.dark .reception-main-content::-webkit-scrollbar-thumb {
+  background: #475569;
+}
+
+.reception-main-content::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

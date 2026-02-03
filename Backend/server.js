@@ -11,6 +11,9 @@ import hotelRoutes from "./routes/hotelRoutes.js";
 import companyRoutes from "./routes/companyRoutes.js";
 import { Role } from "./models/role.schema.js";
 import staffRoutes from "./routes/staffRoutes.js";
+import tableRoutes from "./routes/tableRoutes.js";
+import roomRoutes from "./routes/roomRoutes.js";
+import guestRoutes from "./routes/guestRoutes.js";
 import cookieParser from "cookie-parser";
 import { initCloudinary } from "./config/cloudinary.js";
 import { initSocket } from "./config/socket.js";
@@ -115,6 +118,9 @@ app.use("/api/user", userRoutes);
 app.use("/api/hotels", hotelRoutes);
 app.use("/api/company", companyRoutes);
 app.use("/api/staff", staffRoutes);
+app.use("/api/tables", tableRoutes);      // HotelTable management (authenticated)
+app.use("/api/rooms", roomRoutes);        // Room QR management (authenticated)
+app.use("/api/guest", guestRoutes);       // Guest QR scanning (public)
 
 // start server - use httpServer instead of app for Socket.io support
 httpServer.listen(PORT, () => {

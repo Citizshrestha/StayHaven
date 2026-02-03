@@ -1,0 +1,249 @@
+/* Kitchen Dashboard Dark Theme */
+
+/* Base dark theme variables when kitchen-dark class is applied */
+.kitchen-dark {
+  --kitchen-bg-primary: #0F172A;
+  --kitchen-bg-secondary: #1E293B;
+  --kitchen-bg-card: #1E293B;
+  --kitchen-bg-hover: #334155;
+  --kitchen-text-primary: #F8FAFC;
+  --kitchen-text-secondary: #CBD5E1;
+  --kitchen-text-tertiary: #94A3B8;
+  --kitchen-border-color: #334155;
+  --kitchen-accent: #3B82F6;
+  --kitchen-accent-light: rgba(59, 130, 246, 0.15);
+  
+  /* Status colors - slightly adjusted for dark mode visibility */
+  --kitchen-status-new-bg: rgba(37, 99, 235, 0.2);
+  --kitchen-status-new-text: #60A5FA;
+  --kitchen-status-preparing-bg: rgba(217, 119, 6, 0.2);
+  --kitchen-status-preparing-text: #FBBF24;
+  --kitchen-status-ready-bg: rgba(5, 150, 105, 0.2);
+  --kitchen-status-ready-text: #34D399;
+  --kitchen-status-delivered-bg: rgba(5, 150, 105, 0.15);
+  --kitchen-status-delivered-text: #6EE7B7;
+
+  /* Standard CSS variables for shared components (NotificationPanel, etc.) */
+  --bg-primary: #0F172A;
+  --bg-secondary: #1E293B;
+  --bg-tertiary: #334155;
+  --card-bg: #1E293B;
+  --text-primary: #F8FAFC;
+  --text-secondary: #CBD5E1;
+  --text-tertiary: #94A3B8;
+  --border-color: #334155;
+  --color-primary: #10B981;
+  --color-accent-light: rgba(16, 185, 129, 0.15);
+}
+
+/* Kitchen Dashboard Container */
+.kitchen-dashboard.dark {
+  background-color: var(--kitchen-bg-primary);
+  color: var(--kitchen-text-primary);
+}
+
+/* Kitchen Dashboard Sidebar in dark mode */
+.kitchen-dashboard.dark aside {
+  background-color: var(--kitchen-bg-secondary) !important;
+  border-color: var(--kitchen-border-color) !important;
+}
+
+/* Kitchen Dashboard Cards */
+.kitchen-dashboard.dark .order-card,
+.kitchen-dashboard.dark [class*="order-card"] {
+  background-color: var(--kitchen-bg-card);
+  border-color: var(--kitchen-border-color);
+  color: var(--kitchen-text-primary);
+}
+
+/* Filter buttons in dark mode */
+.kitchen-dashboard.dark .filter-btn {
+  background-color: var(--kitchen-bg-secondary);
+  color: var(--kitchen-text-secondary);
+  border-color: var(--kitchen-border-color);
+}
+
+.kitchen-dashboard.dark .filter-btn.active,
+.kitchen-dashboard.dark .filter-btn:hover {
+  background-color: var(--kitchen-accent-light);
+  color: var(--kitchen-accent);
+  border-color: var(--kitchen-accent);
+}
+
+/* Header styles */
+.kitchen-dashboard.dark h1,
+.kitchen-dashboard.dark h2,
+.kitchen-dashboard.dark h3 {
+  color: var(--kitchen-text-primary);
+}
+
+/* Text styles */
+.kitchen-dashboard.dark p,
+.kitchen-dashboard.dark span {
+  color: var(--kitchen-text-secondary);
+}
+
+/* Button styles */
+.kitchen-dashboard.dark button {
+  transition: all 0.2s ease;
+}
+
+/* Action buttons */
+.kitchen-dashboard.dark .action-btn {
+  background-color: var(--kitchen-bg-hover);
+  color: var(--kitchen-text-primary);
+  border-color: var(--kitchen-border-color);
+}
+
+.kitchen-dashboard.dark .action-btn:hover {
+  background-color: var(--kitchen-accent-light);
+}
+
+/* Primary buttons should keep their colors */
+.kitchen-dashboard.dark .btn-primary {
+  background-color: #10B981;
+  color: white;
+}
+
+.kitchen-dashboard.dark .btn-secondary {
+  background-color: var(--kitchen-bg-hover);
+  color: var(--kitchen-text-primary);
+}
+
+/* Status badges */
+.kitchen-dashboard.dark .status-new {
+  background-color: var(--kitchen-status-new-bg);
+  color: var(--kitchen-status-new-text);
+}
+
+.kitchen-dashboard.dark .status-preparing {
+  background-color: var(--kitchen-status-preparing-bg);
+  color: var(--kitchen-status-preparing-text);
+}
+
+.kitchen-dashboard.dark .status-ready {
+  background-color: var(--kitchen-status-ready-bg);
+  color: var(--kitchen-status-ready-text);
+}
+
+.kitchen-dashboard.dark .status-delivered {
+  background-color: var(--kitchen-status-delivered-bg);
+  color: var(--kitchen-status-delivered-text);
+}
+
+/* Notification panel in dark mode */
+.kitchen-dashboard.dark .notification-panel {
+  background-color: var(--kitchen-bg-secondary);
+}
+
+.kitchen-dashboard.dark .notification-item {
+  background-color: var(--kitchen-bg-card);
+  border-color: var(--kitchen-border-color);
+}
+
+.kitchen-dashboard.dark .notification-item:hover {
+  background-color: var(--kitchen-bg-hover);
+}
+
+/* Empty state */
+.kitchen-dashboard.dark .empty-state {
+  color: var(--kitchen-text-tertiary);
+}
+
+/* Scrollbar styling for dark mode */
+.kitchen-dashboard.dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.kitchen-dashboard.dark ::-webkit-scrollbar-track {
+  background: var(--kitchen-bg-primary);
+}
+
+.kitchen-dashboard.dark ::-webkit-scrollbar-thumb {
+  background: var(--kitchen-border-color);
+  border-radius: 4px;
+}
+
+.kitchen-dashboard.dark ::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Dark mode toggle button */
+.dark-mode-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: transparent;
+}
+
+.dark-mode-toggle:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Input fields in dark mode */
+.kitchen-dashboard.dark input,
+.kitchen-dashboard.dark select,
+.kitchen-dashboard.dark textarea {
+  background-color: var(--kitchen-bg-primary);
+  color: var(--kitchen-text-primary);
+  border-color: var(--kitchen-border-color);
+}
+
+.kitchen-dashboard.dark input::placeholder,
+.kitchen-dashboard.dark textarea::placeholder {
+  color: var(--kitchen-text-tertiary);
+}
+
+.kitchen-dashboard.dark input:focus,
+.kitchen-dashboard.dark select:focus,
+.kitchen-dashboard.dark textarea:focus {
+  border-color: var(--kitchen-accent);
+  outline: none;
+  box-shadow: 0 0 0 2px var(--kitchen-accent-light);
+}
+
+/* Modal/Overlay in dark mode */
+.kitchen-dashboard.dark .modal-overlay {
+  background-color: rgba(0, 0, 0, 0.7);
+}
+
+.kitchen-dashboard.dark .modal-content {
+  background-color: var(--kitchen-bg-secondary);
+  border-color: var(--kitchen-border-color);
+}
+
+/* Priority badges */
+.kitchen-dashboard.dark .priority-high {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #F87171;
+}
+
+.kitchen-dashboard.dark .priority-normal {
+  background-color: rgba(59, 130, 246, 0.2);
+  color: #60A5FA;
+}
+
+/* Time indicators */
+.kitchen-dashboard.dark .time-indicator {
+  color: var(--kitchen-text-tertiary);
+}
+
+/* Responsive adjustments for mobile */
+@media (max-width: 1024px) {
+  .kitchen-dashboard.dark {
+    padding-bottom: 80px; /* Space for mobile nav */
+  }
+}
+
+/* Animation for theme transition */
+.kitchen-dashboard * {
+  transition: background-color 0.3s ease, 
+              color 0.2s ease, 
+              border-color 0.2s ease;
+}

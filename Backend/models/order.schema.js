@@ -39,13 +39,22 @@ const orderSchema = new mongoose.Schema({
     type: String,
   },
 
-  // staff info 
+  // staff info (optional for guest QR orders)
   orderBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
+    required: false, // Not required for guest QR code orders
   },
   orderByName: {
+    type: String,
+  },
+  // Flag to identify guest orders vs staff orders
+  isGuestOrder: {
+    type: Boolean,
+    default: false,
+  },
+  // Guest session identifier (for tracking guest without login)
+  guestSessionId: {
     type: String,
   },
 
