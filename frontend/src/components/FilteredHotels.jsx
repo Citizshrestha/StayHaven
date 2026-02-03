@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Navbar from './Navbar';
 import { Heart, MapPin, Star, ChevronDown } from 'lucide-react';
 import { allProperties } from '../utils/allProperties';
 
@@ -30,8 +29,6 @@ const FilteredHotels = () => {
 
   return (
     <div style={{ backgroundColor: '#F9FAFB', minHeight: '100vh' }}>
-      <Navbar />
-
       <main style={{ maxWidth: '1400px', margin: '0 auto', padding: '32px 16px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', marginTop: '80px' }}>
           <div className="lg:flex lg:gap-8">

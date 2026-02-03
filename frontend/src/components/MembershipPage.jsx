@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import "./MembershipPage.css";
-import Navbar from "./Navbar";
 
 const memberships = [
   {
@@ -101,7 +100,6 @@ const MembershipPage = () => {
 
   return (
     <div className="w-screen min-h-screen overflow-x-hidden">
-      <Navbar />
       <div className="membership-page">
         <header className="membership-header">
         <h1>Membership Plans</h1>
