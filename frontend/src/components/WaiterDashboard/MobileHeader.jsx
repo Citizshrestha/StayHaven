@@ -1,35 +1,48 @@
 import React, { useState } from "react";
 import { Menu, X } from "lucide-react";
 import Sidebar from "./Sidebar";
+import { useTheme } from "../../hooks/useTheme";
 
 const MobileHeader = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { isDark } = useTheme();
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
   };
 
-  // Get user initials for avatar
+  // Theme-aware styles
+  const headerStyle = {
+    backgroundColor: 'var(--bg-primary)',
+    borderBottom: '1px solid var(--border-color)',
+    padding: '16px',
+  };
 
+  const buttonStyle = {
+    padding: '8px',
+    backgroundColor: 'transparent',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s',
+  };
+
+  const iconColor = isDark ? '#F8FAFC' : '#374151';
 
   return (
     <>
-      <div className="bg-white border-b border-gray-200 px-4 py-4">
+      <div style={headerStyle}>
         <div className="flex items-center justify-between">
-          {/* <div className="flex items-center gap-3">
-           
-           
-          </div> */}
-
           {/* Menu Toggle Button */}
           <button
             onClick={toggleMenu}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            style={buttonStyle}
+            aria-label={isMenuOpen ? "Close menu" : "Open menu"}
           >
             {isMenuOpen ? (
-              <X className="w-6 h-6 text-gray-700" />
+              <X size={24} style={{ color: iconColor }} />
             ) : (
-              <Menu className="w-6 h-6 text-gray-700" />
+              <Menu size={24} style={{ color: iconColor }} />
             )}
           </button>
         </div>
@@ -40,13 +53,27 @@ const MobileHeader = () => {
         <div className="fixed inset-0 z-50 lg:hidden">
           {/* Background Overlay */}
           <div
-            className="absolute inset-0 bg-transparent bg-opacity-50"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            }}
             onClick={toggleMenu}
           />
 
           {/* Sidebar Drawer */}
-          <div className="absolute left-0 top-0 bottom-0 w-64 bg-white shadow-xl">
-            <Sidebar />
+          <div 
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: '280px',
+              backgroundColor: 'var(--bg-primary)',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            }}
+          >
+            <Sidebar onViewChange={() => setIsMenuOpen(false)} />
           </div>
         </div>
       )}

@@ -8,6 +8,7 @@ import useClickOutside from "../../../hooks/useClickOutSide";
 import useRelativeTime from "../../../hooks/useRelativeTime";
 import EditOrderModal from "./EditOrderModal";
 import { useStaffAuth } from "../../../context/StaffAuthContext";
+import { useTheme } from "../../../hooks/useTheme";
 
 
 const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
@@ -23,6 +24,9 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
 
   // Get staff auth context for hotel info
   const { staffUser } = useStaffAuth();
+  
+  // Get theme context for dark mode support
+  const { isDark } = useTheme();
 
   // use custom hook for handling click outside
   const menuRef = useClickOutside(() => setShowMenu(false));
@@ -522,8 +526,8 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
               borderRadius: "8px",
               fontSize: "11px",
               fontWeight: "700",
-              backgroundColor: "#EDE9FE",
-              color: "#7C3AED",
+              backgroundColor: isDark ? "rgba(124, 58, 237, 0.2)" : "#EDE9FE",
+              color: isDark ? "#A78BFA" : "#7C3AED",
             }}>
               🍽️ {getTotalItemCount()} items
             </span>
@@ -535,8 +539,8 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                 borderRadius: "8px",
                 fontSize: "11px",
                 fontWeight: "700",
-                backgroundColor: "#FEE2E2",
-                color: "#DC2626",
+                backgroundColor: isDark ? "rgba(220, 38, 38, 0.2)" : "#FEE2E2",
+                color: isDark ? "#F87171" : "#DC2626",
               }}
             >
               Urgent
@@ -578,15 +582,15 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
           <div style={{
             marginBottom: "12px",
             padding: "8px 12px",
-            backgroundColor: "#FFFBEB",
+            backgroundColor: isDark ? "rgba(217, 119, 6, 0.15)" : "#FFFBEB",
             borderRadius: "8px",
-            borderLeft: "3px solid #F59E0B",
+            borderLeft: `3px solid ${isDark ? "#FBBF24" : "#F59E0B"}`,
             maxWidth: "280px",
           }}>
             <div style={{
               fontSize: "11px",
               fontWeight: "700",
-              color: "#B45309",
+              color: isDark ? "#FCD34D" : "#B45309",
               marginBottom: "4px",
               textTransform: "uppercase",
               letterSpacing: "0.5px",
@@ -596,16 +600,16 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
             {order.items.filter(item => item.notes).slice(0, 2).map(item => (
               <div key={item.id} style={{
                 fontSize: "11px",
-                color: "#78350F",
+                color: isDark ? "#FDE68A" : "#78350F",
                 marginBottom: "2px",
                 lineHeight: "1.3",
               }}>
                 <span style={{ fontWeight: "600" }}>{item.name}:</span>{" "}
-                <span style={{ color: "#92400E" }}>{item.notes.length > 25 ? item.notes.slice(0, 25) + "..." : item.notes}</span>
+                <span style={{ color: isDark ? "#FCD34D" : "#92400E" }}>{item.notes.length > 25 ? item.notes.slice(0, 25) + "..." : item.notes}</span>
               </div>
             ))}
             {order.items.filter(item => item.notes).length > 2 && (
-              <div style={{ fontSize: "10px", color: "#B45309", marginTop: "4px", fontStyle: "italic" }}>
+              <div style={{ fontSize: "10px", color: isDark ? "#FCD34D" : "#B45309", marginTop: "4px", fontStyle: "italic" }}>
                 +{order.items.filter(item => item.notes).length - 2} more in details
               </div>
             )}
@@ -618,23 +622,24 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
               <div
                 style={{
                   padding: "12px",
-                  backgroundColor: "#D1FAE5",
+                  backgroundColor: isDark ? "rgba(5, 150, 105, 0.15)" : "#D1FAE5",
                   borderRadius: "12px",
                   textAlign: "center",
                   marginBottom: "12px",
+                  border: isDark ? "1px solid rgba(5, 150, 105, 0.3)" : "none",
                 }}
               >
                 <div
                   style={{
                     fontSize: "16px",
                     fontWeight: "700",
-                    color: "#059669",
+                    color: isDark ? "#6EE7B7" : "#059669",
                     marginBottom: "4px",
                   }}
                 >
                   ✓ Order Completed
                 </div>
-                <div style={{ fontSize: "14px", color: "#6B7280" }}>
+                <div style={{ fontSize: "14px", color: isDark ? "#94A3B8" : "#6B7280" }}>
                   {(() => {
                     const t = formatCompletionTime(order);
                     return t ? `Served on ${t}` : "Completed";
@@ -712,10 +717,10 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
               </button>
               <div style={{
                 padding: "10px 16px",
-                backgroundColor: "#FEF3C7",
+                backgroundColor: isDark ? "rgba(217, 119, 6, 0.15)" : "#FEF3C7",
                 borderRadius: "10px",
                 fontSize: "13px",
-                color: "#92400E",
+                color: isDark ? "#FCD34D" : "#92400E",
                 fontWeight: "600",
                 display: "flex",
                 alignItems: "center",
@@ -1432,7 +1437,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
         <BillPreview
           order={order}
           onClose={() => setShowBillPreview(false)}
-          isDarkMode={false}
+          isDarkMode={isDark}
           hotelInfo={hotelInfo}
         />
       )}

@@ -204,6 +204,7 @@ const WaiterDashboard = () => {
           right: "16px",
           boxShadow: "0 4px 14px rgba(16, 185, 129, 0.4)",
         }}
+        aria-label="Create new order"
       >
         <Plus size={28} strokeWidth={2.5} />
       </button>
