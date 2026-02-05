@@ -224,7 +224,7 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
   };
 
   return (
-    <div style={cardStyle} data-order-id={order._id}>
+    <div style={cardStyle} data-order-id={order._id || order.id}>
       <div style={{ flex: 1 }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
           <span style={badgeStyle}>
@@ -408,22 +408,27 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            backgroundColor: "rgba(0, 0, 0, 0.6)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             zIndex: 1000,
+            backdropFilter: "blur(4px)",
           }}
           onClick={() => setShowStatusModal(false)}
         >
           <div
             style={{
-              backgroundColor: "white",
+              backgroundColor: colors.card,
               borderRadius: "24px",
               maxWidth: "500px",
               width: "90%",
               padding: "24px",
               position: "relative",
+              border: isDarkMode ? `1px solid ${colors.cardBorder}` : "none",
+              boxShadow: isDarkMode 
+                ? "0 25px 50px -12px rgba(0, 0, 0, 0.5)" 
+                : "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -436,16 +441,17 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
                 background: "none",
                 border: "none",
                 cursor: "pointer",
-                color: "#6B7280",
+                color: colors.textSecondary,
               }}
+              aria-label="Close modal"
             >
               <X size={24} />
             </button>
 
-            <h2 style={{ fontSize: "24px", fontWeight: "800", marginBottom: "8px", color: "#111827" }}>
+            <h2 style={{ fontSize: "24px", fontWeight: "800", marginBottom: "8px", color: colors.text }}>
               Update Order Status
             </h2>
-            <p style={{ color: "#6B7280", marginBottom: "32px", fontSize: "14px" }}>
+            <p style={{ color: colors.textSecondary, marginBottom: "32px", fontSize: "14px" }}>
               Order #{order.orderNumber || order.id?.slice?.(-5)?.toUpperCase() || order.id}
             </p>
 
@@ -456,8 +462,9 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
               gap: "16px",
               marginBottom: "32px",
               padding: "24px",
-              backgroundColor: "#F9FAFB",
+              backgroundColor: isDarkMode ? "#0F172A" : "#F9FAFB",
               borderRadius: "16px",
+              border: isDarkMode ? `1px solid ${colors.cardBorder}` : "none",
             }}>
               <div style={{ textAlign: "center" }}>
                 <div style={{
@@ -471,12 +478,12 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
                 }}>
                   {statusStyle.label}
                 </div>
-                <div style={{ fontSize: "12px", color: "#6B7280", fontWeight: "500" }}>
+                <div style={{ fontSize: "12px", color: colors.textSecondary, fontWeight: "500" }}>
                   Current
                 </div>
               </div>
 
-              <ChevronRight size={24} style={{ color: "#9CA3AF" }} />
+              <ChevronRight size={24} style={{ color: colors.textSecondary }} />
 
               <div style={{ textAlign: "center" }}>
                 <div style={{
@@ -484,13 +491,17 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
                   borderRadius: "8px",
                   fontSize: "14px",
                   fontWeight: "700",
-                  backgroundColor: order.status === "new" ? "#FEF3C7" : "#D1FAE5",
-                  color: order.status === "new" ? "#D97706" : "#059669",
+                  backgroundColor: order.status === "new" 
+                    ? (isDarkMode ? "rgba(217, 119, 6, 0.2)" : "#FEF3C7")
+                    : (isDarkMode ? "rgba(5, 150, 105, 0.2)" : "#D1FAE5"),
+                  color: order.status === "new" 
+                    ? (isDarkMode ? "#FBBF24" : "#D97706")
+                    : (isDarkMode ? "#34D399" : "#059669"),
                   marginBottom: "8px",
                 }}>
                   {order.status === "new" ? "Cooking" : "Ready"}
                 </div>
-                <div style={{ fontSize: "12px", color: "#6B7280", fontWeight: "500" }}>
+                <div style={{ fontSize: "12px", color: colors.textSecondary, fontWeight: "500" }}>
                   Next
                 </div>
               </div>
@@ -502,13 +513,14 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
                 style={{
                   flex: 1,
                   padding: "12px",
-                  border: "1px solid #E5E7EB",
+                  border: `1px solid ${colors.cardBorder}`,
                   borderRadius: "12px",
-                  backgroundColor: "white",
-                  color: "#374151",
+                  backgroundColor: isDarkMode ? "#334155" : "white",
+                  color: colors.text,
                   fontWeight: "700",
                   fontSize: "14px",
                   cursor: "pointer",
+                  transition: "all 0.2s",
                 }}
               >
                 Cancel
@@ -525,6 +537,7 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
                   fontWeight: "700",
                   fontSize: "14px",
                   cursor: "pointer",
+                  transition: "all 0.2s",
                 }}
               >
                 Confirm
