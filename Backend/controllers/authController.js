@@ -713,19 +713,12 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
 
 // @route POST /api/auth/change-password
 export const changePassword = asyncHandler(async (req, res) => {
-  const { newPassword } = req.body;
+  const { currentPassword, newPassword } = req.body;
 
-  if (!newPassword) {
+  if (!currentPassword || !newPassword) {
     return res.status(400).json({
       success: false,
-      message: "New password is required",
-    });
-  }
-
-  if (newPassword.length < 6) {
-    return res.status(400).json({
-      success: false,
-      message: "New password must be at least 6 characters long",
+      message: "Current and new passwords are required",
     });
   }
 
@@ -738,7 +731,43 @@ export const changePassword = asyncHandler(async (req, res) => {
     });
   }
 
-  // Update password directly without current password verification
+  // Verify current password
+  const isMatch = await user.matchPassword(currentPassword);
+  if (!isMatch) {
+    return res.status(401).json({
+      success: false,
+      message: "Current password is incorrect",
+    });
+  }
+
+  // Prevent re-using the same password
+  const isSameAsCurrent = await user.matchPassword(newPassword);
+  if (isSameAsCurrent) {
+    return res.status(400).json({
+      success: false,
+      message: "New password must be different from current password",
+    });
+  }
+
+  // Validate new password using model helper (optional stricter rules)
+  if (typeof user.validatePassword === 'function') {
+    const { isValid, errors } = user.validatePassword(newPassword);
+    if (!isValid) {
+      return res.status(400).json({
+        success: false,
+        message: errors.join("; ") || "New password validation failed",
+      });
+    }
+  } else {
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "New password must be at least 6 characters long",
+      });
+    }
+  }
+
+  // Update password
   user.password = newPassword;
   await user.save();
 

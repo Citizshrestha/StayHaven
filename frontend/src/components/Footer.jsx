@@ -1,153 +1,179 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { 
-  FaFacebook, 
-  FaTwitter, 
-  FaInstagram, 
-  FaPhone, 
-  FaEnvelope, 
-  FaMapMarkerAlt,
-  FaHeart
-} from 'react-icons/fa';
+import { Facebook, Twitter, Instagram, Linkedin, Mail, Phone, MapPin } from 'lucide-react';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="bg-gradient-to-b from-gray-900 to-gray-950 text-white">
-      <div className="container mx-auto px-6 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mb-12">
-          
+    <footer className="bg-gray-900 text-gray-300 pt-12">
+      {/* Main Footer Content */}
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 xl:px-[6vw] pt-24 pb-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
           {/* Brand Section */}
           <div className="space-y-6">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-teal-600 rounded-xl flex items-center justify-center shadow-lg">
-                <span className="text-white font-bold text-2xl">SH</span>
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-white">StayHaven</h2>
-                <p className="text-teal-400 text-sm font-medium">Luxury Stays, Unbeatable Prices</p>
-              </div>
+              <img 
+                src="/logo.png" 
+                alt="StayHaven Logo" 
+                className="w-14 h-14 object-contain"
+              />
+              <span className="text-xl font-bold tracking-wider text-white" style={{ fontFamily: "Nunito" }}>
+                Stay<span className="text-teal-500">Haven</span>
+              </span>
             </div>
-            
-            <p className="text-gray-400 leading-relaxed text-sm">
-              Discover exceptional stays curated just for you. 
+            <p className="text-sm leading-relaxed text-gray-400">
+              Your trusted partner for finding the perfect accommodation. Book smarter, stay better, and enjoy seamless in-hotel services.
             </p>
-            
-            <div className="flex space-x-4">
-              {[FaFacebook, FaTwitter, FaInstagram].map((Icon, index) => (
-                <a 
-                  key={index}
-                  href="#" 
-                  className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-gray-300 hover:bg-teal-600 hover:text-white transition-all duration-300"
-                  aria-label="Social media"
-                >
-                  <Icon size={18} />
-                </a>
-              ))}
+            <div className="flex gap-4">
+              <a
+                href="#"
+                className="w-10 h-10 rounded-full bg-gray-800 hover:bg-teal-600 flex items-center justify-center transition-all duration-300"
+              >
+                <Facebook className="w-5 h-5" />
+              </a>
+              <a
+                href="#"
+                className="w-10 h-10 rounded-full bg-gray-800 hover:bg-teal-600 flex items-center justify-center transition-all duration-300"
+              >
+                <Twitter className="w-5 h-5" />
+              </a>
+              <a
+                href="#"
+                className="w-10 h-10 rounded-full bg-gray-800 hover:bg-teal-600 flex items-center justify-center transition-all duration-300"
+              >
+                <Instagram className="w-5 h-5" />
+              </a>
+              <a
+                href="#"
+                className="w-10 h-10 rounded-full bg-gray-800 hover:bg-teal-600 flex items-center justify-center transition-all duration-300"
+              >
+                <Linkedin className="w-5 h-5" />
+              </a>
             </div>
           </div>
 
-          {/* Quick Links - NO HOTELS LINK */}
+          {/* Quick Links */}
           <div>
-            <h3 className="text-lg font-semibold mb-6 text-white pb-2 border-b border-gray-800">
-              Quick Links
-            </h3>
+            <h3 className="text-white font-bold text-lg mb-6">Quick Links</h3>
             <ul className="space-y-3">
               <li>
-                <Link to="/" className="text-gray-400 hover:text-teal-400 transition-colors duration-300">
+                <a href="/" className="text-gray-400 hover:text-teal-500 transition-colors duration-300">
                   Home
-                </Link>
+                </a>
               </li>
               <li>
-                <Link to="/destinations" className="text-gray-400 hover:text-teal-400 transition-colors duration-300">
-                  Destinations
-                </Link>
-              </li>
-              <li>
-                <Link to="/offers" className="text-gray-400 hover:text-teal-400 transition-colors duration-300">
-                  Special Offers
-                </Link>
-              </li>
-              <li>
-                <Link to="/membership" className="text-gray-400 hover:text-teal-400 transition-colors duration-300">
-                  Membership
-                </Link>
-              </li>
-              <li>
-                <Link to="/about" className="text-gray-400 hover:text-teal-400 transition-colors duration-300">
+                <a href="/about" className="text-gray-400 hover:text-teal-500 transition-colors duration-300">
                   About Us
-                </Link>
+                </a>
+              </li>
+              <li>
+                <a href="/destinations" className="text-gray-400 hover:text-teal-500 transition-colors duration-300">
+                  Destinations
+                </a>
+              </li>
+              <li>
+                <a href="/hotels" className="text-gray-400 hover:text-teal-500 transition-colors duration-300">
+                  Hotels
+                </a>
+              </li>
+              <li>
+                <a href="/offers" className="text-gray-400 hover:text-teal-500 transition-colors duration-300">
+                  Offers
+                </a>
+              </li>
+              <li>
+                <a href="/memberships" className="text-gray-400 hover:text-teal-500 transition-colors duration-300">
+                  Membership
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          {/* Support */}
+          <div>
+            <h3 className="text-white font-bold text-lg mb-6">Support</h3>
+            <ul className="space-y-3">
+              <li>
+                <a href="#" className="text-gray-400 hover:text-teal-500 transition-colors duration-300">
+                  Help Center
+                </a>
+              </li>
+              <li>
+                <a href="#" className="text-gray-400 hover:text-teal-500 transition-colors duration-300">
+                  FAQs
+                </a>
+              </li>
+              <li>
+                <a href="#" className="text-gray-400 hover:text-teal-500 transition-colors duration-300">
+                  Privacy Policy
+                </a>
+              </li>
+              <li>
+                <a href="#" className="text-gray-400 hover:text-teal-500 transition-colors duration-300">
+                  Terms of Service
+                </a>
+              </li>
+              <li>
+                <a href="#" className="text-gray-400 hover:text-teal-500 transition-colors duration-300">
+                  Cancellation Policy
+                </a>
+              </li>
+              <li>
+                <a href="#" className="text-gray-400 hover:text-teal-500 transition-colors duration-300">
+                  Contact Us
+                </a>
               </li>
             </ul>
           </div>
 
           {/* Contact Info */}
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-lg font-semibold mb-4 text-white pb-2 border-b border-gray-800">
-                Contact Us
-              </h3>
-              <ul className="space-y-3">
-                <li className="flex items-start gap-3">
-                  <FaMapMarkerAlt className="text-teal-400 mt-1 flex-shrink-0" size={16} />
-                  <span className="text-gray-400 text-sm">Chitwan, Nepal</span>
-                </li>
-                <li className="flex items-center gap-3">
-                  <FaPhone className="text-teal-400 flex-shrink-0" size={16} />
-                  <span className="text-gray-400 text-sm">+977 1-1234567</span>
-                </li>
-                <li className="flex items-center gap-3">
-                  <FaEnvelope className="text-teal-400 flex-shrink-0" size={16} />
-                  <a href="mailto:info@stayhaven.com" className="text-gray-400 hover:text-teal-400 text-sm">
-                    info@stayhaven.com
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="text-lg font-semibold mb-4 text-white pb-2 border-b border-gray-800">
-                Newsletter
-              </h3>
-              <div className="space-y-3">
-                <div className="flex">
-                  <input
-                    type="email"
-                    placeholder="Your email"
-                    className="flex-grow px-4 py-2 text-gray-900 text-sm rounded-l-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  />
-                  <button 
-                    type="submit"
-                    className="bg-teal-600 hover:bg-teal-700 px-4 py-2 text-sm rounded-r-lg transition-colors duration-300 font-medium"
-                  >
-                    Submit
-                  </button>
-                </div>
-              </div>
+          <div>
+            <h3 className="text-white font-bold text-lg mb-6">Contact</h3>
+            <ul className="space-y-4">
+              <li className="flex items-start gap-3">
+                <MapPin className="w-5 h-5 text-teal-500 flex-shrink-0 mt-0.5" />
+                <span className="text-sm text-gray-400">
+                  123 Hotel Street, Tourism District, Kathmandu, Nepal
+                </span>
+              </li>
+              <li className="flex items-center gap-3">
+                <Phone className="w-5 h-5 text-teal-500 flex-shrink-0" />
+                <a href="tel:+9771234567890" className="text-sm text-gray-400 hover:text-teal-500 transition-colors duration-300">
+                  +977 123-456-7890
+                </a>
+              </li>
+              <li className="flex items-center gap-3">
+                <Mail className="w-5 h-5 text-teal-500 flex-shrink-0" />
+                <a href="mailto:info@stayhaven.com" className="text-sm text-gray-400 hover:text-teal-500 transition-colors duration-300">
+                  info@stayhaven.com
+                </a>
+              </li>
+            </ul>
+            <div className="mt-6 pt-6 border-t border-gray-800">
+              <p className="text-sm text-gray-400 mb-2">Available 24/7</p>
+              <p className="text-xs text-gray-500">We're here to help you anytime, anywhere</p>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Bottom Bar */}
-        <div className="pt-8 border-t border-gray-800">
+      {/* Bottom Bar */}
+      <div className="border-t border-gray-800">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 xl:px-[6vw] py-6">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="text-center md:text-left">
-              <p className="text-gray-400 text-sm">
-                &copy; {currentYear} StayHaven. All rights reserved.
-              </p>
-            </div>
-            
-            <div className="flex gap-4">
-              <Link to="/privacy" className="text-gray-400 hover:text-white text-sm transition-colors">
-                Privacy Policy
-              </Link>
-              <Link to="/terms" className="text-gray-400 hover:text-white text-sm transition-colors">
-                Terms of Service
-              </Link>
-              <Link to="/contact" className="text-gray-400 hover:text-white text-sm transition-colors">
-                Contact
-              </Link>
+            <p className="text-sm text-gray-500">
+              © {currentYear} StayHaven. All rights reserved.
+            </p>
+            <div className="flex items-center gap-6">
+              <a href="#" className="text-sm text-gray-500 hover:text-teal-500 transition-colors duration-300">
+                Cookie Policy
+              </a>
+              <a href="#" className="text-sm text-gray-500 hover:text-teal-500 transition-colors duration-300">
+                Sitemap
+              </a>
+              <a href="#" className="text-sm text-gray-500 hover:text-teal-500 transition-colors duration-300">
+                Accessibility
+              </a>
             </div>
           </div>
         </div>

@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import "./Destination.css";
-import Navbar from "./Navbar";
 import { FaStar, FaHotel, FaFilter, FaMapMarkerAlt, FaCalendarAlt, FaTemperatureHigh, FaBed, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { Link } from "react-router-dom";
 
@@ -175,7 +174,6 @@ const Destination = () => {
 
   return (
     <div className="w-screen min-h-screen overflow-x-hidden">
-      <Navbar />
       <div className="destination-page">
         {/* Header */}
         <header className="destination-header">
@@ -373,7 +371,7 @@ const Destination = () => {
                   {/* Activities */}
                   <div className="activities-section">
                     <h3>Popular Activities</h3>
-                    <div className="activities-list">
+                    <div className="activities-">
                       {selectedDestination.activities.map((activity, index) => (
                         <div key={index} className="activity-item">
                           <div className="activity-bullet"></div>

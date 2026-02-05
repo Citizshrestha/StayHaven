@@ -1,0 +1,52 @@
+/* Mobile Bottom Navigation */
+.rd-mobile-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-around;
+  padding: 8px 0;
+  z-index: 100;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.reception-dashboard.dark .rd-mobile-nav {
+  background: #1e293b;
+  border-top-color: #334155;
+}
+
+.rd-mobile-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  color: #64748b;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex: 1;
+}
+
+.reception-dashboard.dark .rd-mobile-nav-item {
+  color: #94a3b8;
+}
+
+.rd-mobile-nav-item.active {
+  color: #3b82f6;
+}
+
+.rd-mobile-nav-item svg {
+  flex-shrink: 0;
+}
+
+@media (min-width: 769px) {
+  .rd-mobile-nav {
+    display: none;
+  }
+}
