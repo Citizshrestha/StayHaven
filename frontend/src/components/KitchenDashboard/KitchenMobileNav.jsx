@@ -64,6 +64,8 @@ const KitchenMobileNav = ({
                 border: "none",
                 cursor: "pointer",
               }}
+              aria-label={`${tab.label}${tab.badge > 0 ? ` (${tab.badge} pending)` : ''}`}
+              aria-current={isActive ? 'page' : undefined}
             >
               <Icon
                 size={22}
