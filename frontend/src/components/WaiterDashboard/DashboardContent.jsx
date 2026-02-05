@@ -209,7 +209,7 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
 
         {filteredOrders.length === 0 && (
           <div style={{ textAlign: "center", padding: "48px 0" }}>
-            <p style={{ color: "#9CA3AF", fontSize: "18px", fontWeight: "500" }}>
+            <p style={{ color: "var(--text-tertiary)", fontSize: "18px", fontWeight: "500" }}>
               No orders found
             </p>
           </div>
