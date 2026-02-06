@@ -5,23 +5,57 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 
 export const protect = asyncHandler(async (req, res, next) => {
   let token;
-  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-    token = req.headers.authorization.split(' ')[1];
+
+  // Check for token in Authorization header first
+  if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
+    token = req.headers.authorization.split(" ")[1];
+  }
+  // Fallback: check for token in cookies
+  else if (req.cookies && req.cookies.accessToken) {
+    token = req.cookies.accessToken;
+  }
+
+  if (!token) {
+    return res.status(401).json({
+      success: false,
+      message: "Not authorized, no token",
+    });
+  }
+
+  try {
     const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+
     req.user = await User.findById(decoded.id).select('-password').populate('role');
+
     if (!req.user) {
+      console.error("Auth Middleware - User not found for ID:", decoded.id);
       throw Object.assign(new Error('User not found'), { status: 401 });
     }
-    next();
-  } else {
-    throw Object.assign(new Error('No access token provided, token missing'), { status: 401 });
+  } catch (error) {
+    if (error.name === 'JsonWebTokenError') {
+      throw Object.assign(new Error('Not authorized, token failed'), { status: 401 });
+    }
+    if (error.name === 'TokenExpiredError') {
+      throw Object.assign(new Error('Not authorized, token expired'), { status: 401 });
+    }
+    // If it's the "User not found" error thrown above, rethrow it
+    if (error.status === 401) {
+      throw error;
+    }
+    throw error;
   }
+
+  next();
 });
 
 export const authorize = (...roles) => {
   return asyncHandler(async (req, res, next) => {
-    if (!req.user || !roles.includes(req.user.role.name)) {
-      throw Object.assign(new Error(`User role '${req.user?.role?.name || 'unknown'}' is not authorized`), {
+    const userRole = req.user?.role?.name || req.user?.companyRole;
+
+
+
+    if (!userRole || !roles.includes(userRole)) {
+      throw Object.assign(new Error(`User role '${userRole || 'unknown'}' is not authorized`), {
         status: 403,
       });
     }

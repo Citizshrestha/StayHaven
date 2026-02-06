@@ -2,21 +2,29 @@ import mongoose from "mongoose";
 
 
 const roomSchema = new mongoose.Schema({
+    hotel: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Hotel",
+        required: true,
+    },
+    company: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Company",
+        required: true,
+        index: true,
+    },
     roomName: {
         type: String,
         required: true,
-        unique: true,
-        default: "room",
         trim: true,
     },
-    roomNumber:{
-        type: Number,
+    roomNumber: {
+        type: String,
         required: true,
-        unique: true,
     },
     type: {
         type: String,
-        enum: ['single','double','suite','deluxe','villa'],
+        enum: ['single', 'double', 'suite', 'deluxe', 'villa'],
         required: true,
     },
     price: {
@@ -25,7 +33,7 @@ const roomSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['available','occupied', 'maintenance', 'cleaning'],
+        enum: ['available', 'occupied', 'maintenance', 'cleaning'],
         default: 'available',
         required: true,
     },
@@ -33,19 +41,35 @@ const roomSchema = new mongoose.Schema({
         type: String,
         trim: true,
     },
-    ammeneties: {
-        type: [{type:  string}]
+    amenities: {
+        type: [String],
+        default: [],
     },
     images: {
-        type: String,
-        // required: true,
+        type: [String],
+        default: [],
     },
-
+    capacity: {
+        adults: {
+            type: Number,
+            default: 2,
+        },
+        children: {
+            type: Number,
+            default: 0,
+        },
+    },
+    bedType: {
+        type: String,
+        enum: ['Single', 'Double', 'Queen', 'King', 'Twin'],
+    },
     QR: {
         type: String,
-        required: true,
     }
 
-}, {timestamps: true})
+}, { timestamps: true })
+
+// Compound index for unique room numbers per hotel
+roomSchema.index({ hotel: 1, roomNumber: 1 }, { unique: true })
 
 export const Room = mongoose.model("Room", roomSchema);

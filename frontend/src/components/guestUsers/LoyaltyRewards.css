@@ -1,0 +1,43 @@
+.loyalty-root{display:flex;min-height:100vh;background:#f6fbfb;font-family:Inter,Segoe UI,Roboto,Arial,sans-serif}
+.loyalty-side{width:220px;padding:28px 18px;background:#f0f9f8;border-right:1px solid #e6f0ef;display:flex;flex-direction:column}
+.brand{font-weight:700;font-size:18px;color:#0b6b63;margin-bottom:12px}
+.side-nav{display:flex;flex-direction:column;gap:8px}
+.nav-btn{background:transparent;border:0;padding:10px 12px;border-radius:8px;text-align:left;color:#234;cursor:pointer;font-weight:600}
+.nav-btn:hover{background:#e6f8f6}
+.nav-btn.active{background:#e6f8f6;color:#0b6b63}
+
+.loyalty-main{flex:1;padding:28px 40px}
+.loyalty-header h1{margin:0;color:#0b6b63}
+.subtitle{color:#6b6b6b;margin-top:6px}
+
+.points-box{display:flex;justify-content:space-between;align-items:center;background:#fff;padding:18px;border-radius:10px;box-shadow:0 1px 2px rgba(0,0,0,0.04);margin-top:18px}
+.points-left .balance{font-weight:800;font-size:20px}
+.points-left .tier{color:#6b6b6b;margin-top:6px}
+.points-right{max-width:600px}
+.tier-progress{font-weight:700;margin-bottom:8px}
+.progress-bar{height:12px;background:#eef7f6;border-radius:8px;overflow:hidden}
+.progress{height:100%;background:linear-gradient(90deg,#06bfa0,#23d7be)}
+.progress-label{margin-top:6px;color:#6b6b6b}
+
+.rewards{margin-top:26px}
+.rewards-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:12px}
+.reward-card{background:white;border-radius:10px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,0.04);display:flex;flex-direction:column}
+.reward-card img{width:100%;height:140px;object-fit:cover}
+.reward-meta{padding:12px;display:flex;flex-direction:column;gap:8px}
+.reward-title{font-weight:700}
+.reward-points{color:#6b6b6b}
+.redeem-btn{align-self:flex-start;padding:8px 12px;border-radius:8px;border:0;background:#06bfa0;color:white;cursor:pointer}
+
+.activity{margin-top:28px}
+.activity-table{background:white;padding:12px;border-radius:8px}
+.table-row{display:grid;grid-template-columns:160px 1fr 120px;padding:10px 8px;border-bottom:1px solid #f2f6f5}
+.table-head{font-weight:700;background:transparent}
+.points.pos{color:#06bfa0}
+.points.neg{color:#d9534f}
+
+@media (max-width:900px){
+  .loyalty-root{flex-direction:column}
+  .loyalty-side{width:100%;flex-direction:row;align-items:center;gap:12px;padding:12px}
+  .loyalty-main{padding:16px}
+  .table-row{grid-template-columns:1fr 1fr 1fr}
+}

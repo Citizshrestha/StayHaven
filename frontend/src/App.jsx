@@ -1,20 +1,25 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
-import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-import { GoogleOAuthProvider } from '@react-oauth/google';
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { GoogleOAuthProvider } from "@react-oauth/google";
 
 // Import components
-import Home from './components/Home';
-import Login from './components/Login';
-import Register from './components/Register';
-import Dashboard from './components/Dashboard';
-import ForgotPassword from './components/ForgotPassword';
-import ResetPassword from './components/ResetPassword';
-import ProtectedRoute from './components/ProtectedRoute';
+import Home from "./components/Home";
+import Login from "./components/guestUsers/Login";
+import Register from "./components/Register";
+import ForgotPassword from "./components/ForgotPassword";
+import ResetPassword from "./components/ResetPassword";
 import OffersPage from "./components/OffersPage";
-import Hoteldashboard from "./Hotel admin/Hoteldashboard";
-import RoomsManagement from "./Hotel admin/RoomsManagement";
+import GuestDashboard from "./components/guestUsers/GuestDashboard";
+import Mybooking from "./components/guestUsers/Mybooking";
+import Foodorder from "./components/guestUsers/Foodorder";
+import LoyaltyRewards from "./components/guestUsers/LoyaltyRewards";
+import Redeem from "./components/guestUsers/Redeem";
+import GuestNotification from "./components/guestUsers/GuestNotification";
+import HotelDetails from "./components/HotelDetails";
+import ProtectedRoute from "./components/ProtectedRoute";
+import Dashboard from "./components/Dashboard";
 
 const App = () => {
   return (
@@ -31,12 +36,23 @@ const App = () => {
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/offerpage" element={<OffersPage />} />
+          <Route path="/" element={<OffersPage />} />
+          {/* Guest pages */}
+          <Route path="/guest-dashboard" element={<GuestDashboard />} />
+          <Route path="/guest/bookings" element={<Mybooking />} />
+          <Route path="/guest/food-order" element={<Foodorder />} />
+          <Route path="/guest/loyalty" element={<LoyaltyRewards />} />
+          <Route path="/guest/loyalty/redeem/:rewardId" element={<Redeem />} />
+          <Route path="/guest/notifications" element={<GuestNotification />} />
+          <Route path="/hotel/:id" element={<HotelDetails />} />
           
           
           {/* Protected Routes */}
-          <Route path="/" element={ <Hoteldashboard /> } />
-          <Route path="/RoomsManagement" element={ <RoomsManagement/> } />
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          } />
         </Routes>
       </div>
       
@@ -56,6 +72,6 @@ const App = () => {
       </Router>
     </GoogleOAuthProvider>
   );
-}
+};
 
 export default App;

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import "./OffersPage.css";
+import Navbar from "./Navbar";
 
 const offers = [
   {
@@ -342,8 +343,10 @@ const OffersPage = () => {
   };
 
   return (
-    <div className="offers-page">
-      <header className="offers-header">
+    <div className="w-screen min-h-screen overflow-x-hidden">
+      <Navbar />
+      <div className="offers-page">
+        <header className="offers-header">
         <h1>Exclusive Offers & Deals</h1>
         <p>
           Discover the best hotel deals, discounts, and special packages to make
@@ -499,8 +502,9 @@ const OffersPage = () => {
           </div>
         </div>
       )}
-    </div>
-  );
+     </div>
+   </div>
+ );
 };
 
 export default OffersPage;
