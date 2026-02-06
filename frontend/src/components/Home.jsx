@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import Navbar from './Navbar';
 import { 
   Search, MapPin, Calendar, Users, ChevronRight, 
   Building, Shield, Clock, BadgeCheck, ArrowRight,
@@ -102,6 +103,7 @@ const Home = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 overflow-x-hidden flex flex-col">
+      <Navbar />
       {/* Hero Section */}
       <section
         ref={heroRef}
@@ -130,11 +132,15 @@ const Home = () => {
         </div>
 
         {/* Content */}
-        <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 xl:px-[6vw] min-h-screen flex flex-col justify-center pt-[72px]">
+        <div 
+          className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 xl:px-[6vw] min-h-screen flex flex-col justify-center pt-[72px] pb-20"
+          style={{ marginTop: '60px' }}
+        >
           {/* Headline */}
           <h1
             ref={headlineRef}
-            className="text-white font-extrabold text-[clamp(40px,5vw,72px)] leading-[1.05] max-w-[52vw] mb-6"
+            className="text-white font-extrabold text-[clamp(40px,5vw,72px)] leading-[1.05] max-w-[52vw] mb-6 text-left"
+            style={{ paddingTop: '4rem', marginLeft: '0px' }}
           >
             <span className="word inline-block">Book</span>{' '}
             <span className="word inline-block">smarter.</span>
@@ -146,69 +152,71 @@ const Home = () => {
           {/* Subheadline */}
           <p
             ref={subheadlineRef}
-            className="text-white/90 text-lg md:text-xl max-w-[44vw] mb-10 leading-relaxed"
+            className="text-white/90 text-lg md:text-xl max-w-[44vw] mb-12 leading-relaxed"
+            style={{ marginTop: '10px', marginLeft: '0px' }}
           >
-            Discover hotels, manage stays, and enjoy seamless in-hotel services —
+            Discover Nepal's finest hotels, manage stays, and enjoy seamless in-hotel services —
             all in one platform.
           </p>
 
           {/* Search Card */}
-          <div
-            ref={searchCardRef}
-            className="bg-white/95 backdrop-blur-sm rounded-[28px] p-4 md:p-5 card-shadow max-w-[900px]"
-            style={{ border: '1px solid rgba(11,15,28,0.06)' }}
-          >
+          <div className="flex-1 flex items-end pb-8 mb-8" style={{ marginBottom: '4rem' }}>
+            <div
+              ref={searchCardRef}
+              className="bg-white/95 backdrop-blur-sm rounded-[28px] p-4 md:p-5 card-shadow max-w-[900px] w-full shadow-2xl"
+              style={{ border: '1px solid rgba(11,15,28,0.08)' }}
+            >
             <div className="flex flex-col lg:flex-row gap-3 lg:gap-4">
               {/* Location */}
               <div className="flex-1">
-                <label className="!text-[13px] font-medium text-[#6B7280] uppercase tracking-wide mb-1.5 block">
+                <label className="text-[13px] font-medium text-[#6B7280] uppercase tracking-wide mb-1.5 block">
                   Where to?
                 </label>
                 <div className="relative">
                   <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-teal-600 pointer-events-none z-10" />
                   <Input
-                    placeholder="Search destinations"
-                    className="!pl-10 !pr-3 h-11 rounded-2xl border-[#e5e7eb] focus:ring-2 focus:ring-[#2F5AF6]/20 focus:border-[#2F5AF6] !text-[13px]"
+                    placeholder="Search destinations in Nepal"
+                    className="pl-10 pr-3 h-11 rounded-2xl border-[#e5e7eb] focus:ring-2 focus:ring-[#2F5AF6]/20 focus:border-[#2F5AF6] text-[13px]"
                   />
                 </div>
               </div>
 
               {/* Check-in */}
               <div className="flex-1">
-                <label className="!text-[13px] font-medium text-[#6B7280] uppercase tracking-wide mb-1.5 block">
+                <label className="text-[13px] font-medium text-[#6B7280] uppercase tracking-wide mb-1.5 block">
                   Check-in
                 </label>
                 <div className="relative">
                   <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-teal-600 pointer-events-none z-10" />
                   <Input
                     type="date"
-                    className="!pl-10 !pr-3 h-11 rounded-2xl border-[#e5e7eb] focus:ring-2 focus:ring-[#2F5AF6]/20 focus:border-[#2F5AF6] !text-[13px]"
+                    className="pl-10 pr-3 h-11 rounded-2xl border-[#e5e7eb] focus:ring-2 focus:ring-[#2F5AF6]/20 focus:border-[#2F5AF6] text-[13px]"
                   />
                 </div>
               </div>
 
               {/* Check-out */}
               <div className="flex-1">
-                <label className="!text-[13px] font-medium text-[#6B7280] uppercase tracking-wide mb-1.5 block">
+                <label className="text-[13px] font-medium text-[#6B7280] uppercase tracking-wide mb-1.5 block">
                   Check-out
                 </label>
                 <div className="relative">
                   <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-teal-600 pointer-events-none z-10" />
                   <Input
                     type="date"
-                    className="!pl-10 !pr-3 h-11 rounded-2xl border-[#e5e7eb] focus:ring-2 focus:ring-[#2F5AF6]/20 focus:border-[#2F5AF6] !text-[13px]"
+                    className="pl-10 pr-3 h-11 rounded-2xl border-[#e5e7eb] focus:ring-2 focus:ring-[#2F5AF6]/20 focus:border-[#2F5AF6] text-[13px]"
                   />
                 </div>
               </div>
 
               {/* Guests */}
               <div className="w-full lg:w-44">
-                <label className="!text-[11px] font-medium text-[#6B7280] uppercase tracking-wide mb-1.5 block">
+                <label className="text-[11px] font-medium text-[#6B7280] uppercase tracking-wide mb-1.5 block">
                   Guests
                 </label>
                 <div className="relative">
                   <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-teal-600 pointer-events-none z-10" />
-                  <select className="w-full h-11 !pl-10 pr-8 rounded-2xl border border-[#e5e7eb] bg-white text-[#0B0F1C] !text-[13px] focus:ring-2 focus:ring-[#2F5AF6]/20 focus:border-[#2F5AF6] appearance-none">
+                  <select className="w-full h-11 pl-10 pr-8 rounded-2xl border border-[#e5e7eb] bg-white text-[#0B0F1C] text-[13px] focus:ring-2 focus:ring-[#2F5AF6]/20 focus:border-[#2F5AF6] appearance-none">
                     <option>1 Guest</option>
                     <option>2 Guests</option>
                     <option>3 Guests</option>
@@ -219,7 +227,9 @@ const Home = () => {
 
               {/* Search Button */}
               <div className="flex items-end">
-                <Button className="bg-gradient-to-r from-teal-500 to-teal-700 h-11 px-8 rounded-2xl text-white font-semibold hover:from-teal-600 hover:to-teal-800 active:from-teal-700 active:to-teal-900 transition-all w-full lg:w-auto">
+                <Button 
+                  onClick={() => navigate('/hotels')}
+                  className="bg-gradient-to-r from-teal-500 to-teal-700 h-11 px-8 rounded-2xl text-white font-semibold hover:from-teal-600 hover:to-teal-800 active:from-teal-700 active:to-teal-900 transition-all w-full lg:w-auto">
                   <Search className="w-[18px] h-[18px] mr-2" />
                   Search
                 </Button>
@@ -230,11 +240,13 @@ const Home = () => {
             <div className="mt-4 flex items-center">
               <a
                 href="#"
+                onClick={(e) => { e.preventDefault(); navigate('/hotels'); }}
                 className="text-sm text-teal-600 font-medium flex items-center no-underline hover:text-teal-700 transition-colors"
               >
                 Explore last-minute deals
                 <ChevronRight className="w-4 h-4 ml-1" />
               </a>
+            </div>
             </div>
           </div>
         </div>
@@ -278,13 +290,13 @@ const TrustStrip = () => {
   const trustItems = [
     {
       icon: Building,
-      title: 'Trusted by hotels',
-      description: '18,000+ properties worldwide',
+      title: 'Trusted across Nepal',
+      description: '500+ properties nationwide',
     },
     {
       icon: Shield,
       title: 'Secure payments',
-      description: '256-bit SSL encryption',
+      description: 'eSewa, Khalti & card support',
     },
     {
       icon: Clock,
@@ -363,29 +375,29 @@ const Destinations = () => {
 
   const destinations = [
     {
-      name: 'Bali, Indonesia',
-      image: '/images/dest-bali.jpg',
-      properties: '2,400+ stays',
+      name: 'Kathmandu Valley',
+      image: 'https://images.unsplash.com/photo-1558799401-1dcba79834c2?q=80&w=2070&auto=format&fit=crop',
+      properties: '180+ stays',
     },
     {
-      name: 'Paris, France',
-      image: '/images/dest-paris.jpg',
-      properties: '3,800+ stays',
+      name: 'Pokhara, Kaski',
+      image: 'https://images.unsplash.com/photo-1605640840605-14ac1855827b?q=80&w=2070&auto=format&fit=crop',
+      properties: '120+ stays',
     },
     {
-      name: 'Tokyo, Japan',
-      image: '/images/dest-tokyo.jpg',
-      properties: '1,900+ stays',
+      name: 'Chitwan, Narayani',
+      image: 'https://images.unsplash.com/photo-1574755393849-623942496936?q=80&w=2070&auto=format&fit=crop',
+      properties: '60+ stays',
     },
     {
-      name: 'Santorini, Greece',
-      image: '/images/dest-santorini.jpg',
-      properties: '850+ stays',
+      name: 'Nagarkot, Bhaktapur',
+      image: 'https://images.unsplash.com/photo-1544735716-392fe2489ffa?q=80&w=2070&auto=format&fit=crop',
+      properties: '45+ stays',
     },
     {
-      name: 'New York, USA',
-      image: '/images/dest-newyork.jpg',
-      properties: '4,200+ stays',
+      name: 'Lumbini, Rupandehi',
+      image: 'https://images.unsplash.com/photo-1603959395883-4066c8b05e64?q=80&w=2070&auto=format&fit=crop',
+      properties: '35+ stays',
     },
   ];
 
@@ -447,7 +459,7 @@ const Destinations = () => {
               Explore top destinations
             </h2>
             <p className="text-gray-600 text-base">
-              Discover the most loved places by travelers worldwide
+              Discover the most loved places by travelers across Nepal
             </p>
           </div>
           <a
@@ -501,57 +513,57 @@ const FeaturedHotelsSection = () => {
 
   const hotels = [
     {
-      name: 'The Azure Resort & Spa',
-      location: 'Seminyak, Bali',
-      price: 142,
+      name: 'Hotel Yak & Yeti',
+      location: 'Durbar Marg, Kathmandu',
+      price: 12500,
       rating: 4.8,
-      reviews: 324,
-      image: '/images/hotel-1.jpg',
-      type: 'Resorts',
+      reviews: 1284,
+      image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?q=80&w=2070&auto=format&fit=crop',
+      type: 'Hotels',
     },
     {
-      name: 'Oceanview Infinity',
-      location: 'Phuket, Thailand',
-      price: 198,
+      name: 'Temple Tree Resort & Spa',
+      location: 'Lakeside, Pokhara',
+      price: 9800,
       rating: 4.9,
       reviews: 512,
-      image: '/images/hotel-2.jpg',
+      image: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?q=80&w=2070&auto=format&fit=crop',
       type: 'Resorts',
     },
     {
-      name: 'Skyline Grand Hotel',
-      location: 'Tokyo, Japan',
-      price: 265,
-      rating: 4.7,
-      reviews: 891,
-      image: '/images/hotel-3.jpg',
-      type: 'Hotels',
-    },
-    {
-      name: 'Rooftop Lounge Suites',
-      location: 'Barcelona, Spain',
-      price: 175,
-      rating: 4.6,
-      reviews: 267,
-      image: '/images/hotel-4.jpg',
-      type: 'Hotels',
-    },
-    {
-      name: 'Serenity Wellness Spa',
-      location: 'Santorini, Greece',
-      price: 320,
+      name: 'Dwarika\'s Hotel',
+      location: 'Battisputali, Kathmandu',
+      price: 18500,
       rating: 4.9,
-      reviews: 156,
-      image: '/images/hotel-5.jpg',
+      reviews: 891,
+      image: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=800&q=80',
+      type: 'Hotels',
+    },
+    {
+      name: 'Pavilions Himalayas',
+      location: 'Sarangkot, Pokhara',
+      price: 22000,
+      rating: 4.7,
+      reviews: 267,
+      image: 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?q=80&w=2080&auto=format&fit=crop',
       type: 'Villas',
     },
     {
-      name: 'The Culinary Retreat',
-      location: 'Paris, France',
-      price: 245,
+      name: 'Barahi Jungle Lodge',
+      location: 'Meghauli, Chitwan',
+      price: 15000,
       rating: 4.8,
+      reviews: 156,
+      image: 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?q=80&w=2070&auto=format&fit=crop',
+      type: 'Resorts',
+    },
+    {
+      name: 'Hotel Shanker',
+      location: 'Lazimpat, Kathmandu',
+      price: 8500,
+      rating: 4.6,
       reviews: 423,
-      image: '/images/hotel-6.jpg',
+      image: 'https://images.unsplash.com/photo-1578683010236-d716f9a3f461?q=80&w=2070&auto=format&fit=crop',
       type: 'Hotels',
     },
   ];
@@ -674,7 +686,7 @@ const FeaturedHotelsSection = () => {
                   </div>
                   <div className="text-right">
                     <div className="text-xl font-bold text-teal-600">
-                      ${hotel.price}
+                      NRs {hotel.price.toLocaleString()}
                     </div>
                     <div className="text-xs text-gray-600">per night</div>
                   </div>
@@ -881,7 +893,7 @@ const ForEveryone = () => {
               <h3 className="text-white text-2xl md:text-3xl font-bold mb-4">
                 For travelers
               </h3>
-              <p className="text-white/90 mb-6 text-base">
+              <p  className="text-white/90 mb-6 text-base">
                 Book smarter, stay longer, and enjoy exclusive benefits.
               </p>
               <div className="space-y-3 mb-6">
@@ -1063,26 +1075,26 @@ const Testimonials = () => {
   const cardsRef = useRef(null);
 
   const stats = [
-    { value: '2.4M+', label: 'Guests hosted' },
-    { value: '18K+', label: 'Properties listed' },
+    { value: '50K+', label: 'Guests hosted' },
+    { value: '500+', label: 'Properties in Nepal' },
     { value: '4.8', label: 'Average rating' },
   ];
 
   const testimonials = [
     {
       quote:
-        'The best booking experience I have had—clean app, great support, and amazing properties. StayHaven makes travel planning effortless.',
-      author: 'Alex M.',
+        'The best booking experience I have had — clean app, great support, and amazing properties across Nepal. StayHaven makes travel planning effortless.',
+      author: 'Aayush S.',
       role: 'Frequent traveler',
-      avatar: 'AM',
+      avatar: 'AS',
       rating: 5,
     },
     {
       quote:
-        'We listed our boutique hotel and saw a 30% uplift in direct bookings within the first quarter. The dashboard is incredibly intuitive.',
-      author: 'Priya S.',
-      role: 'Hotel owner, Bali',
-      avatar: 'PS',
+        'We listed our boutique hotel in Pokhara and saw a 30% uplift in direct bookings within the first quarter. The dashboard is incredibly intuitive.',
+      author: 'Priya T.',
+      role: 'Hotel owner, Pokhara',
+      avatar: 'PT',
       rating: 5,
     },
   ];
@@ -1197,18 +1209,18 @@ const Inspiration = () => {
 
   const inspirations = [
     {
-      name: 'Beachfront',
-      image: '/images/insp-beachfront.jpg',
+      name: 'Lakeside retreats',
+      image: 'https://images.unsplash.com/photo-1605640840605-14ac1855827b?q=80&w=2070&auto=format&fit=crop',
       size: 'large',
     },
     {
-      name: 'City design',
-      image: '/images/insp-city.jpg',
+      name: 'Heritage stays',
+      image: 'https://images.unsplash.com/photo-1558799401-1dcba79834c2?q=80&w=2070&auto=format&fit=crop',
       size: 'small',
     },
     {
-      name: 'Mountain cabins',
-      image: '/images/insp-mountain.jpg',
+      name: 'Mountain lodges',
+      image: 'https://images.unsplash.com/photo-1544735716-392fe2489ffa?q=80&w=2070&auto=format&fit=crop',
       size: 'small',
     },
   ];
@@ -1376,7 +1388,7 @@ const FinalCTA = ({ navigate }) => {
             Ready for your next stay?
           </h2>
           <p className="cta-subheadline text-white/90 text-base md:text-lg mb-10 max-w-xl mx-auto">
-            Join millions of travelers who book smarter with StayHaven.
+            Join thousands of travelers who book smarter with StayHaven across Nepal.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">

@@ -28,7 +28,7 @@ import StaffForgotPassword from "./components/features/auth/staff/StaffForgotPas
 import StaffResetPassword from "./components/features/auth/staff/StaffResetPassword";
 
 // Landing Pages
-import Home from "./components/features/landing/Home";
+import Home from "./components/Home";
 import AboutPage from "./components/features/landing/About/AboutPage";
 import Destination from "./components/features/landing/Destination/Destination";
 import OffersPage from "./components/features/landing/Offers/OffersPage";
@@ -64,14 +64,15 @@ import GuestTableView from "./components/features/guest/GuestTableView";
 import GuestRoomView from "./components/features/guest/GuestRoomView";
 
 // Navbar
-import Navbar from "./components/common/Navbar";
+import Navbar from "./components/Navbar";
 
 // Layout wrapper to conditionally show Navbar and Footer
 const Layout = ({ children }) => {
   const location = useLocation();
   
-  // Routes that should NOT have Navbar and Footer (dashboards and auth pages)
+  // Routes that should NOT have Navbar and Footer (dashboards, auth pages, home page)
   const noLayoutRoutes = [
+    '/',
     '/login',
     '/register',
     '/forgot-password',
@@ -88,11 +89,14 @@ const Layout = ({ children }) => {
     '/addhotel',
     '/hoteladmin-dashboard',
     '/roommanagement',
-    '/restaurantmanagement'
+    '/restaurantmanagement',
+    '/guest/table',
+    '/guest/room'
   ];
 
+  const isHome = location.pathname === '/';
   const shouldShowLayout = !noLayoutRoutes.some(route => 
-    location.pathname.startsWith(route)
+    route === '/' ? isHome : location.pathname.startsWith(route)
   );
 
   return (
@@ -116,21 +120,22 @@ const App = () => {
               <OrderProvider>
                 {/* Page Routes */}
                 <div className="w-screen min-h-screen overflow-x-hidden">
-                  <Routes>
-                    {/* Public Routes */}
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/register" element={<Register />} />
-                    <Route path="/forgot-password" element={<ForgotPassword />} />
-                    <Route path="/reset-password" element={<ResetPassword />} />
-                    <Route path="/" element={<Home />} />
-                    <Route path="/about" element={<AboutPage />} />
-                    <Route path="/offers" element={<OffersPage />} />
-                    <Route path="/memberships" element={<MembershipPage />} />
-                    <Route path="/membership" element={<MembershipPage />} />
-                    <Route path="/hotel/:id" element={<HotelDetailsPage />} />
-                    <Route path="/hotels" element={<FilteredHotels />} />
-                    <Route path="/booking-confirmed" element={<BookingConfirmed />} />
-                    <Route path="/destinations" element={<Destination />} />
+                  <Layout>
+                    <Routes>
+                      {/* Public Routes */}
+                      <Route path="/login" element={<Login />} />
+                      <Route path="/register" element={<Register />} />
+                      <Route path="/forgot-password" element={<ForgotPassword />} />
+                      <Route path="/reset-password" element={<ResetPassword />} />
+                      <Route path="/" element={<Home />} />
+                      <Route path="/about" element={<AboutPage />} />
+                      <Route path="/offers" element={<OffersPage />} />
+                      <Route path="/memberships" element={<MembershipPage />} />
+                      <Route path="/membership" element={<MembershipPage />} />
+                      <Route path="/hotel/:id" element={<HotelDetailsPage />} />
+                      <Route path="/hotels" element={<FilteredHotels />} />
+                      <Route path="/booking-confirmed" element={<BookingConfirmed />} />
+                      <Route path="/destinations" element={<Destination />} />
 
                     {/* Staff Routes */}
                     <Route path="/staff/login" element={<StaffLogin />} />
@@ -173,10 +178,11 @@ const App = () => {
                     <Route path="/feedback" element={<Feedback />} />
                     <Route path="/contactus" element={<ContactUs />} />
 
-                    {/* Guest QR Scanning Routes (Public) */}
-                    <Route path="/guest/table/:token" element={<GuestTableView />} />
-                    <Route path="/guest/room/:token" element={<GuestRoomView />} />
-                  </Routes>
+                      {/* Guest QR Scanning Routes (Public) */}
+                      <Route path="/guest/table/:token" element={<GuestTableView />} />
+                      <Route path="/guest/room/:token" element={<GuestRoomView />} />
+                    </Routes>
+                  </Layout>
                 </div>
               </OrderProvider>
             </NotificationProvider>
