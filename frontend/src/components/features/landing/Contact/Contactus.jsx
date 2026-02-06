@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import Navbar from '../../../common/Navbar';
+
 import './Contactus.css';
 
 const ContactUs = () => {
@@ -69,7 +69,6 @@ const ContactUs = () => {
 
   return (
     <div>
-      <Navbar/>
     
     <div className="contact-us-container">
       {/* Animated Background */}
