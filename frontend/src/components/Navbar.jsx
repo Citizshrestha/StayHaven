@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Menu, X, Heart, ShoppingCart, Building2 } from 'lucide-react';
+import { Menu, X, Heart, ShoppingCart, Building2, Search } from 'lucide-react';
 import axiosClient from "../axiosClient";
 import { getWishlist, getCart } from "../api/user";
 import { Button } from "./ui/button";
+import './Navbar.css';
 
 const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -179,8 +180,20 @@ const Navbar = () => {
     }
   };
 
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const handleSearch = () => {
+    navigate('/hotels', searchQuery ? { state: { query: searchQuery } } : undefined);
+    setSearchQuery('');
+  };
+
+  const handleSearchKeyDown = (e) => {
+    if (e.key === 'Enter') handleSearch();
+  };
+
   const navLinks = [
     { label: 'HOME', path: '/' },
+    { label: 'ABOUT US', path: '/about' },
     { label: 'DESTINATIONS', path: '/destinations' },
     { label: 'OFFERS', path: '/offers' },
     { label: 'MEMBERSHIP', path: '/memberships' },
@@ -204,9 +217,7 @@ const Navbar = () => {
               className="w-16 h-16 object-contain"
             />
             <span
-              className={`text-xl font-bold transition-colors ${
-                isScrolled ? 'text-[#0B0F1C]' : 'text-white'
-              }`}
+              className="text-xl font-bold text-black transition-colors"
               style={{ fontFamily: "Nunito" }}
             >
               Stay<span className="text-teal-500">Haven</span>
@@ -221,8 +232,8 @@ const Navbar = () => {
                 onClick={() => navigate(link.path)}
                 className={`text-sm font-semibold tracking-wide transition-all duration-300 relative group ${
                   location.pathname === link.path
-                    ? isScrolled ? 'text-teal-600' : 'text-white'
-                    : isScrolled ? 'text-gray-700 hover:text-teal-600' : 'text-white/90 hover:text-white'
+                    ? 'text-teal-600'
+                    : 'text-gray-700 hover:text-teal-600'
                 }`}
               >
                 {link.label}
@@ -235,12 +246,29 @@ const Navbar = () => {
 
           {/* Desktop Actions */}
           <div className="hidden lg:flex items-center gap-4">
+            {/* Search Bar */}
+            <div className="search-bar relative">
+              <input
+                type="text"
+                placeholder="Search hotels..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                className="pl-4 pr-12 py-2.5 w-56 text-black rounded-full border border-gray-200 bg-white text-gray-700 placeholder-gray-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 text-sm font-medium shadow-sm focus:outline-none focus:w-64 focus:shadow-md transition-all duration-300"
+              />
+              <button
+                onClick={handleSearch}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full transition-colors bg-teal-500 hover:bg-teal-600 text-white shadow-sm"
+                aria-label="Search hotels"
+              >
+                <Search className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
             {user ? (
               <>
                 <button
-                  className={`relative transition-colors duration-300 hover:text-red-500 ${
-                    isScrolled ? 'text-gray-700' : 'text-white'
-                  }`}
+                  className="relative transition-colors duration-300 hover:text-red-500 text-gray-700"
                   aria-label="View wishlist"
                 >
                   <Heart className="w-6 h-6" />
@@ -251,9 +279,7 @@ const Navbar = () => {
                   )}
                 </button>
                 <button
-                  className={`relative transition-colors duration-300 hover:text-teal-600 ${
-                    isScrolled ? 'text-gray-700' : 'text-white'
-                  }`}
+                  className="relative transition-colors duration-300 hover:text-teal-600 text-gray-700"
                   aria-label="View cart"
                 >
                   <ShoppingCart className="w-6 h-6" />
@@ -318,17 +344,14 @@ const Navbar = () => {
                 <Button
                   onClick={handleLogin}
                   variant="outline"
-                  className={`rounded-2xl px-5 transition-all ${
-                    isScrolled
-                      ? 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                      : 'border-white text-white hover:bg-white hover:text-gray-900'
-                  }`}
+                  className="rounded-2xl px-5 transition-all border-gray-300 text-gray-700 hover:bg-gray-50"
                 >
                   Sign in
                 </Button>
               </>
             )}
             <Button 
+              onClick={() => navigate('/hotels')}
               className="bg-gradient-to-r from-teal-500 to-teal-700 hover:from-teal-600 hover:to-teal-800 rounded-2xl px-6 text-white"
               aria-label="Book your stay now"
             >
@@ -339,9 +362,7 @@ const Navbar = () => {
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className={`lg:hidden p-2 transition-colors ${
-              isScrolled ? 'text-gray-900' : 'text-white'
-            }`}
+            className="lg:hidden p-2 transition-colors text-gray-900"
           >
             {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
@@ -352,6 +373,33 @@ const Navbar = () => {
       {isMobileMenuOpen && (
         <div className="lg:hidden bg-white border-t shadow-lg">
           <div className="container mx-auto px-4 sm:px-6 py-6 flex flex-col gap-4">
+            {/* Mobile Search */}
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search hotels..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleSearch();
+                    setIsMobileMenuOpen(false);
+                  }
+                }}
+                className="w-full pl-12 pr-14 py-3.5 rounded-2xl border border-gray-200 bg-gray-50/80 backdrop-blur-sm text-gray-800 text-sm font-medium focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:bg-white transition-all duration-200"
+              />
+              <button
+                onClick={() => {
+                  handleSearch();
+                  setIsMobileMenuOpen(false);
+                }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 bg-teal-500 hover:bg-teal-600 text-white p-2.5 rounded-xl shadow-sm transition-colors duration-200"
+              >
+                <Search className="w-4 h-4" />
+              </button>
+            </div>
+
             {navLinks.map((link) => (
               <button
                 key={link.label}
@@ -404,7 +452,12 @@ const Navbar = () => {
                 </Button>
               </div>
             )}
-            <Button className="bg-gradient-to-r from-teal-500 to-teal-700 w-full rounded-2xl text-white">
+            <Button 
+              onClick={() => {
+                navigate('/hotels');
+                setIsMobileMenuOpen(false);
+              }}
+              className="bg-gradient-to-r from-teal-500 to-teal-700 w-full rounded-2xl text-white">
               Book now
             </Button>
           </div>
