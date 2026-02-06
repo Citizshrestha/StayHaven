@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import "./Destination.css";
-import Navbar from "../../../common/Navbar";
+
 import { FaStar, FaHotel, FaFilter, FaMapMarkerAlt, FaCalendarAlt, FaTemperatureHigh, FaBed, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { Link } from "react-router-dom";
 
@@ -175,7 +175,6 @@ const Destination = () => {
 
   return (
     <div className="w-screen min-h-screen overflow-x-hidden">
-      <Navbar />
       <div className="destination-page">
         {/* Header */}
         <header className="destination-header">
