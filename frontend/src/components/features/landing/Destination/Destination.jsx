@@ -1,8 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { Star, Hotel, Filter, MapPin, Calendar, Thermometer, Bed, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Link } from "react-router-dom";
 import "./Destination.css";
 
-import { FaStar, FaHotel, FaFilter, FaMapMarkerAlt, FaCalendarAlt, FaTemperatureHigh, FaBed, FaChevronLeft, FaChevronRight } from "react-icons/fa";
-import { Link } from "react-router-dom";
+gsap.registerPlugin(ScrollTrigger);
 
 //for images inside the info in detail
 const boudha = "source/Kathmandu/BoudhanathStupa.jpg";
@@ -125,6 +128,11 @@ const Destination = () => {
   const [selectedDestination, setSelectedDestination] = useState(null);
   const [selectedFilter, setSelectedFilter] = useState("all");
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  
+  const heroRef = useRef(null);
+  const headerRef = useRef(null);
+  const filterRef = useRef(null);
+  const gridRef = useRef(null);
 
   const handleCardClick = (destination) => {
     setSelectedDestination(destination);
@@ -173,30 +181,124 @@ const Destination = () => {
     { id: "spiritual", label: "Spiritual" },
   ];
 
+  // GSAP Animations
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      // Header animation
+      gsap.fromTo(
+        headerRef.current,
+        { y: 20, opacity: 0 },
+        {
+          y: 0,
+          opacity: 1,
+          duration: 0.6,
+          ease: 'power2.out',
+          scrollTrigger: {
+            trigger: heroRef.current,
+            start: 'top 80%',
+            toggleActions: 'play none none reverse',
+          },
+        }
+      );
+
+      // Filter animation
+      gsap.fromTo(
+        filterRef.current,
+        { y: 15, opacity: 0 },
+        {
+          y: 0,
+          opacity: 1,
+          duration: 0.5,
+          delay: 0.2,
+          ease: 'power1.out',
+          scrollTrigger: {
+            trigger: filterRef.current,
+            start: 'top 85%',
+            toggleActions: 'play none none reverse',
+          },
+        }
+      );
+
+      // Cards animation
+      const cards = gridRef.current?.querySelectorAll('.destination-card');
+      if (cards) {
+        gsap.fromTo(
+          cards,
+          { y: 30, opacity: 0 },
+          {
+            y: 0,
+            opacity: 1,
+            duration: 0.5,
+            stagger: 0.08,
+            ease: 'power1.out',
+            scrollTrigger: {
+              trigger: gridRef.current,
+              start: 'top 80%',
+              toggleActions: 'play none none reverse',
+            },
+          }
+        );
+      }
+    }, heroRef);
+
+    return () => ctx.revert();
+  }, [filteredDestinations]);
+
   return (
-    <div className="w-screen min-h-screen overflow-x-hidden">
-      <div className="destination-page">
-        {/* Header */}
-        <header className="destination-header">
-          <div className="header-content">
-            <h1>Discover Nepal</h1>
-            <p>
+    <div className="min-h-screen bg-gray-50 overflow-x-hidden flex flex-col">
+      {/* Hero Section */}
+      <section
+        ref={heroRef}
+        className="relative min-h-[60vh] w-full overflow-hidden z-10"
+      >
+        {/* Background Image */}
+        <div className="absolute inset-0 w-full h-full">
+          <img
+            src="https://images.unsplash.com/photo-1544735716-392fe2489ffa?auto=format&fit=crop&w=1400&q=80"
+            alt="Nepal landscape"
+            className="w-full h-full object-cover"
+            style={{ objectPosition: 'center 50%' }}
+          />
+          {/* Gradient Overlay */}
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                'linear-gradient(180deg, rgba(11,15,28,0.4) 0%, rgba(11,15,28,0.6) 100%)',
+            }}
+          />
+        </div>
+
+        {/* Content */}
+        <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 xl:px-[6vw] min-h-[60vh] flex flex-col justify-center pt-[72px] pb-20">
+          <div ref={headerRef} className="text-center max-w-3xl mx-auto">
+            <h1 className="text-white font-extrabold text-[clamp(36px,4.5vw,64px)] leading-[1.1] mb-6">
+              Discover Nepal
+            </h1>
+            <p className="text-white/90 text-lg md:text-xl leading-relaxed">
               Click on any destination image to explore and find hotels
             </p>
           </div>
-        </header>
+        </div>
+      </section>
 
-        {/* Filter Buttons Section */}
-        <div className="filter-section">
-          <div className="filter-container">
-            <div className="filter-label">
-              <FaFilter /> Filter by:
+      {/* Filter Buttons Section */}
+      <div ref={filterRef} className="relative z-20 bg-white py-8 -mt-16">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 xl:px-[6vw]">
+          <div className="bg-white/95 backdrop-blur-sm rounded-[28px] p-6 shadow-xl border border-gray-100">
+            <div className="flex items-center gap-2 text-gray-700 font-semibold mb-4">
+              <Filter className="w-5 h-5 text-teal-600" />
+              <span>Filter by:</span>
             </div>
-            <div className="filter-buttons">
+            <div className="flex flex-wrap gap-3">
               {filterButtons.map((filter) => (
                 <button
                   key={filter.id}
-                  className={`filter-btn ${selectedFilter === filter.id ? "active" : ""}`}
+                  className={`px-6 py-2.5 rounded-full font-medium transition-all ${
+                    selectedFilter === filter.id
+                      ? 'bg-teal-600 text-white shadow-lg'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
                   onClick={() => setSelectedFilter(filter.id)}
                 >
                   {filter.label}
@@ -205,210 +307,226 @@ const Destination = () => {
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Destinations Grid - ONLY IMAGES */}
-        <section className="destinations-container">
-          {filteredDestinations.map((dest) => (
-            <div
-              key={dest.id}
-              className="destination-card"
-              onClick={() => handleCardClick(dest)}
-            >
-              {/* Popular Badge - Only shows if popular */}
-              {dest.popular && (
-                <div className="popular-badge">
-                  <FaStar /> Popular
-                </div>
-              )}
-
-              {/* Clickable Image Only - No text underneath */}
-              <div className="destination-image-wrapper">
-                <img
-                  src={dest.image}
-                  alt={dest.name}
-                  className="destination-image"
-                  onError={(e) => {
-                    e.target.src = "https://images.unsplash.com/photo-1544735716-392fe2489ffa?auto=format&fit=crop&w=800&q=80";
-                  }}
-                />
-                <div className="image-hover-overlay">
-                  <span className="hover-text">Click to view details</span>
-                </div>
-              </div>
-
-              {/* Name appears on hover only */}
-              <div className="destination-name-overlay">
-                <h3>{dest.name}</h3>
-              </div>
-            </div>
-          ))}
-        </section>
-
-        {/* Detailed Modal - Shows ALL information */}
-        {showModal && selectedDestination && (
-          <div className="modal-overlay" onClick={closeModal}>
-            <div className="destination-modal" onClick={(e) => e.stopPropagation()}>
-              <button className="close-modal" onClick={closeModal}>
-                ×
-              </button>
-
-              <div className="modal-content">
-                {/* Left Side: Image Gallery - UPDATED */}
-                <div className="modal-image-container">
-                  <div className="modal-image-wrapper">
-                    {/* Main Image */}
-                    <img
-                      src={selectedDestination.images[currentImageIndex]}
-                      alt={`${selectedDestination.name} - Image ${currentImageIndex + 1}`}
-                      className="modal-main-image"
-                      onError={(e) => {
-                        e.target.src = "https://images.unsplash.com/photo-1544735716-392fe2489ffa?auto=format&fit=crop&w=800&q=80";
-                        e.target.onerror = null;
-                      }}
-                    />
-
-                    {/* Navigation Arrows */}
-                    <button
-                      className="image-nav-btn prev-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        prevImage();
-                      }}
-                    >
-                      <FaChevronLeft />
-                    </button>
-
-                    <button
-                      className="image-nav-btn next-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        nextImage();
-                      }}
-                    >
-                      <FaChevronRight />
-                    </button>
-
-                    {/* Image Counter */}
-                    <div className="image-counter">
-                      {currentImageIndex + 1} / {selectedDestination.images.length}
-                    </div>
-
-                    {/* Image Dots Indicator */}
-                    <div className="image-dots">
-                      {selectedDestination.images.map((_, index) => (
-                        <button
-                          key={index}
-                          className={`image-dot ${index === currentImageIndex ? 'active' : ''}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setCurrentImageIndex(index);
-                          }}
-                        />
-                      ))}
-                    </div>
-
-                    {selectedDestination.popular && (
-                      <div className="modal-popular-badge">
-                        <FaStar /> Popular Destination
-                      </div>
-                    )}
+      {/* Destinations Grid */}
+      <section ref={gridRef} className="py-16 md:py-24 bg-gray-50 relative z-20">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 xl:px-[6vw]">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {filteredDestinations.map((dest) => (
+              <div
+                key={dest.id}
+                className="destination-card relative rounded-[28px] overflow-hidden h-[320px] cursor-pointer group shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-1"
+                onClick={() => handleCardClick(dest)}
+              >
+                {/* Popular Badge */}
+                {dest.popular && (
+                  <div className="absolute top-4 right-4 bg-orange-500 text-white px-4 py-1.5 rounded-full text-xs font-semibold z-10 flex items-center gap-1 shadow-lg">
+                    <Star className="w-3 h-3 fill-white" />
+                    Popular
                   </div>
-                </div>
-
-                {/* Right Side: All Details */}
-                <div className="modal-details-container">
-                  <h2>{selectedDestination.name}</h2>
-
-                  <div className="destination-category">
-                    <span className={`category-badge ${selectedDestination.category}`}>
-                      {selectedDestination.category}
+                )}
+                
+                {/* Image */}
+                <div className="relative w-full h-full">
+                  <img
+                    src={dest.image}
+                    alt={dest.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                    onError={(e) => {
+                      e.target.src = "https://images.unsplash.com/photo-1544735716-392fe2489ffa?auto=format&fit=crop&w=800&q=80";
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+                  
+                  {/* Hover Overlay */}
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                    <span className="text-white font-semibold text-sm bg-teal-600/90 px-4 py-2 rounded-full">
+                      Click to view details
                     </span>
                   </div>
+                  
+                  {/* Name Overlay */}
+                  <div className="absolute bottom-0 left-0 right-0 p-6">
+                    <h3 className="text-white text-xl font-bold">{dest.name}</h3>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
-                  <p className="destination-description">
-                    {selectedDestination.description}
-                  </p>
+      {/* Detailed Modal */}
+      {showModal && selectedDestination && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[1000] flex items-center justify-center p-4" onClick={closeModal}>
+          <div className="bg-white rounded-[28px] max-w-6xl w-full max-h-[90vh] overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <button
+              className="absolute top-4 right-4 w-10 h-10 rounded-full bg-gray-900/70 hover:bg-gray-900 text-white flex items-center justify-center z-10 transition-all"
+              onClick={closeModal}
+            >
+              <X className="w-5 h-5" />
+            </button>
 
-                  {/* Key Info Grid */}
-                  <div className="info-grid">
-                    <div className="info-item">
-                      <div className="info-icon">
-                        <FaMapMarkerAlt />
-                      </div>
-                      <div>
-                        <h4>Location</h4>
-                        <p>{selectedDestination.location}</p>
-                      </div>
+            <div className="grid md:grid-cols-2 gap-0">
+              {/* Left Side: Image Gallery */}
+              <div className="relative h-[400px] md:h-auto bg-gray-100">
+                <img
+                  src={selectedDestination.images[currentImageIndex]}
+                  alt={`${selectedDestination.name} - Image ${currentImageIndex + 1}`}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.src = "https://images.unsplash.com/photo-1544735716-392fe2489ffa?auto=format&fit=crop&w=800&q=80";
+                    e.target.onerror = null;
+                  }}
+                />
+                
+                {/* Navigation Arrows */}
+                <button
+                  className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center z-20 transition-all"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    prevImage();
+                  }}
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                
+                <button
+                  className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center z-20 transition-all"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    nextImage();
+                  }}
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+                
+                {/* Image Counter */}
+                <div className="absolute top-4 left-4 bg-black/60 text-white px-3 py-1.5 rounded-full text-xs font-semibold z-20">
+                  {currentImageIndex + 1} / {selectedDestination.images.length}
+                </div>
+                
+                {/* Image Dots */}
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-20">
+                  {selectedDestination.images.map((_, index) => (
+                    <button
+                      key={index}
+                      className={`w-2 h-2 rounded-full transition-all ${
+                        index === currentImageIndex
+                          ? 'bg-white w-6'
+                          : 'bg-white/50 hover:bg-white/75'
+                      }`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCurrentImageIndex(index);
+                      }}
+                    />
+                  ))}
+                </div>
+                
+                {selectedDestination.popular && (
+                  <div className="absolute top-4 right-4 bg-orange-500 text-white px-4 py-1.5 rounded-full text-xs font-semibold z-20 flex items-center gap-1 shadow-lg">
+                    <Star className="w-3 h-3 fill-white" />
+                    Popular Destination
+                  </div>
+                )}
+              </div>
+
+              
+              {/* Right Side: Details */}
+              <div className="p-8 overflow-y-auto max-h-[90vh]">
+                <h2 className="text-3xl font-bold text-gray-900 mb-3">{selectedDestination.name}</h2>
+                
+                <div className="mb-4">
+                  <span className={`inline-block px-4 py-1.5 rounded-full text-xs font-semibold capitalize ${
+                    selectedDestination.category === 'cultural' ? 'bg-teal-50 text-teal-700 border border-teal-200' :
+                    selectedDestination.category === 'adventure' ? 'bg-red-50 text-red-700 border border-red-200' :
+                    selectedDestination.category === 'nature' ? 'bg-green-50 text-green-700 border border-green-200' :
+                    'bg-purple-50 text-purple-700 border border-purple-200'
+                  }`}>
+                    {selectedDestination.category}
+                  </span>
+                </div>
+                
+                <p className="text-gray-600 mb-6 leading-relaxed">
+                  {selectedDestination.description}
+                </p>
+                
+                {/* Key Info Grid */}
+                <div className="grid grid-cols-2 gap-4 mb-6 bg-gray-50 rounded-2xl p-5">
+                  <div className="flex gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-teal-600 text-white flex items-center justify-center flex-shrink-0">
+                      <MapPin className="w-5 h-5" />
                     </div>
-                    <div className="info-item">
-                      <div className="info-icon">
-                        <FaCalendarAlt />
-                      </div>
-                      <div>
-                        <h4>Best Time</h4>
-                        <p>{selectedDestination.bestTime}</p>
-                      </div>
-                    </div>
-                    <div className="info-item">
-                      <div className="info-icon">
-                        <FaTemperatureHigh />
-                      </div>
-                      <div>
-                        <h4>Weather</h4>
-                        <p>{selectedDestination.weather}</p>
-                      </div>
-                    </div>
-                    <div className="info-item">
-                      <div className="info-icon">
-                        <FaBed />
-                      </div>
-                      <div>
-                        <h4>Hotels</h4>
-                        <p>{selectedDestination.hotelsCount} available</p>
-                      </div>
+                    <div>
+                      <h4 className="text-xs font-semibold text-gray-500 mb-1">Location</h4>
+                      <p className="text-sm font-semibold text-gray-900">{selectedDestination.location}</p>
                     </div>
                   </div>
-
-                  {/* Activities */}
-                  <div className="activities-section">
-                    <h3>Popular Activities</h3>
-                    <div className="activities-">
-                      {selectedDestination.activities.map((activity, index) => (
-                        <div key={index} className="activity-item">
-                          <div className="activity-bullet"></div>
-                          <span>{activity}</span>
-                        </div>
-                      ))}
+                  <div className="flex gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-teal-600 text-white flex items-center justify-center flex-shrink-0">
+                      <Calendar className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-semibold text-gray-500 mb-1">Best Time</h4>
+                      <p className="text-sm font-semibold text-gray-900">{selectedDestination.bestTime}</p>
                     </div>
                   </div>
-
-                  {/* Action Buttons */}
-                  <div className="action-buttons">
-                    <Link
-                      to={selectedDestination.hotelsLink}
-                      className="hotels-link-btn"
-                    >
-                      <FaHotel /> View & Book Hotels
-                    </Link>
-                    <button className="close-modal-btn" onClick={closeModal}>
-                      Close
-                    </button>
+                  <div className="flex gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-teal-600 text-white flex items-center justify-center flex-shrink-0">
+                      <Thermometer className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-semibold text-gray-500 mb-1">Weather</h4>
+                      <p className="text-sm font-semibold text-gray-900">{selectedDestination.weather}</p>
+                    </div>
                   </div>
+                  <div className="flex gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-teal-600 text-white flex items-center justify-center flex-shrink-0">
+                      <Bed className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-semibold text-gray-500 mb-1">Hotels</h4>
+                      <p className="text-sm font-semibold text-gray-900">{selectedDestination.hotelsCount} available</p>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Activities */}
+                <div className="mb-6">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4">Popular Activities</h3>
+                  <div className="space-y-2">
+                    {selectedDestination.activities.map((activity, index) => (
+                      <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                        <div className="w-2 h-2 rounded-full bg-teal-600 flex-shrink-0"></div>
+                        <span className="text-sm text-gray-700">{activity}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Action Buttons */}
+                <div className="flex gap-3">
+                  <Link
+                    to={selectedDestination.hotelsLink}
+                    className="flex-1 bg-gradient-to-r from-teal-500 to-teal-700 hover:from-teal-600 hover:to-teal-800 text-white font-semibold py-3 px-6 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+                  >
+                    <Hotel className="w-5 h-5" />
+                    View & Book Hotels
+                  </Link>
+                  <button
+                    className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-2xl transition-all"
+                    onClick={closeModal}
+                  >
+                    Close
+                  </button>
                 </div>
               </div>
             </div>
           </div>
-        )}
-
-        {/* Simple Footer */}
-        <div className="page-footer">
-          <p>Click on any image above to see destination details</p>
-          <p className="filter-info">
-            Showing {filteredDestinations.length} of {destinations.length} destinations
-            {selectedFilter !== "all" && ` (Filtered by: ${selectedFilter})`}
-          </p>
         </div>
-      </div>
+      )}
     </div>
   );
 };

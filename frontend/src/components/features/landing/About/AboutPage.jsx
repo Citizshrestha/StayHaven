@@ -1,100 +1,112 @@
 import React from "react";
 import "./AboutPage.css";
-import Navbar from "../../../common/Navbar";
 
 const AboutPage = () => {
   const teamMembers = [
     {
-      name: "Sarah Mitchell",
+      name: "Rajesh Shrestha",
       position: "Founder & CEO",
-      image: "👩‍💼",
-      bio: "Former luxury hotel executive with 15+ years in hospitality. Founded StayHaven to redefine luxury travel experiences.",
+      image: "�‍💼",
+      bio: "Hospitality veteran with 15+ years experience in Nepal's tourism industry. Founded StayHaven to showcase Nepal's finest accommodations.",
       expertise: "Hospitality Management, Business Strategy"
     },
     {
-      name: "David Chen",
+      name: "Anita Gurung",
       position: "Chief Operations Officer",
-      image: "👨‍💼",
-      bio: "Operations expert with background in global hotel chains. Ensures seamless experiences across all properties.",
+      image: "�‍💼",
+      bio: "Operations expert ensuring seamless experiences across all partner properties. Passionate about quality service delivery.",
       expertise: "Operations, Quality Assurance"
     },
     {
-      name: "Maria Rodriguez",
-      position: "Head of Member Experience",
+      name: "Priya Thapa",
+      position: "Head of Guest Experience",
       image: "👩‍💼",
-      bio: "Passionate about creating unforgettable moments. Leads our concierge and member services teams.",
+      bio: "Dedicated to creating memorable stays for every guest. Leads our customer service and support teams.",
       expertise: "Customer Experience, Service Design"
     },
     {
-      name: "James Wilson",
-      position: "Global Partnerships Director",
+      name: "Bikram Rai",
+      position: "Partnerships Director",
       image: "👨‍💼",
-      bio: "Builds relationships with luxury properties worldwide. Curates our exclusive portfolio of destinations.",
+      bio: "Builds relationships with hotels and resorts across Nepal. Curates our exclusive portfolio of properties.",
       expertise: "Partnerships, Business Development"
     }
   ];
 
   const milestones = [
     {
-      year: "2018",
-      title: "StayHaven Founded",
-      description: "Started with 10 luxury properties across Europe"
-    },
-    {
-      year: "2019",
-      title: "First 1,000 Members",
-      description: "Reached our first major membership milestone"
-    },
-    {
       year: "2020",
-      title: "Global Expansion",
-      description: "Expanded to Asia and North American markets"
+      title: "StayHaven Founded",
+      description: "Started with 20 premium hotels in Kathmandu Valley"
+    },
+    {
+      year: "2021",
+      title: "Expansion to Pokhara",
+      description: "Extended services to lakeside resorts and mountain lodges"
     },
     {
       year: "2022",
-      title: "50,000 Members",
-      description: "Celebrated serving 50,000 discerning travelers"
+      title: "100+ Partner Hotels",
+      description: "Reached milestone of 100 verified partner properties"
     },
     {
       year: "2023",
+      title: "Nationwide Coverage",
+      description: "Expanded to Chitwan, Lumbini, and major tourist destinations"
+    },
+    {
+      year: "2024",
       title: "500+ Properties",
-      description: "Grew our portfolio to 500+ luxury properties worldwide"
+      description: "Now serving travelers across 40+ destinations in Nepal"
     }
   ];
 
   const values = [
     {
       icon: "💎",
-      title: "Excellence",
-      description: "We never compromise on quality. Every detail matters in creating exceptional experiences."
+      title: "Quality First",
+      description: "We partner only with verified hotels that meet our high standards for cleanliness, service, and guest satisfaction."
     },
     {
       icon: "🤝",
-      title: "Trust",
-      description: "Building lasting relationships through transparency and reliability is our foundation."
+      title: "Trust & Transparency",
+      description: "Honest pricing, genuine reviews, and reliable service form the foundation of our relationships with guests."
     },
     {
-      icon: "🌍",
-      title: "Global Mindset",
-      description: "We understand and respect diverse cultures while maintaining consistent luxury standards."
+      icon: "�️",
+      title: "Celebrating Nepal",
+      description: "We showcase the best of Nepali hospitality while honoring local culture, traditions, and sustainable tourism."
     },
     {
       icon: "✨",
-      title: "Innovation",
-      description: "Continuously evolving to anticipate and exceed our members' expectations."
+      title: "Guest Delight",
+      description: "Every booking is an opportunity to exceed expectations and create memorable experiences in Nepal."
     }
   ];
 
   return (
     <>
-      <Navbar />
       <div className="about-page">
         {/* Hero Section */}
         <section className="about-hero-section">
           <div className="hero-overlay"></div>
           <div className="hero-content">
-            <h1>About StayHaven</h1>
-            <p>Redefining luxury travel experiences across the globe</p>
+            <h1>Redefining Hospitality in Nepal</h1>
+            <p>Where tradition meets modern luxury, creating unforgettable experiences across the Himalayas</p>
+            <div className="hero-features">
+              <div className="hero-feature">
+                <span className="feature-icon">🏔️</span>
+                <span>Authentic Experiences</span>
+              </div>
+              <div className="hero-feature">
+                <span className="feature-icon">⭐</span>
+                <span>Premium Service</span>
+              </div>
+              <div className="hero-feature">
+                <span className="feature-icon">🌏</span>
+                <span>Local Expertise</span>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -105,7 +117,8 @@ const AboutPage = () => {
               <div className="mission-text">
                 <h2>Our Mission</h2>
                 <p className="mission-statement">
-                  To transform how the world experiences luxury travel by creating exclusive, personalized journeys that exceed expectations and create lasting memories.
+                  To showcase Nepal's finest hospitality by connecting travelers with exceptional hotels and resorts,
+                  while providing seamless booking experiences and personalized service that honors Nepali warmth and tradition.
                 </p>
                 <div className="mission-stats">
                   <div className="mission-stat">
@@ -133,7 +146,7 @@ const AboutPage = () => {
         <section className="story-section">
           <div className="container">
             <h2>Our Journey</h2>
-            <p className="section-subtitle">From a vision to a global luxury travel community</p>
+            <p className="section-subtitle">Building Nepal's premier hotel booking platform, one partnership at a time</p>
 
             <div className="timeline">
               {milestones.map((milestone, index) => (
@@ -153,7 +166,7 @@ const AboutPage = () => {
         <section className="values-section">
           <div className="container">
             <h2>Our Values</h2>
-            <p className="section-subtitle">The principles that guide every decision we make</p>
+            <p className="section-subtitle">The principles that drive us to deliver exceptional experiences</p>
 
             <div className="values-grid">
               {values.map((value, index) => (
@@ -171,7 +184,7 @@ const AboutPage = () => {
         <section className="team-section">
           <div className="container">
             <h2>Leadership Team</h2>
-            <p className="section-subtitle">The passionate individuals driving StayHaven's vision forward</p>
+            <p className="section-subtitle">Meet the passionate team behind StayHaven's success</p>
 
             <div className="team-grid">
               {teamMembers.map((member, index) => (
@@ -194,30 +207,32 @@ const AboutPage = () => {
           <div className="container">
             <div className="commitment-content">
               <div className="commitment-text">
-                <h2>Our Commitment to Excellence</h2>
+                <h2>Our Commitment to You</h2>
                 <p>
-                  At StayHaven, we believe luxury is in the details. Our commitment extends beyond beautiful properties to encompass every aspect of your journey. From the moment you consider a trip to long after you return home, we're dedicated to making every experience exceptional.
+                  At StayHaven, we're dedicated to making your Nepal travel experience seamless and memorable.
+                  From discovering the perfect hotel to enjoying exceptional service during your stay,
+                  we're with you every step of the journey.
                 </p>
                 <div className="commitment-points">
                   <div className="commitment-point">
                     <div className="point-icon">⭐</div>
                     <div className="point-text">
-                      <h4>Rigorous Property Selection</h4>
-                      <p>Every property undergoes thorough evaluation to ensure it meets our luxury standards</p>
+                      <h4>Verified Properties Only</h4>
+                      <p>Every hotel is personally inspected and verified to ensure quality, safety, and authentic guest experiences</p>
                     </div>
                   </div>
                   <div className="commitment-point">
                     <div className="point-icon">🛡️</div>
                     <div className="point-text">
-                      <h4>24/7 Member Support</h4>
-                      <p>Round-the-clock assistance for any needs during your travels</p>
+                      <h4>24/7 Customer Support</h4>
+                      <p>Our dedicated team is always available to assist with bookings, changes, or any questions during your stay</p>
                     </div>
                   </div>
                   <div className="commitment-point">
-                    <div className="point-icon">🔍</div>
+                    <div className="point-icon">💰</div>
                     <div className="point-text">
-                      <h4>Continuous Improvement</h4>
-                      <p>Regular feedback collection and service enhancements based on member insights</p>
+                      <h4>Best Price Guarantee</h4>
+                      <p>We work directly with hotels to offer competitive rates and exclusive deals you won't find elsewhere</p>
                     </div>
                   </div>
                 </div>
@@ -230,14 +245,14 @@ const AboutPage = () => {
         <section className="about-cta-section">
           <div className="container">
             <div className="cta-content">
-              <h2>Ready to Experience StayHaven?</h2>
-              <p>Join our community of discerning travelers and discover a new world of luxury experiences.</p>
+              <h2>Start Your Nepal Adventure</h2>
+              <p>Discover exceptional hotels and create unforgettable memories in the heart of the Himalayas.</p>
               <div className="cta-buttons">
                 <button
                   className="primary-cta"
-                  onClick={() => window.location.href = '/membership'}
+                  onClick={() => window.location.href = '/hotels'}
                 >
-                  Explore Memberships
+                  Explore Hotels
                 </button>
                 <button
                   className="secondary-cta"

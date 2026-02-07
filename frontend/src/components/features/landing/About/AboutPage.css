@@ -59,29 +59,63 @@
 }
 
 .hero-content h1 {
-  font-size: 4rem;
+  font-size: 2.8rem;
   font-weight: 700;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
   text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.3);
   font-family: 'Nunito', sans-serif;
 }
 
 .hero-content p {
-  font-size: 1.5rem;
+  font-size: 1.15rem;
   opacity: 0.95;
-  margin-bottom: 30px;
+  margin-bottom: 35px;
   line-height: 1.6;
 }
 
+.hero-features {
+  display: flex;
+  gap: 30px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 30px;
+}
+
+.hero-feature {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  padding: 12px 24px;
+  border-radius: 50px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  transition: all 0.3s ease;
+}
+
+.hero-feature:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: translateY(-3px);
+}
+
+.feature-icon {
+  font-size: 1.5rem;
+}
+
+.hero-feature span:last-child {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
 /* Section Styling */
-section {
+.about-page section {
   padding: 100px 0;
 }
 
-h2 {
-  font-size: 3rem;
+.about-page h2 {
+  font-size: 2.2rem;
   text-align: center;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
   color: #2c3e50;
   font-weight: 700;
   font-family: 'Nunito', sans-serif;
@@ -89,10 +123,10 @@ h2 {
 
 .section-subtitle {
   text-align: center;
-  font-size: 1.2rem;
+  font-size: 1.05rem;
   color: #666;
   max-width: 700px;
-  margin: 0 auto 60px;
+  margin: 0 auto 50px;
   line-height: 1.6;
 }
 
@@ -114,11 +148,11 @@ h2 {
 }
 
 .mission-statement {
-  font-size: 1.4rem;
-  line-height: 1.8;
+  font-size: 1.1rem;
+  line-height: 1.7;
   color: #555;
-  margin-bottom: 50px;
-  font-weight: 500;
+  margin-bottom: 40px;
+  font-weight: 400;
 }
 
 .mission-stats {
@@ -141,16 +175,16 @@ h2 {
 }
 
 .mission-stat h3 {
-  font-size: 3rem;
+  font-size: 2.2rem;
   color: #00A797;
-  margin-bottom: 10px;
-  font-weight: 800;
+  margin-bottom: 8px;
+  font-weight: 700;
 }
 
 .mission-stat p {
   color: #666;
-  font-weight: 600;
-  font-size: 1.1rem;
+  font-weight: 500;
+  font-size: 0.95rem;
 }
 
 .mission-image {
@@ -160,7 +194,7 @@ h2 {
 }
 
 .image-placeholder {
-  font-size: 10rem;
+  font-size: 8rem;
   opacity: 0.8;
   background: linear-gradient(135deg, #00A797 0%, #018b64 100%);
   -webkit-background-clip: text;
@@ -253,16 +287,16 @@ h2 {
 }
 
 .timeline-content h3 {
-  margin-bottom: 15px;
+  margin-bottom: 12px;
   color: #2c3e50;
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   font-weight: 700;
 }
 
 .timeline-content p {
   color: #666;
   line-height: 1.6;
-  font-size: 1.05rem;
+  font-size: 0.95rem;
 }
 
 /* Values Section */
@@ -310,13 +344,13 @@ h2 {
 }
 
 .value-icon {
-  font-size: 4rem;
-  margin-bottom: 25px;
+  font-size: 3rem;
+  margin-bottom: 20px;
 }
 
 .value-card h3 {
-  font-size: 1.8rem;
-  margin-bottom: 18px;
+  font-size: 1.35rem;
+  margin-bottom: 14px;
   color: #2c3e50;
   font-weight: 700;
 }
@@ -324,7 +358,7 @@ h2 {
 .value-card p {
   color: #666;
   line-height: 1.7;
-  font-size: 1.05rem;
+  font-size: 0.95rem;
 }
 
 /* Team Section */
@@ -355,36 +389,36 @@ h2 {
 }
 
 .member-avatar {
-  font-size: 5rem;
-  margin-bottom: 25px;
+  font-size: 4rem;
+  margin-bottom: 20px;
 }
 
 .team-card h3 {
-  font-size: 1.8rem;
-  margin-bottom: 10px;
+  font-size: 1.35rem;
+  margin-bottom: 8px;
   color: #2c3e50;
   font-weight: 700;
 }
 
 .member-position {
   color: #00A797;
-  font-weight: 700;
-  margin-bottom: 25px;
-  font-size: 1.15rem;
+  font-weight: 600;
+  margin-bottom: 20px;
+  font-size: 1rem;
 }
 
 .member-bio {
   color: #666;
   line-height: 1.7;
-  margin-bottom: 25px;
-  font-size: 1.05rem;
+  margin-bottom: 20px;
+  font-size: 0.95rem;
 }
 
 .member-expertise {
-  padding-top: 25px;
+  padding-top: 20px;
   border-top: 2px solid #f0f0f0;
   color: #555;
-  font-size: 0.95rem;
+  font-size: 0.88rem;
 }
 
 .member-expertise strong {
@@ -402,49 +436,49 @@ h2 {
 }
 
 .commitment-text>p {
-  font-size: 1.3rem;
-  line-height: 1.8;
+  font-size: 1.1rem;
+  line-height: 1.7;
   color: #555;
-  margin-bottom: 50px;
+  margin-bottom: 40px;
 }
 
 .commitment-points {
   display: flex;
   flex-direction: column;
-  gap: 35px;
+  gap: 28px;
 }
 
 .commitment-point {
   display: flex;
   align-items: flex-start;
-  gap: 25px;
-  padding: 30px;
+  gap: 20px;
+  padding: 25px;
   background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
   border-radius: 16px;
   transition: all 0.3s ease;
 }
 
 .commitment-point:hover {
-  transform: translateX(10px);
+  transform: translateX(8px);
   box-shadow: 0 8px 20px rgba(0, 167, 151, 0.1);
 }
 
 .point-icon {
-  font-size: 2.5rem;
-  margin-top: 5px;
+  font-size: 2rem;
+  margin-top: 3px;
 }
 
 .point-text h4 {
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   color: #2c3e50;
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   font-weight: 700;
 }
 
 .point-text p {
   color: #666;
   line-height: 1.7;
-  font-size: 1.05rem;
+  font-size: 0.95rem;
 }
 
 /* CTA Section */
@@ -457,13 +491,13 @@ h2 {
 
 .cta-content h2 {
   color: white;
-  margin-bottom: 22px;
-  font-size: 3rem;
+  margin-bottom: 18px;
+  font-size: 2.2rem;
 }
 
 .cta-content p {
-  font-size: 1.3rem;
-  margin-bottom: 40px;
+  font-size: 1.1rem;
+  margin-bottom: 35px;
   opacity: 0.95;
   max-width: 700px;
   margin-left: auto;
@@ -479,10 +513,10 @@ h2 {
 
 .primary-cta,
 .secondary-cta {
-  padding: 18px 45px;
+  padding: 15px 40px;
   border: none;
   border-radius: 50px;
-  font-size: 1.15rem;
+  font-size: 1rem;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -565,11 +599,27 @@ h2 {
   }
 
   .hero-content h1 {
-    font-size: 2.8rem;
+    font-size: 2.2rem;
   }
 
   .hero-content p {
+    font-size: 1rem;
+  }
+
+  .hero-features {
+    gap: 15px;
+  }
+
+  .hero-feature {
+    padding: 10px 18px;
+  }
+
+  .feature-icon {
     font-size: 1.2rem;
+  }
+
+  .hero-feature span:last-child {
+    font-size: 0.85rem;
   }
 
   h2 {
@@ -617,11 +667,27 @@ h2 {
 
 @media (max-width: 480px) {
   .hero-content h1 {
-    font-size: 2.2rem;
+    font-size: 1.8rem;
   }
 
   .hero-content p {
-    font-size: 1rem;
+    font-size: 0.9rem;
+  }
+
+  .hero-features {
+    gap: 12px;
+  }
+
+  .hero-feature {
+    padding: 8px 16px;
+  }
+
+  .feature-icon {
+    font-size: 1.1rem;
+  }
+
+  .hero-feature span:last-child {
+    font-size: 0.8rem;
   }
 
   h2 {
