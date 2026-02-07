@@ -1,4 +1,4 @@
-// All properties including Hotels, Villas, and Resorts with NPR pricing
+﻿// All properties including Hotels, Villas, and Resorts with NPR pricing
 export const allProperties = [
   // Hotels - NPR 900-2000
   {

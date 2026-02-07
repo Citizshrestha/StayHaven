@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Star, StarHalf, Heart, MapPin } from 'lucide-react';
 import { formatReviewCount } from './utils';
 

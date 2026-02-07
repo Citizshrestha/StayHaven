@@ -1,4 +1,4 @@
-import { resetPassword } from "../../api/staff";
+﻿import { resetPassword } from "../../api/staff";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom"
 import { toast } from "react-toastify";
@@ -35,21 +35,21 @@ const StaffResetPassword = () => {
                 return;
             }
 
-            try {
-                setLoading(true);
-                const response = await resetPassword(token, newPassword);
-                if (response.success) {
-                    toast.success("Password reset successfully!. Please login with your new password. ");
-                    setTimeout(() => {
-                        navigate("/staff/login");
-                    }, 2000);
-                }
-            } catch (error) {
-                toast.error("Failed to reset password. Please try again.");
-            } finally {
-                setLoading(false);
-            }
+    try {
+        setLoading(true);
+        const response = await resetPassword(token, newPassword);
+        if (response.success) {
+            toast.success("Password reset successfully!. Please login with your new password. ");
+            setTimeout(() => {
+                navigate("/staff/login");
+            }, 2000);
         }
+    } catch (error) {
+        toast.error("Failed to reset password. Please try again.");
+    } finally {
+        setLoading(false);
+    }
+}
     return (
         <div 
       className="w-full flex flex-col lg:flex-row "

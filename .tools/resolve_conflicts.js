@@ -1,0 +1,74 @@
+const fs = require('fs');
+const path = require('path');
+
+function walk(dir, fileList = []) {
+  const files = fs.readdirSync(dir);
+  for (const file of files) {
+    const full = path.join(dir, file);
+    const stat = fs.statSync(full);
+    if (stat.isDirectory()) {
+      if (['node_modules', '.git'].includes(file)) continue;
+      walk(full, fileList);
+    } else {
+      fileList.push(full);
+    }
+  }
+  return fileList;
+}
+
+function normalizeCurrency(text) {
+  // Replace common markers with 'NPR'
+  text = text.replace(/\bRs\.\s*/g, 'NPR ');
+  text = text.replace(/\bRs\s*/g, 'NPR ');
+  text = text.replace(/NPR /g, 'NPR ');
+  return text;
+}
+
+function resolveConflicts(content) {
+  while (content.indexOf('<<<<<<<') !== -1) {
+    const start = content.indexOf('<<<<<<<');
+    const mid = content.indexOf('=======', start);
+    const end = content.indexOf('>>>>>>>', mid);
+    if (start === -1 || mid === -1 || end === -1) break;
+    const headBlock = content.substring(start + '<<<<<<<'.length, mid).replace(/^\n+|\n+$/g, '');
+    const otherBlock = content.substring(mid + '======='.length, end).replace(/^\n+|\n+$/g, '');
+    // Split into lines, trim, and combine while preserving order and uniqueness
+    const headLines = headBlock.split(/\r?\n/).map(l => l);
+    const otherLines = otherBlock.split(/\r?\n/).map(l => l);
+    const combined = [];
+    for (const l of headLines) {
+      if (l === '') continue;
+      combined.push(l);
+    }
+    for (const l of otherLines) {
+      if (!combined.includes(l)) combined.push(l);
+    }
+    const mergedBlock = combined.join('\n');
+    content = content.substring(0, start) + mergedBlock + content.substring(end + '>>>>>>>'.length);
+  }
+  return content;
+}
+
+const root = path.resolve(__dirname, '..');
+const files = walk(root);
+let changed = 0;
+for (const f of files) {
+  const rel = path.relative(root, f).replace(/\\/g, '/');
+  try {
+    let txt = fs.readFileSync(f, 'utf8');
+    if (txt.indexOf('<<<<<<<') === -1) continue;
+    const before = txt;
+    txt = resolveConflicts(txt);
+    txt = normalizeCurrency(txt);
+    if (txt !== before) {
+      // backup
+      try { fs.writeFileSync(f + '.orig-conflict.bak', before, 'utf8'); } catch(e) {}
+      fs.writeFileSync(f, txt, 'utf8');
+      console.log('Patched', rel);
+      changed++;
+    }
+  } catch (e) {
+    // skip binary or unreadable
+  }
+}
+console.log('Done. Files changed:', changed);

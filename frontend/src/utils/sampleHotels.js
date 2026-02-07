@@ -1,4 +1,4 @@
-export const sampleHotels = [
+﻿export const sampleHotels = [
   {
     id: 1,
     name: "The Grand Elysian",

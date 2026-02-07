@@ -1,4 +1,4 @@
-import axiosClient from "../axiosClient";
+﻿import axiosClient from "../axiosClient";
 
 // Staff Login
 export const staffLogin = async (email, password) => {
@@ -72,6 +72,11 @@ export const getActiveProperty = () => {
   return property ? JSON.parse(property) : null;
 };
 
+// Update order status (for cross-dashboard sync)
+export const updateOrderStatus = async (orderId, status) => {
+  const response = await axiosClient.put(`/api/staff/orders/${orderId}/status`, { status });
+  return response.data;
+};
 
 // create order
 export const createOrder = async (orderData) => {
@@ -80,9 +85,9 @@ export const createOrder = async (orderData) => {
 };
 
 // get order
-export const getOrders = async (hotelId, status="pending", orderType="dineIn") => {
+export const getOrders = async (hotelId, status = "pending", orderType = "dineIn") => {
   const response = await axiosClient.get("/api/staff/orders", {
-    params: {hotelId, status, orderType}
+    params: { hotelId, status, orderType }
   });
 
   return response.data;
@@ -95,16 +100,31 @@ export const deleteOrder = async (orderId) => {
 };
 
 export const changePassword = async (currentPassword, newPassword) => {
-   const response = await axiosClient.post("/api/staff/change-password", { currentPassword, newPassword });
-   return response.data;
-}
+  const response = await axiosClient.post("/api/staff/change-password", { currentPassword, newPassword });
+  return response.data;
+};
 
 export const forgotPassword = async (email) => {
-  const response = await axiosClient.post("/api/staff/forgot-password", {email});
+  const response = await axiosClient.post("/api/staff/forgot-password", { email });
   return response.data;
-}
+};
 
 export const resetPassword = async (token, newPassword) => {
-  const response = await axiosClient.post("/api/staff/reset-password", {token, newPassword});
+  const response = await axiosClient.post("/api/staff/reset-password", { token, newPassword });
   return response.data;
-}
+};
+
+// Update an order
+export const updateOrder = async (orderId, orderData) => {
+  const response = await axiosClient.put(`/api/staff/orders/${orderId}`, orderData);
+export const updateProfilePicture = async (file) => {
+  const formData = new FormData();
+  formData.append("profilePicture", file);
+  const response = await axiosClient.patch("/staff/profile-picture", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+
+  return response.data;
+};

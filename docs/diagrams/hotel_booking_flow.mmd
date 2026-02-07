@@ -1,0 +1,13 @@
+flowchart TD
+  U[Guest/User] --> A[Search Hotels]
+  A --> B[Select Hotel]
+  B --> C[View Rooms & Availability]
+  C --> D[Select Room + Dates]
+  D --> E{Availability Check}
+  E -- available --> F["Create Booking (POST /bookings)"]
+  F --> G[Hold / Reserve Room]
+  G --> H[Proceed to Payment]
+  H --> I[Payment Gateway]
+  I -- success --> J[Confirm Booking -> send Confirmation]
+  I -- fail --> K[Release Hold -> notify user]
+  E -- not available --> L[Show alternatives]

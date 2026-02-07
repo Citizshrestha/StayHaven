@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './SuperadminDashboard.css';
 import { useNavigate } from 'react-router-dom';
 import UserManagement from './Usermanagement';
@@ -8,7 +9,12 @@ const SuperadminDashboard = () => {
   const [darkMode, setDarkMode] = useState(false);
   const [activeNav, setActiveNav] = useState('dashboard');
 
-  const navigationItems = [
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+const navigationItems = [
     { id: 'dashboard', label: 'Dashboard', icon: 'dashboard',path: '/superadmindashboard', active: true },
     { id: 'users', label: 'User Management', icon: 'group', path: '/usermanagement' },
     { id: 'hotels', label: 'Hotel Management', icon: 'apartment' , path: '/hotelmanagement'},
@@ -25,17 +31,17 @@ const SuperadminDashboard = () => {
   ];
 
   const stats = [
-    { label: 'Total Revenue', value: '$1,250,450', trend: '+2.5%', trendUp: true },
+    { label: 'Total Revenue', value: 'NPR 1,250,450', trend: '+2.5%', trendUp: true },
     { label: 'New Bookings Today', value: '152', trend: '+5.1%', trendUp: true },
     { label: 'Active Users', value: '12,345', trend: '-0.2%', trendUp: false },
     { label: 'Hotels Awaiting Approval', value: '8', trend: 'Pending', trendUp: null },
   ];
 
   const recentBookings = [
-    { guest: 'John Doe', hotel: 'The Grand Hyatt', date: '2023-10-26', amount: '$450.00', status: 'Paid', statusType: 'success' },
-    { guest: 'Jane Smith', hotel: 'Sunset Resort', date: '2023-10-25', amount: '$1200.50', status: 'Pending', statusType: 'warning' },
-    { guest: 'Mike Johnson', hotel: 'Ocean View Inn', date: '2023-10-24', amount: '$320.00', status: 'Paid', statusType: 'success' },
-    { guest: 'Sarah Wilson', hotel: 'City Center Hotel', date: '2023-10-23', amount: '$180.75', status: 'Cancelled', statusType: 'error' },
+    { guest: 'John Doe', hotel: 'The Grand Hyatt', date: '2023-10-26', amount: 'NPR 450.00', status: 'Paid', statusType: 'success' },
+    { guest: 'Jane Smith', hotel: 'Sunset Resort', date: '2023-10-25', amount: 'NPR 1200.50', status: 'Pending', statusType: 'warning' },
+    { guest: 'Mike Johnson', hotel: 'Ocean View Inn', date: '2023-10-24', amount: 'NPR 320.00', status: 'Paid', statusType: 'success' },
+    { guest: 'Sarah Wilson', hotel: 'City Center Hotel', date: '2023-10-23', amount: 'NPR 180.75', status: 'Cancelled', statusType: 'error' },
   ];
 
   const revenueData = [
@@ -59,7 +65,7 @@ const SuperadminDashboard = () => {
   };
 
   return (
-    <div className={`superadmin-dashboard ${darkMode ? 'dark' : 'light'}`}>
+    <div className={`superadmin-dashboard NPR {darkMode ? 'dark' : 'light'}`}>
       <div className="relative flex min-h-screen w-full">
         {/* SideNavBar */}
         <aside className="sidebar">
@@ -78,10 +84,10 @@ const SuperadminDashboard = () => {
               {navigationItems.map((item) => (
                 <button
                   key={item.id}
-                  className={`nav-item ${activeNav === item.id ? 'active' : ''}`}
+                  className={`nav-item NPR {activeNav === item.id ? 'active' : ''}`}
                   onClick={() => handleNavigation(item)}
                 >
-                  <span className={`material-symbols-outlined ${activeNav === item.id ? 'fill' : ''}`}>
+                  <span className={`material-symbols-outlined NPR {activeNav === item.id ? 'fill' : ''}`}>
                     {item.icon}
                   </span>
                   <p>{item.label}</p>
@@ -156,7 +162,7 @@ const SuperadminDashboard = () => {
                 <div key={index} className="stat-card">
                   <p className="stat-label">{stat.label}</p>
                   <p className="stat-value">{stat.value}</p>
-                  <div className={`stat-trend ${stat.trendUp === true ? 'success' : stat.trendUp === false ? 'error' : 'warning'}`}>
+                  <div className={`stat-trend NPR {stat.trendUp === true ? 'success' : stat.trendUp === false ? 'error' : 'warning'}`}>
                     <span className="material-symbols-outlined">
                       {stat.trendUp === true ? 'trending_up' : 
                        stat.trendUp === false ? 'trending_down' : 'sync'}
@@ -204,7 +210,7 @@ const SuperadminDashboard = () => {
               <div className="chart-card revenue-chart">
                 <p className="chart-title">Revenue by Hotel Type</p>
                 <div className="chart-header">
-                  <p className="chart-value">$320,890</p>
+                  <p className="chart-value">NPR 320,890</p>
                   <div className="chart-trend success">
                     <span className="material-symbols-outlined">arrow_upward</span>
                     <span>+8.2%</span>
@@ -218,7 +224,7 @@ const SuperadminDashboard = () => {
                       <div className="bar-container">
                         <div 
                           className="bar-fill"
-                          style={{ width: `${item.percentage}%` }}
+                          style={{ width: `NPR {item.percentage}%` }}
                         ></div>
                       </div>
                     </div>
@@ -250,7 +256,7 @@ const SuperadminDashboard = () => {
                         <td>{booking.date}</td>
                         <td>{booking.amount}</td>
                         <td>
-                          <span className={`status-badge ${booking.statusType}`}>
+                          <span className={`status-badge NPR {booking.statusType}`}>
                             {booking.status}
                           </span>
                         </td>

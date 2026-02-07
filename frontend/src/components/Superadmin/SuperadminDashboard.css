@@ -1,4 +1,4 @@
-/* Import Google Fonts */
+﻿/* Import Google Fonts */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined');
 
@@ -35,6 +35,8 @@
   background-color: var(--background-light);
   color: var(--text-light);
   min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .superadmin-dashboard.dark {
@@ -50,6 +52,12 @@
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  position: fixed;
+  left: 0;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  z-index: 10;
 }
 
 .dark .sidebar {
@@ -156,6 +164,9 @@
   flex: 1;
   display: flex;
   flex-direction: column;
+  margin-left: 16rem;
+  height: 100vh;
+  overflow-y: auto;
 }
 
 /* Top Header Styles */

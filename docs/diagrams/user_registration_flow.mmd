@@ -1,0 +1,12 @@
+flowchart LR
+  A[User] --> B[Open Registration Page]
+  B --> C[Fill Form]
+  C --> D{Client Validation}
+  D -- valid --> E[POST /api/auth/register]
+  D -- invalid --> F[Show Errors]
+  E --> G[Server: Validate & Hash Password]
+  G --> H[Create User Record]
+  H --> I[Send Verification Email]
+  I --> J[Email Confirmation Link clicked]
+  J --> K[Activate Account]
+  K --> L[Return success -> Login]

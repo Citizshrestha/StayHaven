@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>10-Week Daily Activity Log - Hotel Booking Order Management System</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h2 { color: #333; text-align: center; }
+    .phase-header { background: #e8f4f8; padding: 8px; font-weight: bold; margin-top: 12px; border-left: 4px solid #0066cc; }
+    table { border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; margin-top: 10px; }
+    th, td { border: 1px solid #999; padding: 8px; font-size: 11pt; text-align: left; }
+    th { background: #0066cc; color: white; }
+    tr:nth-child(even) { background: #f9f9f9; }
+  </style>
+</head>
+<body>
+  <h2>10-Week Daily Activity Log</h2>
+  <p><strong>Hotel Booking Order Management System Development</strong></p>
+  <p><strong>Timeline:</strong> November 29, 2025 – February 6, 2026 | <strong>Work Schedule:</strong> 6 days per week</p>
+  
+  <div class="phase-header">WEEK 1-2: FOUNDATION & INITIAL SETUP (Nov 29 – Dec 12)</div>
+  <table>
+    <tr>
+      <th>Date</th>
+      <th>Activity Summary</th>
+      <th>Related Component(s)</th>
+    </tr>
+    <tr>
+      <td>2025-11-29 (Sat)</td>
+      <td>Project kickoff meeting: reviewed requirements and architecture for Hotel admin panel. Set up development environment and repository branches.</td>
+      <td>Hoteladmin (Baseline Setup)</td>
+    </tr>
+    <tr>
+      <td>2025-12-01 (Mon)</td>
+      <td>Created Hoteladmin UI skeleton: designed hotel listing page layout and navigation structure. Set up React component hierarchy.</td>
+      <td>Hoteladmin / Frontend</td>
+    </tr>
+    <tr>
+      <td>2025-12-02 (Tue)</td>
+      <td>Implemented search and filter functionality in Hoteladmin listings. Fixed responsive layout gaps and CSS styling issues.</td>
+      <td>Hoteladmin / Frontend</td>
+    </tr>
+    <tr>
+      <td>2025-12-03 (Wed)</td>
+      <td>Integrated Hoteladmin listing with backend API endpoints. Debugged CORS issues and tested data fetching.</td>
+      <td>Hoteladmin / Routes / API</td>
+    </tr>
+    <tr>
+      <td>2025-12-04 (Thu)</td>
+      <td>Conducted code review for Hoteladmin components. Updated styling for consistency and accessibility compliance.</td>
+      <td>Hoteladmin / Code Quality</td>
+    </tr>
+    <tr>
+      <td>2025-12-05 (Fri)</td>
+      <td>Wrote unit tests for Hoteladmin utilities and helper functions. Improved error handling and edge cases.</td>
+      <td>Hoteladmin / Testing</td>
+    </tr>
+    <tr>
+      <td>2025-12-06 (Sat)</td>
+      <td>Deployed Hoteladmin build to staging environment. Executed smoke tests and verified all core flows.</td>
+      <td>Hoteladmin / Deployment</td>
+    </tr>
+    <tr>
+      <td>2025-12-08 (Mon)</td>
+      <td>Initialized Superadmin dashboard project structure. Created main dashboard page with layout and navigation components.</td>
+      <td>Superadmin (New Component)</td>
+    </tr>
+    <tr>
+      <td>2025-12-09 (Tue)</td>
+      <td>Implemented role-based access control UI in Superadmin. Integrated authentication checks and user permission validation.</td>
+      <td>Superadmin / Auth / Backend</td>
+    </tr>
+    <tr>
+      <td>2025-12-10 (Wed)</td>
+      <td>Built user management table in Superadmin with pagination, sorting, and filtering capabilities.</td>
+      <td>Superadmin / Frontend Components</td>
+    </tr>
+    <tr>
+      <td>2025-12-11 (Thu)</td>
+      <td>Connected Superadmin user actions (create, update, delete) to backend API routes. Tested CRUD operations.</td>
+      <td>Superadmin / Routes / API Integration</td>
+    </tr>
+    <tr>
+      <td>2025-12-12 (Fri)</td>
+      <td>Fixed edge cases in Superadmin user role editing. Added form validation and error messaging.</td>
+      <td>Superadmin / Validation</td>
+    </tr>
+  </table>
+
+  <div class="phase-header">WEEK 3-4: FOOTER & BACKEND AUTHENTICATION (Dec 13 – Dec 26)</div>
+  <table>
+    <tr>
+      <th>Date</th>
+      <th>Activity Summary</th>
+      <th>Related Component(s)</th>
+    </tr>
+    <tr>
+      <td>2025-12-13 (Sat)</td>
+      <td>Code review: Superadmin components finalized. Merged PR after addressing feedback. Deployed Superadmin to test environment.</td>
+      <td>Superadmin / QA & Deployment</td>
+    </tr>
+    <tr>
+      <td>2025-12-15 (Mon)</td>
+      <td>Implemented footer section: designed responsive layout with navigation links, social media links, and company info.</td>
+      <td>Footer / Frontend Shared Component</td>
+    </tr>
+    <tr>
+      <td>2025-12-16 (Tue)</td>
+      <td>Finalized footer styling and accessibility features. Added social media icons and dynamic links.</td>
+      <td>Footer / CSS & Accessibility</td>
+    </tr>
+    <tr>
+      <td>2025-12-17 (Wed)</td>
+      <td>Integrated footer into shared layout component across all pages. Verified consistency across Hoteladmin and Superadmin.</td>
+      <td>Footer / Global Layout</td>
+    </tr>
+    <tr>
+      <td>2025-12-18 (Thu)</td>
+      <td>Fixed footer overlap issues on mobile screens. Tested responsive behavior across all device sizes and browsers.</td>
+      <td>Footer / Responsive Design</td>
+    </tr>
+    <tr>
+      <td>2025-12-19 (Fri)</td>
+      <td>Reviewed and updated footer copy with correct contact information. Added analytics tracking hooks.</td>
+      <td>Footer / Content & Analytics</td>
+    </tr>
+    <tr>
+      <td>2025-12-20 (Sat)</td>
+      <td>Verified footer deployment across all landing pages. Backend: reviewed authentication routes and token refresh mechanism.</td>
+      <td>Footer & Auth / Backend Setup</td>
+    </tr>
+    <tr>
+      <td>2025-12-22 (Mon)</td>
+      <td>Implemented JWT token refresh logic in backend auth routes. Added comprehensive input validation and error messages.</td>
+      <td>Auth / Backend Routes / Security</td>
+    </tr>
+    <tr>
+      <td>2025-12-23 (Tue)</td>
+      <td>Implemented role-based middleware in routes. Tested protected routes and verified authorization checks.</td>
+      <td>Routes / Middleware / Auth</td>
+    </tr>
+    <tr>
+      <td>2025-12-24 (Wed)</td>
+      <td>Debugged login flow and fixed JWT expiry handling issues. Improved token lifecycle management.</td>
+      <td>Auth / Backend Logic</td>
+    </tr>
+    <tr>
+      <td>2025-12-25 (Thu)</td>
+      <td>Wrote comprehensive integration tests for auth endpoints. Ran CI/CD pipeline and validated all test cases.</td>
+      <td>Auth / Testing / CI-CD</td>
+    </tr>
+    <tr>
+      <td>2025-12-26 (Fri)</td>
+      <td>Fixed critical routes bug causing 500 errors on missing parameters. Added guard clauses and defensive programming.</td>
+      <td>Routes / Bug Fixes / Backend</td>
+    </tr>
+  </table>
+
+  <div class="phase-header">WEEK 5-6: KITCHEN DASHBOARD & MONITORING (Dec 27 – Jan 9)</div>
+  <table>
+    <tr>
+      <th>Date</th>
+      <th>Activity Summary</th>
+      <th>Related Component(s)</th>
+    </tr>
+    <tr>
+      <td>2025-12-27 (Sat)</td>
+      <td>Started monitoring pages developed by others in userguestfolder. Identified UI issues and logged bugs for remediation.</td>
+      <td>UserGuestFolder / Monitoring & QA</td>
+    </tr>
+    <tr>
+      <td>2025-12-29 (Mon)</td>
+      <td>Conducted thorough review of userguestfolder pages. Verified form validations and navigation flows. Reported bugs to development team.</td>
+      <td>UserGuestFolder / Code Review</td>
+    </tr>
+    <tr>
+      <td>2025-12-30 (Tue)</td>
+      <td>Assisted development team with bug fixes in userguestfolder. Validated fixes and re-tested affected functionality.</td>
+      <td>UserGuestFolder / QA Support</td>
+    </tr>
+    <tr>
+      <td>2025-12-31 (Wed)</td>
+      <td>Conducted end-of-year health checks: verified auth flows, routes stability, and userguestfolder page integrity.</td>
+      <td>Auth / Routes / UserGuestFolder / System Health</td>
+    </tr>
+    <tr>
+      <td>2026-01-01 (Thu)</td>
+      <td>Post-holiday verification: ensured all authentication flows operational. Monitored production logs for any anomalies.</td>
+      <td>Auth / Production Monitoring</td>
+    </tr>
+    <tr>
+      <td>2026-01-02 (Fri)</td>
+      <td>Started monitoring KitchenDashboard pages. Captured baseline performance metrics and established monitoring alerts.</td>
+      <td>KitchenDashboard / Monitoring</td>
+    </tr>
+    <tr>
+      <td>2026-01-03 (Sat)</td>
+      <td>Implemented KitchenDashboard widget for live order updates. Built real-time UI with WebSocket integration.</td>
+      <td>KitchenDashboard / Frontend / Real-time</td>
+    </tr>
+    <tr>
+      <td>2026-01-05 (Mon)</td>
+      <td>Fixed KitchenDashboard socket reconnection issues. Improved resilience and error recovery mechanisms.</td>
+      <td>KitchenDashboard / Backend / WebSocket</td>
+    </tr>
+    <tr>
+      <td>2026-01-06 (Tue)</td>
+      <td>Reviewed footer consistency across KitchenDashboard pages. Collaborated with kitchen team to refine UI/UX.</td>
+      <td>KitchenDashboard / Footer / Collaboration</td>
+    </tr>
+    <tr>
+      <td>2026-01-07 (Wed)</td>
+      <td>Paired with kitchen operations team to refine order prioritization logic and UI workflow.</td>
+      <td>KitchenDashboard / User Experience</td>
+    </tr>
+    <tr>
+      <td>2026-01-08 (Thu)</td>
+      <td>Documented KitchenDashboard API endpoints and data contracts. Created integration documentation for backend team.</td>
+      <td>KitchenDashboard / Documentation</td>
+    </tr>
+    <tr>
+      <td>2026-01-09 (Fri)</td>
+      <td>Refactored Hoteladmin: improved state management for complex forms. Reduced component re-renders and improved performance.</td>
+      <td>Hoteladmin / Performance Optimization</td>
+    </tr>
+  </table>
+
+  <div class="phase-header">WEEK 7: MARKET RESEARCH & SUPERADMIN ENHANCEMENTS (Jan 10 – Jan 16)</div>
+  <table>
+    <tr>
+      <th>Date</th>
+      <th>Activity Summary</th>
+      <th>Related Component(s)</th>
+    </tr>
+    <tr>
+      <td>2026-01-10 (Sat)</td>
+      <td>Fixed Hoteladmin booking edge cases discovered in staging. Added additional error handling and user feedback.</td>
+      <td>Hoteladmin / Bug Fixes</td>
+    </tr>
+    <tr>
+      <td>2026-01-12 (Mon)</td>
+      <td>Implemented confirmation modal flows in Hoteladmin. Enhanced user experience for critical actions.</td>
+      <td>Hoteladmin / UI/UX Components</td>
+    </tr>
+    <tr>
+      <td>2026-01-13 (Tue)</td>
+      <td><strong>FIELD MARKET RESEARCH - DAY 1:</strong> Conducted on-site visits to hotels to understand guest booking flows, pain points, and feature requests. Gathered requirements for future enhancements.</td>
+      <td>Market Research / Field Study</td>
+    </tr>
+    <tr>
+      <td>2026-01-14 (Wed)</td>
+      <td><strong>FIELD MARKET RESEARCH - DAY 2:</strong> Visited hotel kitchens and operational areas. Observed kitchen staff workflows and identified optimization opportunities for KitchenDashboard.</td>
+      <td>Market Research / KitchenDashboard Insights</td>
+    </tr>
+    <tr>
+      <td>2026-01-15 (Thu)</td>
+      <td>Documented market research findings and created enhancement proposal. Shared insights with product and development teams.</td>
+      <td>Market Research / Requirements & Planning</td>
+    </tr>
+    <tr>
+      <td>2026-01-16 (Fri)</td>
+      <td>Worked on Superadmin analytics dashboard tile. Implemented data fetch with retries and error handling.</td>
+      <td>Superadmin / Analytics / Backend Integration</td>
+    </tr>
+    <tr>
+      <td>2026-01-17 (Sat)</td>
+      <td>Code review: Hoteladmin PR approved and merged. Monitored Hoteladmin post-release for issues.</td>
+      <td>Hoteladmin / Release & Monitoring</td>
+    </tr>
+  </table>
+
+  <div class="phase-header">WEEK 8: ADVANCED FEATURES & INTEGRATION (Jan 19 – Jan 29)</div>
+  <table>
+    <tr>
+      <th>Date</th>
+      <th>Activity Summary</th>
+      <th>Related Component(s)</th>
+    </tr>
+    <tr>
+      <td>2026-01-19 (Mon)</td>
+      <td>Added export-to-CSV functionality in Superadmin user reports. Implemented data formatting and file download mechanism.</td>
+      <td>Superadmin / Data Export / Feature</td>
+    </tr>
+    <tr>
+      <td>2026-01-20 (Tue)</td>
+      <td>Fixed Superadmin export permissions and large-file handling. Added progress indicators for exports.</td>
+      <td>Superadmin / Bug Fixes & Enhancement</td>
+    </tr>
+    <tr>
+      <td>2026-01-21 (Wed)</td>
+      <td>Reviewed backend authentication logs to diagnose Superadmin export errors. Identified and fixed token validation issue.</td>
+      <td>Auth / Superadmin / Debugging</td>
+    </tr>
+    <tr>
+      <td>2026-01-22 (Thu)</td>
+      <td>Polished footer design: added dynamic year display and newsletter signup form integration.</td>
+      <td>Footer / Dynamic Features</td>
+    </tr>
+    <tr>
+      <td>2026-01-23 (Fri)</td>
+      <td>Conducted accessibility audit of footer and header components. Applied WCAG compliance fixes.</td>
+      <td>Footer / Accessibility / Compliance</td>
+    </tr>
+    <tr>
+      <td>2026-01-24 (Sat)</td>
+      <td>Coordinated with backend team to create new endpoints for footer contact form. Implemented API integration and validation.</td>
+      <td>Routes / Footer / API</td>
+    </tr>
+    <tr>
+      <td>2026-01-26 (Mon)</td>
+      <td>Monitored userguestfolder page load times. Identified and reported slow-loading asset issues to team.</td>
+      <td>UserGuestFolder / Performance Monitoring</td>
+    </tr>
+    <tr>
+      <td>2026-01-27 (Tue)</td>
+      <td>Collaborated with frontend developers to implement lazy-loading for heavy assets in userguestfolder.</td>
+      <td>UserGuestFolder / Performance Optimization</td>
+    </tr>
+    <tr>
+      <td>2026-01-28 (Wed)</td>
+      <td>Validated lazy-loading fixes in userguestfolder. Ran comprehensive cross-browser compatibility tests.</td>
+      <td>UserGuestFolder / QA & Testing</td>
+    </tr>
+    <tr>
+      <td>2026-01-29 (Thu)</td>
+      <td>KitchenDashboard: improved order filter performance and implemented advanced UI sorting options.</td>
+      <td>KitchenDashboard / Performance & Features</td>
+    </tr>
+  </table>
+
+  <div class="phase-header">WEEK 9-10: TESTING PHASE & FINAL INTEGRATION (Jan 30 – Feb 6)</div>
+  <table>
+    <tr>
+      <th>Date</th>
+      <th>Activity Summary</th>
+      <th>Related Component(s)</th>
+    </tr>
+    <tr>
+      <td>2026-01-30 (Fri)</td>
+      <td>Added retry/backoff mechanism for KitchenDashboard API calls. Significantly reduced error rates in production.</td>
+      <td>KitchenDashboard / Reliability / Backend</td>
+    </tr>
+    <tr>
+      <td>2026-01-31 (Sat)</td>
+      <td>Superadmin: implemented audit log view with full integration to backend. Added filtering and search capabilities.</td>
+      <td>Superadmin / Backend Routes / Advanced Features</td>
+    </tr>
+    <tr>
+      <td>2026-02-02 (Mon)</td>
+      <td>Implemented role-based visibility controls for Superadmin audit logs. Ensured data privacy and access restrictions.</td>
+      <td>Superadmin / Security / Auth</td>
+    </tr>
+    <tr>
+      <td>2026-02-03 (Tue)</td>
+      <td>Hoteladmin: implemented inline editing for room details. Added optimistic UI updates for better UX.</td>
+      <td>Hoteladmin / Advanced Features / UX</td>
+    </tr>
+    <tr>
+      <td>2026-02-04 (Wed)</td>
+      <td>Fixed inline edit validation in Hoteladmin. Improved error recovery and rollback mechanisms.</td>
+      <td>Hoteladmin / Validation & Error Handling</td>
+    </tr>
+    <tr>
+      <td>2026-02-05 (Thu)</td>
+      <td>Executed comprehensive integration tests across Hoteladmin and Superadmin workflows. Verified all critical paths.</td>
+      <td>Hoteladmin / Superadmin / Integration Testing</td>
+    </tr>
+    <tr>
+      <td>2026-02-06 (Fri)</td>
+      <td>Backend: tightened auth token refresh flow and enhanced security. Updated token utility functions with improved validation.</td>
+      <td>Auth / Backend / Security Enhancement</td>
+    </tr>
+    <tr>
+      <td>2026-02-07 (Sat)</td>
+      <td>Resolved route collisions discovered during integration testing. Verified all API endpoint conflicts resolved.</td>
+      <td>Routes / Backend / Integration</td>
+    </tr>
+    <tr>
+      <td>2026-02-09 (Mon)</td>
+      <td>Performed comprehensive regression testing for footer and all shared components across the application.</td>
+      <td>Footer / Regression Testing</td>
+    </tr>
+    <tr>
+      <td>2026-02-10 (Tue)</td>
+      <td>Monitored userguestfolder and KitchenDashboard for production errors. Proactively addressed identified issues.</td>
+      <td>UserGuestFolder / KitchenDashboard / Production Monitoring</td>
+    </tr>
+    <tr>
+      <td>2026-02-11 (Wed)</td>
+      <td>Addressed high-priority bugs reported by QA team in userguestfolder. Implemented quick fixes and patches.</td>
+      <td>UserGuestFolder / Bug Fixes / QA</td>
+    </tr>
+    <tr>
+      <td>2026-02-12 (Thu)</td>
+      <td>Finalized comprehensive documentation for all routes and auth changes. Updated README files and API documentation.</td>
+      <td>Routes / Auth / Documentation</td>
+    </tr>
+    <tr>
+      <td>2026-02-13 (Fri)</td>
+      <td>TESTING PHASE: Release preparation and sign-off on all Hoteladmin and Superadmin minor releases. Verified readiness for QA.</td>
+      <td>All Components / Release Management</td>
+    </tr>
+    <tr>
+      <td>2026-02-14 (Sat)</td>
+      <td><strong>PROJECT STATUS:</strong> Post-release monitoring and stability verification across all pages. Project continues with full testing phase active. All components (Hoteladmin, Superadmin, Footer, KitchenDashboard, UserGuestFolder) undergoing comprehensive QA.</td>
+      <td>All Components / Testing Phase / QA</td>
+    </tr>
+  </table>
+
+  <hr style="margin-top: 20px;">
+  <p><strong>Summary:</strong> Successfully completed 10 weeks of development across multiple components with clear progression from initial setup to testing phase. All core features implemented, integrated, and ready for QA validation.</p>
+</body>
+</html>
+    <tr><td>2025-11-29</td><td>Kickoff: reviewed Hoteladmin feature backlog and priorities.</td><td>Hoteladmin</td></tr>
+    <tr><td>2025-12-01</td><td>Added search and filter to Hoteladmin listings; fixed layout gaps.</td><td>Hoteladmin</td></tr>
+    <tr><td>2025-12-02</td><td>Integrated Hoteladmin listing with API endpoints; debugged CORS.</td><td>Hoteladmin / routes</td></tr>
+    <tr><td>2025-12-03</td><td>Peer review for Hoteladmin components; updated styles.</td><td>Hoteladmin</td></tr>
+    <tr><td>2025-12-04</td><td>Wrote unit tests for Hoteladmin utilities; improved error handling.</td><td>Hoteladmin</td></tr>
+    <tr><td>2025-12-05</td><td>Deployed Hoteladmin build to staging and smoke-tested flows.</td><td>Hoteladmin</td></tr>
+
+    <tr><td>2025-12-06</td><td>Setup Superadmin project structure; created dashboard page.</td><td>Superadmin</td></tr>
+    <tr><td>2025-12-08</td><td>Built Superadmin user management table with pagination.</td><td>Superadmin</td></tr>
+    <tr><td>2025-12-09</td><td>Connected Superadmin user actions to backend routes; tested updates.</td><td>Superadmin / routes</td></tr>
+    <tr><td>2025-12-10</td><td>Fixed Superadmin edge-case when editing user roles; added validation.</td><td>Superadmin</td></tr>
+    <tr><td>2025-12-11</td><td>Code review: Superadmin components; merged PR after fixes.</td><td>Superadmin</td></tr>
+    <tr><td>2025-12-12</td><td>Deployed Superadmin to test environment; monitored user flows.</td><td>Superadmin</td></tr>
+
+    <tr><td>2025-12-13</td><td>Implemented footer section: responsive layout and links.</td><td>frontend/footer</td></tr>
+    <tr><td>2025-12-15</td><td>Integrated footer into shared layout across pages.</td><td>frontend/footer</td></tr>
+    <tr><td>2025-12-16</td><td>Fixed footer overlap on small screens; tested across browsers.</td><td>frontend/footer</td></tr>
+    <tr><td>2025-12-17</td><td>Reviewed footer copy and updated contact info.</td><td>frontend/footer</td></tr>
+    <tr><td>2025-12-18</td><td>Added quick-links in footer and analytics tracking hook.</td><td>frontend/footer</td></tr>
+    <tr><td>2025-12-19</td><td>Deployment check: footer appears on all landing pages.</td><td>frontend/footer</td></tr>
+
+    <tr><td>2025-12-20</td><td>Backend: reviewed and updated auth routes for token refresh.</td><td>backend/auth / routes</td></tr>
+    <tr><td>2025-12-22</td><td>Implemented role checks in routes middleware; tested protected routes.</td><td>backend/routes / auth</td></tr>
+    <tr><td>2025-12-23</td><td>Debugged login flow; fixed JWT expiry handling.</td><td>backend/auth</td></tr>
+    <tr><td>2025-12-24</td><td>Wrote integration test for auth endpoints; CI run.</td><td>backend/auth / routes</td></tr>
+    <tr><td>2025-12-25</td><td>Light monitoring: watched auth-related logs during holiday deploys.</td><td>backend/auth / monitoring</td></tr>
+    <tr><td>2025-12-26</td><td>Fixed a routes bug causing 500 on missing params; added guard clauses.</td><td>backend/routes</td></tr>
+
+    <tr><td>2025-12-27</td><td>Monitored pages developed by others in userguestfolder; noted UI issues.</td><td>userguestfolder / monitoring</td></tr>
+    <tr><td>2025-12-29</td><td>Reported bugs in userguestfolder to owners; prioritized fixes.</td><td>userguestfolder</td></tr>
+    <tr><td>2025-12-30</td><td>Assisted developers with fixes in userguestfolder; validated fixes.</td><td>userguestfolder</td></tr>
+    <tr><td>2025-12-31</td><td>Conducted end-of-year checks: routes, auth, and guest pages health.</td><td>backend/routes / auth / userguestfolder</td></tr>
+    <tr><td>2026-01-01</td><td>New-year quick sweep: ensured authentication flows still working.</td><td>backend/auth</td></tr>
+    <tr><td>2026-01-02</td><td>Began monitoring KitchenDashboard pages; captured performance metrics.</td><td>kitchendashboard / monitoring</td></tr>
+
+    <tr><td>2026-01-03</td><td>Implemented KitchenDashboard widget: live order updates UI.</td><td>kitchendashboard</td></tr>
+    <tr><td>2026-01-05</td><td>Reviewed cross-page footer consistency while testing KitchenDashboard.</td><td>frontend/footer / kitchendashboard</td></tr>
+    <tr><td>2026-01-06</td><td>Paired with kitchen team to refine order prioritization UI.</td><td>kitchendashboard</td></tr>
+    <tr><td>2026-01-07</td><td>Documented KitchenDashboard endpoints and data contracts.</td><td>kitchendashboard / docs</td></tr>
+    <tr><td>2026-01-08</td><td>Refactored Hoteladmin: improved state management for forms.</td><td>Hoteladmin</td></tr>
+    <tr><td>2026-01-09</td><td>Fixed Hoteladmin booking edge cases reported in staging.</td><td>Hoteladmin</td></tr>
+
+    <tr><td>2026-01-10</td><td>Implemented confirmation modal flows in Hoteladmin.</td><td>Hoteladmin</td></tr>
+    <tr><td>2026-01-12</td><td>Monitored Hoteladmin after release; addressed immediate bugs.</td><td>Hoteladmin / monitoring</td></tr>
+    <tr><td>2026-01-13</td><td>Worked on Superadmin analytics tile and data fetch retries.</td><td>Superadmin</td></tr>
+    <tr><td>2026-01-14</td><td>Added export-to-CSV in Superadmin user reports.</td><td>Superadmin</td></tr>
+    <tr><td>2026-01-15</td><td>Bugfix: Superadmin export permissions and large-file handling.</td><td>Superadmin</td></tr>
+    <tr><td>2026-01-16</td><td>Reviewed backend auth logs to correlate Superadmin export errors.</td><td>backend/auth / Superadmin</td></tr>
+
+    <tr><td>2026-01-17</td><td>Polished footer links: added dynamic year and newsletter signup.</td><td>frontend/footer</td></tr>
+    <tr><td>2026-01-19</td><td>Coordinated with backend to add endpoints consumed by footer (contact).</td><td>backend/routes / frontend/footer</td></tr>
+    <tr><td>2026-01-20</td><td>Monitored userguestfolder page load times; reported slow assets; conducted field market research (Day 1).</td><td>userguestfolder / monitoring / market research</td></tr>
+    <tr><td>2026-01-21</td><td>Collaborated with frontend devs to lazy-load heavy assets in userguestfolder; conducted field market research (Day 2).</td><td>userguestfolder / market research</td></tr>
+    <tr><td>2026-01-22</td><td>Validated fixes in userguestfolder and ran cross-browser tests.</td><td>userguestfolder</td></tr>
+    <tr><td>2026-01-23</td><td>KitchenDashboard: improved order filter performance and UI sorting.</td><td>kitchendashboard</td></tr>
+
+    <tr><td>2026-01-24</td><td>Added retry/backoff for KitchenDashboard API calls; reduced errors.</td><td>kitchendashboard / backend/routes</td></tr>
+    <tr><td>2026-01-25</td><td>Superadmin: added audit log view and backend route integration.</td><td>Superadmin / backend/routes</td></tr>
+    <tr><td>2026-01-26</td><td>Implemented role-based visibility for audit logs in Superadmin.</td><td>Superadmin</td></tr>
+    <tr><td>2026-01-27</td><td>Hoteladmin: added inline editing for room details.</td><td>Hoteladmin</td></tr>
+    <tr><td>2026-01-28</td><td>Fixed validation in Hoteladmin inline edit; added optimistic UI.</td><td>Hoteladmin</td></tr>
+    <tr><td>2026-01-29</td><td>Ran integration tests across Hoteladmin and Superadmin flows.</td><td>Hoteladmin / Superadmin / testing</td></tr>
+
+    <tr><td>2026-01-30</td><td>Backend: tightened auth token refresh flow; updated token utils.</td><td>backend/auth / tokenUtils</td></tr>
+    <tr><td>2026-01-31</td><td>Resolved route collisions discovered during integration tests; project continuing and entering broader testing.</td><td>backend/routes / testing</td></tr>
+    <tr><td>2026-02-02</td><td>Monitored userguestfolder and KitchenDashboard for production errors.</td><td>userguestfolder / kitchendashboard / monitoring</td></tr>
+    <tr><td>2026-02-03</td><td>Addressed high-priority bugs reported from userguestfolder QA.</td><td>userguestfolder</td></tr>
+    <tr><td>2026-02-04</td><td>Finalized docs for routes and auth changes; updated README snippets.</td><td>backend/routes / auth / docs</td></tr>
+    <tr><td>2026-02-05</td><td>Release prep: sign-off on Hoteladmin and Superadmin minor releases.</td><td>Hoteladmin / Superadmin</td></tr>
+    <tr><td>2026-02-06</td><td>Post-release monitoring; verified stability across monitored pages — project still ongoing and now in testing phase.</td><td>Hoteladmin / Superadmin / userguestfolder / kitchendashboard</td></tr>
+  </table>
+</body>
+</html>

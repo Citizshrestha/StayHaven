@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 /**
@@ -18,15 +18,18 @@ const ItemCarousel = ({ items = [], width = 280, height = 200 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   // Handle width as number or "100%"
-  const widthStyle = typeof width === 'number' ? `${width}px` : width;
-
-  // Handle empty or invalid items
+  const widthStyle = typeof width === 'number' ? `NPR {width}px` : width;
+  const isNarrow = widthStyle === "100%" || (typeof width === "number" && width <= 360);
+  const arrowSize = isNarrow ? 28 : 32;
+  const arrowInset = isNarrow ? 6 : 8;
+  const arrowIconSize = isNarrow ? 16 : 18;
+// Handle empty or invalid items
   if (!items || items.length === 0) {
     return (
       <div
         style={{
           width: widthStyle,
-          height: `${height}px`,
+          height: `NPR {height}px`,
           backgroundColor: "#F3F4F6",
           borderRadius: "16px",
           display: "flex",
@@ -46,13 +49,14 @@ const ItemCarousel = ({ items = [], width = 280, height = 200 }) => {
     const item = items[0];
     return (
       <div style={{ width: widthStyle, flexShrink: 0 }}>
-        <div style={{ position: "relative" }}>
+      <div style={{ width: widthStyle, maxWidth: "100%", flexShrink: 0 }}>
+<div style={{ position: "relative" }}>
           <img
             src={item.image}
             alt={item.name}
             style={{
               width: "100%",
-              height: `${height}px`,
+              height: `NPR {height}px`,
               objectFit: "cover",
               borderRadius: "16px",
             }}
@@ -134,7 +138,8 @@ const ItemCarousel = ({ items = [], width = 280, height = 200 }) => {
 
   return (
     <div style={{ width: widthStyle, flexShrink: 0 }}>
-      {/* Item counter badge */}
+    <div style={{ width: widthStyle, maxWidth: "100%", flexShrink: 0 }}>
+{/* Item counter badge */}
       <div
         style={{
           display: "flex",
@@ -171,7 +176,7 @@ const ItemCarousel = ({ items = [], width = 280, height = 200 }) => {
           alt={currentItem.name}
           style={{
             width: "100%",
-            height: `${height}px`,
+            height: `NPR {height}px`,
             objectFit: "cover",
             borderRadius: "16px",
             transition: "opacity 0.3s ease",
@@ -184,14 +189,17 @@ const ItemCarousel = ({ items = [], width = 280, height = 200 }) => {
           style={{
             position: "absolute",
             left: "8px",
-            top: "50%",
+            left: `NPR {arrowInset}px`,
+top: "50%",
             transform: "translateY(-50%)",
             backgroundColor: "rgba(255, 255, 255, 0.9)",
             border: "none",
             borderRadius: "50%",
             width: "32px",
             height: "32px",
-            display: "flex",
+            width: `NPR {arrowSize}px`,
+            height: `NPR {arrowSize}px`,
+display: "flex",
             alignItems: "center",
             justifyContent: "center",
             cursor: "pointer",
@@ -208,7 +216,8 @@ const ItemCarousel = ({ items = [], width = 280, height = 200 }) => {
           }}
         >
           <ChevronLeft size={18} style={{ color: "#374151" }} />
-        </button>
+          <ChevronLeft size={arrowIconSize} style={{ color: "#374151" }} />
+</button>
 
         {/* Right Arrow */}
         <button
@@ -216,14 +225,17 @@ const ItemCarousel = ({ items = [], width = 280, height = 200 }) => {
           style={{
             position: "absolute",
             right: "8px",
-            top: "50%",
+            right: `NPR {arrowInset}px`,
+top: "50%",
             transform: "translateY(-50%)",
             backgroundColor: "rgba(255, 255, 255, 0.9)",
             border: "none",
             borderRadius: "50%",
             width: "32px",
             height: "32px",
-            display: "flex",
+            width: `NPR {arrowSize}px`,
+            height: `NPR {arrowSize}px`,
+display: "flex",
             alignItems: "center",
             justifyContent: "center",
             cursor: "pointer",
@@ -240,7 +252,8 @@ const ItemCarousel = ({ items = [], width = 280, height = 200 }) => {
           }}
         >
           <ChevronRight size={18} style={{ color: "#374151" }} />
-        </button>
+          <ChevronRight size={arrowIconSize} style={{ color: "#374151" }} />
+</button>
 
         {/* Item info overlay */}
         <div

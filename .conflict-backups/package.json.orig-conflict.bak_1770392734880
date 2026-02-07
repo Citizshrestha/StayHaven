@@ -1,0 +1,50 @@
+{
+  "name": "frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@react-oauth/google": "^0.12.2",
+    "axios": "^1.12.2",
+    "jwt-decode": "^4.0.0",
+    "lucide-react": "^0.553.0",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+<<<<<<< HEAD
+    "react-router-dom": "^7.9.6",
+    "react-server-dom-webpack": "^19.2.1",
+    "react-toastify": "^11.0.5"
+=======
+    "react-icons": "^5.5.0",
+    "react-router-dom": "^7.9.6",
+    "react-server-dom-webpack": "^19.2.1",
+    "react-toastify": "^11.0.5",
+    "socket.io-client": "^4.8.3"
+>>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@tailwindcss/vite": "^4.1.16",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@vitejs/plugin-react": "^5.1.0",
+    "autoprefixer": "^10.4.21",
+<<<<<<< HEAD
+=======
+    "baseline-browser-mapping": "^2.9.11",
+>>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+    "eslint": "^9.39.1",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.5.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.16",
+    "vite": "^7.1.12"
+  }
+}

@@ -1,0 +1,11 @@
+sequenceDiagram
+  participant S as Server
+  participant DB as Database
+  participant U as User
+
+  U->>S: Request QR for table/room (POST /qr)
+  S->>DB: create QR record (code, context)
+  DB-->>S: saved record id
+  S->>S: generate QR image/URI (short code)
+  S-->>U: return QR payload (image, url)
+  Note right of U: QR used by guest to open link

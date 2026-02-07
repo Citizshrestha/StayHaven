@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './UserManagement.css';
 
@@ -9,7 +10,12 @@ const UserManagement = () => {
 
   const navigationItems = [
     { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', path: '/' },
-    { id: 'bookings', label: 'Bookings', icon: 'calendar_month', path: '/bookings' },
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+    { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', path: '/superadmindashboard' },
+{ id: 'bookings', label: 'Bookings', icon: 'calendar_month', path: '/bookings' },
     { id: 'user-management', label: 'User Management', icon: 'group', path: '/usermanagement' },
     { id: 'settings', label: 'Settings', icon: 'settings', path: '/settings' },
   ];
@@ -86,7 +92,7 @@ const UserManagement = () => {
   };
 
   return (
-    <div className={`user-management ${darkMode ? 'dark' : 'light'}`}>
+    <div className={`user-management NPR {darkMode ? 'dark' : 'light'}`}>
       <div className="flex min-h-screen w-full">
         {/* SideNavBar */}
         <aside className="sidebar">
@@ -169,7 +175,7 @@ const UserManagement = () => {
                   <div key={index} className="stat-card">
                     <p className="stat-label">{stat.label}</p>
                     <p className="stat-value">{stat.value}</p>
-                    <p className={`stat-trend ${stat.trendUp ? 'positive' : 'negative'}`}>
+                    <p className={`stat-trend NPR {stat.trendUp ? 'positive' : 'negative'}`}>
                       <span className="material-symbols-outlined">
                         {stat.trendUp ? 'arrow_upward' : 'arrow_downward'}
                       </span>
@@ -227,7 +233,7 @@ const UserManagement = () => {
                             <img 
                               className="user-avatar" 
                               src={user.avatar} 
-                              alt={`${user.name} avatar`}
+                              alt={`NPR {user.name} avatar`}
                             />
                             <div>{user.name}</div>
                           </div>
@@ -235,12 +241,12 @@ const UserManagement = () => {
                         <td>{user.email}</td>
                         <td>{user.phone}</td>
                         <td>
-                          <span className={`role-badge ${user.roleColor}`}>
+                          <span className={`role-badge NPR {user.roleColor}`}>
                             {user.role}
                           </span>
                         </td>
                         <td>
-                          <span className={`status-badge ${user.statusColor}`}>
+                          <span className={`status-badge NPR {user.statusColor}`}>
                             {user.status}
                           </span>
                         </td>
@@ -255,7 +261,7 @@ const UserManagement = () => {
                             </button>
                             <button className="action-btn">
                               <span 
-                                className={`material-symbols-outlined ${getStatusIconColor(user.status)}`}
+                                className={`material-symbols-outlined NPR {getStatusIconColor(user.status)}`}
                               >
                                 {getStatusIcon(user.status)}
                               </span>
@@ -310,7 +316,7 @@ const NavButton = ({ item, activeNav, setActiveNav }) => {
 
   return (
     <button
-      className={`nav-item ${activeNav === item.id ? 'active' : ''}`}
+      className={`nav-item NPR {activeNav === item.id ? 'active' : ''}`}
       onClick={handleClick}
     >
       <span className="material-symbols-outlined">{item.icon}</span>

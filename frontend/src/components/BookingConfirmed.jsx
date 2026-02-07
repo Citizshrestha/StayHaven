@@ -1,4 +1,4 @@
-import { useLocation, useNavigate } from 'react-router-dom';
+﻿import { useLocation, useNavigate } from 'react-router-dom';
 import Navbar from './Navbar';
 
 const BookingConfirmed = () => {
@@ -257,8 +257,9 @@ const BookingConfirmed = () => {
               fontWeight: '700',
               color: '#111827'
             }}>
-              ${totalPaid.toFixed(2)}
-            </p>
+              NPR {totalPaid.toFixed(2)}
+              NPR {totalPaid.toFixed(2)}
+</p>
           </div>
 
           {/* Action Buttons */}

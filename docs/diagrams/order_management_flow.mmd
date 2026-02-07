@@ -1,0 +1,10 @@
+flowchart LR
+  C[Customer] --> A[Open Menu / Place Order]
+  A --> B[Select Items]
+  B --> D[POST /orders]
+  D --> E[Server: Validate Items & Pricing]
+  E --> F[Persist Order; update inventory/status]
+  F --> G[Notify Kitchen & Staff]
+  G --> H[Order Prepared]
+  H --> I[Order Delivered to Room / Pickup]
+  I --> J[Mark Delivered -> Update Billing]

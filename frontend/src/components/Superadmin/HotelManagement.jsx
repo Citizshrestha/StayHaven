@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AddHotel from './AddHotel'; // Adjust path as needed
 import './HotelManagement.css';
@@ -13,7 +14,12 @@ const HotelManagement = () => {
 
   const navigationItems = [
     { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', path: '/' },
-    { id: 'user-management', label: 'User Management', icon: 'group', path: '/usermanagement' },
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+    { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', path: '/superadmindashboard' },
+{ id: 'user-management', label: 'User Management', icon: 'group', path: '/usermanagement' },
     { id: 'hotel-management', label: 'Hotel Management', icon: 'apartment', path: '/hotelmanagement', active: true },
     { id: 'booking-management', label: 'Booking Management', icon: 'book_online', path: '/bookingmanagement' },
     { id: 'finance', label: 'Finance', icon: 'payments', path: '/finance' },
@@ -120,10 +126,10 @@ const HotelManagement = () => {
   ];
 
   return (
-    <div className={`hotel-management ${darkMode ? 'dark' : 'light'}`}>
+    <div className={`hotel-management NPR {darkMode ? 'dark' : 'light'}`}>
       <div className="layout-container">
         {/* Sidebar */}
-        <aside className={`sidebar ${sidebarOpen ? 'mobile-open' : ''}`}>
+        <aside className={`sidebar NPR {sidebarOpen ? 'mobile-open' : ''}`}>
           <div className="sidebar-header">
             <div className="logo-icon">
               <span className="material-symbols-outlined">holiday_village</span>
@@ -272,7 +278,7 @@ const HotelManagement = () => {
                             <img 
                               className="hotel-image" 
                               src={hotel.image} 
-                              alt={`${hotel.name} thumbnail`}
+                              alt={`NPR {hotel.name} thumbnail`}
                             />
                             <span className="hotel-name">{hotel.name}</span>
                           </div>
@@ -286,7 +292,7 @@ const HotelManagement = () => {
                         </td>
                         <td className="manager-cell">{hotel.manager}</td>
                         <td className="status-cell">
-                          <span className={`status-badge ${hotel.statusType}`}>
+                          <span className={`status-badge NPR {hotel.statusType}`}>
                             {hotel.status}
                           </span>
                         </td>
@@ -365,10 +371,10 @@ const NavButton = ({ item, activeNav, setActiveNav }) => {
 
   return (
     <button
-      className={`nav-item ${activeNav === item.id ? 'active' : ''}`}
+      className={`nav-item NPR {activeNav === item.id ? 'active' : ''}`}
       onClick={handleClick}
     >
-      <span className={`material-symbols-outlined ${activeNav === item.id ? 'fill' : ''}`}>
+      <span className={`material-symbols-outlined NPR {activeNav === item.id ? 'fill' : ''}`}>
         {item.icon}
       </span>
       <p>{item.label}</p>

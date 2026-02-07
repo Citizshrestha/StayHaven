@@ -1,4 +1,4 @@
-import { Wifi, Dumbbell, UtensilsCrossed, CircleParking, Sparkles, PhoneCall, Dog } from 'lucide-react';
+﻿import { Wifi, Dumbbell, UtensilsCrossed, CircleParking, Sparkles, PhoneCall, Dog } from 'lucide-react';
 
 const iconMap = {
   'wifi': Wifi,

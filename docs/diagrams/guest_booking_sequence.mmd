@@ -1,0 +1,20 @@
+sequenceDiagram
+  participant G as Guest
+  participant UI as Frontend
+  participant API as Backend
+  participant DB as Database
+  participant PAY as PaymentGateway
+
+  G->>UI: Search hotel & select room
+  UI->>API: GET /hotels/:id /rooms?dates
+  API->>DB: query availability
+  DB-->>API: availability
+  API-->>UI: show availability
+  G->>UI: Submit booking + payment
+  UI->>API: POST /bookings
+  API->>DB: create booking (status: pending)
+  API->>PAY: create payment intent
+  PAY-->>API: payment confirmed
+  API->>DB: update booking (status: confirmed)
+  API-->>UI: booking confirmation
+  API->>G: send notification/email

@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 
 const Footer = () => {
   return (
@@ -44,7 +44,6 @@ const Footer = () => {
         >
           About Us
         </a>
-
         <a
           href="/report-problem"
           style={{
@@ -66,7 +65,6 @@ const Footer = () => {
         >
           Report a Problem
         </a>
-
         <a
           href="/feedback"
           style={{
@@ -88,7 +86,6 @@ const Footer = () => {
         >
           Feedback
         </a>
-
         <a
           href="/contactus"
           style={{
@@ -113,6 +110,7 @@ const Footer = () => {
       </div>
     </footer>
   );
+  return null;
 };
 
 export default Footer;

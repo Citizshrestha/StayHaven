@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import Navbar from '../Navbar';
 import HotelImageGallery from './HotelImageGallery';
 import HotelHeader from './HotelHeader';

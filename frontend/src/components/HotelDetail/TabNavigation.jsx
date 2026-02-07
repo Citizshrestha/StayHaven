@@ -1,4 +1,4 @@
-const TabNavigation = ({ activeTab, onTabChange }) => {
+﻿const TabNavigation = ({ activeTab, onTabChange }) => {
   const tabs = ['Overview', 'Rooms', 'Virtual Tour', 'Reviews'];
 
   const getButtonStyle = (tab) => {

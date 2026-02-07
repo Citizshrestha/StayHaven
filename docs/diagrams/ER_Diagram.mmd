@@ -1,0 +1,92 @@
+erDiagram
+    USERS {
+        string _id PK "primary key"
+        string name
+        string email
+        string passwordHash
+        string phone
+        string roleId FK
+        datetime createdAt
+    }
+    ROLES {
+        string _id PK
+        string name
+        string permissions
+    }
+    HOTELS {
+        string _id PK
+        string name
+        string address
+        string city
+        string country
+        string phone
+        string ownerId FK
+        datetime createdAt
+    }
+    ROOMS {
+        string _id PK
+        string hotelId FK
+        string roomNumber
+        string type
+        number price
+        boolean available
+        object amenities
+    }
+    BOOKINGS {
+        string _id PK
+        string userId FK
+        string roomId FK
+        string hotelId FK
+        datetime checkIn
+        datetime checkOut
+        number totalPrice
+        string status
+        datetime createdAt
+    }
+    MENUITEMS {
+        string _id PK
+        string hotelId FK
+        string name
+        string description
+        number price
+        string category
+        boolean available
+    }
+    ORDERS {
+        string _id PK
+        string bookingId FK
+        string userId FK
+        string hotelId FK
+        array items
+        number totalAmount
+        string status
+        datetime createdAt
+    }
+    STAFF {
+        string _id PK
+        string hotelId FK
+        string userId FK
+        string roleId FK
+        string position
+        boolean active
+    }
+    NOTIFICATIONS {
+        string _id PK
+        string userId FK
+        string type
+        string message
+        boolean read
+        datetime createdAt
+    }
+
+    ROLES ||--o{ USERS : "assigned to"
+    USERS ||--o{ BOOKINGS : "makes"
+    USERS ||--o{ ORDERS : "places"
+    HOTELS ||--o{ ROOMS : "has"
+    HOTELS ||--o{ MENUITEMS : "offers"
+    HOTELS ||--o{ STAFF : "employs"
+    ROOMS ||--o{ BOOKINGS : "booked"
+    BOOKINGS ||--o{ ORDERS : "may_create"
+    USERS ||--o{ NOTIFICATIONS : "receives"
+    STAFF ||--o{ ORDERS : "handles"
+    HOTELS ||--o{ BOOKINGS : "receives"

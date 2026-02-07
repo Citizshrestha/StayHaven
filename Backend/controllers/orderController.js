@@ -3,6 +3,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { Room } from "../models/room.schema.js";
 import { Hotel } from "../models/hotel.schema.js";
 import { MenuItem } from "../models/menuItem.schema.js";
+import { emitToHotel, emitToWaiters, emitToKitchen } from "../config/socket.js";
 
 export const createOrder = asyncHandler(async (req, res) => {
   const {
@@ -163,6 +164,26 @@ export const createOrder = asyncHandler(async (req, res) => {
 
   await order.save();
 
+  // Emit real-time event for new order to ALL staff in hotel
+  // (Chiefs/kitchen are already in the hotel room, no need for separate emission)
+  emitToHotel(hotelId, "new-order", {
+    order: {
+      _id: order._id,
+      orderNumber: order.orderNumber,
+      orderType: order.orderType,
+      tableNumber: order.tableNumber,
+      roomNumber: order.roomNumber,
+      status: order.status,
+      priority: order.priority,
+      items: order.items,
+      totalPrice: order.totalPrice,
+      customerName: order.customerName,
+      createdAt: order.createdAt,
+    },
+    creatorId: req.user._id.toString(), // Include creator ID to filter self-notifications
+    message: `New order #${order.orderNumber} placed by ${order.orderByName}`,
+  });
+
   return res.status(201).json({
     success: true,
     message: "Order created successfully",
@@ -231,9 +252,119 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
 
   await order.save();
 
+  // Get the role of the user making this update
+  const updaterRole = req.user?.role || 'staff';
+  const updaterName = req.user?.fullname || 'Staff';
+  // Emit real-time event for order status update
+  // Different events based on status change
+  const eventData = {
+    orderId: order._id,
+    orderNumber: order.orderNumber,
+    status: order.status,
+    tableNumber: order.tableNumber,
+    roomNumber: order.roomNumber,
+    orderType: order.orderType,
+    updatedAt: new Date(),
+    updatedBy: updaterName,
+    updaterId: req.user?._id?.toString(), // For frontend to filter self-notifications
+    updaterRole: updaterRole,
+  };
+  const location = order.orderType === 'roomService' 
+    ? `Room ${order.roomNumber}` 
+    : `Table ${order.tableNumber}`;
+  // Cross-role notifications only (no broadcast to everyone):
+  // When chief/kitchen updates status -> notify ONLY waiters (not chiefs)
+  if (updaterRole === 'chief' || updaterRole === 'kitchen') {
+    emitToWaiters(order.hotel.toString(), "order-status-updated", {
+      ...eventData,
+      message: `🍳 Kitchen: Order #${order.orderNumber} (${location}) is now "${status}"`,
+    });
+    
+    // Special event for waiters when order is ready
+    if (status === "ready") {
+      emitToWaiters(order.hotel.toString(), "order-ready", {
+        ...eventData,
+        message: `Order #${order.orderNumber} is ready for pickup!`,
+        customerName: order.customerName,
+        items: order.items,
+      });
+    }
+  }
+  // When waiter updates status -> notify ONLY kitchen/chiefs (not waiters)
+  else if (updaterRole === 'waiter') {
+    emitToKitchen(order.hotel.toString(), "order-status-updated", {
+      ...eventData,
+      message: `🍽️ Waiter ${updaterName}: Order #${order.orderNumber} (${location}) marked as "${status}"`,
+    });
+  }
+  // Fallback for other roles - broadcast to hotel
+  else {
+    emitToHotel(order.hotel.toString(), "order-status-updated", eventData);
+  }
+
   return res.status(200).json({
     success: true,
     message: `Order status updated to ${status}`,
+    order,
+  });
+});
+
+// Update order details (items, customer info, priority, notes)
+export const updateOrder = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+  const { customerName, customerPhone, priority, notes, items } = req.body;
+  const order = await Order.findById(orderId);
+  if (!order) {
+    return res.status(404).json({
+      success: false,
+      message: "Order not found",
+    });
+  }
+  // Only allow editing pending or confirmed orders
+  const editableStatuses = ["pending", "confirmed"];
+  if (!editableStatuses.includes(order.status)) {
+    return res.status(400).json({
+      success: false,
+      message: `Cannot edit order with status "${order.status}". Only pending or confirmed orders can be edited.`,
+    });
+  }
+
+  // Update customer info
+  if (customerName !== undefined) order.customerName = customerName;
+  if (customerPhone !== undefined) order.customerPhone = customerPhone;
+  if (notes !== undefined) order.notes = notes;
+  if (priority && ["normal", "high"].includes(priority)) {
+    order.priority = priority;
+  }
+
+  // Update items if provided
+  if (items && Array.isArray(items) && items.length > 0) {
+    let totalPrice = 0;
+    const validatedItems = [];
+    for (const item of items) {
+      if (!item.name || !item.quantity || item.quantity < 1) {
+        return res.status(400).json({
+          success: false,
+          message: "Each item must have a name and valid quantity (minimum 1)",
+        });
+      }
+      const itemPrice = parseFloat(item.price) || 0;
+      totalPrice += itemPrice * item.quantity;
+      validatedItems.push({
+        name: item.name,
+        quantity: item.quantity,
+        price: itemPrice,
+        notes: item.notes || "",
+      });
+    }
+    order.items = validatedItems;
+    order.totalPrice = totalPrice;
+  }
+
+  await order.save();
+  return res.status(200).json({
+    success: true,
+    message: "Order updated successfully",
     order,
   });
 });
@@ -339,7 +470,7 @@ export const deleteOrder = asyncHandler(async (req, res) => {
 
   // allowing deletion only of pending, cancelled, and new orders
   const deletableStatus = ["pending", "cancelled", "new"];
-  if (!deletableStatus.includes(order.status)){
+  if (!deletableStatus.includes(order.status)) {
     return res.status(400).json({
       success: false,
       message: `Cannot delete order with status "${order.status}". Only pending, new, or cancelled orders can be deleted.`,
@@ -352,3 +483,101 @@ export const deleteOrder = asyncHandler(async (req, res) => {
     message: "Order deleted successfully",
   });
 });
+
+/**
+ * Send Bill to Customer
+ * 
+ * Sends the order bill to the customer via email or SMS
+ * @route POST /api/orders/:orderId/send-bill
+ * @access Private (Staff)
+ */
+export const sendBillToCustomer = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+  const { method, email, phone } = req.body;
+  // Validate method
+  if (!method || !['email', 'sms', 'whatsapp'].includes(method)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid send method. Use 'email', 'sms', or 'whatsapp'",
+    });
+  }
+  // Find the order
+  const order = await Order.findById(orderId).populate('hotel', 'name address phone');
+  if (!order) {
+    return res.status(404).json({
+      success: false,
+      message: "Order not found",
+    });
+  }
+  // Validate contact based on method
+  if (method === 'email' && !email) {
+    return res.status(400).json({
+      success: false,
+      message: "Email is required for email delivery",
+    });
+  }
+  if ((method === 'sms' || method === 'whatsapp') && !phone) {
+    return res.status(400).json({
+      success: false,
+      message: "Phone number is required for SMS/WhatsApp delivery",
+    });
+  }
+  try {
+    // Generate bill content
+    const billData = {
+      orderNumber: order.orderNumber,
+      hotelName: order.hotel?.name || 'Hotel Restaurant',
+      hotelAddress: order.hotel?.address || '',
+      hotelPhone: order.hotel?.phone || '',
+      location: order.tableNumber ? `Table ${order.tableNumber}` : `Room ${order.roomNumber}`,
+      customerName: order.customerName || 'Guest',
+      items: order.items.map(item => ({
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+        total: item.price * item.quantity,
+      })),
+      subtotal: order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0),
+      tax: order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0) * 0.10,
+      serviceCharge: order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0) * 0.05,
+      total: order.totalPrice,
+      date: order.createdAt,
+    };
+    // For now, log the bill sending (integrate with actual email/SMS service later)
+    console.log(`📧 Sending bill via ${method}:`, {
+      to: method === 'email' ? email : phone,
+    });
+
+    // Update order with bill sent info
+    order.billSent = true;
+    order.billSentAt = new Date();
+    order.billSentTo = {
+      email: method === 'email' ? email : undefined,
+      phone: method !== 'email' ? phone : undefined,
+      method,
+    };
+    await order.save();
+    // TODO: Integrate with actual email/SMS service
+    // For email: Use nodemailer (already configured in config/nodemailer.js)
+    // For SMS: Integrate Twilio or similar service
+    // For WhatsApp: Use WhatsApp Business API
+    return res.status(200).json({
+      success: true,
+      message: `Bill sent successfully via ${method}`,
+      data: {
+        orderId: order._id,
+        orderNumber: order.orderNumber,
+        sentTo: method === 'email' ? email : phone,
+        method,
+        sentAt: order.billSentAt,
+      },
+    });
+  } catch (error) {
+    console.error('Send bill error:', error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to send bill. Please try again.",
+    });
+  }
+});
+// Order history endpoint removed

@@ -1,0 +1,117 @@
+﻿.guest-dashboard-root{display:flex;height:100vh;gap:24px;background:#f6fbfb;font-family:Inter,Segoe UI,Roboto,Arial,sans-serif}
+
+/* persistent floating menu toggle shown when sidebar is collapsed */
+.persistent-menu-toggle{position:fixed;left:12px;top:50%;transform:translateY(-50%);z-index:90;background:#06bfa0;color:white;border:0;padding:8px 10px;border-radius:8px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.12)}
+
+/* Sidebar */
+.guest-sidebar{width:220px;padding:16px 12px;background:#f0f9f8;border-right:1px solid #e6f0ef;display:flex;flex-direction:column;justify-content:flex-start;gap:8px}
+.sidebar-top{display:flex;align-items:center;justify-content:space-between}
+.brand{font-weight:700;font-size:18px;color:#0b6b63;margin-bottom:0}
+.menu-toggle{background:transparent;border:0;font-size:18px;cursor:pointer}
+.side-nav{display:flex;flex-direction:column;gap:8px}
+.nav-btn{background:transparent;border:0;padding:10px 12px;border-radius:8px;text-align:left;color:#234;cursor:pointer;font-weight:600}
+.nav-btn:hover{background:#e6f8f6}
+.nav-btn.active{background:#e6f8f6;color:#0b6b63}
+.nav-btn{display:flex;align-items:center;gap:8px}
+.nav-icon{font-size:16px;line-height:1;display:inline-block;width:20px;text-align:center}
+.nav-text{display:inline-block}
+.sidebar-bottom{margin-top:auto;display:flex;flex-direction:column;gap:8px}
+.sidebar-actions{display:flex;gap:8px}
+.icon-btn{background:transparent;border:0;font-size:18px;cursor:pointer;padding:6px;border-radius:6px}
+.sidebar-footer{font-size:13px;color:#6b6b6b}
+
+/* Collapsed sidebar */
+.guest-sidebar.collapsed{transform:translateX(-220px);transition:transform .2s ease;position:fixed;left:0;top:0;bottom:0;z-index:80}
+.guest-sidebar .nav-btn{white-space:nowrap}
+
+/* Main content */
+.guest-main{flex:1;overflow:auto;padding:28px 40px}
+.guest-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.guest-header h1{margin:0;font-size:22px;color:#0b6b63}
+.points{color:#6cbdad;margin-top:6px}
+.header-actions button{margin-left:8px;padding:8px 12px;border-radius:8px;border:1px solid #d7eae6;background:white;cursor:pointer}
+.header-actions .primary{background:#06bfa0;color:white;border:0}
+/* header icon buttons (profile avatar, bell, settings) */
+.icon-header{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;padding:0;border-radius:8px;border:1px solid #d7eae6;background:white;cursor:pointer;font-size:16px}
+.icon-header img{width:28px;height:28px;border-radius:50%;display:block;object-fit:cover}
+.icon-header:focus{outline:2px solid rgba(6,191,160,0.25)}
+/* notification badge */
+.notif-badge{position:absolute;top:6px;right:6px;background:#ff3b30;color:white;font-size:11px;padding:2px 6px;border-radius:999px;line-height:1}
+
+.room-selection h2{margin:8px 0 14px 0;color:#123}
+.rooms-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:16px}
+.room-card{background:white;border-radius:10px;overflow:hidden;cursor:pointer;box-shadow:0 1px 2px rgba(20,20,20,0.04);transition:transform .15s ease,border-color .15s}
+.room-card:hover{transform:translateY(-4px)}
+.room-card.selected{outline:3px solid #a9efe4}
+.room-image{height:110px;background-size:cover;background-position:center}
+.room-meta{padding:10px}
+.room-name{font-weight:700}
+.room-status{color:#0aa18a;font-size:13px;margin-top:6px}
+
+.order-tracker{margin-top:26px}
+.tracker-box{background:white;padding:14px;border-radius:10px;box-shadow:0 1px 2px rgba(0,0,0,0.04)}
+.tracker-labels{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.tracker-state{color:#06bfa0;font-weight:600}
+.progress-track{height:10px;background:#e8f6f4;border-radius:8px;overflow:hidden}
+.progress-bar{height:100%;background:linear-gradient(90deg,#06bfa0,#23d7be);width:40%;transition:width 600ms linear}
+
+.virtual-tour{margin-top:26px}
+.virtual-row{display:flex;gap:18px;align-items:center}
+.virtual-card img{width:420px;height:200px;object-fit:cover;border-radius:10px}
+.virtual-text h4{margin:6px 0}
+.virtual-text p{color:#6b6b6b}
+.virtual-text button{margin-top:6px;padding:8px 12px;border-radius:8px;border:0;background:#06bfa0;color:white;cursor:pointer}
+
+/* Home search + cards styling used inside embedded home content */
+.home-search{background:transparent;padding:14px 0;border-radius:8px}
+.search-form{display:flex;gap:12px;align-items:end;flex-wrap:wrap}
+.search-field{display:flex;flex-direction:column;min-width:180px}
+.search-field label{font-size:13px;color:#3b4}
+.search-field input,.search-field select{padding:8px 10px;border:1px solid #e4efed;border-radius:6px}
+.search-action{display:flex;align-items:center}
+.category-chips{display:flex;gap:12px;margin-top:12px}
+.chip{padding:12px 18px;border:1px solid #e7efee;border-radius:10px;background:white}
+.chip.active{border-color:#06bfa0;background:#eaf9f6}
+.hotel-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;margin-top:16px}
+.hotel-card{background:white;border-radius:10px;overflow:hidden;border:1px solid #eef6f5;display:flex;flex-direction:column}
+.hotel-media img{width:100%;height:140px;object-fit:cover}
+.hotel-body{padding:12px;display:flex;flex-direction:column}
+.hotel-price{font-weight:700;color:#0b6b63}
+.hotel-name{font-weight:700;margin-top:6px}
+.hotel-place{font-size:13px;color:#6b6b6b}
+
+.quick-order{margin-top:26px}
+.quick-grid{display:flex;gap:16px;flex-wrap:wrap}
+.quick-card{width:150px;background:white;border-radius:10px;padding:8px;box-shadow:0 1px 2px rgba(0,0,0,0.04);text-align:center}
+.quick-image{border:0;background:transparent;padding:0;cursor:pointer}
+.quick-image img{width:100%;height:100px;object-fit:cover;border-radius:8px}
+.quick-meta{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+.price{color:#06bfa0;font-weight:700}
+
+/* Modal */
+.modal-backdrop{position:fixed;inset:0;background:rgba(10,10,10,0.4);display:flex;align-items:center;justify-content:center;z-index:60}
+.modal{background:white;border-radius:10px;padding:18px;max-width:740px;width:92%}
+.modal-body{display:flex;gap:12px;align-items:center}
+.modal-body img{width:180px;height:120px;object-fit:cover;border-radius:8px}
+.modal-actions{display:flex;gap:8px;margin-top:8px}
+.modal button.primary{background:#06bfa0;color:white;border:0;padding:8px 12px;border-radius:8px}
+
+/* Responsive */
+@media (max-width:900px){
+  .guest-dashboard-root{flex-direction:column}
+  .guest-sidebar{width:100%;display:flex;flex-direction:row;align-items:center;gap:12px;padding:12px 16px}
+  .side-nav{flex-direction:row;gap:6px}
+  .guest-main{padding:16px}
+  .virtual-card img{width:100%;height:160px}
+  .rooms-grid{grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px}
+  .persistent-menu-toggle{top:12px;transform:none}
+}
+
+/* When embedding other guest pages inside the dashboard, hide their sidebars/aside elements
+   so the dashboard's own sidebar remains the primary navigation. */
+.guest-main .embedded aside { display: none !important; }
+.guest-main .embedded .brand { display: none !important; }
+.guest-main .embedded .side-nav { display: none !important; }
+.guest-main .embedded .loyalty-side { display: none !important; }
+.guest-main .embedded .menu-panel { display: none !important; }
+.guest-main .embedded .guest-notif-side { display: none !important; }

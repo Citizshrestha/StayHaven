@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import './HoteladminDashboard.css';
 import RestaurantManagement from './RestaurantManagement';
 import Loyaltypoints from './Loyaltypoints';
@@ -23,16 +23,16 @@ const HoteladminDashboard = () => {
 
   // State for rooms data
   const [roomsData, setRoomsData] = useState([
-    { id: 1, roomNumber: '101', roomType: 'Standard', status: 'available', cleanliness: 'Clean', price: '$150', amenities: ['WiFi', 'TV', 'AC'] },
-    { id: 2, roomNumber: '102', roomType: 'Deluxe', status: 'occupied', cleanliness: 'Dirty', price: '$250', amenities: ['WiFi', 'TV', 'AC', 'Mini Bar'] },
-    { id: 3, roomNumber: '103', roomType: 'Suite', status: 'maintenance', cleanliness: 'Clean', price: '$450', amenities: ['WiFi', 'TV', 'AC', 'Mini Bar', 'Jacuzzi'] },
-    { id: 4, roomNumber: '104', roomType: 'Standard', status: 'available', cleanliness: 'Clean', price: '$150', amenities: ['WiFi', 'TV', 'AC'] },
-    { id: 5, roomNumber: '105', roomType: 'Deluxe', status: 'occupied', cleanliness: 'Dirty', price: '$250', amenities: ['WiFi', 'TV', 'AC', 'Mini Bar'] },
-    { id: 6, roomNumber: '106', roomType: 'Suite', status: 'available', cleanliness: 'Clean', price: '$450', amenities: ['WiFi', 'TV', 'AC', 'Mini Bar', 'Jacuzzi'] },
-    { id: 7, roomNumber: '107', roomType: 'Standard', status: 'occupied', cleanliness: 'Dirty', price: '$150', amenities: ['WiFi', 'TV', 'AC'] },
-    { id: 8, roomNumber: '108', roomType: 'Deluxe', status: 'maintenance', cleanliness: 'Clean', price: '$250', amenities: ['WiFi', 'TV', 'AC', 'Mini Bar'] },
-    { id: 9, roomNumber: '109', roomType: 'Suite', status: 'available', cleanliness: 'Clean', price: '$450', amenities: ['WiFi', 'TV', 'AC', 'Mini Bar', 'Jacuzzi'] },
-    { id: 10, roomNumber: '110', roomType: 'Standard', status: 'occupied', cleanliness: 'Dirty', price: '$150', amenities: ['WiFi', 'TV', 'AC'] }
+    { id: 1, roomNumber: '101', roomType: 'Standard', status: 'available', cleanliness: 'Clean', price: 'NPR 15,000', amenities: ['WiFi', 'TV', 'AC'] },
+    { id: 2, roomNumber: '102', roomType: 'Deluxe', status: 'occupied', cleanliness: 'Dirty', price: 'NPR 25,000', amenities: ['WiFi', 'TV', 'AC', 'Mini Bar'] },
+    { id: 3, roomNumber: '103', roomType: 'Suite', status: 'maintenance', cleanliness: 'Clean', price: 'NPR 45,000', amenities: ['WiFi', 'TV', 'AC', 'Mini Bar', 'Jacuzzi'] },
+    { id: 4, roomNumber: '104', roomType: 'Standard', status: 'available', cleanliness: 'Clean', price: 'NPR 15,000', amenities: ['WiFi', 'TV', 'AC'] },
+    { id: 5, roomNumber: '105', roomType: 'Deluxe', status: 'occupied', cleanliness: 'Dirty', price: 'NPR 25,000', amenities: ['WiFi', 'TV', 'AC', 'Mini Bar'] },
+    { id: 6, roomNumber: '106', roomType: 'Suite', status: 'available', cleanliness: 'Clean', price: 'NPR 45,000', amenities: ['WiFi', 'TV', 'AC', 'Mini Bar', 'Jacuzzi'] },
+    { id: 7, roomNumber: '107', roomType: 'Standard', status: 'occupied', cleanliness: 'Dirty', price: 'NPR 15,000', amenities: ['WiFi', 'TV', 'AC'] },
+    { id: 8, roomNumber: '108', roomType: 'Deluxe', status: 'maintenance', cleanliness: 'Clean', price: 'NPR 25,000', amenities: ['WiFi', 'TV', 'AC', 'Mini Bar'] },
+    { id: 9, roomNumber: '109', roomType: 'Suite', status: 'available', cleanliness: 'Clean', price: 'NPR 45,000', amenities: ['WiFi', 'TV', 'AC', 'Mini Bar', 'Jacuzzi'] },
+    { id: 10, roomNumber: '110', roomType: 'Standard', status: 'occupied', cleanliness: 'Dirty', price: 'NPR 15,000', amenities: ['WiFi', 'TV', 'AC'] }
   ]);
 
   // State for new room form
@@ -106,18 +106,18 @@ const HoteladminDashboard = () => {
 
   // Mock Data for Billing & Payments
   const billingStats = {
-    totalRevenue: '$150,500',
-    pendingPayments: '$5,200',
+    totalRevenue: 'NPR 150,500',
+    pendingPayments: 'NPR 5,200',
     successfulPayments: 95
   };
 
   const invoicesData = [
-    { id: '#INV-001', guest: 'Ethan Harper', amount: '$450.00', status: 'Paid', date: '2024-07-25', method: 'Card' },
-    { id: '#INV-002', guest: 'Olivia Bennett', amount: '$2,100.00', status: 'Pending', date: '2024-07-24', method: 'Bank Transfer' },
-    { id: '#INV-003', guest: 'Noah Carter', amount: '$150.00', status: 'Paid', date: '2024-07-23', method: 'Cash' },
-    { id: '#INV-004', guest: 'Ava Foster', amount: '$900.00', status: 'Paid', date: '2024-07-22', method: 'Card' },
-    { id: '#INV-005', guest: 'Liam Walker', amount: '$75.00', status: 'Pending', date: '2024-07-21', method: 'Cash' },
-    { id: '#INV-006', guest: 'Mason Scott', amount: '$1,500.00', status: 'Paid', date: '2024-07-20', method: 'Card' },
+    { id: '#INV-001', guest: 'Ethan Harper', amount: 'NPR 45,000', status: 'Paid', date: '2024-07-25', method: 'Card' },
+    { id: '#INV-002', guest: 'Olivia Bennett', amount: 'NPR 210,000', status: 'Pending', date: '2024-07-24', method: 'Bank Transfer' },
+    { id: '#INV-003', guest: 'Noah Carter', amount: 'NPR 15,000', status: 'Paid', date: '2024-07-23', method: 'Cash' },
+    { id: '#INV-004', guest: 'Ava Foster', amount: 'NPR 90,000', status: 'Paid', date: '2024-07-22', method: 'Card' },
+    { id: '#INV-005', guest: 'Liam Walker', amount: 'NPR 7,500', status: 'Pending', date: '2024-07-21', method: 'Cash' },
+    { id: '#INV-006', guest: 'Mason Scott', amount: 'NPR 150,000', status: 'Paid', date: '2024-07-20', method: 'Card' },
   ];
 
   // Invoice UI state
@@ -126,18 +126,18 @@ const HoteladminDashboard = () => {
   const [selectedInvoices, setSelectedInvoices] = useState(new Set());
 
   const transactionsData = [
-    { id: 'TRX-9876', type: 'Credit', amount: '$450.00', status: 'Success', date: '2024-07-25', ref: 'INV-001' },
-    { id: 'TRX-5432', type: 'Debit', amount: '$50.00', status: 'Success', date: '2024-07-24', ref: 'RES-345' },
-    { id: 'TRX-1098', type: 'Credit', amount: '$150.00', status: 'Success', date: '2024-07-23', ref: 'INV-003' },
-    { id: 'TRX-7654', type: 'Credit', amount: '$900.00', status: 'Success', date: '2024-07-22', ref: 'INV-004' },
-    { id: 'TRX-3210', type: 'Credit', amount: '$1,000.00', status: 'Failed', date: '2024-07-21', ref: 'BOOK-567' },
+    { id: 'TRX-9876', type: 'Credit', amount: 'NPR 45,000', status: 'Success', date: '2024-07-25', ref: 'INV-001' },
+    { id: 'TRX-5432', type: 'Debit', amount: 'NPR 5,000', status: 'Success', date: '2024-07-24', ref: 'RES-345' },
+    { id: 'TRX-1098', type: 'Credit', amount: 'NPR 15,000', status: 'Success', date: '2024-07-23', ref: 'INV-003' },
+    { id: 'TRX-7654', type: 'Credit', amount: 'NPR 90,000', status: 'Success', date: '2024-07-22', ref: 'INV-004' },
+    { id: 'TRX-3210', type: 'Credit', amount: 'NPR 100,000', status: 'Failed', date: '2024-07-21', ref: 'BOOK-567' },
   ];
 
   const paymentMethodsData = [
-    { method: 'Credit Card (Visa)', count: 120, revenue: '$65,000' },
-    { method: 'Cash', count: 50, revenue: '$15,000' },
-    { method: 'Bank Transfer', count: 20, revenue: '$30,000' },
-    { method: 'Online Payment (PayPal)', count: 35, revenue: '$20,500' },
+    { method: 'Credit Card (Visa)', count: 120, revenue: 'NPR 6,500,000' },
+    { method: 'Cash', count: 50, revenue: 'NPR 1,500,000' },
+    { method: 'Bank Transfer', count: 20, revenue: 'NPR 3,000,000' },
+    { method: 'Online Payment (PayPal)', count: 35, revenue: 'NPR 2,050,000' },
   ];
   
   // Handle navigation click
@@ -145,11 +145,11 @@ const HoteladminDashboard = () => {
     setActiveSection(sectionId);
     try {
       // update URL hash for deep-linking and back/forward support
-      if (typeof window !== 'undefined') window.location.hash = `#${sectionId}`;
+      if (typeof window !== 'undefined') window.location.hash = `#NPR {sectionId}`;
     } catch (e) {
       console.error('Failed to update URL hash:', e);
     }
-    console.log(`Navigating to ${sectionId}`);
+    console.log(`Navigating to NPR {sectionId}`);
   };
 
   // Keep state in sync with hash changes (back button, direct links)
@@ -174,7 +174,7 @@ const HoteladminDashboard = () => {
       setEditingRoom(roomToEdit);
       setShowEditRoomModal(true);
     } else {
-      console.log(`${action} clicked for room ${roomId}`);
+      console.log(`NPR {action} clicked for room NPR {roomId}`);
     }
   };
 
@@ -187,11 +187,11 @@ const HoteladminDashboard = () => {
         return;
       }
 
-      const newRoomWithId = {
-        ...newRoom,
-        id: roomsData.length + 1,
-        price: newRoom.price.startsWith('$') ? newRoom.price : `$${newRoom.price}`
-      };
+const newRoomWithId = {
+  ...newRoom,
+  id: roomsData.length + 1,
+  price: newRoom.price.startsWith('NPR ') ? newRoom.price : `NPR ${newRoom.price}`
+};
       
       setRoomsData([...roomsData, newRoomWithId]);
       setShowAddRoomModal(false);
@@ -319,7 +319,7 @@ const HoteladminDashboard = () => {
           <div className="stat-icon">💰</div>
           <div className="stat-info">
             <h3>Today's Revenue</h3>
-            <div className="stat-number">$5,200</div>
+            <div className="stat-number">NPR 5,200</div>
           </div>
         </div>
 
@@ -340,8 +340,9 @@ const HoteladminDashboard = () => {
             <div className="analytics-header">
               <h3>Sales Analytics</h3>
               <div className="analytics-value">
-                <div className="amount">$12,500</div>
-                <div className="trend positive">Last 7 Days +15%</div>
+                <div className="amount">NPR 12,500</div>
+                <div className="amount">NPR 12,50,000</div>
+<div className="trend positive">Last 7 Days +15%</div>
               </div>
             </div>
             <div className="chart-placeholder">
@@ -450,7 +451,7 @@ const HoteladminDashboard = () => {
                     <td className="check-out">{booking.checkOut}</td>
                     <td className="order-number">{booking.orderNumber}</td>
                     <td>
-                      <span className={`status-badge ${booking.status.toLowerCase()}`}>
+                      <span className={`status-badge NPR {booking.status.toLowerCase()}`}>
                         {booking.status}
                       </span>
                     </td>
@@ -513,25 +514,25 @@ const HoteladminDashboard = () => {
           <div className="section-actions">
             <div className="filter-buttons">
               <button 
-                className={`filter-btn ${roomFilter === 'all' ? 'active' : ''}`}
+                className={`filter-btn NPR {roomFilter === 'all' ? 'active' : ''}`}
                 onClick={() => setRoomFilter('all')}
               >
                 All Rooms
               </button>
               <button 
-                className={`filter-btn ${roomFilter === 'available' ? 'active' : ''}`}
+                className={`filter-btn NPR {roomFilter === 'available' ? 'active' : ''}`}
                 onClick={() => setRoomFilter('available')}
               >
                 Available
               </button>
               <button 
-                className={`filter-btn ${roomFilter === 'occupied' ? 'active' : ''}`}
+                className={`filter-btn NPR {roomFilter === 'occupied' ? 'active' : ''}`}
                 onClick={() => setRoomFilter('occupied')}
               >
                 Occupied
               </button>
               <button 
-                className={`filter-btn ${roomFilter === 'maintenance' ? 'active' : ''}`}
+                className={`filter-btn NPR {roomFilter === 'maintenance' ? 'active' : ''}`}
                 onClick={() => setRoomFilter('maintenance')}
               >
                 Maintenance
@@ -575,14 +576,14 @@ const HoteladminDashboard = () => {
                   <td className="room-number">{room.roomNumber}</td>
                   <td className="room-type">{room.roomType}</td>
                   <td>
-                    <span className={`status-badge ${room.status}`}>
+                    <span className={`status-badge NPR {room.status}`}>
                       {room.status === 'available' && 'Available'}
                       {room.status === 'occupied' && 'Occupied'}
                       {room.status === 'maintenance' && 'Under Maintenance'}
                     </span>
                   </td>
                   <td>
-                    <span className={`cleanliness-badge ${room.cleanliness.toLowerCase()}`}>
+                    <span className={`cleanliness-badge NPR {room.cleanliness.toLowerCase()}`}>
                       {room.cleanliness}
                     </span>
                   </td>
@@ -615,7 +616,7 @@ const HoteladminDashboard = () => {
             <div key={room.id} className="room-card">
               <div className="room-card-header">
                 <h4>Room {room.roomNumber}</h4>
-                <span className={`status-badge ${room.status}`}>
+                <span className={`status-badge NPR {room.status}`}>
                   {room.status === 'available' && 'Available'}
                   {room.status === 'occupied' && 'Occupied'}
                   {room.status === 'maintenance' && 'Maintenance'}
@@ -628,7 +629,7 @@ const HoteladminDashboard = () => {
                 </div>
                 <div className="detail-item">
                   <span className="label">Cleanliness:</span>
-                  <span className={`value cleanliness ${room.cleanliness.toLowerCase()}`}>
+                  <span className={`value cleanliness NPR {room.cleanliness.toLowerCase()}`}>
                     {room.cleanliness}
                   </span>
                 </div>
@@ -725,7 +726,7 @@ const HoteladminDashboard = () => {
                   type="text"
                   value={newRoom.price}
                   onChange={(e) => handleNewRoomChange('price', e.target.value)}
-                  placeholder="e.g., 150 or $150"
+                  placeholder="e.g., 150 or NPR 150"
                   className="form-input"
                 />
               </div>
@@ -964,14 +965,14 @@ const HoteladminDashboard = () => {
                 <tr key={index}>
                   <td className="order-id">{order.id}</td>
                   <td className="order-type">
-                    <span className={`type-badge ${order.type.replace(' ', '-').toLowerCase()}`}>
+                    <span className={`type-badge NPR {order.type.replace(' ', '-').toLowerCase()}`}>
                       {order.type}
                     </span>
                   </td>
                   <td className="guest-name">{order.guest}</td>
                   <td className="order-items">{order.items}</td>
                   <td>
-                    <span className={`status-badge ${order.status.toLowerCase()}`}>
+                    <span className={`status-badge NPR {order.status.toLowerCase()}`}>
                       {order.status}
                     </span>
                   </td>
@@ -1055,7 +1056,7 @@ const HoteladminDashboard = () => {
                     <div className="phone">{staff.phone}</div>
                   </td>
                   <td>
-                    <span className={`status-badge ${staff.status.toLowerCase().replace(' ', '-')}`}>
+                    <span className={`status-badge NPR {staff.status.toLowerCase().replace(' ', '-')}`}>
                       {staff.status}
                     </span>
                   </td>
@@ -1071,7 +1072,7 @@ const HoteladminDashboard = () => {
     </div>
   );
 
-  const renderBillingPayments = () => {
+const renderBillingPayments = () => {
 
     const renderInvoicesTab = () => (
       <div className="tab-content">
@@ -1109,7 +1110,7 @@ const HoteladminDashboard = () => {
                   <td className="guest-name">{invoice.guest}</td>
                   <td className="amount-cell">{invoice.amount}</td>
                   <td>
-                    <span className={`status-badge ${invoice.status.toLowerCase()}`}>
+                    <span className={`status-badge NPR {invoice.status.toLowerCase()}`}>
                       {invoice.status}
                     </span>
                   </td>
@@ -1176,15 +1177,15 @@ const HoteladminDashboard = () => {
     function buildInvoiceHTML(list, includeSummary = false) {
       const rows = list.map(inv => `
         <tr>
-          <td>${inv.id}</td>
-          <td>${inv.guest}</td>
-          <td>${inv.amount}</td>
-          <td>${inv.status}</td>
-          <td>${inv.date}</td>
-          <td>${inv.method}</td>
+          <td>NPR {inv.id}</td>
+          <td>NPR {inv.guest}</td>
+          <td>NPR {inv.amount}</td>
+          <td>NPR {inv.status}</td>
+          <td>NPR {inv.date}</td>
+          <td>NPR {inv.method}</td>
         </tr>
       `).join('');
-      const summary = includeSummary ? `<p>Total: ${list.length} invoice(s)</p>` : '';
+      const summary = includeSummary ? `<p>Total: NPR {list.length} invoice(s)</p>` : '';
       return `
         <html>
           <head>
@@ -1198,13 +1199,13 @@ const HoteladminDashboard = () => {
           </head>
           <body>
             <h2>Invoices Export</h2>
-            ${summary}
+            NPR {summary}
             <table>
               <thead>
                 <tr><th>Invoice ID</th><th>Guest</th><th>Amount</th><th>Status</th><th>Date</th><th>Method</th></tr>
               </thead>
               <tbody>
-                ${rows}
+                NPR {rows}
               </tbody>
             </table>
           </body>
@@ -1238,14 +1239,14 @@ const HoteladminDashboard = () => {
       try {
         // Try to share as a file (supported on some mobile/modern browsers)
         if (navigator.canShare && navigator.canShare({ files: [] })) {
-          const file = new File([blob], `${invoice.id}.html`, { type: 'text/html' });
-          await navigator.share({ files: [file], title: `Invoice ${invoice.id}`, text: `Invoice ${invoice.id} for ${invoice.guest}` });
+          const file = new File([blob], `NPR {invoice.id}.html`, { type: 'text/html' });
+          await navigator.share({ files: [file], title: `Invoice NPR {invoice.id}`, text: `Invoice NPR {invoice.id} for NPR {invoice.guest}` });
           return;
         }
 
         // Fallback to Web Share text
         if (navigator.share) {
-          await navigator.share({ title: `Invoice ${invoice.id}`, text: `Invoice ${invoice.id} for ${invoice.guest}\nAmount: ${invoice.amount}` });
+          await navigator.share({ title: `Invoice NPR {invoice.id}`, text: `Invoice NPR {invoice.id} for NPR {invoice.guest}\nAmount: NPR {invoice.amount}` });
           return;
         }
 
@@ -1285,7 +1286,7 @@ const HoteladminDashboard = () => {
                   <td>{trx.type}</td>
                   <td className="amount-cell">{trx.amount}</td>
                   <td>
-                    <span className={`status-badge ${trx.status.toLowerCase()}`}>
+                    <span className={`status-badge NPR {trx.status.toLowerCase()}`}>
                       {trx.status}
                     </span>
                   </td>
@@ -1390,19 +1391,19 @@ const HoteladminDashboard = () => {
         <div className="billing-tabs-container">
           <div className="billing-tabs">
             <button
-              className={`tab-btn ${billingActiveTab === 'invoices' ? 'active' : ''}`}
+              className={`tab-btn NPR {billingActiveTab === 'invoices' ? 'active' : ''}`}
               onClick={() => setBillingActiveTab('invoices')}
             >
               Invoices
             </button>
             <button
-              className={`tab-btn ${billingActiveTab === 'transactions' ? 'active' : ''}`}
+              className={`tab-btn NPR {billingActiveTab === 'transactions' ? 'active' : ''}`}
               onClick={() => setBillingActiveTab('transactions')}
             >
               Transactions
             </button>
             <button
-              className={`tab-btn ${billingActiveTab === 'methods' ? 'active' : ''}`}
+              className={`tab-btn NPR {billingActiveTab === 'methods' ? 'active' : ''}`}
               onClick={() => setBillingActiveTab('methods')}
             >
               Payment Methods
@@ -1465,7 +1466,7 @@ const HoteladminDashboard = () => {
             <button
               key={item.id}
               type="button"
-              className={`nav-item ${activeSection === item.id ? 'active' : ''}`}
+              className={`nav-item NPR {activeSection === item.id ? 'active' : ''}`}
               onClick={() => handleNavigation(item.id)}
             >
               <span className="nav-icon">{item.icon}</span>

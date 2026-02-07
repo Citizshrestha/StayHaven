@@ -1,4 +1,4 @@
-export const mockRootProps = {
+﻿export const mockRootProps = {
   hotel: {
     name: "Sunset Valley Resort",
     location: "123 Serenity Lane, Meadowville, California",

@@ -1,0 +1,10 @@
+flowchart TD
+  U[User] --> A[Choose Payment Method]
+  A --> B[POST /payments/initiate]
+  B --> C[Create Payment Intent / Order]
+  C --> D[Redirect to Payment Gateway]
+    D --> E["Payment Gateway (3DS / Card Entry)"]
+  E -- success --> F[Webhook -> /payments/confirm]
+  F --> G[Update Booking/Order status]
+  G --> H[Send Receipt & Confirmation]
+  E -- failure --> I[Return failure -> notify user]

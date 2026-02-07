@@ -1,0 +1,8 @@
+flowchart LR
+  U[Guest/User] --> A[Open Camera/Scanner]
+  A --> B[Scan QR Code on Table/Room]
+  B --> C["GET /qr/{code}"]
+  C --> D["Server: Resolve QR -> Context (hotel, table, booking)"]
+  D --> E["Return Menu / Order Context"]
+  E --> F[User places order or views details]
+  F --> G[Associate actions with booking/staff]

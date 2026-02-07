@@ -1,4 +1,4 @@
-import axiosClient from "../axiosClient";
+﻿import axiosClient from "../axiosClient";
 import axios from "axios";
 
 export const login = async (email, password) => {
@@ -273,9 +273,10 @@ export const checkUserExists = async (email) => {
   }
 };
 
-export const changePassword = async (newPassword) => {
+export const changePassword = async (currentPassword, newPassword) => {
   try {
     const response = await axiosClient.post("/api/auth/change-password", {
+      currentPassword,
       newPassword,
     });
     return response.data;

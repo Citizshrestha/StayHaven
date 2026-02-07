@@ -1,30 +1,89 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { X, Clock, MapPin, User, Trash2, MoreVertical, Edit, Copy, AlertTriangle } from "lucide-react";
 import ItemCarousel from "../../shared/ItemCarousel";
 import { deleteOrder } from "../../../api/staff";
 import { toast } from "react-toastify";
 import useClickOutside from "../../../hooks/useClickOutSide";
-
 const OrderCard = ({ order, onMarkServed, onDelete }) => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+import { useState, useEffect, useMemo } from "react";
+import { X, Clock, MapPin, User, Trash2, MoreVertical, Edit, Copy, AlertTriangle, Printer, Send } from "lucide-react";
+import BillPreview from "../../shared/BillPreview";
+import useRelativeTime from "../../../hooks/useRelativeTime";
+import EditOrderModal from "./EditOrderModal";
+import { useStaffAuth } from "../../../context/StaffAuthContext";
+const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showBillPreview, setShowBillPreview] = useState(false);
+const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const [isMobile, setIsMobile] = useState(false);
   const [isTablet, setIsTablet] = useState(false);
 
   // use custom hook for handling click outside
   const menuRef = useClickOutside(() => setShowMenu(false));
-
-  // Handle responsive breakpoints
+  // Get staff auth context for hotel info
+  const { staffUser } = useStaffAuth();
+  const menuRef = useClickOutside(() => setShowMenu(false));
+  const placedAtRelativeTime = useRelativeTime(order?.placedAt, true);
+  const isHighPriority = (order?.priority || "").toLowerCase() === "high";
+  // Prepare hotel info for bill
+  const hotelInfo = useMemo(() => {
+    const property = staffUser?.activeProperty;
+    if (!property) return {};
+    
+    // Construct full address from available parts
+    let fullAddress = '';
+    if (property.address && property.city) {
+      fullAddress = `NPR {property.address}, NPR {property.city}`;
+    } else if (property.address) {
+      fullAddress = property.address;
+    } else if (property.city) {
+      fullAddress = property.city;
+    }
+    return {
+      name: property.name || '',
+      address: fullAddress,
+      phone: property.phone || '',
+      email: property.email || '',
+      website: property.website || '',
+    };
+  }, [staffUser?.activeProperty]);
+  const getCompletionDate = (o) => {
+    const raw = o?.deliveredAt || o?.servedAt || o?.updatedAt;
+    if (!raw) return null;
+    const d = raw instanceof Date ? raw : new Date(raw);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+  const formatCompletionTime = (o) => {
+    const d = getCompletionDate(o);
+    if (!d) return "";
+    const now = new Date();
+    const diffMs = now - d;
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    // More than 48 hours - show exact date and time
+    if (diffHours > 48) {
+      const day = d.getDate();
+      const month = d.toLocaleString('en-US', { month: 'short' });
+      const year = d.getFullYear();
+      const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      return `NPR {day} NPR {month}, NPR {year} at NPR {time}`;
+    // More than 24 hours - show "Yesterday at [time]"
+    if (diffHours > 24) {
+      return `Yesterday at NPR {time}`;
+    // Within 24 hours - show just the time
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  };
+// Handle responsive breakpoints
   useEffect(() => {
     const checkScreenSize = () => {
       setIsMobile(window.innerWidth < 640);
       setIsTablet(window.innerWidth >= 640 && window.innerWidth < 1024);
     };
-    
-    checkScreenSize();
+checkScreenSize();
     window.addEventListener('resize', checkScreenSize);
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
@@ -32,11 +91,18 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
 
 
   // Safety check - if no order, don't render (AFTER all hooks)
-  if (!order) {
+
+if (!order) {
     return null;
   }
 
-  const handleViewDetails = () => {
+  // Calculate order total from items
+  const calculateOrderTotal = () => {
+    if (!order.items || !Array.isArray(order.items)) return '0.00';
+    return order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0).toFixed(2);
+  };
+
+const handleViewDetails = () => {
     setShowDetailsModal(true);
   };
 
@@ -44,10 +110,10 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
     onMarkServed(order.id);
   };
 
-  // Helper to get items display text (supports both old string and new array format)
+// Helper to get items display text (supports both old string and new array format)
   const getItemsDisplay = () => {
     if (Array.isArray(order.items)) {
-      return order.items.map(item => `${item.quantity}× ${item.name}`).join(", ");
+      return order.items.map(item => `NPR {item.quantity}× NPR {item.name}`).join(", ");
     }
     return order.itemsText || order.items || "";
   };
@@ -62,24 +128,47 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
 
   const getStatusDuration = (order) => {
     const now = new Date();
-    
     if (order.status === "preparing" && order.startedPreparingAt) {
       const startTime = new Date(order.startedPreparingAt);
       const diffMins = Math.floor((now - startTime) / 60000);
-      return diffMins === 0 ? `Preparing - Just now` : `Preparing for ${diffMins}m`;
+      return diffMins === 0 ? `Preparing - Just now` : `Preparing for NPR {diffMins}m`;
     } else if (order.status === "ready" && order.readyAt) {
       const readyTime = new Date(order.readyAt);
       const diffMins = Math.floor((now - readyTime) / 60000);
-      return diffMins === 0 ? `Ready - Just now` : `Ready for ${diffMins}m`;
+      return diffMins === 0 ? `Ready - Just now` : `Ready for NPR {diffMins}m`;
     } else if (order.status === "completed" && order.servedAt) {
-      return `Completed at ${order.servedAt}`;
+      return `Completed at NPR {order.servedAt}`;
     }
     return order.time;
   };
-
   
+    // Helper function to format duration nicely
+    const formatDuration = (diffMins) => {
+      if (diffMins < 1) return "Just now";
+      if (diffMins < 60) return `NPR {diffMins}m`;
+      const hours = Math.floor(diffMins / 60);
+      const mins = diffMins % 60;
+      if (hours < 24) {
+        return mins > 0 ? `NPR {hours}h NPR {mins}m` : `NPR {hours}h`;
+      }
+      const days = Math.floor(hours / 24);
+      const remHours = hours % 24;
+      return remHours > 0 ? `NPR {days}d NPR {remHours}h` : `NPR {days}d`;
+    };
+    // For "preparing" status, show how long it's been preparing
+      const duration = formatDuration(diffMins);
+      return duration === "Just now" ? `Preparing - Just now` : `Preparing for NPR {duration}`;
+    // For "ready" status, show how long it's been ready
+    else if (order.status === "ready" && order.readyAt) {
+      return duration === "Just now" ? `Ready - Just now` : `Ready for NPR {duration}`;
+    // For "delivered" status, show completion time
+    else if (order.status === "delivered") {
+      const t = formatCompletionTime(order);
+      return t ? `Served on NPR {t}` : "Completed";
+    // For "new" or other status, use relative time
+    return placedAtRelativeTime;
 
-  const getStatusStyles = (status) => {
+const getStatusStyles = (status) => {
     switch (status) {
       case "new":
         return {
@@ -104,7 +193,12 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
           backgroundColor: "#E5E7EB",
           color: "#6B7280",
           label: "Completed ✓",
-        };
+      case "delivered":
+          backgroundColor: "#D1FAE5",
+          color: "#059669",
+          label: "Delivered ✓",
+          isDelivered: true,
+};
       default:
         return {
           backgroundColor: "#F3F4F6",
@@ -119,14 +213,17 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
   // Responsive Inline Styles
   const cardStyle = {
     backgroundColor: "white",
-    borderRadius: isMobile ? "16px" : "24px",
+    backgroundColor: "var(--card-bg)",
+borderRadius: isMobile ? "16px" : "24px",
     padding: isMobile ? "16px" : "24px",
     display: "flex",
     flexDirection: isMobile ? "column" : "row",
     gap: isMobile ? "16px" : "24px",
     boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
     border: "1px solid #F3F4F6",
-  };
+    boxShadow: "var(--shadow-sm)",
+    border: "1px solid var(--card-border)",
+};
 
   const contentStyle = {
     flex: 1,
@@ -154,7 +251,8 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
 
   const metaStyle = {
     color: "#6B7280",
-    fontSize: isMobile ? "12px" : "14px",
+    color: "var(--text-tertiary)",
+fontSize: isMobile ? "12px" : "14px",
     fontWeight: "500",
   };
 
@@ -162,14 +260,16 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
     fontSize: isMobile ? "18px" : isTablet ? "20px" : "24px",
     fontWeight: "800",
     color: "#111827",
-    marginBottom: "8px",
+    color: "var(--text-primary)",
+marginBottom: "8px",
     lineHeight: "1.2",
     wordBreak: "break-word",
   };
 
   const itemsStyle = {
     color: "#6B7280",
-    fontSize: isMobile ? "13px" : "14px",
+    color: "var(--text-tertiary)",
+fontSize: isMobile ? "13px" : "14px",
     lineHeight: "1.5",
     marginBottom: isMobile ? "16px" : "24px",
     flex: 1,
@@ -202,7 +302,9 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
     padding: isMobile ? "10px 16px" : "12px 24px",
     backgroundColor: "#E5E7EB",
     color: "#374151",
-    borderRadius: "9999px",
+    backgroundColor: "var(--bg-tertiary)",
+    color: "var(--text-secondary)",
+borderRadius: "9999px",
     fontWeight: "700",
     fontSize: isMobile ? "13px" : "14px",
     border: "none",
@@ -243,8 +345,7 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
 
   const handleDelete = async () => {
     if (!order) return;
-    
-    setIsDeleting(true);
+setIsDeleting(true);
     setDeleteError("");
     try {
       const orderId = order._id || order.id;
@@ -296,7 +397,16 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
       case "edit":
         // TODO: Implement edit order
         console.log("Edit order:", order._id || order.id);
-        break;
+        // Backend only allows editing for pending/confirmed orders.
+        // Frontend displays pending as "new".
+        if (order?.isReal && !["new", "confirmed"].includes(order.status)) {
+          toast.error(
+            `Cannot edit order with status "NPR {order.status}". Only new/confirmed orders can be edited.`
+          );
+          return;
+        }
+        setShowEditModal(true);
+break;
       default:
         break;
     }
@@ -304,14 +414,26 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
 
   return (
     <div style={{ ...cardStyle, position: "relative" }}>
-      {/* Three-dot Menu Button */}
+  const handleSaveOrder = async (updatedOrder) => {
+    if (onUpdate) {
+      await onUpdate(updatedOrder);
+    }
+    setShowEditModal(false);
+  };
+    <div
+      style={{ ...cardStyle, position: "relative" }}
+      data-order-id={order._id}
+    >
+{/* Three-dot Menu Button */}
       <div ref={menuRef} style={{ position: "absolute", top: "16px", right: "16px", zIndex: 10 }}>
         <button
           onClick={() => setShowMenu(!showMenu)}
           style={{
             background: "white",
             border: "1px solid #E5E7EB",
-            borderRadius: "8px",
+            background: "var(--card-bg)",
+            border: "1px solid var(--border-color)",
+borderRadius: "8px",
             padding: "8px",
             cursor: "pointer",
             display: "flex",
@@ -322,7 +444,9 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
           }}
         >
           <MoreVertical size={18} color="#6B7280" />
-        </button>
+            boxShadow: showMenu ? "var(--shadow-md)" : "none",
+          <MoreVertical size={18} color="var(--text-tertiary)" />
+</button>
 
         {/* Dropdown Menu */}
         {showMenu && (
@@ -336,7 +460,10 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
               borderRadius: "12px",
               boxShadow: "0 10px 40px rgba(0,0,0,0.15)",
               border: "1px solid #E5E7EB",
-              minWidth: "180px",
+              backgroundColor: "var(--card-bg)",
+              boxShadow: "var(--shadow-lg)",
+              border: "1px solid var(--border-color)",
+minWidth: "180px",
               overflow: "hidden",
               zIndex: 100,
             }}
@@ -364,7 +491,11 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
               Edit Order
             </button>
             <div style={{ height: "1px", backgroundColor: "#E5E7EB", margin: "4px 0" }} />
-            <button
+                color: "var(--text-secondary)",
+              onMouseEnter={(e) => e.target.style.backgroundColor = "var(--bg-tertiary)"}
+              <Edit size={16} color="var(--text-tertiary)" />
+            <div style={{ height: "1px", backgroundColor: "var(--border-color)", margin: "4px 0" }} />
+<button
               onClick={() => handleMenuAction("delete")}
               style={{
                 width: "100%",
@@ -411,7 +542,6 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
             const now = new Date();
             const placedTime = new Date(order.placedAt);
             const diffMins = Math.floor((now - placedTime) / 60000);
-
             if (diffMins > 30 && order.status !== "completed") {
               return (
                 <span
@@ -430,7 +560,21 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
             }
             return null;
           })()}
-          <span style={metaStyle}>
+          {isHighPriority ? (
+            <span
+              style={{
+                padding: "4px 12px",
+                borderRadius: "8px",
+                fontSize: "11px",
+                fontWeight: "700",
+                backgroundColor: "#FEE2E2",
+                color: "#DC2626",
+              }}
+            >
+              Urgent
+            </span>
+          ) : null}
+<span style={metaStyle}>
             {order.table} - {getStatusDuration(order)}
           </span>
         </div>
@@ -443,15 +587,17 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
               alignItems: "center",
               gap: "10px",
               marginBottom: "12px",
-             
-            }}
+}}
           >
             <User size={20} style={{ color: "#0284C7", flexShrink: 0 }} />
             <span
               style={{ 
                 fontSize: "16px", 
                 fontWeight: "800", 
-                letterSpacing: "0.01em",
+              style={{
+                fontSize: "16px",
+                fontWeight: "800",
+letterSpacing: "0.01em",
                 color: "#0284C7"
               }}
             >
@@ -475,7 +621,11 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
               fontSize: "11px", 
               fontWeight: "700", 
               color: "#B45309", 
-              marginBottom: "4px",
+            <div style={{
+              fontSize: "11px",
+              fontWeight: "700",
+              color: "#B45309",
+marginBottom: "4px",
               textTransform: "uppercase",
               letterSpacing: "0.5px",
             }}>
@@ -484,7 +634,9 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
             {order.items.filter(item => item.notes).slice(0, 2).map(item => (
               <div key={item.id} style={{ 
                 fontSize: "11px", 
-                color: "#78350F",
+              <div key={item.id} style={{
+                fontSize: "11px",
+color: "#78350F",
                 marginBottom: "2px",
                 lineHeight: "1.3",
               }}>
@@ -522,7 +674,54 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
               </div>
               <div style={{ fontSize: "14px", color: "#6B7280" }}>
                 Served at {order.servedAt}
-              </div>
+          {order.status === "delivered" ? (
+            <div style={{ width: "100%" }}>
+                  padding: "12px",
+                  backgroundColor: "#D1FAE5",
+                  borderRadius: "12px",
+                  textAlign: "center",
+                  marginBottom: "12px",
+                <div
+                  style={{
+                    fontSize: "16px",
+                    fontWeight: "700",
+                    color: "#059669",
+                    marginBottom: "4px",
+                  }}
+                >
+                  ✓ Order Completed
+                </div>
+                <div style={{ fontSize: "14px", color: "#6B7280" }}>
+                  {(() => {
+                    const t = formatCompletionTime(order);
+                    return t ? `Served on NPR {t}` : "Completed";
+                  })()}
+              {/* Print Bill & Send Bill Buttons */}
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                <button
+                  onClick={() => setShowBillPreview(true)}
+                    flex: 1,
+                    minWidth: isMobile ? "100%" : "120px",
+                    padding: "10px 16px",
+                    backgroundColor: "#10B981",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "10px",
+                    fontSize: "13px",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "6px",
+                    transition: "all 0.2s",
+                  <Printer size={16} />
+                  Print Bill
+                </button>
+                    backgroundColor: "#3B82F6",
+                  <Send size={16} />
+                  Send Bill
+                </button>
+</div>
             </div>
           ) : order.status === "ready" ? (
             <>
@@ -571,16 +770,18 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
         </div>
       </div>
 
-      
-
-      {/* Right Image Carousel */}
+{/* Right Image Carousel */}
       <div style={imageContainerStyle}>
         {Array.isArray(order.items) && order.items.length > 0 ? (
           <ItemCarousel 
             items={order.items} 
             width={isMobile ? "100%" : isTablet ? 180 : 240} 
             height={isMobile ? 200 : 180} 
-          />
+          <ItemCarousel
+            items={order.items}
+            width={isMobile ? "100%" : isTablet ? 180 : 240}
+            height={isMobile ? 200 : 180}
+/>
         ) : (
           <img src={order.image} alt="Food" style={imageStyle} />
         )}
@@ -607,7 +808,8 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
           <div
             style={{
               backgroundColor: "white",
-              borderRadius: "24px",
+              backgroundColor: "var(--card-bg)",
+borderRadius: "24px",
               maxWidth: "600px",
               width: "90%",
               maxHeight: "90vh",
@@ -623,7 +825,9 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
                 position: "sticky",
                 top: 0,
                 backgroundColor: "white",
-                borderTopLeftRadius: "24px",
+                borderBottom: "1px solid var(--border-color)",
+                backgroundColor: "var(--card-bg)",
+borderTopLeftRadius: "24px",
                 borderTopRightRadius: "24px",
               }}
             >
@@ -637,7 +841,8 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
                   border: "none",
                   cursor: "pointer",
                   color: "#6B7280",
-                  padding: "8px",
+                  color: "var(--text-tertiary)",
+padding: "8px",
                   borderRadius: "50%",
                 }}
               >
@@ -648,7 +853,8 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
                   fontSize: "24px",
                   fontWeight: "800",
                   marginBottom: "8px",
-                }}
+                  color: "var(--text-primary)",
+}}
               >
                 Order #{order.orderNumber || order.id?.slice?.(-5)?.toUpperCase() || order.id}
               </h2>
@@ -674,14 +880,16 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
                     fontSize: "14px",
                     fontWeight: "700",
                     color: "#6B7280",
-                    textTransform: "uppercase",
+                    color: "var(--text-tertiary)",
+textTransform: "uppercase",
                     letterSpacing: "0.05em",
                     marginBottom: "12px",
                   }}
                 >
                   Order Information
                 </h3>
-                <div
+                {/* Table/Room Location */}
+<div
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -689,7 +897,8 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
                     marginBottom: "12px",
                     padding: "12px",
                     backgroundColor: "#F9FAFB",
-                    borderRadius: "12px",
+                    backgroundColor: "var(--bg-tertiary)",
+borderRadius: "12px",
                   }}
                 >
                   <MapPin
@@ -700,7 +909,10 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
                     {order.table}
                   </span>
                 </div>
-                <div
+                  <span style={{ fontSize: "15px", fontWeight: "600", color: "var(--text-primary)" }}>
+                </div>
+                {/* Time Placed */}
+<div
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -708,7 +920,8 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
                     marginBottom: "12px",
                     padding: "12px",
                     backgroundColor: "#F9FAFB",
-                    borderRadius: "12px",
+                    backgroundColor: "var(--bg-tertiary)",
+borderRadius: "12px",
                   }}
                 >
                   <Clock
@@ -719,20 +932,77 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
                     Placed {order.time}
                   </span>
                 </div>
-                <div
+                  <span style={{ fontSize: "15px", fontWeight: "600", color: "var(--text-primary)" }}>
+                    Placed {placedAtRelativeTime}
+                </div>
+                {/* Customer Name */}
+<div
                   style={{
                     display: "flex",
                     alignItems: "center",
                     gap: "12px",
                     padding: "12px",
                     backgroundColor: "#F9FAFB",
-                    borderRadius: "12px",
+                    marginBottom: "12px",
+                    backgroundColor: "var(--bg-tertiary)",
+borderRadius: "12px",
                   }}
                 >
                   <User size={20} style={{ color: "#10B981", flexShrink: 0 }} />
                   <span style={{ fontSize: "15px", fontWeight: "600" }}>
                     Assigned to: Alex Miller
+                  <span style={{ fontSize: "15px", fontWeight: "600", color: "var(--text-primary)" }}>
+                    Customer: {order.customerName || "Walk-in Guest"}
                   </span>
+                </div>
+                {/* Customer Phone - if available */}
+                {order.customerPhone && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "12px",
+                      marginBottom: "12px",
+                      padding: "12px",
+                      backgroundColor: "var(--bg-tertiary)",
+                      borderRadius: "12px",
+                    }}
+                  >
+                    <span style={{ fontSize: "20px", flexShrink: 0 }}>📞</span>
+                    <span style={{ fontSize: "15px", fontWeight: "600", color: "var(--text-primary)" }}>
+                      {order.customerPhone}
+                    </span>
+                  </div>
+                )}
+                {/* Order Type */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                    marginBottom: "12px",
+                    padding: "12px",
+                    backgroundColor: "var(--bg-tertiary)",
+                    borderRadius: "12px",
+                  }}
+                >
+                  <span style={{ fontSize: "20px", flexShrink: 0 }}>
+                    {order.orderType === "roomService" ? "🛏️" : order.orderType === "takeaway" ? "🥡" : "🍽️"}
+                    {order.orderType === "roomService" ? "Room Service" : order.orderType === "takeaway" ? "Takeaway" : "Dine-In"}
+                {/* Priority - if high */}
+                {order.priority === "high" && (
+                      backgroundColor: "#FEE2E2",
+                    <span style={{ fontSize: "20px", flexShrink: 0 }}>🔥</span>
+                    <span style={{ fontSize: "15px", fontWeight: "600", color: "#DC2626" }}>
+                      High Priority Order
+                {/* Total Price */}
+                    justifyContent: "space-between",
+                    backgroundColor: "#ECFDF5",
+                  <span style={{ fontSize: "15px", fontWeight: "600", color: "#059669" }}>
+                    Total Amount
+                  <span style={{ fontSize: "18px", fontWeight: "800", color: "#059669" }}>
+                    NPR {order.totalPrice?.toFixed?.(2) || calculateOrderTotal()}
+</span>
                 </div>
               </div>
 
@@ -742,7 +1012,8 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
                     fontSize: "14px",
                     fontWeight: "700",
                     color: "#6B7280",
-                    textTransform: "uppercase",
+                    color: "var(--text-tertiary)",
+textTransform: "uppercase",
                     letterSpacing: "0.05em",
                     marginBottom: "12px",
                   }}
@@ -757,7 +1028,8 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
                         style={{
                           padding: "12px",
                           backgroundColor: "#F9FAFB",
-                          borderRadius: "12px",
+                          backgroundColor: "var(--bg-tertiary)",
+borderRadius: "12px",
                           marginBottom: "8px",
                         }}
                       >
@@ -768,7 +1040,8 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
                           marginBottom: item.notes ? "8px" : "0",
                         }}>
                           <span style={{ fontSize: "15px", fontWeight: "600" }}>
-                            {item.name}
+                          <span style={{ fontSize: "15px", fontWeight: "600", color: "var(--text-primary)" }}>
+{item.name}
                           </span>
                           <span style={{
                             backgroundColor: "#10B981",
@@ -802,11 +1075,13 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
                         style={{
                           padding: "12px",
                           backgroundColor: "#F9FAFB",
-                          borderRadius: "12px",
+                          backgroundColor: "var(--bg-tertiary)",
+borderRadius: "12px",
                           marginBottom: "8px",
                           fontSize: "15px",
                           fontWeight: "600",
-                        }}
+                          color: "var(--text-primary)",
+}}
                       >
                         {item}
                       </li>
@@ -821,7 +1096,8 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
                     fontSize: "14px",
                     fontWeight: "700",
                     color: "#6B7280",
-                    textTransform: "uppercase",
+                    color: "var(--text-tertiary)",
+textTransform: "uppercase",
                     letterSpacing: "0.05em",
                     marginBottom: "12px",
                   }}
@@ -831,7 +1107,13 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
                 {Array.isArray(order.items) && order.items.length > 0 ? (
                   <div style={{ display: "flex", justifyContent: "center" }}>
                     <ItemCarousel items={order.items} width={400} height={250} />
-                  </div>
+                  <div style={{ display: "flex", justifyContent: "center", width: "100%" }}>
+                    <ItemCarousel
+                      items={order.items}
+                      width={isMobile ? "100%" : isTablet ? 360 : 400}
+                      height={isMobile ? 220 : 250}
+                    />
+</div>
                 ) : (
                   <img
                     src={order.image}
@@ -854,7 +1136,8 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
                       fontSize: "14px",
                       fontWeight: "700",
                       color: "#6B7280",
-                      textTransform: "uppercase",
+                      color: "var(--text-tertiary)",
+textTransform: "uppercase",
                       letterSpacing: "0.05em",
                       marginBottom: "12px",
                     }}
@@ -873,7 +1156,8 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
                         bottom: "8px",
                         width: "2px",
                         backgroundColor: "#E5E7EB",
-                      }}
+                        backgroundColor: "var(--border-color)",
+}}
                     />
 
                     {/*  Timeline entries */}
@@ -899,7 +1183,9 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
                             backgroundColor: "#10B981",
                             border: "3px solid white",
                             boxShadow: "0 0 0 1px #E5E7EB",
-                          }}
+                            border: "3px solid var(--card-bg)",
+                            boxShadow: "0 0 0 1px var(--border-color)",
+}}
                         />
 
                         {/* TODO: Timeline content */}
@@ -909,13 +1195,15 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
                               fontSize: "14px",
                               fontWeight: "700",
                               color: "#111827",
-                            }}
+                              color: "var(--text-primary)",
+}}
                           >
                             {entry.status.charAt(0).toUpperCase() +
                               entry.status.slice(1)}
                           </div>
                           <div style={{ fontSize: "12px", color: "#6B7280" }}>
-                            {entry.timestamp}
+                          <div style={{ fontSize: "12px", color: "var(--text-tertiary)" }}>
+{entry.timestamp}
                           </div>
                         </div>
                       </div>
@@ -949,12 +1237,14 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
           <div
             style={{
               backgroundColor: "white",
-              borderRadius: "24px",
+              backgroundColor: "var(--card-bg)",
+borderRadius: "24px",
               padding: "32px",
               maxWidth: "400px",
               width: "90%",
               boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
-              animation: "fadeIn 0.2s ease-out",
+              boxShadow: "var(--shadow-lg)",
+animation: "fadeIn 0.2s ease-out",
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -980,7 +1270,8 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
                 fontSize: "20px",
                 fontWeight: "700",
                 color: "#111827",
-                textAlign: "center",
+                color: "var(--text-primary)",
+textAlign: "center",
                 marginBottom: "8px",
               }}
             >
@@ -992,7 +1283,8 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
               style={{
                 fontSize: "14px",
                 color: "#6B7280",
-                textAlign: "center",
+                color: "var(--text-tertiary)",
+textAlign: "center",
                 marginBottom: "8px",
                 lineHeight: "1.5",
               }}
@@ -1004,7 +1296,8 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
             <div
               style={{
                 backgroundColor: "#F9FAFB",
-                borderRadius: "12px",
+                backgroundColor: "var(--bg-tertiary)",
+borderRadius: "12px",
                 padding: "16px",
                 marginBottom: "24px",
               }}
@@ -1014,13 +1307,15 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
                   fontSize: "15px",
                   fontWeight: "600",
                   color: "#111827",
-                  marginBottom: "4px",
+                  color: "var(--text-primary)",
+marginBottom: "4px",
                 }}
               >
                 Order #{order?.orderNumber || order?.id?.slice?.(-5)?.toUpperCase() || order?.id || "Unknown"}
               </div>
               <div style={{ fontSize: "13px", color: "#6B7280" }}>
-                {order?.table || "Unknown table"} • {getItemsDisplay()?.substring(0, 50) || "No items"}
+              <div style={{ fontSize: "13px", color: "var(--text-tertiary)" }}>
+{order?.table || "Unknown table"} • {getItemsDisplay()?.substring(0, 50) || "No items"}
                 {(getItemsDisplay()?.length || 0) > 50 ? "..." : ""}
               </div>
             </div>
@@ -1097,7 +1392,9 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
                   padding: "14px 24px",
                   backgroundColor: "#F3F4F6",
                   color: "#374151",
-                  border: "none",
+                  backgroundColor: "var(--bg-tertiary)",
+                  color: "var(--text-secondary)",
+border: "none",
                   borderRadius: "12px",
                   fontSize: "15px",
                   fontWeight: "600",
@@ -1165,7 +1462,22 @@ const OrderCard = ({ order, onMarkServed, onDelete }) => {
           to { transform: rotate(360deg); }
         }
       `}</style>
-    </div>
+      {/* Edit Order Modal */}
+      {showEditModal && (
+        <EditOrderModal
+          order={order}
+          onClose={() => setShowEditModal(false)}
+          onSave={handleSaveOrder}
+        />
+      )}
+      {/* Bill Preview Modal */}
+      {showBillPreview && (
+        <BillPreview
+          onClose={() => setShowBillPreview(false)}
+          isDarkMode={false}
+          hotelInfo={hotelInfo}
+      )}
+</div>
   );
 };
 

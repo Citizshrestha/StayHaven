@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 
 // Category counts based on actual hotel data
 const CATEGORY_COUNTS = {

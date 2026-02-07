@@ -1,12 +1,16 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 // import { useParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import { getHotelById } from '../api/hotel';
 import Navbar from './Navbar';
 import BookingSidebar from './HotelDetail/BookingSidebar';
 
 const HotelDetails = () => {
   // const { id } = useParams();
   // const navigate = useNavigate();
-  const [showImageModal, setShowImageModal] = useState(false);
+  const { id } = useParams();
+const [showImageModal, setShowImageModal] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   // Sample hotel data - in production, this would come from an API
@@ -44,10 +48,35 @@ const HotelDetails = () => {
   const nextImage = () => {
     setCurrentImageIndex((prev) => (prev + 1) % hotel.images.length);
   };
-
   const prevImage = () => {
     setCurrentImageIndex((prev) => (prev - 1 + hotel.images.length) % hotel.images.length);
-  };
+  const [hotelData, setHotelData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      if (!id) return;
+      setLoading(true);
+      try {
+        const res = await getHotelById(id);
+        const data = res?.hotel || res?.data || res || null;
+        if (mounted && data) setHotelData(data);
+      } catch (err) {
+        console.error('Failed to load hotel by id', err);
+        setError('Failed to load hotel');
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    load();
+    return () => { mounted = false };
+  }, [id]);
+  const activeHotel = hotelData || hotel;
+    const len = (activeHotel?.images || []).length || 1;
+    setCurrentImageIndex((prev) => (prev + 1) % len);
+    setCurrentImageIndex((prev) => (prev - 1 + len) % len);
+};
 
   return (
     <div className="min-h-screen ">
@@ -89,7 +118,7 @@ const HotelDetails = () => {
           >
             <img
               src={hotel.images[currentImageIndex]}
-              alt={`Hotel view ${currentImageIndex + 1}`}
+              alt={`Hotel view NPR {currentImageIndex + 1}`}
               className="max-w-full max-h-full object-contain"
             />
           </div>
@@ -182,7 +211,7 @@ const HotelDetails = () => {
 
           <img
             src={hotel.images[currentImageIndex]}
-            alt={`Hotel view ${currentImageIndex + 1}`}
+            alt={`Hotel view NPR {currentImageIndex + 1}`}
             style={{
               maxWidth: '90%',
               maxHeight: '90%',
@@ -249,7 +278,9 @@ const HotelDetails = () => {
                 <img
                   src={hotel.images[0]}
                   alt="Sunset Valley Resort Main View"
-                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  src={activeHotel.images?.[0]}
+                  alt={`NPR {activeHotel.name} Main View`}
+className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                 />
                 <div className="absolute inset-0  bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300"></div>
               </div>
@@ -257,14 +288,15 @@ const HotelDetails = () => {
               {/* Thumbnails grid - right side (2x2 layout) */}
               <div className="grid grid-cols-2 gap-2" style={{ height: '500px' }}>
                 {hotel.images.slice(1, 5).map((image, index) => (
-                  <div 
+                {(activeHotel.images || []).slice(1, 5).map((image, index) => (
+<div 
                     key={index + 1}
                     className="rounded-2xl overflow-hidden cursor-pointer relative group"
                     onClick={() => { setCurrentImageIndex(index + 1); setShowImageModal(true); }}
                   >
                     <img
                       src={image}
-                      alt={`Hotel view ${index + 2}`}
+                      alt={`Hotel view NPR {index + 2}`}
                       className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                     />
                     <div className="absolute inset-0  bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300"></div>
@@ -282,7 +314,9 @@ const HotelDetails = () => {
                 <img
                   src={hotel.images[0]}
                   alt="Sunset Valley Resort"
-                  className="w-full h-full object-cover"
+                  src={activeHotel.images?.[0]}
+                  alt={activeHotel.name}
+className="w-full h-full object-cover"
                 />
               </div>
             </div>
@@ -293,13 +327,15 @@ const HotelDetails = () => {
               <div className="flex flex-wrap justify-between gap-4 items-start mb-6">
                 <div className="flex flex-col gap-2">
                   <h1 className="text-4xl font-bold leading-tight text-gray-900">Sunset Valley Resort</h1>
-                  <div className="flex items-center gap-2 text-gray-500">
+                  <h1 className="text-4xl font-bold leading-tight text-gray-900">{activeHotel.name}</h1>
+<div className="flex items-center gap-2 text-gray-500">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
                     <p className="text-base font-normal leading-normal">123 Serenity Lane, Meadowville, California</p>
-                  </div>
+                    <p className="text-base font-normal leading-normal">{activeHotel.address || activeHotel.location?.address || ''}</p>
+</div>
                 <div className="flex items-center gap-1.5">
                   <svg className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
@@ -318,7 +354,9 @@ const HotelDetails = () => {
                   </svg>
                   <span className="ml-2 font-bold text-gray-900">4.5</span>
                   <span className="text-gray-500">(1,284 reviews)</span>
-                </div>
+                  <span className="ml-2 font-bold text-gray-900">{activeHotel.rating || ''}</span>
+                  <span className="text-gray-500">({activeHotel.reviews || activeHotel.reviewCount || '---'} reviews)</span>
+</div>
                 </div>
                 <button style={{padding: "10px", marginRight: "1.5rem", marginTop: "1rem"}} className="flex items-center bg-gray-100 gap-2 px-4 py-2 border-none rounded-lg hover:bg-gray-50 transition text-gray-900">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -339,7 +377,6 @@ const HotelDetails = () => {
 
               <div id="overview-content">
                 <p className="text-gray-600 mb-8 leading-relaxed lg:max-w-3xl max-w-sm">Nestled in the heart of Meadowville, Sunset Valley Resort offers a tranquil escape with breathtaking views and world-class amenities. Whether you're here for a romantic getaway, a family vacation, or a corporate retreat, our resort provides the perfect blend of luxury, comfort, and nature. Enjoy our pristine pools, gourmet dining, and rejuvenating spa services.</p>
-
                 <h3 className="text-xl font-bold mb-4 text-gray-900">Amenities</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 mb-8">
                   {[
@@ -357,12 +394,20 @@ const HotelDetails = () => {
                       <span className="text-sm font-medium text-gray-900 text-center">{a.label}</span>
                     </div>
                   ))}
-                </div>
+                <p className="text-gray-600 mb-8 leading-relaxed lg:max-w-3xl max-w-sm">{activeHotel.description || hotel.description}</p>
+                  {(activeHotel.amenities || hotel.amenities || []).map((a)=> (
+                      <div key={a.name || a.label} className="flex flex-col w-[150px] items-center gap-2 p-4 rounded-xl bg-gray-50">
+                        <span className="text-3xl">{a.icon || '✔️'}</span>
+                        <span className="text-sm font-medium text-gray-900 text-center">{a.name || a.label}</span>
+                      </div>
+                    ))}
+</div>
 
                 <h3 className="text-xl font-bold mb-4 text-gray-900">Location</h3>
                 <div className="w-11/12 lg:w-full mx-auto h-80 rounded-xl overflow-hidden mb-8">
                   <div className="w-full h-full bg-cover bg-center" data-location="California" style={{ backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuC-9jtw8YSuTMkW8gSDozdQuDqrl6OtbKr1vrZTa629boVuOYoTpc85l2aA6FH2oIZOlALuqRhhuI0vZu8-MbBOuCjSRNvGuDA6Wh87XDSZHjKcfQfJIAWtJG46MrzznU7kU4XH1tti9CVkxVxnv9G7ot-vwyd-D0j4IWaFjYSKl1x7eBD-CaFS_BtAtJz9EmADqAWwhI6-ObjbHh9TPgGNwHTbjLBy4JFlVZduHZuioVcCvCjFpsPFhmAvzaALYw3R-F9fK30B4g")' }}></div>
-                </div>
+                  <div className="w-full h-full bg-cover bg-center" data-location="" style={{ backgroundImage: `url("NPR {activeHotel.images?.[0] || ''}")` }}></div>
+</div>
               </div>
             </div>
 
@@ -370,7 +415,8 @@ const HotelDetails = () => {
             <div className="hidden lg:block w-full lg:w-1/3">
               <BookingSidebar 
                 pricePerNight={850}
-                nights={3}
+                pricePerNight={activeHotel.price || hotel.price || 0}
+nights={3}
                 taxesAndFees={92}
                 guests="2 Adults, 1 Child"
               />
@@ -389,7 +435,7 @@ const HotelDetails = () => {
                   <h3 className="text-xl font-bold text-gray-900">Deluxe King Room</h3>
                   <p className="text-gray-600 text-sm mt-1">35m² • 1 King Bed • Max 2 guests</p>
                   <p className="my-3 text-sm text-gray-700">A spacious room with a king-sized bed, modern amenities, and a view of the gardens.</p>
-                  <p className="font-bold text-lg text-teal-600 mb-4">$249 / night</p>
+                  <p className="font-bold text-lg text-teal-600 mb-4">NPR 249 / night</p>
                   <h4 className="font-semibold text-sm mb-2 text-gray-900">Select a specific room:</h4>
                   <div className="grid grid-cols-5 gap-2 max-w-xs">
                     <div className="aspect-square flex items-center justify-center rounded bg-gray-200 text-xs font-medium text-gray-600">201</div>
@@ -411,7 +457,7 @@ const HotelDetails = () => {
                   <h3 className="text-xl font-bold text-gray-900">Ocean View Suite</h3>
                   <p className="text-gray-600 text-sm mt-1">55m² • 1 King Bed • 1 Sofa Bed • Max 4 guests</p>
                   <p className="my-3 text-sm text-gray-700">Enjoy stunning ocean views from your private balcony in this luxurious suite with a separate living area.</p>
-                  <p className="font-bold text-lg text-teal-600 mb-4">$399 / night</p>
+                  <p className="font-bold text-lg text-teal-600 mb-4">NPR 399 / night</p>
                   <h4 className="font-semibold text-sm mb-2 text-gray-900">Select a specific room:</h4>
                   <div className="grid grid-cols-5 gap-2 max-w-xs">
                     <div className="aspect-square flex items-center justify-center rounded bg-gray-200 text-xs font-medium text-gray-600">301</div>

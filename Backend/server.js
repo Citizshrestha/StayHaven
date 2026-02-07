@@ -1,6 +1,8 @@
 import express from "express";
 import connectDB from "./config/db.js";
 import dotenv from "dotenv";
+dotenv.config();
+import { createServer } from "http";
 import cors from "cors";
 import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
@@ -9,9 +11,18 @@ import companyRoutes from "./routes/companyRoutes.js";
 import { Role } from "./models/role.schema.js";
 import staffRoutes from "./routes/staffRoutes.js";
 import cookieParser from "cookie-parser";
+import notificationRoutes from "./routes/notificationRoutes.js";
+import { initCloudinary } from "./config/cloudinary.js";
+import { initSocket } from "./config/socket.js";
+// Initialize cloudinary with env vars
+initCloudinary();
 
-dotenv.config();
 const app = express();
+// Create HTTP server for Socket.io
+const httpServer = createServer(app);
+
+// Initialize Socket.io
+initSocket(httpServer);
 
 // Connect to DB
 connectDB();
@@ -103,8 +114,10 @@ app.use("/api/user", userRoutes);
 app.use("/api/hotels", hotelRoutes);
 app.use("/api/company", companyRoutes);
 app.use("/api/staff", staffRoutes);
+app.use("/api/notifications", notificationRoutes);
 
-// start server
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+// start server - use httpServer instead of app for Socket.io support
+httpServer.listen(PORT, () => {
+  console.log(`🚀 Server is running on port ${PORT}`);
+  console.log(`🔌 WebSocket server ready for connections`);
 });

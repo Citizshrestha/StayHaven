@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const BookingSidebar = ({ pricePerNight, nights, taxesAndFees, guests, hotelName, hotelAddress, hotelImage }) => {

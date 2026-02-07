@@ -1,0 +1,12 @@
+sequenceDiagram
+  participant S as Server
+  participant DB as Database
+  participant WS as WebSocketService
+  participant U as UserClient
+
+  S->>DB: create notification record
+  S->>WS: emit notification event (userId)
+  WS-->>U: push realtime notification
+  U-->>WS: ack
+  WS-->>S: ack
+  S->>DB: mark delivered/record ack

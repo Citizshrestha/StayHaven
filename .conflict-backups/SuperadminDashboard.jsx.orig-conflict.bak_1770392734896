@@ -1,0 +1,285 @@
+<<<<<<< HEAD
+import React, { useState } from 'react';
+=======
+import React, { useState, useEffect } from 'react';
+>>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+import './SuperadminDashboard.css';
+import { useNavigate } from 'react-router-dom';
+import UserManagement from './Usermanagement';
+import HotelManagement from './HotelManagement';
+
+const SuperadminDashboard = () => {
+  const [darkMode, setDarkMode] = useState(false);
+  const [activeNav, setActiveNav] = useState('dashboard');
+
+<<<<<<< HEAD
+=======
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+>>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+  const navigationItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: 'dashboard',path: '/superadmindashboard', active: true },
+    { id: 'users', label: 'User Management', icon: 'group', path: '/usermanagement' },
+    { id: 'hotels', label: 'Hotel Management', icon: 'apartment' , path: '/hotelmanagement'},
+    { id: 'bookings', label: 'Booking Management', icon: 'book_online' },
+    { id: 'finance', label: 'Finance', icon: 'payments' },
+    { id: 'reviews', label: 'Review Moderation', icon: 'rate_review' },
+    { id: 'content', label: 'Content Management', icon: 'wysiwyg' },
+    { id: 'config', label: 'System Configuration', icon: 'tune' },
+  ];
+
+  const bottomNavItems = [
+    { id: 'analytics', label: 'Analytics', icon: 'analytics' },
+    { id: 'logout', label: 'Logout', icon: 'logout' },
+  ];
+
+  const stats = [
+    { label: 'Total Revenue', value: '$1,250,450', trend: '+2.5%', trendUp: true },
+    { label: 'New Bookings Today', value: '152', trend: '+5.1%', trendUp: true },
+    { label: 'Active Users', value: '12,345', trend: '-0.2%', trendUp: false },
+    { label: 'Hotels Awaiting Approval', value: '8', trend: 'Pending', trendUp: null },
+  ];
+
+  const recentBookings = [
+    { guest: 'John Doe', hotel: 'The Grand Hyatt', date: '2023-10-26', amount: '$450.00', status: 'Paid', statusType: 'success' },
+    { guest: 'Jane Smith', hotel: 'Sunset Resort', date: '2023-10-25', amount: '$1200.50', status: 'Pending', statusType: 'warning' },
+    { guest: 'Mike Johnson', hotel: 'Ocean View Inn', date: '2023-10-24', amount: '$320.00', status: 'Paid', statusType: 'success' },
+    { guest: 'Sarah Wilson', hotel: 'City Center Hotel', date: '2023-10-23', amount: '$180.75', status: 'Cancelled', statusType: 'error' },
+  ];
+
+  const revenueData = [
+    { type: 'Luxury', percentage: 75 },
+    { type: 'Boutique', percentage: 55 },
+    { type: 'Resort', percentage: 40 },
+    { type: 'Budget', percentage: 25 },
+  ];
+  const navigate = useNavigate();
+
+  const handleNavigation = (item) => {
+    setActiveNav(item.id);
+    if (item.path) {
+      navigate(item.path);
+    }
+  };
+
+  const handleLogout = () => {
+    // Add logout logic here
+    console.log('Logging out...');
+  };
+
+  return (
+    <div className={`superadmin-dashboard ${darkMode ? 'dark' : 'light'}`}>
+      <div className="relative flex min-h-screen w-full">
+        {/* SideNavBar */}
+        <aside className="sidebar">
+          <div className="sidebar-header">
+            <div className="logo-icon">
+              <span className="material-symbols-outlined">holiday_village</span>
+            </div>
+            <div className="logo-text">
+              <h1>StayHaven</h1>
+              <p>Super Admin</p>
+            </div>
+          </div>
+          
+          <div className="sidebar-content">
+            <div className="nav-section">
+              {navigationItems.map((item) => (
+                <button
+                  key={item.id}
+                  className={`nav-item ${activeNav === item.id ? 'active' : ''}`}
+                  onClick={() => handleNavigation(item)}
+                >
+                  <span className={`material-symbols-outlined ${activeNav === item.id ? 'fill' : ''}`}>
+                    {item.icon}
+                  </span>
+                  <p>{item.label}</p>
+                </button>
+              ))}
+            </div>
+            
+            <div className="nav-section bottom">
+              {bottomNavItems.map((item) => (
+                  <button
+                    key={item.id}
+                    className="nav-item"
+                    onClick={() => {
+                      if (item.id === 'logout') return handleLogout();
+                      handleNavigation(item);
+                    }}
+                  >
+                    <span className="material-symbols-outlined">{item.icon}</span>
+                    <p>{item.label}</p>
+                  </button>
+                ))}
+            </div>
+          </div>
+        </aside>
+
+        {/* Main Content */}
+        <main className="main-content">
+          {/* TopNavBar */}
+          <header className="top-header">
+            <div className="header-left">
+              <h2>Dashboard Overview</h2>
+            </div>
+            
+            <div className="header-right">
+              <div className="search-container">
+                <span className="search-icon material-symbols-outlined">search</span>
+                <input 
+                  className="search-input"
+                  placeholder="Search..." 
+                  type="search"
+                />
+              </div>
+              
+              <button 
+                className="icon-button"
+                onClick={() => setDarkMode(!darkMode)}
+              >
+                <span className="material-symbols-outlined">
+                  {darkMode ? 'light_mode' : 'dark_mode'}
+                </span>
+              </button>
+              
+              <button className="icon-button notification-button">
+                <span className="material-symbols-outlined">notifications</span>
+                <span className="notification-dot"></span>
+              </button>
+              
+              <div 
+                className="user-avatar"
+                style={{
+                  backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuCZvaTAK0pLOwTlSZAtXxrKZFqJcKsMaAGUVG9YLsRPyvenQdBwFRf3_6kDT_FEDpAHCwizUawssQVHa4_2rFJ0ABxWFklBT9zE7xH8ZNsgWAHJp1s6VJNyLdI787vXlTtEalvyviaUgooZvh0mQ7rUHMKxcmJIwzwJfFpKmjn3qGX5sRbJwFwRYfbqvO4PpmHNK7-Sp_nYQhVHwKpZTN08lsdO1NTyx-FwuxGORNKJgV4q0ZCDCa8sYdXAIKW2d_oyCv49QyFiug")'
+                }}
+              ></div>
+            </div>
+          </header>
+
+          {/* Page Content */}
+          <div className="page-content">
+            {/* Stats */}
+            <div className="stats-grid">
+              {stats.map((stat, index) => (
+                <div key={index} className="stat-card">
+                  <p className="stat-label">{stat.label}</p>
+                  <p className="stat-value">{stat.value}</p>
+                  <div className={`stat-trend ${stat.trendUp === true ? 'success' : stat.trendUp === false ? 'error' : 'warning'}`}>
+                    <span className="material-symbols-outlined">
+                      {stat.trendUp === true ? 'trending_up' : 
+                       stat.trendUp === false ? 'trending_down' : 'sync'}
+                    </span>
+                    <span>{stat.trend}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Charts */}
+            <div className="charts-grid">
+              <div className="chart-card main-chart">
+                <p className="chart-title">Booking Trends</p>
+                <div className="chart-header">
+                  <p className="chart-value">1,482 Bookings</p>
+                  <div className="chart-trend success">
+                    <span className="material-symbols-outlined">arrow_upward</span>
+                    <span>+12.5%</span>
+                  </div>
+                </div>
+                <p className="chart-subtitle">Last 30 Days</p>
+                <div className="chart-container">
+                  <svg className="booking-chart" viewBox="-3 0 478 150" preserveAspectRatio="none">
+                    <path 
+                      d="M0 109C18.1538 109 18.1538 21 36.3077 21C54.4615 21 54.4615 41 72.6154 41C90.7692 41 90.7692 93 108.923 93C127.077 93 127.077 33 145.231 33C163.385 33 163.385 101 181.538 101C199.692 101 199.692 61 217.846 61C236 61 236 45 254.154 45C272.308 45 272.308 121 290.462 121C308.615 121 308.615 149 326.769 149C344.923 149 344.923 1 363.077 1C381.231 1 381.231 81 399.385 81C417.538 81 417.538 129 435.692 129C453.846 129 453.846 25 472 25V149H326.769H0V109Z" 
+                      fill="url(#paint0_linear_chart)"
+                    />
+                    <path 
+                      d="M0 109C18.1538 109 18.1538 21 36.3077 21C54.4615 21 54.4615 41 72.6154 41C90.7692 41 90.7692 93 108.923 93C127.077 93 127.077 33 145.231 33C163.385 33 163.385 101 181.538 101C199.692 101 199.692 61 217.846 61C236 61 236 45 254.154 45C272.308 45 272.308 121 290.462 121C308.615 121 308.615 149 326.769 149C344.923 149 344.923 1 363.077 1C381.231 1 381.231 81 399.385 81C417.538 81 417.538 129 435.692 129C453.846 129 453.846 25 472 25" 
+                      stroke="#14B8A6" 
+                      strokeWidth="3" 
+                      strokeLinecap="round"
+                    />
+                    <defs>
+                      <linearGradient id="paint0_linear_chart" x1="236" x2="236" y1="1" y2="149">
+                        <stop stopColor="#14B8A6" stopOpacity="0.3" />
+                        <stop offset="1" stopColor="#14B8A6" stopOpacity="0" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                </div>
+              </div>
+
+              <div className="chart-card revenue-chart">
+                <p className="chart-title">Revenue by Hotel Type</p>
+                <div className="chart-header">
+                  <p className="chart-value">$320,890</p>
+                  <div className="chart-trend success">
+                    <span className="material-symbols-outlined">arrow_upward</span>
+                    <span>+8.2%</span>
+                  </div>
+                </div>
+                <p className="chart-subtitle">Last 30 Days</p>
+                <div className="revenue-bars">
+                  {revenueData.map((item, index) => (
+                    <div key={index} className="revenue-bar">
+                      <p className="bar-label">{item.type}</p>
+                      <div className="bar-container">
+                        <div 
+                          className="bar-fill"
+                          style={{ width: `${item.percentage}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Recent Bookings Table */}
+            <div className="table-card">
+              <h2 className="table-title">Recent Bookings</h2>
+              <div className="table-container">
+                <table className="bookings-table">
+                  <thead>
+                    <tr>
+                      <th>Guest</th>
+                      <th>Hotel</th>
+                      <th>Date</th>
+                      <th>Amount</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentBookings.map((booking, index) => (
+                      <tr key={index}>
+                        <td className="guest-name">{booking.guest}</td>
+                        <td>{booking.hotel}</td>
+                        <td>{booking.date}</td>
+                        <td>{booking.amount}</td>
+                        <td>
+                          <span className={`status-badge ${booking.statusType}`}>
+                            {booking.status}
+                          </span>
+                        </td>
+                        <td>
+                          <button className="view-button">View</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+};
+
+export default SuperadminDashboard;

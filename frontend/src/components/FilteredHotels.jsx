@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from './Navbar';
 import { Heart, MapPin, Star, ChevronDown } from 'lucide-react';
@@ -45,7 +45,8 @@ const FilteredHotels = () => {
                   <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#374151', marginBottom: '8px' }}>City</label>
                   <div style={{ position: 'relative' }}>
                     <select style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: '8px', appearance: 'none', backgroundColor: '#ffffff', color: '#374151', fontSize: '0.875rem', outline: 'none' }}>
-                      <option>Kathmandu</option>
+                    <select style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: '8px', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', backgroundColor: '#ffffff', backgroundImage: 'none', color: '#374151', fontSize: '0.875rem', outline: 'none' }}>
+<option>Kathmandu</option>
                       <option>Pokhara</option>
                       <option>Lalitpur</option>
                       <option>Bhaktapur</option>
@@ -83,7 +84,7 @@ const FilteredHotels = () => {
                   <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#374151', marginBottom: '8px' }}>Price Range</label>
                   <div style={{ position: 'relative', marginBottom: '8px' }}>
                     <div style={{ width: '100%', height: '6px', backgroundColor: '#E5E7EB', borderRadius: '3px', position: 'relative' }}>
-                      <div style={{ position: 'absolute', left: '0', width: `${(priceRange / 45000) * 100}%`, height: '100%', backgroundColor: '#14B8A6', borderRadius: '3px' }}></div>
+                      <div style={{ position: 'absolute', left: '0', width: `NPR {(priceRange / 45000) * 100}%`, height: '100%', backgroundColor: '#14B8A6', borderRadius: '3px' }}></div>
                     </div>
                     <input
                       type="range"
@@ -119,7 +120,17 @@ const FilteredHotels = () => {
                               border: '2px solid #D1D5DB',
                               cursor: 'pointer',
                               appearance: 'none',
-                              backgroundColor: amenities[item.id] ? '#14B8A6' : '#ffffff',
+                              width: '16px !important',
+                              height: '16px !important',
+                              minWidth: '16px',
+                              minHeight: '16px',
+                              maxWidth: '16px',
+                              maxHeight: '16px',
+                              borderRadius: '3px',
+                              appearance: 'none',
+                              WebkitAppearance: 'none',
+                              MozAppearance: 'none',
+backgroundColor: amenities[item.id] ? '#14B8A6' : '#ffffff',
                               borderColor: amenities[item.id] ? '#14B8A6' : '#D1D5DB',
                               outline: 'none'
                             }}
@@ -127,12 +138,14 @@ const FilteredHotels = () => {
                           {amenities[item.id] && (
                             <svg
                               style={{ position: 'absolute', top: '2px', left: '2px', width: '14px', height: '14px', color: '#ffffff', pointerEvents: 'none' }}
-                              fill="none"
+                              style={{ position: 'absolute', top: '1px', left: '1px', width: '12px', height: '12px', color: '#ffffff', pointerEvents: 'none' }}
+fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
                             >
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
-                            </svg>
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+</svg>
                           )}
                         </div>
                         <label htmlFor={item.id} style={{ marginLeft: '10px', fontSize: '0.875rem', color: '#374151', cursor: 'pointer' }}>
@@ -152,7 +165,8 @@ const FilteredHotels = () => {
                 <h1 style={{ fontSize: '1.875rem', fontWeight: '700', color: '#111827', fontFamily: 'Nunito, sans-serif' }}>Hotels in Kathmandu</h1>
                 <div style={{ position: 'relative', width: '200px' }}>
                   <select style={{ width: '100%', padding: '10px 12px', paddingRight: '36px', border: '1px solid #D1D5DB', borderRadius: '8px', appearance: 'none', backgroundColor: '#ffffff', color: '#374151', fontSize: '0.875rem', outline: 'none' }}>
-                    <option>Sort by Price</option>
+                  <select style={{ width: '100%', padding: '10px 12px', paddingRight: '36px', border: '1px solid #D1D5DB', borderRadius: '8px', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', backgroundColor: '#ffffff', backgroundImage: 'none', color: '#374151', fontSize: '0.875rem', outline: 'none' }}>
+<option>Sort by Price</option>
                     <option>Sort by Rating</option>
                     <option>Sort by Newest</option>
                   </select>
@@ -229,7 +243,7 @@ const FilteredHotels = () => {
                           <span style={{ fontSize: '0.875rem', color: '#6B7280' }}>/night</span>
                         </div>
                         <button 
-                          onClick={() => navigate(`/hotel/${hotel.id}`)}
+                          onClick={() => navigate(`/hotel/NPR {hotel.id}`)}
                           style={{
                             padding: '10px 20px',
                             backgroundColor: '#14B8A6',

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import {
   RefreshCw,
   List,
@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import OrderCard from "./order/OrderCard";
 
-const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed, onDeleteOrder }) => {
+const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed, onDeleteOrder, onRefresh, isRefreshing, onUpdateOrder }) => {
   const [isMobile, setIsMobile] = useState(false);
   const [isTablet, setIsTablet] = useState(false);
 
@@ -18,19 +18,35 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
       setIsMobile(window.innerWidth < 640);
       setIsTablet(window.innerWidth >= 640 && window.innerWidth < 1024);
     };
-    
     checkScreenSize();
     window.addEventListener('resize', checkScreenSize);
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
-  const filteredOrders =
+  const filteredOrders = (
     activeFilter === "all"
       ? orders
-      : orders.filter((order) => order.status === activeFilter);
+      : activeFilter.startsWith('area:')
+      ? orders.filter((order) => {
+          const areaName = activeFilter.replace('area:', '');
+          // support different property names that might hold table/room info
+          const table = order.tableNumber || order.table || order.table_no || '';
+          const room = order.roomNumber || order.room || '';
+          return String(table) === String(areaName) || String(room) === String(areaName) || String(`NPR ${order.orderType === 'roomService' ? `Room NPR ${order.roomNumber}` : `Table NPR ${order.tableNumber}`}`) === String(areaName) || String(areaName).toLowerCase().includes(String(table).toLowerCase());
+        })
+      : orders.filter((order) => order.status === activeFilter)
+  ).sort((a, b) => {
+    // Real orders (isReal: true) come first
+    if (a.isReal && !b.isReal) return -1;
+    if (!a.isReal && b.isReal) return 1;
+    // If both are same type, sort by date (newest first)
+    return new Date(b.placedAt) - new Date(a.placedAt);
+  });
 
   const handleRefresh = () => {
-    console.log("Refreshing orders...");
+    if (onRefresh) {
+      onRefresh();
+    }
   };
 
   const filters = [
@@ -39,14 +55,17 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
     { id: "preparing", label: "Preparing", icon: ChefHat },
     { id: "ready", label: "Ready for Pickup", icon: CheckCircle },
     { id: "completed", label: "Completed", icon: CheckCircle },
-  ];
+    { id: "delivered", label: "Completed", icon: CheckCircle },
+];
 
   // Responsive Inline Styles
   const containerStyle = {
     minHeight: "100%",
     paddingBottom: isMobile ? "5rem" : "6rem",
     backgroundColor: "#F8F9FB", 
-    fontFamily: "'Nunito', sans-serif",
+    paddingBottom: isMobile ? "5rem" : "0",
+    backgroundColor: "var(--bg-secondary)",
+fontFamily: "'Nunito', sans-serif",
   };
 
   const headerContainerStyle = {
@@ -54,7 +73,8 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
     top: 0,
     zIndex: 20,
     backgroundColor: "#F8F9FB",
-    padding: isMobile ? "16px" : isTablet ? "24px 32px 20px 32px" : "32px 48px 24px 48px",
+    backgroundColor: "var(--bg-secondary)",
+padding: isMobile ? "16px" : isTablet ? "24px 32px 20px 32px" : "32px 48px 24px 48px",
   };
 
   const titleSectionStyle = {
@@ -70,7 +90,8 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
     fontSize: isMobile ? "28px" : isTablet ? "32px" : "40px",
     fontWeight: "800",
     color: "#111827",
-    marginBottom: "8px",
+    color: "var(--text-primary)",
+marginBottom: "8px",
     letterSpacing: "-0.025em",
     lineHeight: "1.1",
   };
@@ -78,7 +99,8 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
   const subtitleStyle = {
     fontSize: isMobile ? "14px" : "18px",
     color: "#6B7280",
-    fontWeight: "500",
+    color: "var(--text-secondary)",
+fontWeight: "500",
   };
 
   const refreshButtonStyle = {
@@ -123,13 +145,16 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
     cursor: "pointer",
     backgroundColor: isActive ? "#D1FAE5" : "white",
     color: isActive ? "#059669" : "#6B7280",
-    boxShadow: isActive ? "none" : "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+    backgroundColor: isActive ? "var(--color-accent-light)" : "var(--bg-primary)",
+    color: isActive ? "var(--color-primary)" : "var(--text-tertiary)",
+boxShadow: isActive ? "none" : "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
     flexShrink: 0,
   });
 
   const ordersGridStyle = {
     padding: isMobile ? "0 16px 80px 16px" : isTablet ? "0 32px 48px 32px" : "0 48px 48px 48px",
-  };
+    padding: isMobile ? "0 16px 80px 16px" : isTablet ? "0 32px 32px 32px" : "0 48px 32px 48px",
+};
 
   const ordersListStyle = {
     display: "flex",
@@ -148,11 +173,19 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
             <p style={subtitleStyle}>Real-time view of orders and table statuses.</p>
           </div>
 
-          {/* Refresh Button */}
-          <button onClick={handleRefresh} style={refreshButtonStyle}>
-            <RefreshCw size={20} />
-            <span>Refresh Orders</span>
-          </button>
+{/* Refresh Button */}
+<button
+  onClick={handleRefresh}
+  style={{
+    ...refreshButtonStyle,
+    opacity: isRefreshing ? 0.7 : 1,
+    cursor: isRefreshing ? 'not-allowed' : 'pointer'
+  }}
+  disabled={isRefreshing}
+>
+  <RefreshCw size={20} style={{ animation: isRefreshing ? 'spin 1s linear infinite' : 'none' }} />
+  <span>{isRefreshing ? 'Refreshing...' : 'Refresh Orders'}</span>
+</button>
         </div>
 
         {/* Filter Tabs */}
@@ -177,11 +210,11 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
 
       {/* Orders Grid */}
       <div style={ordersGridStyle}>
-        <div style={ordersListStyle}>
-          {filteredOrders.map((order) => {
-            return <OrderCard key={order.id} order={order} onMarkServed={onMarkServed}  onDelete={onDeleteOrder} />;
-          })}
-        </div>
+<div style={ordersListStyle}>
+  {filteredOrders.map((order) => {
+    return <OrderCard key={order.id} order={order} onMarkServed={onMarkServed} onDelete={onDeleteOrder} onUpdate={onUpdateOrder} />;
+  })}
+</div>
 
         {filteredOrders.length === 0 && (
           <div style={{ textAlign: "center", padding: "48px 0" }}>

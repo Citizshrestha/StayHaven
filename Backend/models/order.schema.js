@@ -108,6 +108,23 @@ const orderSchema = new mongoose.Schema({
   deliveredAt: {
     type: Date,
   },
+
+  // Bill tracking
+  billSent: {
+    type: Boolean,
+    default: false,
+  },
+  billSentAt: {
+    type: Date,
+  },
+  billSentTo: {
+    email: String,
+    phone: String,
+    method: {
+      type: String,
+      enum: ['email', 'sms', 'whatsapp'],
+    },
+  },
 }, { timestamps: true });
 
 // Indexes for performance

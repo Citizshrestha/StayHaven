@@ -1,25 +1,32 @@
-import {
+﻿import {
   LayoutDashboard,
   UtensilsCrossed,
   Bell,
   Settings,
   LogOut,
+  Phone,
 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { staffLogout } from "../../api/staff";
 import { useStaffAuth } from "../../context/StaffAuthContext";
-
-
 const Sidebar = () => {
   const [activeMenu, setActiveMenu] = useState("dashboard");
   const navigate = useNavigate();
   const { staffUser, logout } = useStaffAuth();
-
   const handleMenuClick = (menu) => {
     setActiveMenu(menu);
-  };
+import StaffSettings from "../shared/StaffSettings";
+const Sidebar = ({ activeView = "dashboard", onViewChange, notificationCount = 0, waiterCallCount = 0 }) => {
+  const { staffUser,activeProperty, logout, staffRole } = useStaffAuth();
+  const [showSettings, setShowSettings] = useState(false);
+  // Determine if user is chief/kitchen staff (hide waiter-specific items)
+  const isChief = staffRole === 'chief' || staffRole === 'kitchen';
+    if (onViewChange) {
+      onViewChange(menu);
+    }
+};
 
   const handleLogout = async () => {
     try {
@@ -39,7 +46,9 @@ const Sidebar = () => {
     display: "flex",
     flexDirection: "column",
     borderRight: "1px solid #E5E7EB",
-    fontFamily: "'Nunito', sans-serif",
+    backgroundColor: "var(--bg-primary)",
+    borderRight: "1px solid var(--border-color)",
+fontFamily: "'Nunito', sans-serif",
   };
 
   const profileSectionStyle = {
@@ -71,7 +80,8 @@ const Sidebar = () => {
     flexDirection: "column",
     gap: "8px",
     borderTop: "1px solid transparent", 
-  };
+    borderTop: "1px solid transparent",
+};
 
   const getMenuItemStyle = (isActive) => ({
     width: "100%",
@@ -86,7 +96,9 @@ const Sidebar = () => {
     cursor: "pointer",
     backgroundColor: isActive ? "#D1FAE5" : "transparent",
     color: isActive ? "#059669" : "#374151",
-    fontWeight: isActive ? "600" : "500",
+    backgroundColor: isActive ? "var(--color-accent-light)" : "transparent",
+    color: isActive ? "var(--color-primary)" : "var(--text-secondary)",
+fontWeight: isActive ? "600" : "500",
   });
 
   const badgeStyle = {
@@ -108,7 +120,7 @@ const Sidebar = () => {
       {/* User Profile */}
       <div style={profileSectionStyle}>
         <img
-          src={staffUser?.profilePicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(staffUser?.fullname || 'Staff')}`}
+          src={staffUser?.profilePicture || `https://ui-avatars.com/api/?name=NPR {encodeURIComponent(staffUser?.fullname || 'Staff')}`}
           alt="User"
           style={profileImageStyle}
         />
@@ -117,7 +129,24 @@ const Sidebar = () => {
             {staffUser?.fullname ?? "Staff Member"}
           </h3>
           <p style={{ margin: 0, fontSize: "14px", color: "#6B7280", textTransform: "capitalize" }}>{staffUser?.role ?? "Waiter"}</p>
-        </div>
+          <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "700", color: "var(--text-primary)" }}>
+          <p style={{ margin: 0, fontSize: "14px", color: "var(--text-tertiary)", textTransform: "capitalize" }}>{staffUser?.role ?? "Waiter"}</p>
+          {
+            activeProperty?.name && (
+              <p style={{ 
+              margin: "4px 0 0 0", 
+              fontSize: "12px", 
+              color: "var(--color-primary)", 
+              fontWeight: "600",
+              display: "flex",
+              alignItems: "center",
+              gap: "4px"
+            }}>
+               🏨 {activeProperty.name}
+              </p>
+            )
+          }
+</div>
       </div>
 
       {/* Navigation Items */}
@@ -125,7 +154,8 @@ const Sidebar = () => {
         {/* Dashboard Button */}
         <button
           style={getMenuItemStyle(activeMenu === "dashboard")}
-          onClick={() => handleMenuClick("dashboard")}
+          style={getMenuItemStyle(activeView === "dashboard")}
+onClick={() => handleMenuClick("dashboard")}
         >
           <LayoutDashboard size={20} />
           <span style={{ fontSize: "14px" }}>Dashboard</span>
@@ -139,36 +169,90 @@ const Sidebar = () => {
           <UtensilsCrossed size={20} />
           <span style={{ fontSize: "14px" }}>Assigned Tables</span>
         </button>
-
         {/* Notifications Button */}
         <button
           style={getMenuItemStyle(activeMenu === "notifications")}
-          onClick={() => handleMenuClick("notifications")}
+        {/* Assigned Tables Button - Only for waiters, not chiefs */}
+        {!isChief && (
+          <button
+            style={getMenuItemStyle(activeView === "assignedTables")}
+            onClick={() => handleMenuClick("assignedTables")}
+          >
+            <UtensilsCrossed size={20} />
+            <span style={{ fontSize: "14px" }}>Assigned Tables</span>
+          </button>
+        )}
+          style={getMenuItemStyle(activeView === "notifications")}
+onClick={() => handleMenuClick("notifications")}
         >
           <Bell size={20} />
           <span style={{ fontSize: "14px" }}>Notifications</span>
           <span style={badgeStyle}>3</span>
         </button>
-      </nav>
+          {notificationCount > 0 && (
+            <span style={badgeStyle}>{notificationCount > 99 ? '99+' : notificationCount}</span>
+          )}
+        </button>
+        {/* Waiter Calls Button - Only for waiters, not chiefs */}
+        {!isChief && (
+          <button
+            style={getMenuItemStyle(activeView === "waiterCalls")}
+            onClick={() => handleMenuClick("waiterCalls")}
+          >
+            <Phone size={20} />
+            <span style={{ fontSize: "14px" }}>Guest Calls</span>
+            {waiterCallCount > 0 && (
+              <span style={{...badgeStyle, backgroundColor: "#EF4444"}}>{waiterCallCount > 99 ? '99+' : waiterCallCount}</span>
+            )}
+          </button>
+        )}
+        {/* Order History removed */}
+</nav>
 
       {/* Bottom Actions */}
       <div style={bottomSectionStyle}>
         <button
           style={getMenuItemStyle(activeMenu === "settings")}
           onClick={() => handleMenuClick("settings")}
-        >
+          style={getMenuItemStyle(activeView === "settings")}
+          onClick={() => setShowSettings(true)}
+>
           <Settings size={20} />
           <span style={{ fontSize: "14px" }}>Settings</span>
         </button>
 
         <button
           style={getMenuItemStyle(activeMenu === "logout")}
-          onClick={handleLogout}
+          style={getMenuItemStyle(activeView === "logout")}
+onClick={handleLogout}
         >
           <LogOut size={20} />
           <span style={{ fontSize: "14px" }}>Log Out</span>
         </button>
-      </div>
+        {/* Settings Modal */}
+        {showSettings && (
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 1000,
+              padding: "20px",
+            }}
+            onClick={() => setShowSettings(false)}
+          >
+            <div onClick={(e) => e.stopPropagation()}>
+              <StaffSettings onClose={() => setShowSettings(false)} variant="waiter" />
+            </div>
+          </div>
+        )}
+</div>
     </div>
   );
 };

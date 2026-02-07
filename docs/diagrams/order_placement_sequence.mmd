@@ -1,0 +1,15 @@
+sequenceDiagram
+  participant U as User
+  participant UI as Frontend
+  participant API as Backend
+  participant K as Kitchen
+  participant DB as Database
+
+  U->>UI: Open menu & place order
+  UI->>API: POST /orders {items}
+  API->>DB: persist order (status: received)
+  API->>K: push order event (websocket/queue)
+  K-->>API: ack / update status
+  API->>DB: update order status (preparing -> ready)
+  API-->>UI: order status updates (realtime)
+  UI->>U: notify delivered

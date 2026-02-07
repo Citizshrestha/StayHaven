@@ -1,4 +1,4 @@
-const HotelImageGallery = ({ images }) => {
+﻿const HotelImageGallery = ({ images }) => {
   return (
     <div className="w-full overflow-hidden">
       <div className="w-full h-[500px] grid grid-cols-4 grid-rows-2 gap-2 p-4 max-w-7xl mx-auto">

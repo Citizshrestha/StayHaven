@@ -1,0 +1,23 @@
+﻿.redeem-root{min-height:100vh;background:#f6fbfb;display:flex;align-items:flex-start;justify-content:center;padding:28px;font-family:Inter,Segoe UI,Roboto,Arial,sans-serif}
+.redeem-container{max-width:900px;width:100%;background:transparent}
+.redeem-container h2{color:#0b6b63}
+.desc{color:#6b6b6b;margin-bottom:12px}
+.redeem-preview img{width:100%;height:420px;object-fit:cover;border-radius:10px;background:#fff}
+.redeem-actions{display:flex;justify-content:space-between;margin-top:18px}
+.redeem-actions .cancel{background:#eef7f6;border:0;padding:8px 12px;border-radius:8px;cursor:pointer}
+.redeem-actions .confirm{background:#06bfa0;border:0;color:white;padding:8px 12px;border-radius:8px;cursor:pointer}
+.error{color:#a33;margin-top:12px}
+
+.redeem-success{min-height:100vh;background:#f6fbfb;display:flex;align-items:center;justify-content:center}
+.success-card{max-width:720px;background:transparent;padding:24px;text-align:center}
+.success-card img{width:100%;height:360px;object-fit:cover;border-radius:10px}
+.success-card h3{margin-top:18px;color:#0b6b63}
+.success-card p{color:#6b6b6b}
+.success-card .notes{margin-top:18px;font-size:13px}
+.success-card .done{margin-top:18px;background:#2f856e;color:white;border:0;padding:8px 12px;border-radius:8px;cursor:pointer}
+
+@media (max-width:900px){
+  .redeem-preview img{height:260px}
+  .redeem-actions{flex-direction:column;gap:10px}
+  .redeem-actions .confirm{align-self:flex-end}
+}

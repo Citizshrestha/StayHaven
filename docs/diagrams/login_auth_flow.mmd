@@ -1,0 +1,11 @@
+flowchart LR
+  A[User] --> B[Open Login Page]
+  B --> C[Enter Email + Password]
+  C --> D[POST /api/auth/login]
+  D --> E[Server: Find User by Email]
+  E --> F{Password Match}
+  F -- yes --> G[Generate JWT / Session]
+  G --> H[Return token & user info]
+  F -- no --> I[401 Unauthorized]
+  G --> J[Optional: 2FA] --> K[2FA Verified]
+  K --> L[Login Complete]

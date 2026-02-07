@@ -1,10 +1,10 @@
-import axiosClient from '../axiosClient';
+﻿import axiosClient from '../axiosClient';
 
 // Get all hotels (public - with filters)
 export const getAllHotels = async (filters = {}) => {
   try {
     const queryParams = new URLSearchParams(filters).toString();
-    const response = await axiosClient.get(`/hotels${queryParams ? `?${queryParams}` : ''}`);
+    const response = await axiosClient.get(`/hotelsNPR {queryParams ? `?${queryParams}` : ''}`);
     return response.data;
   } catch (error) {
     console.error('Error fetching hotels:', error);
@@ -110,7 +110,7 @@ export const getHotelStats = async (hotelId) => {
 // Search hotels (public)
 export const searchHotels = async (searchQuery) => {
   try {
-    const response = await axiosClient.get(`/hotels/search?q=${encodeURIComponent(searchQuery)}`);
+    const response = await axiosClient.get(`/hotels/search?q=NPR {encodeURIComponent(searchQuery)}`);
     return response.data;
   } catch (error) {
     console.error('Error searching hotels:', error);
@@ -142,7 +142,6 @@ export const getHotelReport = async (hotelId, dateRange = 'month') => {
     throw error.response?.data || error;
   }
 };
-
 // Get hotel revenue report (protected - owner/admin only)
 export const getHotelRevenueReport = async (hotelId, startDate, endDate) => {
   try {
@@ -157,7 +156,6 @@ export const getHotelRevenueReport = async (hotelId, startDate, endDate) => {
     throw error.response?.data || error;
   }
 };
-
 // Get occupancy report (protected - owner/admin only)
 export const getOccupancyReport = async (hotelId, dateRange = 'month') => {
   try {
@@ -171,7 +169,6 @@ export const getOccupancyReport = async (hotelId, dateRange = 'month') => {
     throw error.response?.data || error;
   }
 };
-
 // Get loyalty points data (protected - owner/admin only)
 export const getLoyaltyPoints = async (hotelId, filters = {}) => {
   try {
@@ -186,7 +183,6 @@ export const getLoyaltyPoints = async (hotelId, filters = {}) => {
     throw error.response?.data || error;
   }
 };
-
 // Get user loyalty details (protected - guest/user)
 export const getUserLoyaltyDetails = async () => {
   try {
@@ -200,7 +196,6 @@ export const getUserLoyaltyDetails = async () => {
     throw error.response?.data || error;
   }
 };
-
 // Update loyalty points (protected - owner/admin only)
 export const updateLoyaltyPoints = async (hotelId, userId, points) => {
   try {
@@ -215,3 +210,4 @@ export const updateLoyaltyPoints = async (hotelId, userId, points) => {
     throw error.response?.data || error;
   }
 };
+
