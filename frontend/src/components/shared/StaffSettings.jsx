@@ -8,7 +8,7 @@ import { toast } from "react-toastify";
 import { changePassword } from "../../api/auth";
 import { useTheme } from "../../hooks/useTheme";
 import axiosClient from "../../axiosClient";
-import "../WaiterDashboard/settings/WaiterSettings.css";
+import "../../features/staff/waiter/pages/settings/WaiterSettings.css";
 
 /**
  * Unified Settings component for both Waiter and Kitchen dashboards
