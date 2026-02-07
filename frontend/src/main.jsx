@@ -1,8 +1,8 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
-import App from './App.jsx'
-import { ThemeProvider } from './context/ThemeContext'
+import App from './app/App.jsx'
+import { ThemeProvider } from './core/context/ThemeContext'
 
 window.addEventListener('unhandledrejection', (event) => {
   const reason = event?.reason;
