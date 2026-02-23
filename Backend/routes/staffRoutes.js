@@ -43,6 +43,20 @@ import {
   bulkUpdateAssignments,
 } from "../controllers/tableAssignment.controller.js";
 import { getMenuItems, getMenuCategories } from "../controllers/menuController.js";
+import {
+  sendMessage,
+  getMessages,
+  markMessagesRead,
+  initiateCall,
+  updateCallStatus,
+  getContacts,
+} from "../controllers/messagingController.js";
+import {
+  getNotifications,
+  markNotificationsRead,
+  getUnreadCount,
+  createNotification,
+} from "../controllers/notificationController.js";
 import { protect, authorize } from "../middleware/authMiddleware.js";
 import { upload } from "../middleware/upload.js";
 
@@ -232,6 +246,49 @@ router.put(
   protect,
   authorize("manager", "admin", "owner"),
   bulkUpdateAssignments
+);
+
+// ═══════════════════════════════════════════
+// MESSAGING ROUTES
+// ═══════════════════════════════════════════
+
+// Send a message
+router.post("/messages", protect, sendMessage);
+
+// Get messages (by channel or direct)
+router.get("/messages", protect, getMessages);
+
+// Mark messages as read
+router.put("/messages/read", protect, markMessagesRead);
+
+// Get contacts (staff list for messaging)
+router.get("/messages/contacts", protect, getContacts);
+
+// Initiate a call
+router.post("/messages/call", protect, initiateCall);
+
+// Update call status
+router.put("/messages/call/:callId", protect, updateCallStatus);
+
+// ═══════════════════════════════════════════
+// NOTIFICATION ROUTES
+// ═══════════════════════════════════════════
+
+// Get notifications for current user
+router.get("/notifications", protect, getNotifications);
+
+// Get unread notification count
+router.get("/notifications/count", protect, getUnreadCount);
+
+// Mark notifications as read
+router.put("/notifications/read", protect, markNotificationsRead);
+
+// Create a notification (for sending to other staff)
+router.post(
+  "/notifications",
+  protect,
+  authorize("receptionist", "manager", "admin", "owner"),
+  createNotification
 );
 
 export default router;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './ReceptionDashboard.css';
 import Sidebar from './Sidebar';
 import DashboardContent from './DashboardContent';
@@ -14,53 +14,41 @@ import { useStaffAuth } from '../../../../context/StaffAuthContext';
 
 const ReceptionDashboard = () => {
   const [activeView, setActiveView] = useState('dashboard');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { isDark } = useTheme();
   const { staffUser } = useStaffAuth();
-  const [notificationCount, setNotificationCount] = useState(12);
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth <= 768);
-    };
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   useEffect(() => {
-    const prevBodyOverflow = document.body.style.overflow;
-    const prevHtmlOverflow = document.documentElement.style.overflow;
+    const prev = document.body.style.overflow;
+    const prevHtml = document.documentElement.style.overflow;
     document.body.style.overflow = 'hidden';
     document.documentElement.style.overflow = 'hidden';
     return () => {
-      document.body.style.overflow = prevBodyOverflow;
-      document.documentElement.style.overflow = prevHtmlOverflow;
+      document.body.style.overflow = prev;
+      document.documentElement.style.overflow = prevHtml;
     };
   }, []);
 
-  const handleViewChange = (view) => {
-    setActiveView(view);
-  };
+  const handleViewChange = useCallback((view) => setActiveView(view), []);
 
   const renderContent = () => {
     switch (activeView) {
-      case 'dashboard':
-        return <DashboardContent />;
-      case 'bookings':
-        return <BookingsView />;
-      case 'checkinout':
-        return <CheckInOutView />;
-      case 'housekeeping':
-        return <HousekeepingView />;
-      case 'guests':
-        return <GuestsView />;
-      case 'reports':
-        return <ReportsView />;
-      case 'settings':
-        return <ReceptionSettings onClose={() => setActiveView('dashboard')} />;
-      default:
-        return <DashboardContent />;
+      case 'dashboard': return <DashboardContent />;
+      case 'bookings': return <BookingsView />;
+      case 'checkinout': return <CheckInOutView />;
+      case 'housekeeping': return <HousekeepingView />;
+      case 'guests': return <GuestsView />;
+      case 'reports': return <ReportsView />;
+      case 'settings': return <ReceptionSettings onClose={() => setActiveView('dashboard')} />;
+      default: return <DashboardContent />;
     }
   };
 
@@ -70,7 +58,8 @@ const ReceptionDashboard = () => {
         <Sidebar
           activeView={activeView}
           onViewChange={handleViewChange}
-          notificationCount={notificationCount}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(c => !c)}
         />
       )}
 
@@ -79,11 +68,7 @@ const ReceptionDashboard = () => {
       </main>
 
       {isMobile && (
-        <MobileBottomNav
-          activeView={activeView}
-          onViewChange={handleViewChange}
-          notificationCount={notificationCount}
-        />
+        <MobileBottomNav activeView={activeView} onViewChange={handleViewChange} />
       )}
     </div>
   );

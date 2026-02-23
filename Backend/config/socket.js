@@ -66,6 +66,39 @@ export const initSocket = (httpServer) => {
       });
     });
 
+    // ── Messaging events ──
+    // Typing indicator
+    socket.on("typing", ({ hotelId, channel, userId, fullname }) => {
+      const room = channel === "direct"
+        ? null
+        : `hotel-${hotelId}-${channel}s`;
+      if (room) {
+        socket.to(room).emit("user-typing", { userId, fullname, channel });
+      }
+    });
+
+    socket.on("stop-typing", ({ hotelId, channel, userId }) => {
+      const room = channel === "direct"
+        ? null
+        : `hotel-${hotelId}-${channel}s`;
+      if (room) {
+        socket.to(room).emit("user-stop-typing", { userId, channel });
+      }
+    });
+
+    // Call management
+    socket.on("answer-call", ({ callId, hotelId }) => {
+      io.to(`hotel-${hotelId}`).emit("call-answered", { callId });
+    });
+
+    socket.on("decline-call", ({ callId, hotelId }) => {
+      io.to(`hotel-${hotelId}`).emit("call-declined", { callId });
+    });
+
+    socket.on("end-call", ({ callId, hotelId, duration }) => {
+      io.to(`hotel-${hotelId}`).emit("call-ended", { callId, duration });
+    });
+
     // Handle disconnection
     socket.on("disconnect", (reason) => {
       console.log(`🔌 Client disconnected: ${socket.id}, Reason: ${reason}`);
