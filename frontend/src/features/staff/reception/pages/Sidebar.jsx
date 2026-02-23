@@ -1,97 +1,101 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStaffAuth } from '../../../../context/StaffAuthContext';
 import {
-  LayoutDashboard,
-  Calendar,
-  LogIn,
-  Bed,
-  Users,
-  BarChart3,
-  Settings,
-  LogOut
+  LayoutDashboard, CalendarRange, LogIn, DoorOpen, Sparkles,
+  Users, Receipt, BarChart3, UserCog, Settings,
+  LogOut, PanelLeftClose, PanelLeft
 } from 'lucide-react';
-import './Sidebar.css';
 
-const Sidebar = ({ activeView, onViewChange, notificationCount }) => {
+const Sidebar = ({ activeView, onViewChange, collapsed, onToggleCollapse }) => {
   const navigate = useNavigate();
-  const { staffUser, logout } = useStaffAuth();
+  let staffUser = null;
+  let logout = async () => { };
+  try {
+    const auth = useStaffAuth();
+    staffUser = auth?.staffUser;
+    logout = auth?.logout || logout;
+  } catch (e) { /* dev mode */ }
 
-  const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'bookings', label: 'Bookings', icon: Calendar },
-    { id: 'checkinout', label: 'Check-In/Out', icon: LogIn },
-    { id: 'housekeeping', label: 'Housekeeping', icon: Bed },
-    { id: 'guests', label: 'Guests', icon: Users },
-    { id: 'reports', label: 'Reports', icon: BarChart3 },
-    { id: 'settings', label: 'Settings', icon: Settings },
+  const sections = [
+    {
+      label: 'Main',
+      items: [
+        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+        { id: 'bookings', label: 'Reservations', icon: CalendarRange },
+        { id: 'checkinout', label: 'Check-In / Out', icon: LogIn },
+        { id: 'rooms', label: 'Rooms', icon: DoorOpen },
+      ]
+    },
+    {
+      label: 'Operations',
+      items: [
+        { id: 'housekeeping', label: 'Housekeeping', icon: Sparkles },
+        { id: 'guests', label: 'Guests', icon: Users },
+        { id: 'billing', label: 'Billing', icon: Receipt },
+      ]
+    },
+    {
+      label: 'Insights',
+      items: [
+        { id: 'reports', label: 'Reports', icon: BarChart3 },
+        { id: 'staff', label: 'Staff', icon: UserCog },
+        { id: 'settings', label: 'Settings', icon: Settings },
+      ]
+    }
   ];
 
   const handleLogout = async () => {
-    try {
-      await logout();
-      navigate('/staff/login');
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
+    try { await logout(); navigate('/staff/login'); } catch (e) { console.error(e); }
   };
 
+  const userName = staffUser?.fullname || 'Sarah Jenkins';
+  const userInitial = userName.charAt(0).toUpperCase();
+
   return (
-    <aside className="reception-sidebar">
-      {/* Logo & Hotel Name */}
-      <div className="reception-sidebar-header">
-        <div className="reception-logo">
-          <div className="reception-logo-icon">
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-              <path d="M16 2L4 8v8c0 7.5 5.2 14.5 12 16 6.8-1.5 12-8.5 12-16V8l-12-6z" fill="currentColor" />
-            </svg>
-          </div>
-        </div>
-        <div className="reception-hotel-name">
-          <h2>Grand Royale</h2>
+    <aside className={`sh-sidebar ${collapsed ? 'collapsed' : ''}`}>
+      <div className="sh-sidebar-header">
+        <div className="sh-logo-icon">S</div>
+        <div className="sh-hotel-info">
+          <h2>StayHaven</h2>
           <p>Hotel & Resort</p>
         </div>
       </div>
 
-      {/* Navigation Menu */}
-      <nav className="reception-nav">
-        {menuItems.map((item) => {
-          const Icon = item.icon;
-          return (
-            <button
-              key={item.id}
-              className={`reception-nav-item ${activeView === item.id ? 'active' : ''}`}
-              onClick={() => onViewChange(item.id)}
-            >
-              <Icon size={20} />
-              <span>{item.label}</span>
-            </button>
-          );
-        })}
+      <nav className="sh-nav">
+        {sections.map((section) => (
+          <React.Fragment key={section.label}>
+            <div className="sh-nav-section-label">{section.label}</div>
+            {section.items.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  className={`sh-nav-item ${activeView === item.id ? 'active' : ''}`}
+                  onClick={() => onViewChange(item.id)}
+                  title={collapsed ? item.label : ''}
+                >
+                  <Icon size={20} strokeWidth={1.8} />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </React.Fragment>
+        ))}
       </nav>
 
-      {/* User Profile at Bottom */}
-      <div className="reception-sidebar-footer">
-        <div className="reception-user-profile">
-          <div className="reception-user-avatar">
-            {staffUser?.profilePicture ? (
-              <img src={staffUser.profilePicture} alt={staffUser.fullname} />
-            ) : (
-              <div className="reception-avatar-placeholder">
-                {staffUser?.fullname?.charAt(0)?.toUpperCase() || 'S'}
-              </div>
-            )}
-          </div>
-          <div className="reception-user-info">
-            <h4>{staffUser?.fullname || 'Sarah Jenkins'}</h4>
+      <div className="sh-sidebar-footer">
+        <button className="sh-collapse-btn" onClick={onToggleCollapse} title={collapsed ? 'Expand' : 'Collapse'}>
+          {collapsed ? <PanelLeft size={18} /> : <PanelLeftClose size={18} />}
+        </button>
+        <div className="sh-user-section">
+          <div className="sh-user-avatar">{userInitial}</div>
+          <div className="sh-user-details">
+            <h4>{userName}</h4>
             <p>Head Receptionist</p>
           </div>
-          <button
-            className="reception-logout-btn"
-            onClick={handleLogout}
-            title="Logout"
-          >
-            <LogOut size={18} />
+          <button className="sh-user-logout" onClick={handleLogout} title="Logout">
+            <LogOut size={16} />
           </button>
         </div>
       </div>

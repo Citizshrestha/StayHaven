@@ -48,6 +48,9 @@ const SuperadminDashboard = () => {
     { type: 'Resort', percentage: 40 },
     { type: 'Budget', percentage: 25 },
   ];
+
+  const weeklyAnalyticsLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
   const navigate = useNavigate();
 
   const handleNavigation = (item) => {
@@ -201,41 +204,54 @@ const SuperadminDashboard = () => {
 
             {/* Charts Grid */}
             <div style={{gap: "24px", marginBottom: "32px"}} className="grid grid-cols-1 lg:grid-cols-3">
-              {/* Booking Trends Chart */}
+              {/* Sales Analytics Chart */}
               <div style={{padding: "24px"}} className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex items-start justify-between mb-6">
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Booking Trends</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Last 30 Days</p>
+                    <h3 className="text-2xl font-semibold text-gray-900 dark:text-white">Sales Analytics</h3>
+                    <p className="text-base text-gray-500 dark:text-gray-400 mt-1">Weekly overview</p>
                   </div>
-                  <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 px-3 py-1.5 rounded-lg text-sm font-semibold">
-                    <span className="material-symbols-outlined text-base">arrow_upward</span>
-                    <span>+12.5%</span>
+                  <button className="icon-button" aria-label="More analytics options">
+                    <span className="material-symbols-outlined">more_vert</span>
+                  </button>
+                </div>
+
+                <div className="flex items-end gap-4 mb-2">
+                  <span className="text-5xl font-bold tracking-tight text-gray-900 dark:text-white">Rs. 12,50,000</span>
+                  <div className="flex items-center gap-1 text-emerald-500 text-2xl font-semibold pb-1">
+                    <span className="material-symbols-outlined text-2xl">north</span>
+                    <span>+15%</span>
                   </div>
                 </div>
-                <div className="flex items-baseline gap-3 mb-4">
-                  <span className="text-3xl font-bold text-gray-900 dark:text-white">1,482</span>
-                  <span className="text-gray-500 dark:text-gray-400">Bookings</span>
-                </div>
-                <div className="h-40">
-                  <svg className="w-full h-full" viewBox="-3 0 478 150" preserveAspectRatio="none">
+
+                <p className="text-2xl text-gray-500 dark:text-gray-400 mb-6">Compared to last week</p>
+
+                <div className="h-44">
+                  <svg className="w-full h-full" viewBox="0 0 600 180" preserveAspectRatio="none" aria-label="Weekly sales analytics chart">
                     <path 
-                      d="M0 109C18.1538 109 18.1538 21 36.3077 21C54.4615 21 54.4615 41 72.6154 41C90.7692 41 90.7692 93 108.923 93C127.077 93 127.077 33 145.231 33C163.385 33 163.385 101 181.538 101C199.692 101 199.692 61 217.846 61C236 61 236 45 254.154 45C272.308 45 272.308 121 290.462 121C308.615 121 308.615 149 326.769 149C344.923 149 344.923 1 363.077 1C381.231 1 381.231 81 399.385 81C417.538 81 417.538 129 435.692 129C453.846 129 453.846 25 472 25V149H326.769H0V109Z" 
-                      fill="url(#paint0_linear_chart)"
+                      d="M10 130C56 124 74 110 98 98C126 84 152 66 186 64C212 62 242 75 276 84C304 92 334 101 364 96C392 92 420 72 442 50C468 25 500 24 528 46C552 66 572 84 590 92V170H10V130Z"
+                      fill="url(#sales_analytics_fill)"
                     />
                     <path 
-                      d="M0 109C18.1538 109 18.1538 21 36.3077 21C54.4615 21 54.4615 41 72.6154 41C90.7692 41 90.7692 93 108.923 93C127.077 93 127.077 33 145.231 33C163.385 33 163.385 101 181.538 101C199.692 101 199.692 61 217.846 61C236 61 236 45 254.154 45C272.308 45 272.308 121 290.462 121C308.615 121 308.615 149 326.769 149C344.923 149 344.923 1 363.077 1C381.231 1 381.231 81 399.385 81C417.538 81 417.538 129 435.692 129C453.846 129 453.846 25 472 25" 
-                      stroke="#14B8A6" 
-                      strokeWidth="3" 
+                      d="M10 130C56 124 74 110 98 98C126 84 152 66 186 64C212 62 242 75 276 84C304 92 334 101 364 96C392 92 420 72 442 50C468 25 500 24 528 46C552 66 572 84 590 92"
+                      stroke="#6366F1"
+                      strokeWidth="4"
                       strokeLinecap="round"
+                      strokeLinejoin="round"
                     />
                     <defs>
-                      <linearGradient id="paint0_linear_chart" x1="236" x2="236" y1="1" y2="149">
-                        <stop stopColor="#14B8A6" stopOpacity="0.3" />
-                        <stop offset="1" stopColor="#14B8A6" stopOpacity="0" />
+                      <linearGradient id="sales_analytics_fill" x1="300" x2="300" y1="24" y2="170">
+                        <stop stopColor="#6366F1" stopOpacity="0.34" />
+                        <stop offset="1" stopColor="#6366F1" stopOpacity="0.02" />
                       </linearGradient>
                     </defs>
                   </svg>
+                </div>
+
+                <div className="grid grid-cols-7 mt-5 text-base text-gray-500 dark:text-gray-400">
+                  {weeklyAnalyticsLabels.map((day) => (
+                    <span key={day} className="text-center">{day}</span>
+                  ))}
                 </div>
               </div>
 
@@ -266,7 +282,7 @@ const SuperadminDashboard = () => {
                       </div>
                       <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
                         <div 
-                          className="h-full bg-gradient-to-r from-teal-500 to-teal-400 rounded-full transition-all duration-500"
+                          className="h-full bg-linear-to-r from-teal-500 to-teal-400 rounded-full transition-all duration-500"
                           style={{ width: `${item.percentage}%` }}
                         ></div>
                       </div>
