@@ -1,27 +1,27 @@
 import React from 'react';
-import { LayoutDashboard, Calendar, LogIn, Bed, Users } from 'lucide-react';
-import './MobileBottomNav.css';
+import { LayoutDashboard, CalendarRange, LogIn, Sparkles, Users, Settings } from 'lucide-react';
 
-const MobileBottomNav = ({ activeView, onViewChange, notificationCount }) => {
+const MobileBottomNav = ({ activeView, onViewChange }) => {
   const tabs = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'bookings', label: 'Bookings', icon: Calendar },
+    { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
+    { id: 'bookings', label: 'Bookings', icon: CalendarRange },
     { id: 'checkinout', label: 'Check-In', icon: LogIn },
-    { id: 'housekeeping', label: 'Rooms', icon: Bed },
+    { id: 'housekeeping', label: 'Rooms', icon: Sparkles },
     { id: 'guests', label: 'Guests', icon: Users },
+    { id: 'settings', label: 'More', icon: Settings },
   ];
 
   return (
-    <div className="rd-mobile-nav">
+    <div className="sh-mobile-nav">
       {tabs.map((tab) => {
         const Icon = tab.icon;
         return (
           <button
             key={tab.id}
-            className={`rd-mobile-nav-item ${activeView === tab.id ? 'active' : ''}`}
+            className={`sh-mobile-nav-item ${activeView === tab.id ? 'active' : ''}`}
             onClick={() => onViewChange(tab.id)}
           >
-            <Icon size={22} />
+            <Icon />
             <span>{tab.label}</span>
           </button>
         );
