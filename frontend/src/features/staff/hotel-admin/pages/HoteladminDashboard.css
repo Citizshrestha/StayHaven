@@ -16,13 +16,13 @@
   --hotel-transition: 0.3s ease;
 }
 
-/* Dark mode support */
+/* Dark mode support - purpose-built dark surface colors */
 .hotel-dashboard.dark {
-  --hotel-bg: #1a1a2e;
-  --hotel-card-bg: #16213e;
-  --hotel-text: #eef0f2;
-  --hotel-text-muted: #a9b4c2;
-  --hotel-border: #374151;
+  --hotel-bg: #0f1623;
+  --hotel-card-bg: #1e2535;
+  --hotel-text: #f1f5f9;
+  --hotel-text-muted: #94a3b8;
+  --hotel-border: rgba(255, 255, 255, 0.08);
   --hotel-shadow: rgba(0, 0, 0, 0.3);
 }
 
@@ -54,9 +54,10 @@
 }
 
 .hotel-dashboard.dark .sidebar {
-  background: #1f2937;
-  box-shadow: 1px 0 0 #374151;
-  color: #f3f4f6;
+  background: #1e2535;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+  color: #f1f5f9;
 }
 
 .sidebar-header {
@@ -70,7 +71,7 @@
 }
 
 .hotel-dashboard.dark .sidebar-header {
-  border-bottom-color: #374151;
+  border-bottom-color: rgba(255, 255, 255, 0.08);
 }
 
 .theme-toggle-btn {
@@ -89,9 +90,9 @@
 }
 
 .hotel-dashboard.dark .theme-toggle-btn {
-  background: #374151;
-  border-color: #4b5563;
-  color: #d1d5db;
+  background: #1e2535;
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
 }
 
 .theme-toggle-btn:hover {
@@ -100,7 +101,8 @@
 }
 
 .hotel-dashboard.dark .theme-toggle-btn:hover {
-  background: #4b5563;
+  background: #2a3344;
+  color: #f1f5f9;
 }
 
 .theme-toggle-btn:focus-visible {
@@ -117,7 +119,7 @@
 }
 
 .hotel-dashboard.dark .admin-info h2 {
-  color: #f9fafb;
+  color: #f1f5f9;
 }
 
 .admin-role {
@@ -128,7 +130,7 @@
 }
 
 .hotel-dashboard.dark .admin-role {
-  color: #9ca3af;
+  color: #94a3b8;
 }
 
 .sidebar-nav {
@@ -155,17 +157,17 @@
 }
 
 .hotel-dashboard.dark .nav-item {
-  color: #9ca3af;
+  color: #94a3b8;
 }
 
 .nav-item:hover {
   background-color: #f3f4f6;
-  color: #4f46e5;
+  color: #4f6ef7;
 }
 
 .hotel-dashboard.dark .nav-item:hover {
-  background-color: #374151;
-  color: #818cf8;
+  background-color: rgba(255, 255, 255, 0.06);
+  color: #f1f5f9;
 }
 
 .nav-item:focus {
@@ -174,25 +176,25 @@
 }
 
 .hotel-dashboard.dark .nav-item:focus {
-  background-color: #374151;
+  background-color: rgba(255, 255, 255, 0.06);
 }
 
 .nav-item:focus-visible {
-  outline: 2px solid #4f46e5;
+  outline: 2px solid #4f6ef7;
   outline-offset: -2px;
 }
 
 .nav-item.active {
   background-color: #eef2ff;
-  border-left: 3px solid #4f46e5;
-  color: #4f46e5;
+  border-left: 3px solid #4f6ef7;
+  color: #4f6ef7;
   font-weight: 600;
 }
 
 .hotel-dashboard.dark .nav-item.active {
-  background-color: rgba(99, 102, 241, 0.1);
+  background-color: rgba(99, 102, 241, 0.15);
   border-left-color: #818cf8;
-  color: #818cf8;
+  color: #f1f5f9;
 }
 
 .nav-icon {
@@ -224,7 +226,7 @@
 }
 
 .hotel-dashboard.dark .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #4b5563;
+  background: #2a3344;
 }
 
 .hotel-dashboard.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
@@ -246,7 +248,7 @@
 }
 
 .hotel-dashboard.dark .main-content {
-  background: #111827;
+  background: #0f1623;
 }
 
 .dashboard-content {
@@ -1377,19 +1379,21 @@
   gap: 8px;
 }
 
+/* Edit - outlined secondary style */
 .btn-edit {
-  background: #3498db;
-  color: white;
-  border: none;
+  background: transparent;
+  color: #4f6ef7;
+  border: 1px solid #4f6ef7;
   padding: 6px 12px;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 0.8rem;
-  transition: all 0.3s ease;
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
 
 .btn-edit:hover {
-  background: #2980b9;
+  background: rgba(79, 110, 247, 0.08);
 }
 
 /* Mobile Staff Cards View */
@@ -1624,22 +1628,264 @@
 
 
 
-/* Rooms Management Styles */
+/* Rooms Management Styles - match Dashboard visual language */
 
-/* Rooms Content */
+/* Rooms Content - same light grey page background as Dashboard */
+.rooms-page-wrap {
+  background: #f5f6fa;
+  min-height: 100%;
+  padding: 24px 32px 48px 32px;
+  margin-left: 20px;
+  box-sizing: border-box;
+}
+
 .rooms-content {
   max-width: 1200px;
   margin: 0 auto;
 }
 
-/* Room Statistics */
-.room-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 20px;
-  margin-bottom: 30px;
+/* Page title match Dashboard: 28px, weight 700, #1a1a2e */
+.rooms-content-header h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1a1a2e;
 }
 
+.rooms-content-header .subtitle {
+  color: #6b7280;
+  font-size: 0.95rem;
+}
+
+.hotel-dashboard.dark .rooms-page-wrap {
+  background: #0f1623;
+}
+
+.hotel-dashboard.dark .rooms-content-header h1 {
+  color: #f1f5f9;
+}
+
+.hotel-dashboard.dark .rooms-content-header .subtitle {
+  color: #94a3b8;
+}
+
+/* Room Statistics - match Dashboard KPI card design exactly */
+.room-stats {
+  display: grid;
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.room-stats-grid {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.room-kpi-card {
+  padding: 24px;
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  border: none;
+  transition: all 0.3s ease;
+}
+
+.room-kpi-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.room-kpi-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+/* Colored rounded-square icon 64x64px, border-radius 14px */
+.room-kpi-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.room-kpi-icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.room-kpi-icon-total {
+  background: #4f6ef7;
+}
+
+.room-kpi-icon-available {
+  background: #22c55e;
+}
+
+.room-kpi-icon-occupied {
+  background: #ef4444;
+}
+
+.room-kpi-icon-maintenance {
+  background: #f97316;
+}
+
+.room-kpi-trend {
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 9999px;
+}
+
+.room-kpi-trend-up {
+  color: #059669;
+  background: rgba(34, 197, 94, 0.12);
+}
+
+.room-kpi-trend-neutral {
+  color: #16a34a;
+  background: rgba(34, 197, 94, 0.12);
+}
+
+.room-kpi-trend-amber {
+  color: #d97706;
+  background: rgba(249, 115, 22, 0.12);
+}
+
+/* Number: large bold 32px dark text */
+.room-kpi-number {
+  font-size: 32px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin-bottom: 4px;
+  line-height: 1.2;
+}
+
+/* Label: small 13px muted grey */
+.room-kpi-label {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+/* Dark mode - Room KPI cards and Rooms content */
+.hotel-dashboard.dark .room-kpi-card {
+  background: #1e2535;
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -2px rgba(0, 0, 0, 0.15);
+}
+
+.hotel-dashboard.dark .room-kpi-number {
+  color: #f1f5f9;
+}
+
+.hotel-dashboard.dark .room-kpi-label {
+  color: #94a3b8;
+}
+
+.hotel-dashboard.dark .rooms-section {
+  background: #1e2535;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.hotel-dashboard.dark .rooms-table th {
+  background-color: #1e2535;
+  color: #94a3b8;
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.hotel-dashboard.dark .rooms-table td {
+  color: #f1f5f9;
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.hotel-dashboard.dark .rooms-table tr:hover {
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+.hotel-dashboard.dark .rooms-table {
+  background: #1e2535;
+}
+
+.hotel-dashboard.dark .table-container {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.hotel-dashboard.dark .content-header h1 {
+  color: #f1f5f9;
+}
+
+.hotel-dashboard.dark .rooms-content .subtitle {
+  color: #94a3b8;
+}
+
+.hotel-dashboard.dark .room-number {
+  color: #f1f5f9;
+}
+
+.hotel-dashboard.dark .room-type {
+  color: #94a3b8;
+}
+
+.hotel-dashboard.dark .modal {
+  background: #1e2535;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.hotel-dashboard.dark .modal-header {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.hotel-dashboard.dark .modal-header h3 {
+  color: #f1f5f9;
+}
+
+.hotel-dashboard.dark .modal-close {
+  color: #94a3b8;
+}
+
+.hotel-dashboard.dark .modal-close:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f1f5f9;
+}
+
+.hotel-dashboard.dark .form-group label {
+  color: #f1f5f9;
+}
+
+.hotel-dashboard.dark .form-input {
+  background: #0f1623;
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #f1f5f9;
+}
+
+.hotel-dashboard.dark .form-input:focus {
+  border-color: rgba(99, 102, 241, 0.5);
+}
+
+.hotel-dashboard.dark .modal-footer {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+.hotel-dashboard.dark .filter-btn {
+  background: #1e2535;
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+}
+
+.hotel-dashboard.dark .filter-btn.active,
+.hotel-dashboard.dark .filter-btn:hover {
+  background: rgba(99, 102, 241, 0.2);
+  border-color: #6366f1;
+  color: #f1f5f9;
+}
+
+.hotel-dashboard.dark .section-header h2 {
+  color: #f1f5f9;
+}
+
+/* Legacy stat-card (used by Billing etc.) - keep for other sections */
 .stat-card {
   background: white;
   padding: 20px;
@@ -1708,13 +1954,13 @@
   color: #2c3e50;
 }
 
-/* Rooms Section */
+/* Room Details Card - same as Dashboard Sales Analytics / Order Status cards */
 .rooms-section {
-  background: white;
-  padding: 25px;
-  border-radius: 10px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
-  border: 1px solid #ecf0f1;
+  background: #ffffff;
+  padding: 24px;
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e5e7eb;
 }
 
 .section-header {
@@ -1746,22 +1992,29 @@
   flex-wrap: wrap;
 }
 
+/* Filter Tabs - Dashboard pill/tab style */
 .filter-btn {
   padding: 8px 16px;
-  border: 1px solid #bdc3c7;
-  background: white;
-  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 0.9rem;
-  color: #7f8c8d;
-  transition: all 0.3s ease;
+  color: #6b7280;
+  transition: all 0.2s ease;
 }
 
 .filter-btn.active,
+.rooms-section .filter-btn.active,
+.rooms-section .filter-btn:hover {
+  background: #4f6ef7;
+  color: #ffffff;
+  border-color: #4f6ef7;
+}
+
 .filter-btn:hover {
-  background: #3498db;
-  color: white;
-  border-color: #3498db;
+  border-color: #4f6ef7;
+  color: #4f6ef7;
 }
 
 .action-buttons {
@@ -1769,19 +2022,20 @@
   gap: 10px;
 }
 
+/* Add Room - Dashboard primary button style #4f6ef7 */
 .btn-primary {
-  background: #3498db;
-  color: white;
+  background: #4f6ef7;
+  color: #ffffff;
   border: none;
   padding: 10px 20px;
-  border-radius: 6px;
+  border-radius: 10px;
   cursor: pointer;
   font-weight: 600;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
 .btn-primary:hover {
-  background: #2980b9;
+  background: #3d5ae8;
   transform: translateY(-1px);
 }
 
@@ -1816,40 +2070,40 @@
 }
 
 /* Rooms Table */
-.table-container {
+.rooms-section .table-container {
   overflow-x: auto;
-  border-radius: 6px;
-  border: 1px solid #ecf0f1;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
 }
 
 .rooms-table {
   width: 100%;
   border-collapse: collapse;
-  background: white;
+  background: #ffffff;
   font-size: 0.85rem;
 }
 
 .rooms-table th {
-  background-color: #34495e;
-  padding: 12px 10px;
+  background-color: #f8f9fa;
+  padding: 12px 16px;
   text-align: left;
   font-weight: 600;
-  color: white;
-  border-bottom: 2px solid #2c3e50;
+  color: #6b7280;
+  border-bottom: 1px solid #e5e7eb;
   font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  text-transform: none;
+  letter-spacing: 0.02em;
 }
 
 .rooms-table td {
-  padding: 12px 10px;
-  border-bottom: 1px solid #ecf0f1;
-  color: #2c3e50;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e5e7eb;
+  color: #1a1a2e;
   vertical-align: middle;
 }
 
-.rooms-table tr:hover {
-  background-color: #f8f9fa;
+.rooms-table tbody tr:hover {
+  background-color: #f5f6fa;
 }
 
 .room-number {
@@ -1867,67 +2121,67 @@
   font-weight: 600;
 }
 
-/* Status Badges for Rooms */
+/* Status Badges for Rooms - outline style to match Dashboard */
 .status-badge {
   padding: 6px 12px;
-  border-radius: 20px;
+  border-radius: 8px;
   font-size: 0.75rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  text-transform: none;
+  letter-spacing: 0.02em;
   display: inline-block;
 }
 
 .status-badge.available {
-  background-color: #d5f4e6;
-  color: #27ae60;
-  border: 1px solid #27ae60;
+  background-color: transparent;
+  color: #22c55e;
+  border: 1px solid #22c55e;
 }
 
 .status-badge.occupied {
-  background-color: #fadbd8;
-  color: #e74c3c;
-  border: 1px solid #e74c3c;
+  background-color: transparent;
+  color: #ef4444;
+  border: 1px solid #ef4444;
 }
 
 .status-badge.maintenance {
-  background-color: #fdebd0;
-  color: #f39c12;
-  border: 1px solid #f39c12;
+  background-color: transparent;
+  color: #f97316;
+  border: 1px solid #f97316;
 }
 
 .status-badge.reserved {
-  background-color: #e8daef;
-  color: #9b59b6;
-  border: 1px solid #9b59b6;
+  background-color: transparent;
+  color: #8b5cf6;
+  border: 1px solid #8b5cf6;
 }
 
-/* Cleanliness Badges */
+/* Cleanliness Badges - CLEAN green solid, DIRTY amber outline */
 .cleanliness-badge {
   padding: 6px 12px;
-  border-radius: 20px;
+  border-radius: 8px;
   font-size: 0.75rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  text-transform: none;
+  letter-spacing: 0.02em;
 }
 
 .cleanliness-badge.clean {
-  background-color: #d5f4e6;
-  color: #27ae60;
-  border: 1px solid #27ae60;
+  background-color: #22c55e;
+  color: #ffffff;
+  border: 1px solid #22c55e;
 }
 
 .cleanliness-badge.dirty {
-  background-color: #fadbd8;
-  color: #e74c3c;
-  border: 1px solid #e74c3c;
+  background-color: transparent;
+  color: #f59e0b;
+  border: 1px solid #f59e0b;
 }
 
 .cleanliness-badge.cleaning-in-progress {
-  background-color: #fdebd0;
-  color: #f39c12;
-  border: 1px solid #f39c12;
+  background-color: transparent;
+  color: #f97316;
+  border: 1px solid #f97316;
 }
 
 /* Dashboard Room Overview */
@@ -2100,7 +2354,7 @@
 }
 
 .room-card-details .cleanliness.dirty {
-  color: #e74c3c;
+  color: #f59e0b;
   font-weight: 600;
 }
 
@@ -2115,6 +2369,22 @@
 }
 
 /* Responsive Design */
+@media (max-width: 1024px) {
+  .room-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .rooms-page-wrap {
+    margin-left: 0;
+    padding: 16px;
+  }
+  .room-stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 768px) {
   .room-stats {
     grid-template-columns: repeat(2, 1fr);
