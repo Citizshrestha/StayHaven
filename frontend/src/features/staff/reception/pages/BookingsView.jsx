@@ -5,8 +5,6 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  List,
-  LayoutGrid,
   Calendar,
   Loader2,
   Users
@@ -109,7 +107,7 @@ const BookingsView = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('this-month');
   const [roomFilter, setRoomFilter] = useState('all');
-  const [viewMode, setViewMode] = useState('list');
+
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
 
@@ -412,23 +410,7 @@ const BookingsView = () => {
           )}
         </div>
 
-        {/* View Toggle */}
-        <div className="bv-view-toggle flex items-center gap-1 p-1 rounded-xl ml-auto">
-          <button
-            className={`bv-view-btn flex items-center justify-center w-9 h-9 rounded-lg transition-all duration-200 ${viewMode === 'list' ? 'active' : ''}`}
-            onClick={() => setViewMode('list')}
-            title="List View"
-          >
-            <List size={18} />
-          </button>
-          <button
-            className={`bv-view-btn flex items-center justify-center w-9 h-9 rounded-lg transition-all duration-200 ${viewMode === 'grid' ? 'active' : ''}`}
-            onClick={() => setViewMode('grid')}
-            title="Grid View"
-          >
-            <LayoutGrid size={18} />
-          </button>
-        </div>
+
       </div>
 
       {/* Loading State */}
@@ -465,65 +447,10 @@ const BookingsView = () => {
         </div>
       )}
 
-      {/* Bookings Table */}
-      {!isLoading && filteredBookings.length > 0 && viewMode === 'list' && (
-        <div className="bv-table-container rounded-xl overflow-hidden">
-          <table className="bv-table w-full">
-            <thead>
-              <tr>
-                <th className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider">ID</th>
-                <th className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider">GUEST</th>
-                <th className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider">ROOM</th>
-                <th className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider">CHECK IN</th>
-                <th className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider">CHECK OUT</th>
-                <th className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider">STATUS</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedBookings.map((booking) => (
-                <tr key={booking.id} className="bv-table-row transition-colors duration-150">
-                  <td className="bv-cell-id px-5 py-4 font-medium whitespace-nowrap">{booking.id}</td>
-                  <td className="px-5 py-4">
-                    <div className="bv-guest-info flex items-center gap-3">
-                      {booking.guest.avatar ? (
-                        <img
-                          src={booking.guest.avatar}
-                          alt={booking.guest.name}
-                          className="bv-guest-avatar w-10 h-10 rounded-full object-cover"
-                        />
-                      ) : (
-                        <div className="bv-guest-avatar-placeholder w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
-                          {booking.guest.initials}
-                        </div>
-                      )}
-                      <div className="bv-guest-details flex flex-col gap-0.5">
-                        <span className="bv-guest-name font-medium whitespace-nowrap">{booking.guest.name}</span>
-                        <span className="bv-guest-email text-sm text-slate-500 whitespace-nowrap">{booking.guest.email}</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-5 py-4">
-                    <div className="bv-room-info flex flex-col gap-0.5">
-                      <span className="bv-room-type font-medium whitespace-nowrap">{booking.room.type}</span>
-                      <span className="bv-room-number text-sm text-slate-500 whitespace-nowrap">Room {booking.room.number}</span>
-                    </div>
-                  </td>
-                  <td className="bv-cell-date px-5 py-4 whitespace-nowrap">{formatDate(booking.checkIn)}</td>
-                  <td className="bv-cell-date px-5 py-4 whitespace-nowrap">{formatDate(booking.checkOut)}</td>
-                  <td className="px-5 py-4">
-                    <span className={`bv-status-badge inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap ${getStatusClass(booking.status)}`}>
-                      {booking.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+
 
       {/* Grid View */}
-      {!isLoading && filteredBookings.length > 0 && viewMode === 'grid' && (
+      {!isLoading && filteredBookings.length > 0 && (
         <div className="bv-grid-container grid gap-5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
           {paginatedBookings.map((booking) => (
             <div key={booking.id} className="bv-grid-card p-5 rounded-xl transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5">

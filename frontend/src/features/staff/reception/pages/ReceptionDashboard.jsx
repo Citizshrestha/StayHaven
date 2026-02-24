@@ -5,9 +5,12 @@ import DashboardContent from './DashboardContent';
 import MobileBottomNav from './MobileBottomNav';
 import BookingsView from './BookingsView';
 import CheckInOutView from './CheckInOutView';
+import RoomsView from './RoomsView';
 import HousekeepingView from './HousekeepingView';
 import GuestsView from './GuestsView';
+import BillingView from './BillingView';
 import ReportsView from './ReportsView';
+import StaffView from './StaffView';
 import ReceptionSettings from './ReceptionSettings';
 import { useTheme } from '../../../../hooks/useTheme';
 import { useStaffAuth } from '../../../../context/StaffAuthContext';
@@ -44,9 +47,12 @@ const ReceptionDashboard = () => {
       case 'dashboard': return <DashboardContent />;
       case 'bookings': return <BookingsView />;
       case 'checkinout': return <CheckInOutView />;
+      case 'rooms': return <RoomsView />;
       case 'housekeeping': return <HousekeepingView />;
       case 'guests': return <GuestsView />;
+      case 'billing': return <BillingView />;
       case 'reports': return <ReportsView />;
+      case 'staff': return <StaffView />;
       case 'settings': return <ReceptionSettings onClose={() => setActiveView('dashboard')} />;
       default: return <DashboardContent />;
     }

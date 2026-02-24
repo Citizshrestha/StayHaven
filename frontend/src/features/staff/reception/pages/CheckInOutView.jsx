@@ -457,12 +457,22 @@ const CheckInOutView = () => {
 
               <div className="cio-card-footer flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-700">
                 <div className="cio-contact-icons flex gap-2">
-                  <button className="cio-contact-btn w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200" title={item.guest.phone}>
+                  <a
+                    href={`tel:${item.guest.phone.replace(/[^+\d]/g, '')}`}
+                    className="cio-contact-btn w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200"
+                    title={`Call ${item.guest.phone}`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <Phone size={16} />
-                  </button>
-                  <button className="cio-contact-btn w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200" title={item.guest.email}>
+                  </a>
+                  <a
+                    href={`mailto:${item.guest.email}`}
+                    className="cio-contact-btn w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200"
+                    title={`Email ${item.guest.email}`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <Mail size={16} />
-                  </button>
+                  </a>
                 </div>
                 {activeTab === 'arrivals' && item.status !== 'checked-in' && (
                   <button

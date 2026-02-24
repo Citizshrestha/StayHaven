@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../../../../hooks/useTheme';
 import {
   User,
@@ -22,7 +22,8 @@ import {
   Loader2,
   AlertCircle,
   RefreshCw,
-  LogOut
+  LogOut,
+  Camera
 } from 'lucide-react';
 import './ReceptionSettings.css';
 
@@ -81,6 +82,30 @@ const ReceptionSettings = ({ onClose }) => {
   });
 
   const [passwordError, setPasswordError] = useState('');
+  const [profilePic, setProfilePic] = useState(() => {
+    return localStorage.getItem('stayhaven_profile_pic') || null;
+  });
+  const fileInputRef = useRef(null);
+
+  const handleProfilePicChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image must be less than 5MB');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target.result;
+      setProfilePic(dataUrl);
+      localStorage.setItem('stayhaven_profile_pic', dataUrl);
+    };
+    reader.readAsDataURL(file);
+  };
 
   useEffect(() => {
     setDisplay(prev => ({ ...prev, theme: isDark ? 'dark' : 'light' }));
@@ -165,8 +190,27 @@ const ReceptionSettings = ({ onClose }) => {
             </div>
 
             <div className="rs-profile-card flex items-center gap-4 p-5 rounded-xl mb-6">
-              <div className="rs-avatar w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold">
-                <span>{profile.firstName[0]}{profile.lastName[0]}</span>
+              <div
+                className="rs-avatar w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold cursor-pointer relative overflow-hidden group"
+                onClick={() => fileInputRef.current?.click()}
+                title="Click to change profile picture"
+              >
+                {profilePic ? (
+                  <img src={profilePic} alt="Profile" className="rs-avatar-img" />
+                ) : (
+                  <span>{profile.firstName[0]}{profile.lastName[0]}</span>
+                )}
+                <div className="rs-avatar-overlay">
+                  <Camera size={18} />
+                </div>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleProfilePicChange}
+                  accept="image/*"
+                  className="rs-file-input"
+                  style={{ display: 'none' }}
+                />
               </div>
               <div className="rs-profile-info flex flex-col">
                 <h4 className="text-lg font-semibold">{profile.firstName} {profile.lastName}</h4>

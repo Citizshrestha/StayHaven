@@ -17,6 +17,8 @@ const Sidebar = ({ activeView, onViewChange, collapsed, onToggleCollapse }) => {
     logout = auth?.logout || logout;
   } catch (e) { /* dev mode */ }
 
+  const profilePic = localStorage.getItem('stayhaven_profile_pic') || null;
+
   const sections = [
     {
       label: 'Main',
@@ -89,7 +91,18 @@ const Sidebar = ({ activeView, onViewChange, collapsed, onToggleCollapse }) => {
           {collapsed ? <PanelLeft size={18} /> : <PanelLeftClose size={18} />}
         </button>
         <div className="sh-user-section">
-          <div className="sh-user-avatar">{userInitial}</div>
+          <div
+            className="sh-user-avatar"
+            onClick={() => onViewChange('settings')}
+            style={{ cursor: 'pointer' }}
+            title="Go to Settings"
+          >
+            {profilePic ? (
+              <img src={profilePic} alt={userName} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+            ) : (
+              userInitial
+            )}
+          </div>
           <div className="sh-user-details">
             <h4>{userName}</h4>
             <p>Head Receptionist</p>
