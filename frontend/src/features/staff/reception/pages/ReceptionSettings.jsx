@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../../../../hooks/useTheme';
+import { useStaffAuth } from '../../../../context/StaffAuthContext';
+import { changePassword, updateProfilePicture, updateStaffProfile } from '../../../../api/staff';
+import { toast } from 'react-toastify';
 import {
   User,
   Bell,
@@ -29,23 +32,47 @@ import './ReceptionSettings.css';
 
 const ReceptionSettings = ({ onClose }) => {
   const { isDark, toggleTheme } = useTheme();
+  const { staffUser, updateUser } = useStaffAuth();
   const [activeSection, setActiveSection] = useState('profile');
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingPic, setIsUploadingPic] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
 
-  // User profile state
-  const [profile, setProfile] = useState({
-    firstName: 'Sarah',
-    lastName: 'Johnson',
-    email: 'sarah.johnson@grandhotel.com',
-    phone: '+1 (555) 123-4567',
-    role: 'Front Desk Receptionist',
-    employeeId: 'EMP-2024-0892',
-    department: 'Front Office',
-    joinDate: '2023-06-15'
+  // User profile state — populated from auth context (backend data)
+  const [profile, setProfile] = useState(() => {
+    const nameParts = (staffUser?.fullname || 'Staff User').split(' ');
+    return {
+      firstName: nameParts[0] || '',
+      lastName: nameParts.slice(1).join(' ') || '',
+      email: staffUser?.email || '',
+      phone: staffUser?.contact || '',
+      username: staffUser?.username || '',
+      role: staffUser?.role ? staffUser.role.charAt(0).toUpperCase() + staffUser.role.slice(1) : 'Receptionist',
+      employeeId: staffUser?._id ? `EMP-${staffUser._id.slice(-8).toUpperCase()}` : '',
+      department: 'Front Office',
+      joinDate: staffUser?.createdAt || '',
+    };
   });
+
+  // Sync profile state when staffUser changes (e.g., after login refresh)
+  useEffect(() => {
+    if (staffUser) {
+      const nameParts = (staffUser.fullname || 'Staff User').split(' ');
+      setProfile(prev => ({
+        ...prev,
+        firstName: nameParts[0] || '',
+        lastName: nameParts.slice(1).join(' ') || '',
+        email: staffUser.email || '',
+        phone: staffUser.contact || '',
+        username: staffUser.username || '',
+        role: staffUser.role ? staffUser.role.charAt(0).toUpperCase() + staffUser.role.slice(1) : 'Receptionist',
+        employeeId: staffUser._id ? `EMP-${staffUser._id.slice(-8).toUpperCase()}` : '',
+        joinDate: staffUser.createdAt || '',
+      }));
+    }
+  }, [staffUser]);
 
   // Notification settings
   const [notifications, setNotifications] = useState({
@@ -82,41 +109,98 @@ const ReceptionSettings = ({ onClose }) => {
   });
 
   const [passwordError, setPasswordError] = useState('');
+
+  // Profile picture: prefer staffUser.profilePicture from DB, fallback to localStorage
   const [profilePic, setProfilePic] = useState(() => {
-    return localStorage.getItem('stayhaven_profile_pic') || null;
+    return staffUser?.profilePicture || null;
   });
+
+  // Keep profilePic in sync with staffUser context (e.g., after login)
+  useEffect(() => {
+    if (staffUser?.profilePicture) {
+      setProfilePic(staffUser.profilePicture);
+    }
+  }, [staffUser?.profilePicture]);
+
   const fileInputRef = useRef(null);
 
-  const handleProfilePicChange = (e) => {
+  // Upload profile picture to Cloudinary via backend
+  const handleProfilePicChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) {
-      alert('Please select an image file');
+      toast.error('Please select an image file');
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      alert('Image must be less than 5MB');
+      toast.error('Image must be less than 5MB');
       return;
     }
+
+    // Show a local preview immediately
     const reader = new FileReader();
     reader.onload = (event) => {
-      const dataUrl = event.target.result;
-      setProfilePic(dataUrl);
-      localStorage.setItem('stayhaven_profile_pic', dataUrl);
+      setProfilePic(event.target.result);
     };
     reader.readAsDataURL(file);
+
+    // Upload to backend → Cloudinary
+    setIsUploadingPic(true);
+    try {
+      const data = await updateProfilePicture(file);
+      if (data.success) {
+        // Update with the actual Cloudinary URL
+        setProfilePic(data.profilePicture);
+        // Sync context and localStorage so it persists
+        updateUser({ profilePicture: data.profilePicture });
+        toast.success('Profile picture updated!');
+      } else {
+        toast.error(data.message || 'Failed to update profile picture');
+      }
+    } catch (error) {
+      const msg = error.response?.data?.message || 'Failed to upload image';
+      toast.error(msg);
+      // Revert preview on failure
+      setProfilePic(staffUser?.profilePicture || null);
+    } finally {
+      setIsUploadingPic(false);
+      // Reset file input so same file can be re-selected if needed
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   };
 
   useEffect(() => {
     setDisplay(prev => ({ ...prev, theme: isDark ? 'dark' : 'light' }));
   }, [isDark]);
 
+  // Save profile info (name, phone) to backend DB
   const handleSave = async () => {
     setIsSaving(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setIsSaving(false);
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 3000);
+    try {
+      const fullname = [profile.firstName, profile.lastName].filter(Boolean).join(' ').trim();
+      const data = await updateStaffProfile({
+        fullname: fullname || undefined,
+        contact: profile.phone || undefined,
+        username: profile.username || undefined,
+      });
+
+      if (data.success) {
+        // Sync context and localStorage with updated user
+        updateUser({
+          fullname: data.user.fullname,
+          contact: data.user.contact,
+          username: data.user.username,
+        });
+        setSaveSuccess(true);
+        toast.success('Profile saved successfully!');
+        setTimeout(() => setSaveSuccess(false), 3000);
+      }
+    } catch (error) {
+      const msg = error.response?.data?.message || 'Failed to save profile';
+      toast.error(msg);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handlePasswordChange = async () => {
@@ -138,11 +222,25 @@ const ReceptionSettings = ({ onClose }) => {
     }
 
     setIsSaving(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setIsSaving(false);
-    setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 3000);
+    try {
+      const response = await changePassword(passwordForm.currentPassword, passwordForm.newPassword);
+      if (response.success) {
+        toast.success('Password changed successfully');
+        setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
+      }
+    } catch (error) {
+      const msg = error.response?.data?.message || 'Failed to change password';
+      setPasswordError(msg);
+      // Show validation errors from backend if available
+      if (error.response?.data?.errors) {
+        setPasswordError(error.response.data.errors.join('. '));
+      }
+      toast.error(msg);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleThemeChange = (theme) => {
@@ -192,35 +290,38 @@ const ReceptionSettings = ({ onClose }) => {
             <div className="rs-profile-card flex items-center gap-4 p-5 rounded-xl mb-6">
               <div
                 className="rs-avatar w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold cursor-pointer relative overflow-hidden group"
-                onClick={() => fileInputRef.current?.click()}
-                title="Click to change profile picture"
+                onClick={() => !isUploadingPic && fileInputRef.current?.click()}
+                title={isUploadingPic ? 'Uploading...' : 'Click to change profile picture'}
+                style={{ cursor: isUploadingPic ? 'wait' : 'pointer' }}
               >
                 {profilePic ? (
                   <img src={profilePic} alt="Profile" className="rs-avatar-img" />
                 ) : (
-                  <span>{profile.firstName[0]}{profile.lastName[0]}</span>
+                  <span>{profile.firstName[0]}{profile.lastName?.[0] || ''}</span>
                 )}
                 <div className="rs-avatar-overlay">
-                  <Camera size={18} />
+                  {isUploadingPic ? <Loader2 size={18} className="animate-spin" /> : <Camera size={18} />}
                 </div>
                 <input
                   type="file"
                   ref={fileInputRef}
                   onChange={handleProfilePicChange}
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/jpg,image/webp"
                   className="rs-file-input"
                   style={{ display: 'none' }}
+                  disabled={isUploadingPic}
                 />
               </div>
               <div className="rs-profile-info flex flex-col">
                 <h4 className="text-lg font-semibold">{profile.firstName} {profile.lastName}</h4>
-                <p className="text-sm text-slate-500">{profile.role}</p>
-                <span className="rs-employee-id text-xs text-indigo-600 font-medium mt-1">{profile.employeeId}</span>
+                <p className="text-sm">{profile.role}</p>
+                <span className="rs-employee-id text-xs font-medium mt-1">{profile.employeeId}</span>
+                {isUploadingPic && <span className="text-xs text-indigo-500 mt-1 animate-pulse">Uploading photo...</span>}
               </div>
             </div>
 
             <div className="rs-form flex flex-col gap-4">
-              <div className="rs-form-row grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="rs-form-row grid grid-cols-1 md:grid-cols-2 gap-4" style={{ animationDelay: '0.15s' }}>
                 <div className="rs-form-group flex flex-col gap-2">
                   <label className="text-sm font-medium">First Name</label>
                   <input
@@ -228,6 +329,7 @@ const ReceptionSettings = ({ onClose }) => {
                     value={profile.firstName}
                     onChange={(e) => setProfile(prev => ({ ...prev, firstName: e.target.value }))}
                     className="h-11 px-4 rounded-xl text-sm"
+                    placeholder="First name"
                   />
                 </div>
                 <div className="rs-form-group flex flex-col gap-2">
@@ -237,20 +339,37 @@ const ReceptionSettings = ({ onClose }) => {
                     value={profile.lastName}
                     onChange={(e) => setProfile(prev => ({ ...prev, lastName: e.target.value }))}
                     className="h-11 px-4 rounded-xl text-sm"
+                    placeholder="Last name"
                   />
                 </div>
               </div>
 
               <div className="rs-form-group flex flex-col gap-2">
                 <label className="flex items-center gap-2 text-sm font-medium">
+                  <User size={16} className="text-slate-500" />
+                  Username
+                </label>
+                <input
+                  type="text"
+                  value={profile.username}
+                  onChange={(e) => setProfile(prev => ({ ...prev, username: e.target.value }))}
+                  className="h-11 px-4 rounded-xl text-sm"
+                  placeholder="username"
+                />
+              </div>
+
+              <div className="rs-form-group disabled flex flex-col gap-2 opacity-60">
+                <label className="flex items-center gap-2 text-sm font-medium">
                   <Mail size={16} className="text-slate-500" />
                   Email Address
+                  <span className="text-xs text-slate-400 font-normal">(read-only)</span>
                 </label>
                 <input
                   type="email"
                   value={profile.email}
-                  onChange={(e) => setProfile(prev => ({ ...prev, email: e.target.value }))}
-                  className="h-11 px-4 rounded-xl text-sm"
+                  readOnly
+                  disabled
+                  className="h-11 px-4 rounded-xl text-sm cursor-not-allowed"
                 />
               </div>
 
@@ -264,6 +383,7 @@ const ReceptionSettings = ({ onClose }) => {
                   value={profile.phone}
                   onChange={(e) => setProfile(prev => ({ ...prev, phone: e.target.value }))}
                   className="h-11 px-4 rounded-xl text-sm"
+                  placeholder="e.g. +977-9800000000"
                 />
               </div>
 
@@ -273,8 +393,13 @@ const ReceptionSettings = ({ onClose }) => {
                   <input type="text" value={profile.department} disabled className="h-11 px-4 rounded-xl text-sm cursor-not-allowed" />
                 </div>
                 <div className="rs-form-group disabled flex flex-col gap-2 opacity-60">
-                  <label className="text-sm font-medium">Join Date</label>
-                  <input type="text" value={new Date(profile.joinDate).toLocaleDateString()} disabled className="h-11 px-4 rounded-xl text-sm cursor-not-allowed" />
+                  <label className="text-sm font-medium">Member Since</label>
+                  <input
+                    type="text"
+                    value={profile.joinDate ? new Date(profile.joinDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'}
+                    disabled
+                    className="h-11 px-4 rounded-xl text-sm cursor-not-allowed"
+                  />
                 </div>
               </div>
             </div>
@@ -763,7 +888,7 @@ const ReceptionSettings = ({ onClose }) => {
               </>
             ) : saveSuccess ? (
               <>
-                <Check size={18} />
+                <Check size={18} className="text-emerald-200" />
                 Saved!
               </>
             ) : (
