@@ -64,34 +64,257 @@ const OccupancyRing = ({ pct }) => {
   );
 };
 
-/* ── Donut Chart ── */
-const DonutChart = ({ segments }) => {
-  const total = segments.reduce((s, seg) => s + seg.value, 0);
-  let acc = 0;
-  const r = 42; const circ = 2 * Math.PI * r;
+/* ── Enhanced Weekly Occupancy Chart v2 ── */
+const WeeklyOccupancyChart = () => {
+  const [hoveredIdx, setHoveredIdx] = useState(null);
+  const occupancyData = [
+    { day: 'Mon', value: 68, name: 'Monday' },
+    { day: 'Tue', value: 75, name: 'Tuesday' },
+    { day: 'Wed', value: 72, name: 'Wednesday' },
+    { day: 'Thu', value: 85, name: 'Thursday' },
+    { day: 'Fri', value: 92, name: 'Friday' },
+    { day: 'Sat', value: 96, name: 'Saturday' },
+    { day: 'Sun', value: 89, name: 'Sunday' }
+  ];
+
+  const avg = Math.round(occupancyData.reduce((a, d) => a + d.value, 0) / occupancyData.length);
+  const targetPct = 85;
+  const svgW = 340;
+  const svgH = 200;
+  const pad = { top: 24, bottom: 36, left: 36, right: 16 };
+  const iW = svgW - pad.left - pad.right;
+  const iH = svgH - pad.top - pad.bottom;
+
+  const pts = occupancyData.map((d, i) => ({
+    x: pad.left + (i / (occupancyData.length - 1)) * iW,
+    y: pad.top + iH - (d.value / 100) * iH,
+    ...d
+  }));
+
+  const linePath = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+  const areaPath = `M ${pts[0].x} ${pad.top + iH} ` +
+    pts.map(p => `L ${p.x} ${p.y}`).join(' ') +
+    ` L ${pts[pts.length - 1].x} ${pad.top + iH} Z`;
+
+  const targetY = pad.top + iH - (targetPct / 100) * iH;
+
   return (
-    <div className="sh-donut-wrap">
-      <svg className="sh-donut-svg" viewBox="0 0 120 120">
-        {segments.map((seg, i) => {
-          const pct = seg.value / total;
-          const dashLen = pct * circ;
-          const dashOffset = -acc * circ;
-          acc += pct;
-          return (
-            <circle key={i} cx="60" cy="60" r={r} fill="none"
-              stroke={seg.color} strokeWidth="16" strokeDasharray={`${dashLen} ${circ - dashLen}`}
-              strokeDashoffset={dashOffset} style={{ transform: 'rotate(-90deg)', transformOrigin: '60px 60px' }} />
-          );
-        })}
-      </svg>
-      <div className="sh-donut-legend">
-        {segments.map((seg, i) => (
-          <div key={i} className="sh-donut-legend-item">
-            <div className="sh-donut-legend-dot" style={{ background: seg.color }} />
-            <span>{seg.label}</span>
-            <span className="sh-donut-legend-value">₹{(seg.value / 1000).toFixed(0)}k</span>
-          </div>
-        ))}
+    <div className="sh-v2-chart-card">
+      <div className="sh-v2-chart-header">
+        <div>
+          <h3 className="sh-v2-chart-title">Weekly Occupancy</h3>
+          <span className="sh-v2-chart-avg">Avg: {avg}%</span>
+        </div>
+        <span className="sh-v2-badge up">
+          <TrendingUp size={12} /> +12%
+        </span>
+      </div>
+      <div className="sh-v2-chart-body">
+        <svg viewBox={`0 0 ${svgW} ${svgH}`} className="sh-v2-occ-svg" preserveAspectRatio="xMidYMid meet">
+          <defs>
+            <linearGradient id="v2OccGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#3730A3" stopOpacity="0.25" />
+              <stop offset="100%" stopColor="#3730A3" stopOpacity="0.02" />
+            </linearGradient>
+          </defs>
+
+          {/* Horizontal grid */}
+          {[0, 25, 50, 75, 100].map(v => {
+            const y = pad.top + iH - (v / 100) * iH;
+            return (
+              <g key={v}>
+                <line x1={pad.left} y1={y} x2={svgW - pad.right} y2={y}
+                  stroke="var(--border-secondary)" strokeWidth="0.6" strokeDasharray="3,3" opacity="0.5" />
+                <text x={pad.left - 6} y={y + 3.5} textAnchor="end" fontSize="9" fontWeight="500"
+                  fill="var(--text-tertiary)" fontFamily="'Plus Jakarta Sans', sans-serif">{v}%</text>
+              </g>
+            );
+          })}
+
+          {/* Target line */}
+          <line x1={pad.left} y1={targetY} x2={svgW - pad.right} y2={targetY}
+            stroke="#F59E0B" strokeWidth="1" strokeDasharray="6,4" opacity="0.8" />
+          <text x={svgW - pad.right + 4} y={targetY + 3} fontSize="8" fontWeight="600"
+            fill="#F59E0B" fontFamily="'Plus Jakarta Sans', sans-serif">Target</text>
+
+          {/* Gradient area */}
+          <path d={areaPath} fill="url(#v2OccGrad)" className="sh-v2-area" />
+
+          {/* Line */}
+          <path d={linePath} fill="none" stroke="#3730A3" strokeWidth="2.5"
+            strokeLinecap="round" strokeLinejoin="round" className="sh-v2-line" />
+
+          {/* Hover column zones (invisible rects for better hit area) */}
+          {pts.map((p, i) => {
+            const colW = iW / occupancyData.length;
+            return (
+              <rect key={`zone-${i}`}
+                x={p.x - colW / 2} y={pad.top} width={colW} height={iH + pad.bottom}
+                fill="transparent"
+                onMouseEnter={() => setHoveredIdx(i)}
+                onMouseLeave={() => setHoveredIdx(null)}
+                style={{ cursor: 'pointer' }}
+              />
+            );
+          })}
+
+          {/* Data points */}
+          {pts.map((p, i) => (
+            <circle key={p.day} cx={p.x} cy={p.y} r={hoveredIdx === i ? 6 : 4}
+              fill={hoveredIdx === i ? '#3730A3' : '#fff'}
+              stroke="#3730A3" strokeWidth="2.5"
+              className={`sh-v2-dot${hoveredIdx === i ? ' active' : ''}`} />
+          ))}
+
+          {/* Tooltip */}
+          {hoveredIdx !== null && (() => {
+            const p = pts[hoveredIdx];
+            const delta = hoveredIdx > 0 ? p.value - pts[hoveredIdx - 1].value : 0;
+            const deltaStr = hoveredIdx > 0 ? (delta >= 0 ? `+${delta}%` : `${delta}%`) : '—';
+            const tipW = 90;
+            const tipH = 48;
+            let tx = p.x - tipW / 2;
+            if (tx < pad.left) tx = pad.left;
+            if (tx + tipW > svgW - pad.right) tx = svgW - pad.right - tipW;
+            const ty = p.y - tipH - 14;
+            return (
+              <g className="sh-v2-tooltip">
+                <rect x={tx} y={ty} width={tipW} height={tipH} rx="8"
+                  fill="var(--bg-surface)" stroke="var(--border-primary)" strokeWidth="1"
+                  filter="url(#v2Shadow)" />
+                <text x={tx + tipW / 2} y={ty + 16} textAnchor="middle" fontSize="10" fontWeight="700"
+                  fill="var(--text-primary)" fontFamily="'Plus Jakarta Sans', sans-serif">{p.name}</text>
+                <text x={tx + tipW / 2} y={ty + 30} textAnchor="middle" fontSize="12" fontWeight="800"
+                  fill="#3730A3" fontFamily="'Plus Jakarta Sans', sans-serif">{p.value}%</text>
+                <text x={tx + tipW / 2} y={ty + 42} textAnchor="middle" fontSize="9" fontWeight="500"
+                  fill={delta >= 0 ? '#10B981' : '#EF4444'}
+                  fontFamily="'Plus Jakarta Sans', sans-serif">vs prev: {deltaStr}</text>
+                {/* Arrow */}
+                <polygon points={`${p.x - 5},${ty + tipH} ${p.x + 5},${ty + tipH} ${p.x},${ty + tipH + 6}`}
+                  fill="var(--bg-surface)" stroke="var(--border-primary)" strokeWidth="1" />
+                <line x1={p.x - 5} y1={ty + tipH} x2={p.x + 5} y2={ty + tipH}
+                  stroke="var(--bg-surface)" strokeWidth="2" />
+              </g>
+            );
+          })()}
+
+          {/* Day labels */}
+          {pts.map(p => (
+            <text key={`lbl-${p.day}`} x={p.x} y={svgH - 8} textAnchor="middle"
+              fontSize="10" fontWeight="600" fill="var(--text-tertiary)"
+              fontFamily="'Plus Jakarta Sans', sans-serif">{p.day}</text>
+          ))}
+        </svg>
+      </div>
+    </div>
+  );
+};
+
+/* ── Enhanced Revenue Donut Chart v2 ── */
+const EnhancedDonutChart = ({ segments }) => {
+  const [hoveredSeg, setHoveredSeg] = useState(null);
+  const total = segments.reduce((s, seg) => s + seg.value, 0);
+  const cx = 90;
+  const cy = 90;
+  const r = 68;
+  const strokeW = 26;
+
+  // Build arc paths for each segment
+  const segArcs = [];
+  let startAngle = -90; // start from top
+  segments.forEach((seg, i) => {
+    const pct = seg.value / total;
+    const angle = pct * 360;
+    const endAngle = startAngle + angle;
+    const startRad = (startAngle * Math.PI) / 180;
+    const endRad = (endAngle * Math.PI) / 180;
+    const x1 = cx + r * Math.cos(startRad);
+    const y1 = cy + r * Math.sin(startRad);
+    const x2 = cx + r * Math.cos(endRad);
+    const y2 = cy + r * Math.sin(endRad);
+    const largeArc = angle > 180 ? 1 : 0;
+    const path = `M ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2}`;
+
+    // Label position: midpoint on outside
+    const midAngleRad = ((startAngle + angle / 2) * Math.PI) / 180;
+    const labelR = r + strokeW / 2 + 14;
+    const lx = cx + labelR * Math.cos(midAngleRad);
+    const ly = cy + labelR * Math.sin(midAngleRad);
+
+    segArcs.push({ ...seg, path, pct, lx, ly, idx: i });
+    startAngle = endAngle;
+  });
+
+  return (
+    <div className="sh-v2-chart-card">
+      <div className="sh-v2-chart-header">
+        <div>
+          <h3 className="sh-v2-chart-title">Revenue Split</h3>
+          <span className="sh-v2-chart-avg">This Month</span>
+        </div>
+        <span className="sh-v2-badge up">
+          <TrendingUp size={12} /> +8.5%
+        </span>
+      </div>
+      <div className="sh-v2-donut-body">
+        <div className="sh-v2-donut-wrap">
+          <svg viewBox="0 0 180 180" className="sh-v2-donut-svg">
+            {/* Background ring */}
+            <circle cx={cx} cy={cy} r={r} fill="none"
+              stroke="var(--bg-inset)" strokeWidth={strokeW} opacity="0.5" />
+
+            {/* Segments */}
+            {segArcs.map((seg) => (
+              <path key={seg.idx} d={seg.path} fill="none"
+                stroke={seg.color} strokeWidth={hoveredSeg === seg.idx ? strokeW + 4 : strokeW}
+                strokeLinecap="round"
+                className="sh-v2-donut-seg"
+                onMouseEnter={() => setHoveredSeg(seg.idx)}
+                onMouseLeave={() => setHoveredSeg(null)}
+                style={{
+                  filter: hoveredSeg === seg.idx ? `drop-shadow(0 0 8px ${seg.color}88)` : 'none',
+                  transition: 'all 0.3s ease'
+                }}
+              />
+            ))}
+
+            {/* Outside percentage labels */}
+            {segArcs.map((seg) => (
+              <text key={`pct-${seg.idx}`} x={seg.lx} y={seg.ly + 3}
+                textAnchor="middle" fontSize="10" fontWeight="700"
+                fill={seg.color} fontFamily="'Plus Jakarta Sans', sans-serif">
+                {(seg.pct * 100).toFixed(0)}%
+              </text>
+            ))}
+
+            {/* Center text */}
+            <text x={cx} y={cy - 8} textAnchor="middle" fontSize="10" fontWeight="500"
+              fill="var(--text-tertiary)" fontFamily="'Plus Jakarta Sans', sans-serif"
+              className="sh-v2-center-label">Total</text>
+            <text x={cx} y={cy + 12} textAnchor="middle" fontSize="18" fontWeight="800"
+              fill="var(--text-primary)" fontFamily="'Plus Jakarta Sans', sans-serif"
+              className="sh-v2-center-value">₹{(total / 1000).toFixed(0)}k</text>
+          </svg>
+        </div>
+
+        {/* Legend */}
+        <div className="sh-v2-legend">
+          {segments.map((seg, i) => {
+            const pct = ((seg.value / total) * 100).toFixed(1);
+            return (
+              <div key={i} className={`sh-v2-legend-row${hoveredSeg === i ? ' active' : ''}`}
+                onMouseEnter={() => setHoveredSeg(i)}
+                onMouseLeave={() => setHoveredSeg(null)}>
+                <div className="sh-v2-legend-dot" style={{ background: seg.color }} />
+                <span className="sh-v2-legend-label">{seg.label}</span>
+                <div className="sh-v2-legend-right">
+                  <span className="sh-v2-legend-val">₹{(seg.value / 1000).toFixed(0)}k</span>
+                  <span className="sh-v2-legend-pct">{pct}%</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -155,7 +378,19 @@ const DashboardContent = () => {
   const [contacts, setContacts] = useState({ waiters: [], chefs: [], receptionists: [], managers: [] });
   const socketRef = useRef(null);
   const msgBodyRef = useRef(null);
-  const hotelId = localStorage.getItem('activeProperty')?.replace(/"/g, '') || staffUser?.activeProperty?._id || DEV_HOTEL_ID;
+  const hotelId = (() => {
+    try {
+      const stored = localStorage.getItem('activeProperty');
+      if (!stored) return staffUser?.activeProperty?._id || DEV_HOTEL_ID;
+      const parsed = JSON.parse(stored);
+      // If it's an object with _id, extract it; if it's a plain string ID, use it directly
+      return (typeof parsed === 'object' && parsed?._id) ? parsed._id : (typeof parsed === 'string' ? parsed : staffUser?.activeProperty?._id || DEV_HOTEL_ID);
+    } catch {
+      // If JSON parse fails, it might be a raw string ID
+      const raw = localStorage.getItem('activeProperty')?.replace(/"/g, '');
+      return raw || staffUser?.activeProperty?._id || DEV_HOTEL_ID;
+    }
+  })();
   const isLoggedIn = !!staffUser;
 
   // Modal states
@@ -531,7 +766,24 @@ const DashboardContent = () => {
             )}
           </div>
           <button className="sh-topbar-btn" onClick={toggleTheme}>{isDark ? <Sun size={18} /> : <Moon size={18} />}</button>
-          <button className="sh-avatar-btn">{staffUser?.fullname?.charAt(0)?.toUpperCase() || 'S'}</button>
+          {staffUser?.profilePicture ? (
+            <img
+              src={staffUser.profilePicture}
+              alt={staffUser.fullname}
+              className="sh-avatar-btn"
+              style={{ padding: 0, objectFit: 'cover' }}
+            />
+          ) : (
+            <button className="sh-avatar-btn">
+              {staffUser?.fullname
+                ? (function (name) {
+                  const parts = name.trim().split(/\s+/);
+                  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+                  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+                })(staffUser.fullname)
+                : 'S'}
+            </button>
+          )}
         </div>
       </header>
 
@@ -653,44 +905,16 @@ const DashboardContent = () => {
               </div>
             </div>
 
-            {/* Bottom Row: Occupancy Chart + Revenue Donut + Housekeeping  */}
+            {/* Bottom Row: Enhanced Charts + Housekeeping  */}
             <div className="sh-bottom-widgets">
-              {/* Occupancy Analytics */}
-              <div className="sh-card" style={{ animationDelay: '0.4s' }}>
-                <div className="sh-card-header">
-                  <h3 className="sh-card-title">📊 Weekly Occupancy</h3>
-                </div>
-                <div className="sh-card-body">
-                  <div className="sh-occ-chart">
-                    <svg viewBox="0 0 280 140" preserveAspectRatio="none">
-                      <defs>
-                        <linearGradient id="occFill" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#6366f1" stopOpacity="0.15" />
-                          <stop offset="100%" stopColor="#6366f1" stopOpacity="0" />
-                        </linearGradient>
-                      </defs>
-                      {[0, 1, 2, 3, 4].map(i => <line key={i} x1="0" y1={i * 35} x2="280" y2={i * 35} stroke="var(--border-secondary)" strokeWidth="1" />)}
-                      <polygon points="0,140 0,84 46,70 93,77 140,56 186,49 233,42 280,35 280,140" fill="url(#occFill)" />
-                      <polyline points="0,84 46,70 93,77 140,56 186,49 233,42 280,35" fill="none" stroke="#6366f1" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                      {[{ x: 0, y: 84 }, { x: 46, y: 70 }, { x: 93, y: 77 }, { x: 140, y: 56 }, { x: 186, y: 49 }, { x: 233, y: 42 }, { x: 280, y: 35 }].map((p, i) =>
-                        <circle key={i} cx={p.x} cy={p.y} r="3.5" fill="#6366f1" stroke="var(--bg-surface)" strokeWidth="2" />
-                      )}
-                    </svg>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-tertiary)', marginTop: 8 }}>
-                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => <span key={d}>{d}</span>)}
-                  </div>
-                </div>
+              {/* Enhanced Weekly Occupancy */}
+              <div className="sh-v2-chart-wrapper" style={{ animationDelay: '0.4s' }}>
+                <WeeklyOccupancyChart />
               </div>
 
-              {/* Revenue Breakdown */}
-              <div className="sh-card" style={{ animationDelay: '0.45s' }}>
-                <div className="sh-card-header">
-                  <h3 className="sh-card-title">💰 Revenue Split</h3>
-                </div>
-                <div className="sh-card-body">
-                  <DonutChart segments={revenueSegments} />
-                </div>
+              {/* Enhanced Revenue Split */}
+              <div className="sh-v2-chart-wrapper" style={{ animationDelay: '0.45s' }}>
+                <EnhancedDonutChart segments={revenueSegments} />
               </div>
 
               {/* Housekeeping */}

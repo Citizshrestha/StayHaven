@@ -209,10 +209,14 @@ const App = () => {
                         }
                       />
 
-                      {/* Reception Dashboard (temporarily unprotected) */}
+                      {/* Reception Dashboard - Protected */}
                       <Route
                         path="/reception-dashboard"
-                        element={<ReceptionDashboard />}
+                        element={
+                          <ProtectedStaffRoute allowedRoles={["receptionist", "manager", "admin", "owner"]}>
+                            <ReceptionDashboard />
+                          </ProtectedStaffRoute>
+                        }
                       />
 
                       {/* Super Admin Dashboard */}
