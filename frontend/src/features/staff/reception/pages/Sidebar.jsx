@@ -17,7 +17,7 @@ const Sidebar = ({ activeView, onViewChange, collapsed, onToggleCollapse }) => {
     logout = auth?.logout || logout;
   } catch (e) { /* dev mode */ }
 
-  const profilePic = localStorage.getItem('stayhaven_profile_pic') || null;
+  const profilePic = staffUser?.profilePicture || null;
 
   const sections = [
     {
@@ -105,7 +105,7 @@ const Sidebar = ({ activeView, onViewChange, collapsed, onToggleCollapse }) => {
           </div>
           <div className="sh-user-details">
             <h4>{userName}</h4>
-            <p>Head Receptionist</p>
+            <p>{staffUser?.role ? staffUser.role.charAt(0).toUpperCase() + staffUser.role.slice(1) : 'Receptionist'}</p>
           </div>
           <button className="sh-user-logout" onClick={handleLogout} title="Logout">
             <LogOut size={16} />
