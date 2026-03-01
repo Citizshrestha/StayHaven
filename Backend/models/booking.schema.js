@@ -4,7 +4,15 @@ const bookingSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
-    required: true,
+    required: false,   // optional — walk-in guests may not have a user account
+  },
+  // Inline guest details for walk-in / anonymous bookings
+  guestInfo: {
+    name:    { type: String, trim: true },
+    phone:   { type: String, trim: true },
+    email:   { type: String, trim: true, lowercase: true },
+    idType:  { type: String, trim: true },
+    idNumber:{ type: String, trim: true },
   },
   hotel: {
     type: mongoose.Schema.Types.ObjectId,
@@ -91,7 +99,7 @@ const bookingSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Indexes for performance
-bookingSchema.index({ user: 1, status: 1 });
+bookingSchema.index({ user: 1, status: 1 }, { sparse: true });  // sparse because user is now optional
 bookingSchema.index({ room: 1, checkIn: 1, checkOut: 1 });
 bookingSchema.index({ hotel: 1, status: 1 });
 bookingSchema.index({ confirmationCode: 1 });
