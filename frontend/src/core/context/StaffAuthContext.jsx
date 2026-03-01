@@ -13,8 +13,13 @@ export const StaffAuthProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const refreshTimerRef = useRef(null);
 
+  // Track in-flight refresh so the timer never fires two simultaneous rotations
+  const refreshInProgressRef = useRef(false);
+
   // Proactive token refresh function
   const refreshToken = useCallback(async () => {
+    if (refreshInProgressRef.current) return false;
+    refreshInProgressRef.current = true;
     try {
       const { data } = await axios.post(
         `${import.meta.env.VITE_API_BASE_URL}/api/staff/refresh-token`,
@@ -24,13 +29,15 @@ export const StaffAuthProvider = ({ children }) => {
       
       if (data.success && data.accessToken) {
         localStorage.setItem("staffAccessToken", data.accessToken);
-        console.log("🔄 Token refreshed proactively");
         return true;
       }
       return false;
     } catch (error) {
-      console.warn("⚠️ Proactive token refresh failed:", error.message);
+      // Refresh token absent or expired — silently fail; the axios interceptor
+      // in client.js will handle actual 401s from real API calls.
       return false;
+    } finally {
+      refreshInProgressRef.current = false;
     }
   }, []);
 
@@ -62,15 +69,12 @@ export const StaffAuthProvider = ({ children }) => {
           const user = JSON.parse(savedUser);
           setStaffUser(user);
           
-          // Try to refresh token on mount to ensure it's valid
-          const refreshed = await refreshToken();
-          if (!refreshed) {
-            // Token refresh failed, but don't logout immediately
-            // The axios interceptor will handle 401s
-            console.log("⚠️ Initial token refresh failed, will retry on next request");
-          }
-          
-          // Setup proactive refresh timer
+          // Restore session from localStorage. The access token is already
+          // stored and valid. DO NOT proactively call refreshToken() here —
+          // token rotation means two simultaneous page-loads would race and
+          // the loser gets a 401. The axios interceptor in client.js handles
+          // actual 401s from API calls.  Just start the proactive timer so
+          // the token is renewed before it expires (~55 min into the session).
           setupRefreshTimer();
         }
       } catch (error) {
@@ -93,7 +97,7 @@ export const StaffAuthProvider = ({ children }) => {
         clearInterval(refreshTimerRef.current);
       }
     };
-  }, [refreshToken, setupRefreshTimer]);
+  }, [setupRefreshTimer]);
 
   // Login function - called after successful API login
   const login = (userData) => {

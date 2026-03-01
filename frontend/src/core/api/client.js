@@ -1,5 +1,8 @@
 import axios from "axios";
 
+// Singleton refresh promise — prevents concurrent token-rotation races
+let activeRefreshPromise = null;
+
 const axiosClient = axios.create({
     baseURL: import.meta.env.VITE_API_BASE_URL,
     headers: {
@@ -49,6 +52,9 @@ axiosClient.interceptors.response.use(
             '/api/auth/resetPassword',
             '/api/auth/sendSignupOtp',
             '/api/auth/verifySignupOtp',
+            // Token refresh endpoints — never try to refresh a refresh
+            '/api/auth/refresh',
+            '/api/staff/refresh-token',
             // Staff public endpoints
             '/api/staff/login',
             '/api/staff/forgot-password',
@@ -83,13 +89,17 @@ axiosClient.interceptors.response.use(
                     ? '/api/staff/refresh-token'
                     : '/api/auth/refresh';
                 
-                // Use axios directly to avoid interceptor loop
-                const { data } = await axios.post(
-                    import.meta.env.VITE_API_BASE_URL + refreshUrl, 
-                    {}, 
-                    { withCredentials: true }
-                );
-                
+                // Use singleton promise to prevent concurrent refresh races
+                // (token rotation: second simultaneous call would 401 because DB already rotated)
+                if (!activeRefreshPromise) {
+                    activeRefreshPromise = axios.post(
+                        import.meta.env.VITE_API_BASE_URL + refreshUrl,
+                        {},
+                        { withCredentials: true }
+                    ).finally(() => { activeRefreshPromise = null; });
+                }
+
+                const { data } = await activeRefreshPromise;
                 const newAccessToken = data.accessToken;
                 
                 // Store in the correct key

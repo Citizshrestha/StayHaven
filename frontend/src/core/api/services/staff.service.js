@@ -125,7 +125,7 @@ export const updateProfilePicture = async (file) => {
   const formData = new FormData();
   formData.append("profilePicture", file);
 
-  const response = await axiosClient.patch("/staff/profile-picture", formData, {
+  const response = await axiosClient.patch("/api/staff/profile-picture", formData, {
     headers: {
       "Content-Type": "multipart/form-data",
     },

@@ -297,7 +297,7 @@ const Select = ({ icon: Icon, isDark, options, disabled = false, ...props }) => 
         borderRadius: '10px',
         fontSize: '14px',
         color: disabled ? (isDark ? '#64748b' : '#94a3b8') : (isDark ? '#f1f5f9' : '#0f172a'),
-        background: disabled
+        backgroundColor: disabled
           ? (isDark ? 'rgba(15, 23, 42, 0.3)' : 'rgba(248, 250, 252, 0.5)')
           : (isDark ? 'rgba(15, 23, 42, 0.6)' : '#ffffff'),
         transition: 'all 0.2s',
@@ -786,12 +786,25 @@ export const WalkInGuestModal = ({ isOpen, onClose, isDark, hotelId }) => {
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successData, setSuccessData] = useState(null); // { confirmationCode, guestName, roomLabel }
+
+  const resetForm = () => {
+    setFormData({ guestName: '', guestEmail: '', guestPhone: '', idType: 'passport', idNumber: '', roomId: '', checkOutDate: '', paymentMethod: 'card' });
+    setError('');
+    setSuccessData(null);
+  };
+
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
 
   // Load available rooms when modal opens
   React.useEffect(() => {
     if (isOpen && hotelId) {
       loadAvailableRooms();
     }
+    if (!isOpen) resetForm();
   }, [isOpen, hotelId]);
 
   const loadAvailableRooms = async () => {
@@ -820,7 +833,7 @@ export const WalkInGuestModal = ({ isOpen, onClose, isDark, hotelId }) => {
       setError('');
       const axiosClient = (await import('../../../../axiosClient')).default;
 
-      await axiosClient.post('/api/bookings/walk-in/check-in', {
+      const res = await axiosClient.post('/api/bookings/walk-in/check-in', {
         guestName: formData.guestName,
         guestEmail: formData.guestEmail,
         guestPhone: formData.guestPhone,
@@ -832,18 +845,13 @@ export const WalkInGuestModal = ({ isOpen, onClose, isDark, hotelId }) => {
         hotelId: hotelId
       });
 
-      alert('Walk-in guest checked in successfully!');
-      setFormData({
-        guestName: '',
-        guestEmail: '',
-        guestPhone: '',
-        idType: 'passport',
-        idNumber: '',
-        roomId: '',
-        checkOutDate: '',
-        paymentMethod: 'card'
+      const booking = res.data?.booking;
+      const roomLabel = availableRoomOptions.find(r => r.value === formData.roomId)?.label || 'Selected Room';
+      setSuccessData({
+        confirmationCode: booking?.confirmationCode || 'N/A',
+        guestName: formData.guestName,
+        roomLabel,
       });
-      onClose();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to check in guest');
       console.error(err);
@@ -877,17 +885,40 @@ export const WalkInGuestModal = ({ isOpen, onClose, isDark, hotelId }) => {
   });
 
   return (
-    <ModalOverlay isOpen={isOpen} onClose={onClose} isDark={isDark}>
+    <ModalOverlay isOpen={isOpen} onClose={handleClose} isDark={isDark}>
       <ModalContainer isDark={isDark} width="520px">
         <ModalHeader
           icon={User}
           title="Walk-In Guest"
           subtitle="Quick check-in for walk-in guests"
-          onClose={onClose}
+          onClose={handleClose}
           isDark={isDark}
           accentColor="#10b981"
         />
         <ModalBody>
+          {/* ── Success state ── */}
+          {successData ? (
+            <div style={{ textAlign: 'center', padding: '24px 8px' }}>
+              <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#d1fae5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                <CheckCircle size={32} style={{ color: '#10b981' }} />
+              </div>
+              <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary, #111)', marginBottom: 8 }}>
+                Guest Checked In!
+              </h3>
+              <p style={{ fontSize: 14, color: '#6b7280', marginBottom: 20 }}>
+                <strong>{successData.guestName}</strong> has been successfully checked in.
+              </p>
+              <div style={{ background: isDark ? 'rgba(16,185,129,0.1)' : '#f0fdf4', borderRadius: 10, padding: '12px 20px', marginBottom: 24, border: '1px solid #bbf7d0' }}>
+                <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Confirmation Code</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: '#10b981', letterSpacing: 2 }}>{successData.confirmationCode}</div>
+                <div style={{ fontSize: 12, color: '#6b7280', marginTop: 6 }}>{successData.roomLabel}</div>
+              </div>
+              <PrimaryButton onClick={handleClose} isDark={isDark} style={{ width: '100%' }}>
+                Done
+              </PrimaryButton>
+            </div>
+          ) : (
+            <>
           {error && (
             <div style={{
               padding: '12px 16px',
@@ -993,6 +1024,7 @@ export const WalkInGuestModal = ({ isOpen, onClose, isDark, hotelId }) => {
               icon={Calendar}
               isDark={isDark}
               type="date"
+              min={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
               value={formData.checkOutDate}
               onChange={(e) => setFormData({ ...formData, checkOutDate: e.target.value })}
               disabled={loading}
@@ -1009,16 +1041,20 @@ export const WalkInGuestModal = ({ isOpen, onClose, isDark, hotelId }) => {
               disabled={loading}
             />
           </FormGroup>
+            </> /* end else */
+          )} {/* end successData ternary */}
         </ModalBody>
-        <ModalFooter isDark={isDark}>
-          <SecondaryButton onClick={onClose} isDark={isDark} disabled={loading}>
-            Cancel
-          </SecondaryButton>
-          <PrimaryButton onClick={handleSubmit} isDark={isDark} disabled={loading || !formData.roomId}>
-            <CheckCircle size={18} />
-            {loading ? 'Checking In...' : 'Check In Guest'}
-          </PrimaryButton>
-        </ModalFooter>
+        {!successData && (
+          <ModalFooter isDark={isDark}>
+            <SecondaryButton onClick={handleClose} isDark={isDark} disabled={loading}>
+              Cancel
+            </SecondaryButton>
+            <PrimaryButton onClick={handleSubmit} isDark={isDark} disabled={loading || !formData.roomId}>
+              <CheckCircle size={18} />
+              {loading ? 'Checking In...' : 'Check In Guest'}
+            </PrimaryButton>
+          </ModalFooter>
+        )}
       </ModalContainer>
     </ModalOverlay>
   );
