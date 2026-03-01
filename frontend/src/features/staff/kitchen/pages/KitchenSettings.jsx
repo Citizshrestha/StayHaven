@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import {
   Bell, Settings as SettingsIcon, X,
-  ChevronRight, Lock, Eye, EyeOff, Camera
+  ChevronRight, Lock, Eye, EyeOff, Camera, Pencil, Check
 } from "lucide-react";
 import { useStaffAuth } from "../../../../context/StaffAuthContext";
 import { toast } from "react-toastify";
@@ -14,6 +14,12 @@ const KitchenSettings = ({ onClose, isDarkMode, onToggleDarkMode }) => {
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [isUploadingPic, setIsUploadingPic] = useState(false);
   const fileInputRef = useRef(null);
+
+  // Name editing state
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState(staffUser?.fullname || "");
+  const [isSavingName, setIsSavingName] = useState(false);
+
   const [passwordState, setPasswordState] = useState({
     currentPassword: "",
     newPassword: "",
@@ -80,6 +86,38 @@ const KitchenSettings = ({ onClose, isDarkMode, onToggleDarkMode }) => {
   const updateSetting = (key, value) => {
     const newSettings = { ...settings, [key]: value };
     setSettings(newSettings);
+  };
+
+  // Save name to DB and sync context
+  const handleSaveName = async () => {
+    const trimmed = editedName.trim();
+    if (!trimmed) {
+      toast.error("Name cannot be empty");
+      return;
+    }
+    if (trimmed === staffUser?.fullname) {
+      setIsEditingName(false);
+      return;
+    }
+    setIsSavingName(true);
+    try {
+      const response = await axiosClient.patch("/api/staff/profile", { fullname: trimmed });
+      if (response.data.success) {
+        updateUser({ fullname: trimmed });
+        toast.success("Name updated!");
+        setIsEditingName(false);
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to update name");
+      setEditedName(staffUser?.fullname || "");
+    } finally {
+      setIsSavingName(false);
+    }
+  };
+
+  const handleCancelName = () => {
+    setEditedName(staffUser?.fullname || "");
+    setIsEditingName(false);
   };
 
   // Toggle alert type
@@ -190,7 +228,48 @@ const KitchenSettings = ({ onClose, isDarkMode, onToggleDarkMode }) => {
             </div>
           </div>
           <div className="ws-profile-info">
-            <h3 className="ws-profile-name">{staffUser?.fullname || "Kitchen Staff"}</h3>
+            {isEditingName ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                <input
+                  autoFocus
+                  value={editedName}
+                  onChange={(e) => setEditedName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleSaveName(); if (e.key === 'Escape') handleCancelName(); }}
+                  style={{
+                    fontSize: '15px', fontWeight: '700', color: '#111827',
+                    border: '1.5px solid #10B981', borderRadius: '6px',
+                    padding: '2px 6px', width: '140px', outline: 'none',
+                  }}
+                  disabled={isSavingName}
+                />
+                <button
+                  onClick={handleSaveName}
+                  disabled={isSavingName}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#10B981', padding: '2px', display: 'flex' }}
+                  title="Save name"
+                >
+                  {isSavingName ? <span className="ws-avatar-spinner" style={{ width: 14, height: 14 }} /> : <Check size={16} />}
+                </button>
+                <button
+                  onClick={handleCancelName}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: '2px', display: 'flex' }}
+                  title="Cancel"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                <h3 className="ws-profile-name" style={{ margin: 0 }}>{staffUser?.fullname || "Kitchen Staff"}</h3>
+                <button
+                  onClick={() => { setEditedName(staffUser?.fullname || ''); setIsEditingName(true); }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: '2px', display: 'flex' }}
+                  title="Edit name"
+                >
+                  <Pencil size={14} />
+                </button>
+              </div>
+            )}
             <button className="ws-edit-profile-btn" onClick={() => setShowChangePassword(true)}>
               <Lock size={12} />
               Change Password <ChevronRight size={14} />
