@@ -3,12 +3,20 @@ import { protect, authorize } from '../middleware/authMiddleware.js';
 import {
   seedRoomsForHotel,
   seedAllRooms,
-  clearHotelRooms
+  clearHotelRooms,
+  createTestStaff,
 } from '../controllers/seedController.js';
 
 const router = express.Router();
 
-// All seed routes require authentication and admin/owner authorization
+// ============================================
+// PUBLIC DEV ROUTE (no auth needed)
+// Creates a test receptionist account
+// Blocked automatically in NODE_ENV=production
+// ============================================
+router.post('/test-staff', createTestStaff);
+
+// All other seed routes require authentication and admin/owner authorization
 router.use(protect);
 router.use(authorize('admin', 'owner'));
 
