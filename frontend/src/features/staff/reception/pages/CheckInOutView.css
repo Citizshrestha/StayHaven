@@ -1013,28 +1013,60 @@
   .cio-stats-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+
+  .cio-filter-bar {
+    flex-wrap: wrap;
+  }
+
+  .cio-search-wrapper {
+    flex: 1 1 100%;
+  }
 }
 
 @media (max-width: 768px) {
   .checkinout-view {
-    padding: 20px;
+    padding: 16px;
+    padding-bottom: 80px; /* space for mobile bottom nav */
   }
 
   .cio-stats-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .cio-stat-card {
+    padding: 14px;
+    gap: 10px;
+  }
+
+  .cio-stat-icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .cio-stat-value {
+    font-size: 22px;
   }
 
   .cio-tabs {
     width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
   }
+
+  .cio-tabs::-webkit-scrollbar { display: none; }
 
   .cio-tab {
     flex: 1;
     justify-content: center;
+    padding: 10px 12px;
+    font-size: 13px;
   }
 
   .cio-filter-bar {
     flex-direction: column;
+    gap: 10px;
   }
 
   .cio-search-wrapper {
@@ -1047,7 +1079,7 @@
   }
 
   .cio-modal {
-    max-height: 100vh;
+    max-height: 90vh;
     border-radius: 20px 20px 0 0;
     margin-top: auto;
   }
@@ -1063,5 +1095,50 @@
 
   .cio-modal-btn.primary {
     width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .checkinout-view {
+    padding: 12px;
+    padding-bottom: 80px;
+  }
+
+  .cio-stats-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .cio-stat-card {
+    padding: 12px;
+    gap: 8px;
+  }
+
+  .cio-stat-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+  }
+
+  .cio-stat-value {
+    font-size: 18px;
+  }
+
+  .cio-stat-label {
+    font-size: 11px;
+  }
+
+  .cio-tabs {
+    padding: 4px;
+    border-radius: 10px;
+  }
+
+  .cio-tab {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  .cio-tab-count {
+    display: none;
   }
 }

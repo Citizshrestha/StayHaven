@@ -733,7 +733,8 @@
 
 @media (max-width: 768px) {
   .bookings-view {
-    padding: 20px;
+    padding: 16px;
+    padding-bottom: 80px; /* space for mobile bottom nav */
   }
 
   .bv-filter-bar {

@@ -985,11 +985,11 @@
   .rv-metrics-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .rv-stat-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .rv-hk-grid {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -999,52 +999,87 @@
   .rv-content-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .rv-operations-grid {
     grid-template-columns: 1fr;
+  }
+
+  .rv-header {
+    flex-wrap: wrap;
+    gap: 12px;
   }
 }
 
 @media (max-width: 768px) {
   .reports-view {
     padding: 16px;
+    padding-bottom: 80px; /* space for mobile bottom nav */
   }
-  
+
   .rv-header {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .rv-header-right {
     flex-direction: column;
+    gap: 8px;
   }
-  
+
   .rv-metrics-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .rv-tabs {
+    overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     -ms-overflow-style: none;
   }
-  
+
   .rv-tabs::-webkit-scrollbar {
     display: none;
   }
-  
+
   .rv-room-distribution {
     flex-direction: column;
     text-align: center;
   }
-  
+
+  .rv-stat-grid,
+  .rv-hk-grid,
+  .rv-ops-stats {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .rv-big-stat .value {
+    font-size: 40px;
+  }
+}
+
+@media (max-width: 480px) {
+  .reports-view {
+    padding: 12px;
+    padding-bottom: 80px;
+  }
+
+  .rv-header-left h1 {
+    font-size: 20px;
+  }
+
   .rv-stat-grid,
   .rv-hk-grid,
   .rv-ops-stats {
     grid-template-columns: 1fr;
   }
-  
+
+  .rv-metrics-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
   .rv-big-stat .value {
-    font-size: 48px;
+    font-size: 32px;
   }
 }

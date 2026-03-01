@@ -1346,7 +1346,390 @@
   color: var(--accent-red);
 }
 
-/* ── Charts / Analytics ── */
+/* ========================================
+   V2 CHART COMPONENTS — Weekly Occupancy & Revenue Donut
+   ======================================== */
+
+@keyframes v2ChartFadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes v2LineDraw {
+  from { stroke-dashoffset: 1000; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes v2AreaReveal {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes v2DonutDraw {
+  from { stroke-dasharray: 0 1000; }
+}
+
+@keyframes v2Shimmer {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+@keyframes v2PulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(55, 48, 163, 0); }
+  50% { box-shadow: 0 0 16px 4px rgba(55, 48, 163, 0.12); }
+}
+
+/* ── Chart Card Wrapper ── */
+.sh-v2-chart-wrapper {
+  animation: v2ChartFadeIn 0.6s ease-out both;
+}
+
+.sh-v2-chart-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-primary);
+  border-radius: 20px;
+  padding: 24px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  position: relative;
+  overflow: visible;
+}
+
+.sh-v2-chart-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
+}
+
+/* ── Chart Header ── */
+.sh-v2-chart-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  gap: 8px;
+}
+
+.sh-v2-chart-title {
+  font-size: clamp(14px, 1.1vw, 17px);
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: 'Plus Jakarta Sans', var(--sh-font);
+  margin: 0;
+  line-height: 1.3;
+}
+
+.sh-v2-chart-avg {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  margin-top: 2px;
+  display: block;
+}
+
+.sh-v2-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.sh-v2-badge.up {
+  background: #10B98118;
+  color: #10B981;
+}
+
+.sh-v2-badge.down {
+  background: #EF444418;
+  color: #EF4444;
+}
+
+/* ── Weekly Occupancy Chart ── */
+.sh-v2-chart-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+}
+
+.sh-v2-occ-svg {
+  width: 100%;
+  height: auto;
+  max-height: 220px;
+  overflow: visible;
+}
+
+.sh-v2-line {
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 0;
+  animation: v2LineDraw 1.2s ease-out;
+}
+
+.sh-v2-area {
+  animation: v2AreaReveal 1s ease-out 0.4s both;
+}
+
+.sh-v2-dot {
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.sh-v2-dot.active {
+  filter: drop-shadow(0 0 6px rgba(55, 48, 163, 0.5));
+}
+
+.sh-v2-tooltip {
+  pointer-events: none;
+  animation: v2ChartFadeIn 0.15s ease-out;
+}
+
+/* ── Revenue Donut Chart ── */
+.sh-v2-donut-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+}
+
+.sh-v2-donut-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.sh-v2-donut-svg {
+  width: clamp(130px, 14vw, 170px);
+  height: auto;
+  overflow: visible;
+}
+
+.sh-v2-donut-seg {
+  animation: v2DonutDraw 1s ease-out both;
+  cursor: pointer;
+}
+
+.sh-v2-center-label {
+  pointer-events: none;
+}
+
+.sh-v2-center-value {
+  pointer-events: none;
+  animation: v2Shimmer 2.5s ease-in-out 0.8s 1;
+}
+
+/* ── Legend ── */
+.sh-v2-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sh-v2-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--bg-inset);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.sh-v2-legend-row:hover,
+.sh-v2-legend-row.active {
+  background: var(--bg-surface-hover);
+  transform: translateX(4px);
+}
+
+.sh-v2-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.sh-v2-legend-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  flex: 1;
+  font-family: 'Plus Jakarta Sans', var(--sh-font);
+}
+
+.sh-v2-legend-right {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.sh-v2-legend-val {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-primary);
+  font-family: 'Plus Jakarta Sans', var(--sh-font);
+}
+
+.sh-v2-legend-pct {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+
+/* ── V2 Charts Responsive ── */
+@media (max-width: 1400px) {
+  .sh-v2-chart-card {
+    padding: 20px;
+    border-radius: 16px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .sh-v2-donut-body {
+    flex-direction: row;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .sh-v2-donut-wrap {
+    flex: 0 0 auto;
+  }
+
+  .sh-v2-legend {
+    flex: 1;
+  }
+
+  .sh-v2-donut-svg {
+    width: clamp(110px, 12vw, 150px);
+  }
+}
+
+@media (max-width: 1024px) {
+  .sh-v2-donut-body {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .sh-v2-donut-wrap {
+    align-self: center;
+  }
+
+  .sh-v2-chart-card {
+    padding: 16px;
+    border-radius: 14px;
+  }
+}
+
+@media (max-width: 768px) {
+  .sh-v2-chart-card {
+    padding: 14px;
+    border-radius: 12px;
+  }
+
+  .sh-v2-chart-card:hover {
+    transform: none;
+    box-shadow: none;
+  }
+
+  .sh-v2-chart-title {
+    font-size: 14px;
+  }
+
+  .sh-v2-chart-avg {
+    font-size: 11px;
+  }
+
+  .sh-v2-badge {
+    font-size: 10px;
+    padding: 2px 8px;
+  }
+
+  .sh-v2-donut-svg {
+    width: 120px;
+  }
+
+  .sh-v2-legend-row {
+    padding: 6px 10px;
+    gap: 8px;
+  }
+
+  .sh-v2-legend-val {
+    font-size: 13px;
+  }
+
+  .sh-v2-legend-label {
+    font-size: 12px;
+  }
+
+  .sh-v2-legend-pct {
+    font-size: 11px;
+  }
+
+  .sh-v2-occ-svg {
+    max-height: 180px;
+  }
+}
+
+@media (max-width: 480px) {
+  .sh-v2-chart-card {
+    padding: 12px;
+    border-radius: 10px;
+  }
+
+  .sh-v2-chart-header {
+    margin-bottom: 10px;
+  }
+
+  .sh-v2-chart-title {
+    font-size: 13px;
+  }
+
+  .sh-v2-badge {
+    font-size: 9px;
+    padding: 2px 6px;
+  }
+
+  .sh-v2-donut-svg {
+    width: 100px;
+  }
+
+  .sh-v2-legend-row {
+    padding: 6px 8px;
+    border-radius: 8px;
+  }
+
+  .sh-v2-legend-dot {
+    width: 8px;
+    height: 8px;
+  }
+
+  .sh-v2-legend-val {
+    font-size: 12px;
+  }
+
+  .sh-v2-legend-label {
+    font-size: 11px;
+  }
+
+  .sh-v2-legend-pct {
+    font-size: 10px;
+  }
+
+  .sh-v2-occ-svg {
+    max-height: 150px;
+  }
+}
+
+/* ── Legacy chart styling (kept for compatibility) ── */
 .sh-chart-placeholder {
   height: 180px;
   display: flex;
@@ -1463,6 +1846,7 @@
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   gap: 24px;
+  min-height: 320px; /* Ensure adequate height for charts */
 }
 
 /* ========================================

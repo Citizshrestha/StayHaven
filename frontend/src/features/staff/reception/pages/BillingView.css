@@ -572,10 +572,40 @@
     font-weight: 600;
 }
 
+@media (max-width: 1024px) {
+    .bl-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+
+    .bl-filter-bar {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .bl-invoices-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
 @media (max-width: 768px) {
+    .billing-view {
+        padding: 12px;
+        padding-bottom: 80px; /* space for mobile bottom nav */
+    }
+
     .bl-stats-grid {
         grid-template-columns: repeat(2, 1fr);
         gap: 8px;
+    }
+
+    .bl-stat-card {
+        padding: 14px 16px;
+        gap: 12px;
+    }
+
+    .bl-stat-number {
+        font-size: 1.1rem;
     }
 
     .bl-invoices-grid {
@@ -585,5 +615,46 @@
     .bl-filter-bar {
         flex-direction: column;
         align-items: stretch;
+        gap: 8px;
+    }
+
+    .bl-search-wrapper {
+        width: 100%;
+    }
+
+    .bl-filter-btn {
+        width: 100%;
+        justify-content: space-between;
+    }
+}
+
+@media (max-width: 480px) {
+    .billing-view {
+        padding: 10px;
+        padding-bottom: 80px;
+    }
+
+    .bl-stats-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+    }
+
+    .bl-stat-card {
+        padding: 10px 12px;
+        gap: 8px;
+    }
+
+    .bl-stat-icon-wrap {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+    }
+
+    .bl-stat-number {
+        font-size: 1rem;
+    }
+
+    .bl-stat-label {
+        font-size: 0.7rem;
     }
 }

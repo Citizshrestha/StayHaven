@@ -1015,16 +1015,37 @@
   .hk-rooms-grid {
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   }
+
+  .hk-filter-bar {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
 }
 
 @media (max-width: 768px) {
   .housekeeping-view {
-    padding: 20px;
+    padding: 16px;
+    padding-bottom: 80px; /* space for mobile bottom nav */
   }
 
   .hk-stats-grid {
     grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    gap: 10px;
+  }
+
+  .hk-stat-card {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .hk-stat-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+  }
+
+  .hk-stat-value {
+    font-size: 20px;
   }
 
   .hk-filter-bar {
@@ -1056,5 +1077,41 @@
 
   .hk-status-options {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .housekeeping-view {
+    padding: 12px;
+    padding-bottom: 80px;
+  }
+
+  .hk-stats-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .hk-stat-card {
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .hk-stat-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 7px;
+  }
+
+  .hk-stat-value {
+    font-size: 18px;
+  }
+
+  .hk-stat-label {
+    font-size: 11px;
+  }
+
+  .hk-rooms-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
   }
 }
