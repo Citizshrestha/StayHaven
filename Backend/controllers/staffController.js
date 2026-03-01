@@ -123,19 +123,38 @@ export const staffLogin = asyncHandler(async (req, res) => {
     .populate("assignedProperties");
 
   if (!user) {
+    req.audit?.loginFailure(identifier, "User not found");
     return res.status(401).json({
       success: false,
       message: "Invalid credentials",
     });
   }
 
+  // Check if account is locked due to brute force
+  if (user.isLocked) {
+    const lockRemaining = Math.ceil((user.lockUntil - Date.now()) / 60000);
+    req.audit?.accountLocked(user.email, `${lockRemaining} minutes remaining`);
+    return res.status(423).json({
+      success: false,
+      message: `Account is temporarily locked due to too many failed login attempts. Please try again in ${lockRemaining} minute(s).`,
+    });
+  }
+
   // Check password
   const isMatch = await user.matchPassword(password);
   if (!isMatch) {
+    // Increment failed login attempts
+    await user.incrementLoginAttempts();
+    req.audit?.loginFailure(user.email, "Invalid password");
     return res.status(401).json({
       success: false,
       message: "Invalid credentials",
     });
+  }
+
+  // Successful password match — reset any failed login attempts
+  if (user.loginAttempts > 0) {
+    await user.resetLoginAttempts();
   }
 
   // Check if user has a staff role
@@ -239,6 +258,9 @@ export const staffLogin = asyncHandler(async (req, res) => {
       redirectPath = "/dashboard";
   }
 
+  // Audit log successful login
+  req.audit?.loginSuccess(user._id, user.email);
+
   return res.status(200).json({
     success: true,
     message: "Login successful",
@@ -266,14 +288,14 @@ export const staffLogin = asyncHandler(async (req, res) => {
       // Current active property (first one or selected)
       activeProperty: user.assignedProperties[0]
         ? {
-            _id: user.assignedProperties[0]._id,
-            name: user.assignedProperties[0].name,
-            address: user.assignedProperties[0].location?.address || '',
-            city: user.assignedProperties[0].location?.city || '',
-            phone: user.assignedProperties[0].contact?.phone || '',
-            email: user.assignedProperties[0].contact?.email || '',
-            website: user.assignedProperties[0].contact?.website || '',
-          }
+          _id: user.assignedProperties[0]._id,
+          name: user.assignedProperties[0].name,
+          address: user.assignedProperties[0].location?.address || '',
+          city: user.assignedProperties[0].location?.city || '',
+          phone: user.assignedProperties[0].contact?.phone || '',
+          email: user.assignedProperties[0].contact?.email || '',
+          website: user.assignedProperties[0].contact?.website || '',
+        }
         : null,
     },
     redirectPath,
@@ -305,9 +327,9 @@ export const getStaffProfile = asyncHandler(async (req, res) => {
       role: user.role?.name,
       company: user.company
         ? {
-            _id: user.company._id,
-            name: user.company.name,
-          }
+          _id: user.company._id,
+          name: user.company.name,
+        }
         : null,
       assignedProperties:
         user.assignedProperties?.map((prop) => ({
@@ -406,9 +428,8 @@ export const registerStaff = asyncHandler(async (req, res) => {
 
   return res.status(201).json({
     success: true,
-    message: `${
-      role.charAt(0).toUpperCase() + role.slice(1)
-    } staff registered successfully`,
+    message: `${role.charAt(0).toUpperCase() + role.slice(1)
+      } staff registered successfully`,
     staff: {
       _id: newStaff._id,
       fullname: newStaff.fullname,
@@ -514,6 +535,8 @@ export const updateStaffStatus = asyncHandler(async (req, res) => {
 
 export const staffLogout = asyncHandler(async (req, res) => {
   if (req.user) {
+    // Audit log logout
+    req.audit?.logout(req.user._id);
     // clear refresh token in db
     await User.findByIdAndUpdate(req.user._id, {
       refreshToken: null,
@@ -738,9 +761,8 @@ export const inviteStaff = asyncHandler(async (req, res) => {
       from: `"${property.name} via StayHaven" <${process.env.SENDER_EMAIL}>`,
       replyTo: property.contact?.email || process.env.SENDER_EMAIL,
       to: email,
-      subject: `You're Invited to Join as ${
-        role.charAt(0).toUpperCase() + role.slice(1)
-      } at ${property.name}`,
+      subject: `You're Invited to Join as ${role.charAt(0).toUpperCase() + role.slice(1)
+        } at ${property.name}`,
       html: emailTemplate,
     });
   } catch (emailError) {
@@ -998,9 +1020,8 @@ export const resendInvite = asyncHandler(async (req, res) => {
 
   try {
     await transporter.sendMail({
-      from: `"${property?.name || "StayHaven"} via StayHaven" <${
-        process.env.SENDER_EMAIL
-      }>`,
+      from: `"${property?.name || "StayHaven"} via StayHaven" <${process.env.SENDER_EMAIL
+        }>`,
       replyTo: property?.contact?.email,
       to: staff.email,
       subject: `[Reminder] You're invited to join as ${staff.companyRole}`,
@@ -1166,6 +1187,9 @@ export const changePassword = asyncHandler(async (req, res) => {
 
   await currentUser.save();
 
+  // Audit log password change
+  req.audit?.passwordChanged(currentUser._id);
+
   return res.status(200).json({
     success: true,
     message: "Password Changed Successfully.",
@@ -1307,6 +1331,9 @@ export const forgotPassword = asyncHandler(async (req, res) => {
     </html>
   `;
 
+  // Audit log password reset request
+  req.audit?.passwordResetRequested(user.email);
+
   try {
     await transporter.sendMail({
       from: `"${propertyName}" <${process.env.SENDER_EMAIL}>`,
@@ -1380,6 +1407,9 @@ export const resetPassword = asyncHandler(async (req, res) => {
   // Save changes to database
   await user.save();
 
+  // Audit log password reset completion
+  req.audit?.passwordResetCompleted(user._id);
+
   // Return success response
   return res.status(200).json({
     success: true,
@@ -1398,10 +1428,10 @@ export const updateProfilePicture = asyncHandler(async (req, res) => {
   }
 
   try {
-    // Get staff details for folder structure
+    // Get staff details for folder structure: StayHaven/{role}/profile-pic/{fullname}
     const staffDetails = {
       role: req.user.companyRole || req.user.role?.name || 'staff',
-      fullname: req.user.fullname || 'unknown'
+      fullname: req.user.fullname || 'unknown',
     };
 
     // upload to cloudinary with staff-specific folder structure
@@ -1410,18 +1440,26 @@ export const updateProfilePicture = asyncHandler(async (req, res) => {
       staffDetails
     );
 
-    // update user in db
+    // update user's profilePicture in db
     const user = await User.findByIdAndUpdate(
       req.user._id,
       { profilePicture: result.secure_url },
       { new: true }
-    ).select("-password");
+    ).select("-password -resetOtp -resetOtpExpireAt -inviteToken");
 
     res.status(200).json({
       success: true,
       message: "Profile Picture Updated Successfully",
       profilePicture: result.secure_url,
-      user,
+      user: {
+        _id: user._id,
+        fullname: user.fullname,
+        username: user.username,
+        email: user.email,
+        profilePicture: user.profilePicture,
+        contact: user.contact,
+        role: user.companyRole || req.user.role?.name,
+      },
     });
   } catch (err) {
     console.error("Cloudinary upload error:", err);
@@ -1430,4 +1468,122 @@ export const updateProfilePicture = asyncHandler(async (req, res) => {
       message: "Failed to upload image",
     });
   }
+});
+
+// Update staff profile info (name, contact, username)
+export const updateStaffProfile = asyncHandler(async (req, res) => {
+  const { fullname, contact, username } = req.body;
+
+  if (!fullname && !contact && !username) {
+    return res.status(400).json({
+      success: false,
+      message: "At least one field (fullname, contact, username) is required",
+    });
+  }
+
+  // If username is being changed, check uniqueness
+  if (username) {
+    const existingUser = await User.findOne({
+      username: username.toLowerCase(),
+      _id: { $ne: req.user._id },
+    });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: "Username is already taken",
+      });
+    }
+  }
+
+  // Get the current user BEFORE update to check if fullname is changing
+  const currentUser = await User.findById(req.user._id);
+  const oldFullname = currentUser?.fullname;
+  const isFullnameChanging = fullname && fullname.trim() !== oldFullname;
+
+  const updateData = {};
+  if (fullname) updateData.fullname = fullname.trim();
+  if (contact !== undefined) updateData.contact = contact.trim();
+  if (username) updateData.username = username.toLowerCase().trim();
+
+  // If fullname is changing and user has a profile picture, move it in Cloudinary
+  if (isFullnameChanging && currentUser?.profilePicture) {
+    try {
+      const { default: cloudinary } = await import("../config/cloudinary.js");
+      const role = req.user.companyRole || req.user.role?.name || 'staff';
+
+      // Extract the public_id from the existing Cloudinary URL
+      // URL format: https://res.cloudinary.com/{cloud}/image/upload/v123/folder/file.ext
+      const urlParts = currentUser.profilePicture.split('/upload/');
+      if (urlParts.length === 2) {
+        const pathAfterUpload = urlParts[1]; // e.g. "v123/StayHaven/receptionist/profile-pic/Old_Name/file.ext"
+        // Remove version prefix and file extension to get public_id
+        const withoutVersion = pathAfterUpload.replace(/^v\d+\//, '');
+        const oldPublicId = withoutVersion.replace(/\.[^/.]+$/, ''); // remove extension
+
+        // Build new folder path
+        const sanitizedNewName = fullname.trim()
+          .replace(/[^a-zA-Z0-9\s_-]/g, '')
+          .replace(/\s+/g, '_')
+          .replace(/_+/g, '_')
+          .trim();
+        const sanitizedRole = role.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+        const newFolder = `StayHaven/${sanitizedRole}/profile-pic/${sanitizedNewName}`;
+        const fileName = oldPublicId.split('/').pop(); // get just the filename
+        const newPublicId = `${newFolder}/${fileName}`;
+
+        // Rename (move) the image in Cloudinary
+        await cloudinary.uploader.rename(oldPublicId, newPublicId, { overwrite: true });
+
+        // Update the profile picture URL with the new path
+        const newUrl = currentUser.profilePicture.replace(
+          /\/upload\/v\d+\/.+$/,
+          `/upload/v${Date.now()}/${newPublicId}.${currentUser.profilePicture.split('.').pop()}`
+        );
+        updateData.profilePicture = newUrl;
+      }
+    } catch (renameErr) {
+      // If rename fails, log it but don't block the profile update
+      console.warn("Cloudinary rename failed (non-blocking):", renameErr.message);
+      // The old URL still works, so we don't need to roll back
+    }
+  }
+
+  const user = await User.findByIdAndUpdate(
+    req.user._id,
+    updateData,
+    { new: true, runValidators: true }
+  )
+    .populate("role")
+    .populate("company")
+    .populate("assignedProperties")
+    .select("-password -resetOtp -resetOtpExpireAt -inviteToken");
+
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      message: "User not found",
+    });
+  }
+
+  return res.status(200).json({
+    success: true,
+    message: "Profile updated successfully",
+    user: {
+      _id: user._id,
+      fullname: user.fullname,
+      username: user.username,
+      email: user.email,
+      profilePicture: user.profilePicture,
+      contact: user.contact,
+      role: user.role?.name || user.companyRole,
+      company: user.company ? { _id: user.company._id, name: user.company.name } : null,
+      assignedProperties:
+        user.assignedProperties?.map((prop) => ({
+          _id: prop._id,
+          name: prop.name,
+        })) || [],
+      isActive: user.isActive,
+      createdAt: user.createdAt,
+    },
+  });
 });

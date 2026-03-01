@@ -17,6 +17,7 @@ import {
   forgotPassword,
   resetPassword,
   updateProfilePicture,
+  updateStaffProfile,
 } from "../controllers/staffController.js";
 import {
   createOrder,
@@ -59,16 +60,18 @@ import {
 } from "../controllers/notificationController.js";
 import { protect, authorize } from "../middleware/authMiddleware.js";
 import { upload } from "../middleware/upload.js";
+import { authLimiter, passwordResetLimiter, sensitiveOpLimiter } from "../middleware/rateLimiter.js";
 
 const router = express.Router();
 
 // PUBLIC ROUTES (No authentication required)
-router.post("/login", staffLogin);
+// Rate-limited auth endpoints to prevent brute force attacks
+router.post("/login", authLimiter, staffLogin);
 router.post("/refresh-token", refreshAccessToken);
 router.get("/verify-invite/:token", verifyInviteToken);
-router.post("/complete-onboard", completeOnBoarding);
-router.post("/forgot-password", forgotPassword);
-router.post("/reset-password", resetPassword);
+router.post("/complete-onboard", authLimiter, completeOnBoarding);
+router.post("/forgot-password", passwordResetLimiter, forgotPassword);
+router.post("/reset-password", passwordResetLimiter, resetPassword);
 
 
 // PROTECTED ROUTES (Requires valid access token)
@@ -76,6 +79,7 @@ router.get("/me", protect, getStaffProfile);
 router.post("/logout", protect, staffLogout);
 router.put("/change-password", protect, changePassword);
 router.patch("/profile-picture", protect, upload.single("profilePicture"), updateProfilePicture);
+router.patch("/profile", protect, updateStaffProfile);
 
 // MENU ROUTES (Any authenticated staff can access)
 router.get("/menu-items", protect, getMenuItems);
