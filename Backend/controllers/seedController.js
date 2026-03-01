@@ -1,6 +1,8 @@
 import { Hotel } from "../models/hotel.schema.js";
 import { Room } from "../models/room.schema.js";
 import { Company } from "../models/company.schema.js";
+import { User } from "../models/user.schema.js";
+import { Role } from "../models/role.schema.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
 const ROOM_TYPES = [
@@ -206,6 +208,97 @@ export const seedAllRooms = asyncHandler(async (req, res) => {
     totalHotels: hotels.length,
     totalRoomsCreated: totalCreated,
     results
+  });
+});
+
+/**
+ * @desc    Create a test staff account (DEV ONLY — remove before production)
+ * @route   POST /api/seed/test-staff
+ * @access  Public (no auth) — intentionally open for dev setup
+ */
+export const createTestStaff = asyncHandler(async (req, res) => {
+  // Hard-block in production
+  if (process.env.NODE_ENV === "production") {
+    return res.status(403).json({
+      success: false,
+      message: "This endpoint is not available in production.",
+    });
+  }
+
+  const TEST_EMAIL = "receptionist@test.com";
+  const TEST_PASSWORD = "Test@1234";
+  const TEST_NAME = "Test Receptionist";
+  const TEST_USERNAME = "test_receptionist";
+
+  // Return existing account info if already created
+  const existing = await User.findOne({ email: TEST_EMAIL })
+    .populate("company", "name")
+    .populate("assignedProperties", "name");
+
+  if (existing) {
+    return res.status(200).json({
+      success: true,
+      message: "Test account already exists",
+      credentials: { email: TEST_EMAIL, password: TEST_PASSWORD },
+      account: {
+        fullname: existing.fullname,
+        role: existing.companyRole,
+        isActive: existing.isActive,
+        company: existing.company?.name,
+        hotel: existing.assignedProperties?.[0]?.name,
+      },
+    });
+  }
+
+  // Find first available company
+  const company = await Company.findOne();
+  if (!company) {
+    return res.status(404).json({
+      success: false,
+      message: "No company found. Please set up a company first (register as an owner).",
+    });
+  }
+
+  // Find first hotel for that company
+  const hotel = await Hotel.findOne({ company: company._id });
+  if (!hotel) {
+    return res.status(404).json({
+      success: false,
+      message: `No hotel found for company "${company.name}". Please add a hotel first.`,
+    });
+  }
+
+  // Get or create receptionist role
+  let role = await Role.findOne({ name: "receptionist" });
+  if (!role) {
+    role = await Role.create({ name: "receptionist" });
+  }
+
+  // Create account
+  await User.create({
+    fullname: TEST_NAME,
+    username: TEST_USERNAME,
+    email: TEST_EMAIL,
+    password: TEST_PASSWORD,
+    role: role._id,
+    companyRole: "receptionist",
+    company: company._id,
+    assignedProperties: [hotel._id],
+    isActive: true,
+    isEmailVerified: true,
+    accountStatus: "active",
+  });
+
+  return res.status(201).json({
+    success: true,
+    message: "✅ Test receptionist created!",
+    credentials: { email: TEST_EMAIL, password: TEST_PASSWORD },
+    account: {
+      fullname: TEST_NAME,
+      role: "receptionist",
+      company: company.name,
+      hotel: hotel.name,
+    },
   });
 });
 

@@ -1,4 +1,4 @@
-import {v2 as cloudinary} from 'cloudinary';
+import { v2 as cloudinary } from 'cloudinary';
 
 // Function to initialize cloudinary with env vars
 const initCloudinary = () => {
@@ -6,8 +6,9 @@ const initCloudinary = () => {
         cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
         api_key: process.env.CLOUDINARY_API_KEY,
         api_secret: process.env.CLOUDINARY_API_SECRET,
+        timeout: 120000, // 120 seconds timeout for all API calls
     });
-    
+
     console.log("Cloudinary initialized:", {
         cloud_name: process.env.CLOUDINARY_CLOUD_NAME ? "SET" : "NOT SET",
         api_key: process.env.CLOUDINARY_API_KEY ? "SET" : "NOT SET",

@@ -5,6 +5,7 @@ import express from "express";
 import { createServer } from "http";
 import connectDB from "./config/db.js";
 import cors from "cors";
+import helmet from "helmet";
 import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import hotelRoutes from "./routes/hotelRoutes.js";
@@ -19,6 +20,8 @@ import seedRoutes from "./routes/seedRoutes.js";
 import cookieParser from "cookie-parser";
 import { initCloudinary } from "./config/cloudinary.js";
 import { initSocket } from "./config/socket.js";
+import { apiLimiter } from "./middleware/rateLimiter.js";
+import { auditMiddleware } from "./middleware/auditLogger.js";
 
 // Initialize cloudinary with env vars
 initCloudinary();
@@ -59,7 +62,38 @@ const seedRoles = async () => {
 };
 seedRoles();
 
-// Middleware
+// ═══════════════════════════════════════════
+// Security Middleware
+// ═══════════════════════════════════════════
+
+// Helmet — sets secure HTTP headers (XSS protection, content security policy, etc.)
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" }, // Allow cross-origin resource loading for frontend
+    contentSecurityPolicy: false, // Disable CSP in dev (frontend served separately)
+  })
+);
+
+// CORS — must come before rate limiter so preflight OPTIONS requests are handled
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
+// General API rate limiting (100 req / 15 min per IP)
+app.use("/api/", apiLimiter);
+
+// Audit logging — attaches req.audit helper to every request
+app.use(auditMiddleware);
+
+// Cookie parser and body parsers
+app.use(cookieParser());
+app.use(express.urlencoded({ extended: true }));
+
 // Wrap express.json so we can immediately handle malformed JSON and avoid uncaught exceptions
 app.use((req, res, next) => {
   express.json()(req, res, (err) => {
@@ -74,16 +108,6 @@ app.use((req, res, next) => {
     next();
   });
 });
-app.use(
-  cors({
-    origin: "http://localhost:5173",
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
-app.use(cookieParser());
-app.use(express.urlencoded({ extended: true }));
 
 // JSON/body parse error handler - returns JSON instead of HTML stack trace
 app.use((err, req, res, next) => {

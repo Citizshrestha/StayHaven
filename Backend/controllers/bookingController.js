@@ -246,24 +246,25 @@ export const checkInWalkInGuest = asyncHandler(async (req, res) => {
     throw Object.assign(new Error('Room is not available for check-in'), { status: 400 });
   }
 
-  // Create or find guest user
+  // Create or find guest user (best-effort — a missing user account must NOT block the booking)
   let guestUser = null;
-  try {
-    if (guestEmail) {
+  if (guestEmail) {
+    try {
       guestUser = await User.findOne({ email: guestEmail });
       if (!guestUser) {
         guestUser = await User.create({
           fullname: guestName,
-          username: `guest_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+          username: `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           email: guestEmail,
           password: crypto.randomBytes(16).toString('hex'),
-          companyRole: 'guest'
+          // Do NOT set companyRole — 'guest' is not a valid enum value
         });
       }
+    } catch (err) {
+      // Log but do not abort — walk-in guests may not need a user account
+      console.warn('Walk-in user lookup/creation skipped:', err.message);
+      guestUser = null;
     }
-  } catch (err) {
-    console.error('Error creating guest user:', err);
-    // Continue without user account
   }
 
   // Calculate stay duration (assume 1 night for walk-in)
@@ -272,25 +273,34 @@ export const checkInWalkInGuest = asyncHandler(async (req, res) => {
   const nights = Math.ceil((checkOut - checkInDate) / (1000 * 60 * 60 * 24)) || 1;
   const totalAmount = room.price * nights;
 
-  // Create booking
-  const booking = await Booking.create({
-    user: guestUser?._id || null,
+  // Create booking — user is optional for walk-in guests
+  const bookingPayload = {
     hotel: hotelId,
     company: hotel.company,
     room: roomId,
     checkIn: checkInDate,
     checkOut: checkOut,
-    guests: {
-      adults: 1,
-      children: 0
-    },
+    guests: { adults: 1, children: 0 },
     totalAmount,
     status: 'Checked-In',
     paymentStatus: paymentMethod === 'cash' ? 'unpaid' : 'partial',
     confirmationCode: generateConfirmationCode(),
-    specialRequests: `Walk-in guest | ID Type: ${idType} | ID: ${idNumber} | Payment: ${paymentMethod}`,
-    bookingSource: 'admin'
-  });
+    specialRequests: `Walk-in | Payment: ${paymentMethod}`,
+    bookingSource: 'admin',
+    // Store guest identity inline so we never lose it even without a user account
+    guestInfo: {
+      name:     guestName,
+      phone:    guestPhone,
+      email:    guestEmail || null,
+      idType:   idType || null,
+      idNumber: idNumber,
+    },
+  };
+  if (guestUser?._id) {
+    bookingPayload.user = guestUser._id;
+  }
+
+  const booking = await Booking.create(bookingPayload);
 
   // Update room status
   room.status = 'occupied';
