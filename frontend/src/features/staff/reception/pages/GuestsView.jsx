@@ -24,6 +24,60 @@ import {
 } from 'lucide-react';
 import './GuestsView.css';
 
+const DUMMY_UNSPLASH_AVATARS = [
+  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80', // Man with glasses
+  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80', // Woman with curly hair
+  'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=200&q=80', // Man in suit
+  'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80', // Woman with straight hair
+  'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=200&q=80', // Man in casual
+  'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=200&q=80', // Woman blonde
+  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80', // Man beard
+  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80', // Woman brunette
+  'https://images.unsplash.com/photo-1566492031773-4f4e44671d66?auto=format&fit=crop&w=200&q=80', // Man young
+  'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=200&q=80'  // Woman professional
+];
+
+const getGuestAvatarUrl = (guest) => {
+  if (guest.avatarUrl) return guest.avatarUrl;
+  
+  // Use guest ID or email to get consistent image assignment
+  const identifier = guest._id || guest.email || guest.fullName;
+  let hash = 0;
+  for (let i = 0; i < identifier.length; i++) {
+    const char = identifier.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  const index = Math.abs(hash) % DUMMY_UNSPLASH_AVATARS.length;
+  return DUMMY_UNSPLASH_AVATARS[index];
+};
+
+const GuestAvatar = ({ guest, className = '', modal = false }) => {
+  const [imageFailed, setImageFailed] = useState(false);
+  const avatarUrl = getGuestAvatarUrl(guest);
+
+  return (
+    <div className={className}>
+      {!imageFailed ? (
+        <img
+          src={avatarUrl}
+          alt={guest.fullName}
+          className={`gv-avatar-image ${modal ? 'gv-avatar-image-modal' : 'gv-avatar-image-table'}`}
+          onError={() => setImageFailed(true)}
+          loading="lazy"
+        />
+      ) : (
+        guest.initials
+      )}
+      {guest.vipStatus && (
+        <span className={modal ? 'gv-vip-crown absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center bg-amber-400' : 'gv-vip-badge absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center bg-amber-400'}>
+          <Crown size={modal ? 16 : 10} className="text-white" />
+        </span>
+      )}
+    </div>
+  );
+};
+
 // Generate guest data
 const generateGuests = () => {
   const firstNames = ['Sarah', 'Michael', 'Emma', 'James', 'Olivia', 'William', 'Sophia', 'Benjamin', 'Isabella', 'Lucas', 'Mia', 'Henry', 'Charlotte', 'Alexander', 'Amelia'];
@@ -65,6 +119,7 @@ const generateGuests = () => {
       loyaltyPoints: Math.floor(Math.random() * 50000),
       totalStays,
       totalSpent: Math.floor(Math.random() * 50000) + 1000,
+      avatarUrl: null, // Will be assigned by getGuestAvatarUrl function
       lastVisit: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
       isCurrentGuest,
       currentRoom: isCurrentGuest ? `${Math.floor(Math.random() * 5) + 1}${(Math.floor(Math.random() * 20) + 1).toString().padStart(2, '0')}` : null,
@@ -361,14 +416,10 @@ const GuestsView = () => {
                   <tr key={guest.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors duration-200">
                     <td className="p-4">
                       <div className="gv-guest-cell flex items-center gap-3">
-                        <div className={`gv-guest-avatar relative w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold ${guest.vipStatus ? 'vip' : ''}`}>
-                          {guest.initials}
-                          {guest.vipStatus && (
-                            <span className="gv-vip-badge absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center bg-amber-400">
-                              <Crown size={10} className="text-white" />
-                            </span>
-                          )}
-                        </div>
+                        <GuestAvatar
+                          guest={guest}
+                          className={`gv-guest-avatar relative w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold ${guest.vipStatus ? 'vip' : ''}`}
+                        />
                         <div className="gv-guest-info flex flex-col">
                           <span className="gv-guest-name font-medium">{guest.fullName}</span>
                           <span className="gv-guest-id text-xs text-slate-500">{guest.id}</span>
@@ -485,14 +536,11 @@ const GuestsView = () => {
             </button>
 
             <div className="gv-modal-header text-center mb-6">
-              <div className={`gv-modal-avatar relative w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-xl font-bold ${selectedGuest.vipStatus ? 'vip' : ''}`}>
-                {selectedGuest.initials}
-                {selectedGuest.vipStatus && (
-                  <span className="gv-vip-crown absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center bg-amber-400">
-                    <Crown size={16} className="text-white" />
-                  </span>
-                )}
-              </div>
+              <GuestAvatar
+                guest={selectedGuest}
+                modal
+                className={`gv-modal-avatar relative w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-xl font-bold ${selectedGuest.vipStatus ? 'vip' : ''}`}
+              />
               <h2 className="text-xl font-bold mb-2">{selectedGuest.fullName}</h2>
               <span
                 className="gv-modal-tier px-3 py-1 rounded-lg text-sm font-medium inline-block"
