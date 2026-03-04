@@ -20,9 +20,15 @@ import {
   CreditCard,
   Clock,
   Award,
-  Gift
+  Gift,
+  UserX,
+  UserCheck,
+  ShieldAlert,
+  ShieldCheck,
+  Ban
 } from 'lucide-react';
 import './GuestsView.css';
+import * as receptionApi from '../../../../core/api/services/reception.service';
 
 const DUMMY_UNSPLASH_AVATARS = [
   'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80', // Man with glasses
@@ -39,7 +45,7 @@ const DUMMY_UNSPLASH_AVATARS = [
 
 const getGuestAvatarUrl = (guest) => {
   if (guest.avatarUrl) return guest.avatarUrl;
-  
+
   // Use guest ID or email to get consistent image assignment
   const identifier = guest._id || guest.email || guest.fullName;
   let hash = 0;
@@ -78,72 +84,7 @@ const GuestAvatar = ({ guest, className = '', modal = false }) => {
   );
 };
 
-// Generate guest data
-const generateGuests = () => {
-  const firstNames = ['Sarah', 'Michael', 'Emma', 'James', 'Olivia', 'William', 'Sophia', 'Benjamin', 'Isabella', 'Lucas', 'Mia', 'Henry', 'Charlotte', 'Alexander', 'Amelia'];
-  const lastNames = ['Jenkins', 'Foster', 'Wilson', 'Brown', 'Davis', 'Martinez', 'Anderson', 'Taylor', 'Thomas', 'Jackson', 'White', 'Harris', 'Martin', 'Garcia', 'Robinson'];
-  const countries = ['United States', 'United Kingdom', 'Canada', 'Australia', 'Germany', 'France', 'Japan', 'Singapore', 'India', 'Brazil'];
-  const membershipTiers = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'];
-  const tierWeights = [30, 30, 20, 15, 5];
-
-  const getTier = () => {
-    const random = Math.random() * 100;
-    let cumulative = 0;
-    for (let i = 0; i < membershipTiers.length; i++) {
-      cumulative += tierWeights[i];
-      if (random <= cumulative) return membershipTiers[i];
-    }
-    return membershipTiers[0];
-  };
-
-  const guests = [];
-
-  for (let i = 0; i < 85; i++) {
-    const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
-    const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
-    const country = countries[Math.floor(Math.random() * countries.length)];
-    const tier = getTier();
-    const isCurrentGuest = Math.random() > 0.4;
-    const totalStays = Math.floor(Math.random() * 20) + 1;
-
-    guests.push({
-      id: `G-${(10000 + i).toString()}`,
-      firstName,
-      lastName,
-      fullName: `${firstName} ${lastName}`,
-      initials: `${firstName[0]}${lastName[0]}`,
-      email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@example.com`,
-      phone: `+1 (555) ${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`,
-      country,
-      membershipTier: tier,
-      loyaltyPoints: Math.floor(Math.random() * 50000),
-      totalStays,
-      totalSpent: Math.floor(Math.random() * 50000) + 1000,
-      avatarUrl: null, // Will be assigned by getGuestAvatarUrl function
-      lastVisit: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
-      isCurrentGuest,
-      currentRoom: isCurrentGuest ? `${Math.floor(Math.random() * 5) + 1}${(Math.floor(Math.random() * 20) + 1).toString().padStart(2, '0')}` : null,
-      checkInDate: isCurrentGuest ? new Date(Date.now() - Math.random() * 5 * 24 * 60 * 60 * 1000).toISOString() : null,
-      checkOutDate: isCurrentGuest ? new Date(Date.now() + Math.random() * 5 * 24 * 60 * 60 * 1000).toISOString() : null,
-      preferences: {
-        roomType: ['Deluxe', 'Suite', 'Standard', 'Executive'][Math.floor(Math.random() * 4)],
-        bedType: ['King', 'Queen', 'Twin'][Math.floor(Math.random() * 3)],
-        smoking: Math.random() > 0.8,
-        floor: Math.random() > 0.5 ? 'High' : 'Low',
-        specialRequests: Math.random() > 0.7 ? 'Extra pillows, late checkout' : null
-      },
-      vipStatus: tier === 'Platinum' || tier === 'Diamond'
-    });
-  }
-
-  return guests.sort((a, b) => {
-    if (a.isCurrentGuest && !b.isCurrentGuest) return -1;
-    if (!a.isCurrentGuest && b.isCurrentGuest) return 1;
-    return 0;
-  });
-};
-
-const GuestsView = () => {
+const GuestsView = ({ onMessageGuest }) => {
   const { isDark } = useTheme();
   const [guests, setGuests] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -155,16 +96,138 @@ const GuestsView = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [selectedGuest, setSelectedGuest] = useState(null);
+  const [blacklistModal, setBlacklistModal] = useState({ open: false, guest: null });
+  const [blacklistReason, setBlacklistReason] = useState('');
+  const [actionLoading, setActionLoading] = useState(null);
 
   useEffect(() => {
     const loadGuests = async () => {
       setIsLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setGuests(generateGuests());
-      setIsLoading(false);
+      try {
+        const res = await receptionApi.getGuestsList({ limit: 200 });
+        if (res?.success && res.data) {
+          const mapped = res.data.map(g => ({
+            id: g.guestId || g._id,
+            _id: g._id,
+            firstName: g.fullName?.split(' ')[0] || '',
+            lastName: g.fullName?.split(' ').slice(1).join(' ') || '',
+            fullName: g.fullName || '',
+            initials: (g.fullName || 'U').split(' ').map(n => n[0]).join(''),
+            email: g.email || '',
+            phone: g.phone || '',
+            country: g.country || '',
+            membershipTier: g.membershipTier || 'Bronze',
+            loyaltyPoints: g.loyaltyPoints || 0,
+            totalStays: g.totalStays || 0,
+            totalSpent: g.totalSpent || 0,
+            avatarUrl: g.avatarUrl || null,
+            lastVisit: g.lastVisit || g.updatedAt || new Date().toISOString(),
+            isCurrentGuest: g.status === 'In-House',
+            isActive: g.isActive !== false,
+            blacklisted: g.blacklisted || false,
+            blacklistReason: g.blacklistReason || '',
+            currentRoom: g.currentRoom || null,
+            checkInDate: g.checkInDate || null,
+            checkOutDate: g.checkOutDate || null,
+            preferences: g.preferences || {
+              roomType: 'Standard', bedType: 'Queen', smoking: false, floor: 'Low', specialRequests: null
+            },
+            vipStatus: g.vipStatus || false,
+          }));
+          setGuests(mapped.sort((a, b) => {
+            if (a.isCurrentGuest && !b.isCurrentGuest) return -1;
+            if (!a.isCurrentGuest && b.isCurrentGuest) return 1;
+            return 0;
+          }));
+        }
+      } catch (err) {
+        console.error('Error loading guests:', err);
+      } finally {
+        setIsLoading(false);
+      }
     };
     loadGuests();
   }, []);
+
+  const reloadGuests = async () => {
+    try {
+      const res = await receptionApi.getGuestsList({ limit: 200 });
+      if (res?.success && res.data) {
+        const mapped = res.data.map(g => ({
+          id: g.guestId || g._id,
+          _id: g._id,
+          firstName: g.fullName?.split(' ')[0] || '',
+          lastName: g.fullName?.split(' ').slice(1).join(' ') || '',
+          fullName: g.fullName || '',
+          initials: (g.fullName || 'U').split(' ').map(n => n[0]).join(''),
+          email: g.email || '',
+          phone: g.phone || '',
+          country: g.country || '',
+          membershipTier: g.membershipTier || 'Bronze',
+          loyaltyPoints: g.loyaltyPoints || 0,
+          totalStays: g.totalStays || 0,
+          totalSpent: g.totalSpent || 0,
+          avatarUrl: g.avatarUrl || null,
+          lastVisit: g.lastVisit || g.updatedAt || new Date().toISOString(),
+          isCurrentGuest: g.status === 'In-House',
+          isActive: g.isActive !== false,
+          blacklisted: g.blacklisted || false,
+          blacklistReason: g.blacklistReason || '',
+          currentRoom: g.currentRoom || null,
+          checkInDate: g.checkInDate || null,
+          checkOutDate: g.checkOutDate || null,
+          preferences: g.preferences || {
+            roomType: 'Standard', bedType: 'Queen', smoking: false, floor: 'Low', specialRequests: null
+          },
+          vipStatus: g.vipStatus || false,
+        }));
+        setGuests(mapped.sort((a, b) => {
+          if (a.isCurrentGuest && !b.isCurrentGuest) return -1;
+          if (!a.isCurrentGuest && b.isCurrentGuest) return 1;
+          return 0;
+        }));
+      }
+    } catch (err) {
+      console.error('Error reloading guests:', err);
+    }
+  };
+
+  const handleToggleActive = async (guest) => {
+    const newStatus = !(guest.isActive !== false);
+    setActionLoading(guest._id + '-status');
+    try {
+      await receptionApi.updateGuestStatus(guest._id, newStatus);
+      await reloadGuests();
+    } catch (err) {
+      console.error('Failed to update guest status:', err);
+      alert('Failed to update guest status: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleOpenBlacklistModal = (guest) => {
+    setBlacklistReason(guest.blacklistReason || '');
+    setBlacklistModal({ open: true, guest });
+  };
+
+  const handleToggleBlacklist = async () => {
+    const guest = blacklistModal.guest;
+    if (!guest) return;
+    const newBlacklisted = !guest.blacklisted;
+    setActionLoading(guest._id + '-blacklist');
+    try {
+      await receptionApi.flagGuestBlacklist(guest._id, newBlacklisted, blacklistReason);
+      setBlacklistModal({ open: false, guest: null });
+      setBlacklistReason('');
+      await reloadGuests();
+    } catch (err) {
+      console.error('Failed to update blacklist status:', err);
+      alert('Failed to update blacklist: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -296,7 +359,7 @@ const GuestsView = () => {
       {/* Filter Bar */}
       <div className="gv-filter-bar flex items-center gap-4 mb-6 flex-wrap">
         <div className="gv-search-wrapper relative flex-1 min-w-[280px]">
-          <Search className="gv-search-icon absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <Search className="gv-search-icon" size={18} />
           <input
             type="text"
             className="gv-search-input w-full h-11 pl-11 pr-4 rounded-xl text-sm"
@@ -468,14 +531,34 @@ const GuestsView = () => {
                     <td className="p-4">
                       <div className="gv-actions flex items-center gap-2">
                         <button
-                          className="gv-action-btn view w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200 w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200"
+                          className="gv-action-btn view w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200"
                           onClick={() => setSelectedGuest(guest)}
                           title="View Profile"
                         >
                           <Eye size={16} />
                         </button>
-                        <button className="gv-action-btn message w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200" title="Send Message">
+                        <button
+                          className="gv-action-btn message w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200"
+                          title="Send Message"
+                          onClick={() => onMessageGuest && onMessageGuest({ _id: guest._id, fullname: guest.fullName, companyRole: 'guest', email: guest.email, profilePicture: guest.avatarUrl })}
+                        >
                           <MessageSquare size={16} />
+                        </button>
+                        <button
+                          className={`gv-action-btn w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200 ${guest.isActive !== false ? 'deactivate' : 'activate'}`}
+                          onClick={() => handleToggleActive(guest)}
+                          title={guest.isActive !== false ? 'Mark Inactive' : 'Reactivate Guest'}
+                          disabled={actionLoading === guest._id + '-status'}
+                        >
+                          {guest.isActive !== false ? <UserX size={16} /> : <UserCheck size={16} />}
+                        </button>
+                        <button
+                          className={`gv-action-btn w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200 ${guest.blacklisted ? 'blacklisted' : 'flag'}`}
+                          onClick={() => handleOpenBlacklistModal(guest)}
+                          title={guest.blacklisted ? 'Remove from Blacklist' : 'Flag / Blacklist'}
+                          disabled={actionLoading === guest._id + '-blacklist'}
+                        >
+                          {guest.blacklisted ? <ShieldCheck size={16} /> : <ShieldAlert size={16} />}
                         </button>
                       </div>
                     </td>
@@ -648,13 +731,90 @@ const GuestsView = () => {
               </div>
             </div>
 
+            {/* Guest status badges in modal */}
+            {selectedGuest && (selectedGuest.isActive === false || selectedGuest.blacklisted) && (
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px', padding: '12px', borderRadius: '12px', background: isDark ? 'rgba(239,68,68,0.1)' : '#fef2f2', border: '1px solid', borderColor: isDark ? 'rgba(239,68,68,0.2)' : '#fecaca' }}>
+                {selectedGuest.isActive === false && (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, background: isDark ? 'rgba(239,68,68,0.2)' : '#fee2e2', color: isDark ? '#fca5a5' : '#dc2626' }}>
+                    <UserX size={12} /> Inactive
+                  </span>
+                )}
+                {selectedGuest.blacklisted && (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, background: isDark ? 'rgba(220,38,38,0.2)' : '#fee2e2', color: isDark ? '#f87171' : '#b91c1c' }}>
+                    <Ban size={12} /> Blacklisted{selectedGuest.blacklistReason ? `: ${selectedGuest.blacklistReason}` : ''}
+                  </span>
+                )}
+              </div>
+            )}
+
             <div className="gv-modal-footer flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-700">
               <button className="gv-modal-btn secondary px-5 py-2.5 rounded-lg text-sm font-medium transition-all duration-200" onClick={() => setSelectedGuest(null)}>
                 Close
               </button>
-              <button className="gv-modal-btn primary flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all duration-200">
+              <button
+                className="gv-modal-btn primary flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all duration-200"
+                onClick={() => {
+                  setSelectedGuest(null);
+                  onMessageGuest && onMessageGuest({ _id: selectedGuest._id, fullname: selectedGuest.fullName, companyRole: 'guest', email: selectedGuest.email, profilePicture: selectedGuest.avatarUrl });
+                }}
+              >
                 <MessageSquare size={16} />
                 Send Message
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Blacklist Reason Modal */}
+      {blacklistModal.open && blacklistModal.guest && (
+        <div className="gv-modal-overlay fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setBlacklistModal({ open: false, guest: null })}>
+          <div className="gv-modal w-full max-w-md rounded-2xl p-6" onClick={e => e.stopPropagation()}>
+            <button className="gv-modal-close absolute top-4 right-4 w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200" onClick={() => setBlacklistModal({ open: false, guest: null })}>
+              <X size={20} />
+            </button>
+
+            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+              <div style={{ width: '56px', height: '56px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', background: blacklistModal.guest.blacklisted ? (isDark ? 'rgba(34,197,94,0.15)' : '#f0fdf4') : (isDark ? 'rgba(239,68,68,0.15)' : '#fef2f2') }}>
+                {blacklistModal.guest.blacklisted ? <ShieldCheck size={28} style={{ color: '#10b981' }} /> : <ShieldAlert size={28} style={{ color: '#ef4444' }} />}
+              </div>
+              <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '8px' }}>
+                {blacklistModal.guest.blacklisted ? 'Remove from Blacklist' : 'Flag Guest on Blacklist'}
+              </h2>
+              <p style={{ fontSize: '14px', opacity: 0.7 }}>
+                {blacklistModal.guest.blacklisted
+                  ? `Remove ${blacklistModal.guest.fullName} from the blacklist?`
+                  : `Flag ${blacklistModal.guest.fullName} on the blacklist? This preserves all records.`
+                }
+              </p>
+            </div>
+
+            {!blacklistModal.guest.blacklisted && (
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Reason (required)</label>
+                <textarea
+                  value={blacklistReason}
+                  onChange={(e) => setBlacklistReason(e.target.value)}
+                  placeholder="Describe the reason for blacklisting this guest..."
+                  rows={3}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid', borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#e2e8f0', background: isDark ? 'rgba(255,255,255,0.05)' : '#f8fafc', fontSize: '14px', resize: 'vertical', color: 'inherit', fontFamily: 'inherit' }}
+                />
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button
+                className="gv-modal-btn secondary px-5 py-2.5 rounded-lg text-sm font-medium transition-all duration-200"
+                onClick={() => setBlacklistModal({ open: false, guest: null })}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleToggleBlacklist}
+                disabled={!blacklistModal.guest.blacklisted && !blacklistReason.trim()}
+                style={{ padding: '10px 20px', borderRadius: '10px', fontSize: '14px', fontWeight: 600, border: 'none', cursor: !blacklistModal.guest.blacklisted && !blacklistReason.trim() ? 'not-allowed' : 'pointer', opacity: !blacklistModal.guest.blacklisted && !blacklistReason.trim() ? 0.5 : 1, background: blacklistModal.guest.blacklisted ? '#10b981' : '#ef4444', color: '#fff' }}
+              >
+                {blacklistModal.guest.blacklisted ? 'Remove from Blacklist' : 'Confirm Blacklist'}
               </button>
             </div>
           </div>

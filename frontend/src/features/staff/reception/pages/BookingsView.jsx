@@ -9,93 +9,8 @@ import {
   Loader2,
   Users
 } from 'lucide-react';
+import * as receptionApi from '../../../../core/api/services/reception.service';
 import './BookingsView.css';
-
-// Sample booking data generator
-const generateSampleBookings = () => {
-  const guests = [
-    { name: 'Sarah Jenkins', email: 'sarah.j@example.com', avatar: null },
-    { name: 'Michael Foster', email: 'm.foster@tech.co', avatar: null },
-    { name: 'Lindsay Walton', email: 'lindsay.w@example.com', avatar: null },
-    { name: 'Courtney Wilson', email: 'courtney.w@example.com', avatar: null },
-    { name: 'Tom Cook', email: 'tom.cook@example.com', avatar: null },
-    { name: 'Whitney Francis', email: 'whitney.f@example.com', avatar: null },
-    { name: 'Leonard Krasner', email: 'leonard.k@example.com', avatar: null },
-    { name: 'Floyd Miles', email: 'floyd.m@example.com', avatar: null },
-    { name: 'Emily Selman', email: 'emily.s@example.com', avatar: null },
-    { name: 'Kristin Watson', email: 'kristin.w@example.com', avatar: null },
-    { name: 'Emma Wilson', email: 'emma.w@example.com', avatar: null },
-    { name: 'James Anderson', email: 'james.a@example.com', avatar: null },
-    { name: 'Sophia Martinez', email: 'sophia.m@example.com', avatar: null },
-    { name: 'Oliver Brown', email: 'oliver.b@example.com', avatar: null },
-    { name: 'Isabella Garcia', email: 'isabella.g@example.com', avatar: null },
-  ];
-
-  const roomTypes = [
-    { type: 'Deluxe King', rooms: ['304', '305', '306', '307', '308'] },
-    { type: 'Presidential Suite', rooms: ['501', '502'] },
-    { type: 'Standard Twin', rooms: ['102', '103', '104', '105', '106'] },
-    { type: 'Standard Queen', rooms: ['201', '202', '203', '204', '205'] },
-    { type: 'Executive Suite', rooms: ['401', '402', '403'] },
-    { type: 'Ocean View', rooms: ['601', '602', '603', '604'] },
-    { type: 'Garden View', rooms: ['701', '702', '703'] },
-  ];
-
-  const statuses = ['Confirmed', 'Checked In', 'Pending', 'Checked Out', 'Cancelled'];
-  const statusWeights = [35, 25, 20, 15, 5];
-
-  const getWeightedStatus = () => {
-    const random = Math.random() * 100;
-    let cumulative = 0;
-    for (let i = 0; i < statuses.length; i++) {
-      cumulative += statusWeights[i];
-      if (random <= cumulative) return statuses[i];
-    }
-    return statuses[0];
-  };
-
-  const bookings = [];
-  const baseDate = new Date('2023-10-01');
-
-  for (let i = 0; i < 156; i++) {
-    const guest = guests[Math.floor(Math.random() * guests.length)];
-    const roomTypeData = roomTypes[Math.floor(Math.random() * roomTypes.length)];
-    const room = roomTypeData.rooms[Math.floor(Math.random() * roomTypeData.rooms.length)];
-
-    const checkInOffset = Math.floor(Math.random() * 60) - 10;
-    const stayLength = Math.floor(Math.random() * 7) + 1;
-
-    const checkIn = new Date(baseDate);
-    checkIn.setDate(checkIn.getDate() + checkInOffset);
-
-    const checkOut = new Date(checkIn);
-    checkOut.setDate(checkOut.getDate() + stayLength);
-
-    const bookingId = `#BK-${(5023 - i).toString().padStart(4, '0')}`;
-
-    bookings.push({
-      id: bookingId,
-      numericId: 5023 - i,
-      guest: {
-        name: guest.name,
-        email: guest.email,
-        avatar: guest.avatar,
-        initials: guest.name.split(' ').map(n => n[0]).join('')
-      },
-      room: {
-        type: roomTypeData.type,
-        number: room
-      },
-      checkIn: checkIn,
-      checkOut: checkOut,
-      status: getWeightedStatus(),
-      nights: stayLength,
-      createdAt: new Date(checkIn.getTime() - Math.random() * 7 * 24 * 60 * 60 * 1000)
-    });
-  }
-
-  return bookings.sort((a, b) => b.numericId - a.numericId);
-};
 
 const BookingsView = () => {
   const { isDark } = useTheme();
@@ -116,14 +31,34 @@ const BookingsView = () => {
   const [showDateDropdown, setShowDateDropdown] = useState(false);
   const [showRoomDropdown, setShowRoomDropdown] = useState(false);
 
-  // Load bookings data
+  // Load bookings data from API
   useEffect(() => {
     const loadBookings = async () => {
       setIsLoading(true);
       try {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        const data = generateSampleBookings();
-        setBookings(data);
+        const res = await receptionApi.getReservations({ limit: 200 });
+        if (res?.success && res.data) {
+          const mapped = res.data.map(b => ({
+            id: b.id || b.bookingId || b._id,
+            numericId: parseInt(String(b.id || b.bookingId || '').replace('#BK-', '')) || 0,
+            guest: {
+              name: b.guest?.name || b.guestInfo?.name || 'Unknown',
+              email: b.guest?.email || b.guestInfo?.email || '',
+              avatar: null,
+              initials: (b.guest?.name || b.guestInfo?.name || 'U').split(' ').map(n => n[0]).join(''),
+            },
+            room: {
+              type: b.room?.type || '',
+              number: b.room?.number || '',
+            },
+            checkIn: new Date(b.checkIn),
+            checkOut: new Date(b.checkOut),
+            status: b.status === 'Checked-In' ? 'Checked In' : b.status === 'Checked-Out' ? 'Checked Out' : b.status,
+            nights: b.durationNights || 1,
+            createdAt: new Date(b.createdAt || b.checkIn),
+          }));
+          setBookings(mapped.sort((a, b) => b.numericId - a.numericId));
+        }
       } catch (error) {
         console.error('Error loading bookings:', error);
       } finally {
@@ -193,13 +128,13 @@ const BookingsView = () => {
             if (checkIn < weekStart || checkIn >= weekEnd) return false;
             break;
           case 'this-month':
-            const demoMonthStart = new Date(2023, 9, 1);
-            const demoMonthEnd = new Date(2023, 9, 31);
-            if (checkIn < demoMonthStart || checkIn > demoMonthEnd) return false;
+            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+            const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            if (checkIn < monthStart || checkIn > monthEnd) return false;
             break;
           case 'last-month':
-            const lastMonthStart = new Date(2023, 8, 1);
-            const lastMonthEnd = new Date(2023, 8, 30);
+            const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
             if (checkIn < lastMonthStart || checkIn > lastMonthEnd) return false;
             break;
           default:

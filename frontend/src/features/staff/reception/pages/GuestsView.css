@@ -127,6 +127,10 @@
   top: 50%;
   transform: translateY(-50%);
   color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
 }
 
 .gv-search-input {
@@ -271,8 +275,13 @@
 }
 
 @keyframes gv-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .dark .gv-loading {
@@ -755,8 +764,13 @@
 }
 
 @keyframes gv-fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 /* Modal */
@@ -776,6 +790,7 @@
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -1168,7 +1183,8 @@
 @media (max-width: 768px) {
   .guests-view {
     padding: 16px;
-    padding-bottom: 80px; /* space for mobile bottom nav */
+    padding-bottom: 80px;
+    /* space for mobile bottom nav */
   }
 
   .gv-stats-grid {
@@ -1281,4 +1297,66 @@
 .dark .gv-table-container::-webkit-scrollbar-thumb:hover,
 .dark .gv-modal::-webkit-scrollbar-thumb:hover {
   background: #64748b;
+}
+
+/* Guest Action Buttons — deactivate / activate / flag / blacklisted */
+.gv-action-btn.deactivate {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+
+.gv-action-btn.deactivate:hover {
+  background: #f59e0b;
+  color: white;
+}
+
+.gv-action-btn.activate {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+}
+
+.gv-action-btn.activate:hover {
+  background: #22c55e;
+  color: white;
+}
+
+.gv-action-btn.flag {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+
+.gv-action-btn.flag:hover {
+  background: #f59e0b;
+  color: white;
+}
+
+.gv-action-btn.blacklisted {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.gv-action-btn.blacklisted:hover {
+  background: #ef4444;
+  color: white;
+}
+
+.gv-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.dark .gv-action-btn.deactivate {
+  background: rgba(245, 158, 11, 0.15);
+}
+
+.dark .gv-action-btn.activate {
+  background: rgba(34, 197, 94, 0.15);
+}
+
+.dark .gv-action-btn.flag {
+  background: rgba(245, 158, 11, 0.15);
+}
+
+.dark .gv-action-btn.blacklisted {
+  background: rgba(239, 68, 68, 0.15);
 }

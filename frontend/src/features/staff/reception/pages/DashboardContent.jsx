@@ -15,6 +15,7 @@ import {
   ExpressCheckOutModal, RoomChangeModal
 } from './ActionModals';
 import * as msgService from '../../../../core/api/services/messaging.service';
+import * as receptionApi from '../../../../core/api/services/reception.service';
 import { io as socketIO } from 'socket.io-client';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
@@ -65,17 +66,18 @@ const OccupancyRing = ({ pct }) => {
 };
 
 /* ── Enhanced Weekly Occupancy Chart v2 ── */
-const WeeklyOccupancyChart = () => {
+const WeeklyOccupancyChart = ({ occupancyData: propData }) => {
   const [hoveredIdx, setHoveredIdx] = useState(null);
-  const occupancyData = [
-    { day: 'Mon', value: 68, name: 'Monday' },
-    { day: 'Tue', value: 75, name: 'Tuesday' },
-    { day: 'Wed', value: 72, name: 'Wednesday' },
-    { day: 'Thu', value: 85, name: 'Thursday' },
-    { day: 'Fri', value: 92, name: 'Friday' },
-    { day: 'Sat', value: 96, name: 'Saturday' },
-    { day: 'Sun', value: 89, name: 'Sunday' }
+  const defaultData = [
+    { day: 'Mon', value: 0, name: 'Monday' },
+    { day: 'Tue', value: 0, name: 'Tuesday' },
+    { day: 'Wed', value: 0, name: 'Wednesday' },
+    { day: 'Thu', value: 0, name: 'Thursday' },
+    { day: 'Fri', value: 0, name: 'Friday' },
+    { day: 'Sat', value: 0, name: 'Saturday' },
+    { day: 'Sun', value: 0, name: 'Sunday' }
   ];
+  const occupancyData = (propData && propData.length > 0) ? propData : defaultData;
 
   const avg = Math.round(occupancyData.reduce((a, d) => a + d.value, 0) / occupancyData.length);
   const targetPct = 85;
@@ -125,7 +127,7 @@ const WeeklyOccupancyChart = () => {
               <g key={v}>
                 <line x1={pad.left} y1={y} x2={svgW - pad.right} y2={y}
                   stroke="var(--border-secondary)" strokeWidth="0.6" strokeDasharray="3,3" opacity="0.5" />
-                <text x={pad.left - 6} y={y + 3.5} textAnchor="end" fontSize="9" fontWeight="500"
+                <text x={pad.left - 6} y={y + 3.5} textAnchor="end" fontSize="11" fontWeight="500"
                   fill="var(--text-tertiary)" fontFamily="'Plus Jakarta Sans', sans-serif">{v}%</text>
               </g>
             );
@@ -134,7 +136,7 @@ const WeeklyOccupancyChart = () => {
           {/* Target line */}
           <line x1={pad.left} y1={targetY} x2={svgW - pad.right} y2={targetY}
             stroke="#F59E0B" strokeWidth="1" strokeDasharray="6,4" opacity="0.8" />
-          <text x={svgW - pad.right + 4} y={targetY + 3} fontSize="8" fontWeight="600"
+          <text x={svgW - pad.right + 4} y={targetY + 3} fontSize="10" fontWeight="600"
             fill="#F59E0B" fontFamily="'Plus Jakarta Sans', sans-serif">Target</text>
 
           {/* Gradient area */}
@@ -182,11 +184,11 @@ const WeeklyOccupancyChart = () => {
                 <rect x={tx} y={ty} width={tipW} height={tipH} rx="8"
                   fill="var(--bg-surface)" stroke="var(--border-primary)" strokeWidth="1"
                   filter="url(#v2Shadow)" />
-                <text x={tx + tipW / 2} y={ty + 16} textAnchor="middle" fontSize="10" fontWeight="700"
+                <text x={tx + tipW / 2} y={ty + 16} textAnchor="middle" fontSize="11" fontWeight="700"
                   fill="var(--text-primary)" fontFamily="'Plus Jakarta Sans', sans-serif">{p.name}</text>
-                <text x={tx + tipW / 2} y={ty + 30} textAnchor="middle" fontSize="12" fontWeight="800"
+                <text x={tx + tipW / 2} y={ty + 30} textAnchor="middle" fontSize="14" fontWeight="800"
                   fill="#3730A3" fontFamily="'Plus Jakarta Sans', sans-serif">{p.value}%</text>
-                <text x={tx + tipW / 2} y={ty + 42} textAnchor="middle" fontSize="9" fontWeight="500"
+                <text x={tx + tipW / 2} y={ty + 42} textAnchor="middle" fontSize="10" fontWeight="500"
                   fill={delta >= 0 ? '#10B981' : '#EF4444'}
                   fontFamily="'Plus Jakarta Sans', sans-serif">vs prev: {deltaStr}</text>
                 {/* Arrow */}
@@ -201,7 +203,7 @@ const WeeklyOccupancyChart = () => {
           {/* Day labels */}
           {pts.map(p => (
             <text key={`lbl-${p.day}`} x={p.x} y={svgH - 8} textAnchor="middle"
-              fontSize="10" fontWeight="600" fill="var(--text-tertiary)"
+              fontSize="12" fontWeight="600" fill="var(--text-tertiary)"
               fontFamily="'Plus Jakarta Sans', sans-serif">{p.day}</text>
           ))}
         </svg>
@@ -213,7 +215,7 @@ const WeeklyOccupancyChart = () => {
 /* ── Enhanced Revenue Donut Chart v2 ── */
 const EnhancedDonutChart = ({ segments }) => {
   const [hoveredSeg, setHoveredSeg] = useState(null);
-  const total = segments.reduce((s, seg) => s + seg.value, 0);
+  const total = segments.reduce((s, seg) => s + (Number(seg.value) || 0), 0);
   const cx = 90;
   const cy = 90;
   const r = 68;
@@ -222,7 +224,13 @@ const EnhancedDonutChart = ({ segments }) => {
   // Build arc paths for each segment
   const segArcs = [];
   let startAngle = -90; // start from top
-  segments.forEach((seg, i) => {
+  if (total === 0) {
+    // Nothing to draw – push placeholder segments with zero arcs
+    segments.forEach((seg, i) => {
+      segArcs.push({ ...seg, path: '', pct: 0, lx: cx, ly: cy - r - 14, idx: i });
+    });
+  }
+  (total > 0 ? segments : []).forEach((seg, i) => {
     const pct = seg.value / total;
     const angle = pct * 360;
     const endAngle = startAngle + angle;
@@ -264,7 +272,7 @@ const EnhancedDonutChart = ({ segments }) => {
               stroke="var(--bg-inset)" strokeWidth={strokeW} opacity="0.5" />
 
             {/* Segments */}
-            {segArcs.map((seg) => (
+            {segArcs.filter(seg => seg.path).map((seg) => (
               <path key={seg.idx} d={seg.path} fill="none"
                 stroke={seg.color} strokeWidth={hoveredSeg === seg.idx ? strokeW + 4 : strokeW}
                 strokeLinecap="round"
@@ -279,7 +287,7 @@ const EnhancedDonutChart = ({ segments }) => {
             ))}
 
             {/* Outside percentage labels */}
-            {segArcs.map((seg) => (
+            {segArcs.filter(seg => seg.pct > 0).map((seg) => (
               <text key={`pct-${seg.idx}`} x={seg.lx} y={seg.ly + 3}
                 textAnchor="middle" fontSize="10" fontWeight="700"
                 fill={seg.color} fontFamily="'Plus Jakarta Sans', sans-serif">
@@ -300,7 +308,7 @@ const EnhancedDonutChart = ({ segments }) => {
         {/* Legend */}
         <div className="sh-v2-legend">
           {segments.map((seg, i) => {
-            const pct = ((seg.value / total) * 100).toFixed(1);
+            const pct = total > 0 ? ((seg.value / total) * 100).toFixed(1) : '0.0';
             return (
               <div key={i} className={`sh-v2-legend-row${hoveredSeg === i ? ' active' : ''}`}
                 onMouseEnter={() => setHoveredSeg(i)}
@@ -399,6 +407,20 @@ const DashboardContent = () => {
   const [showCheckOutModal, setShowCheckOutModal] = useState(false);
   const [showRoomChangeModal, setShowRoomChangeModal] = useState(false);
   const [activeBookingId] = useState(null);
+
+  // ── Live Dashboard Data (fetched from API) ──
+  const [dashLoading, setDashLoading] = useState(true);
+  const [kpiData, setKpiData] = useState([]);
+  const [roomStatus, setRoomStatus] = useState([]);
+  const [activityFeed, setActivityFeed] = useState([]);
+  const [guestRequests, setGuestRequests] = useState([]);
+  const [arrivals, setArrivals] = useState([]);
+  const [departures, setDepartures] = useState([]);
+  const [housekeepingData, setHousekeepingData] = useState([]);
+  const [revenueSegments, setRevenueSegments] = useState([]);
+  const [weeklyOccupancy, setWeeklyOccupancy] = useState([]);
+  const [occupancyPct, setOccupancyPct] = useState(0);
+  const [totalRooms, setTotalRooms] = useState(0);
 
   // Close notifications on outside click
   const notifRef = useRef(null);
@@ -515,6 +537,122 @@ const DashboardContent = () => {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
+  // ── Fetch Dashboard Data from API ──
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      setDashLoading(true);
+      try {
+        const [summaryRes, roomStatusRes, arrivalsRes, deptRes, requestsRes, activityRes, weeklyRes, revenueRes] = await Promise.allSettled([
+          receptionApi.getDashboardSummary(),
+          receptionApi.getLiveRoomStatus(),
+          receptionApi.getTodayArrivals(),
+          receptionApi.getTodayDepartures(),
+          receptionApi.getGuestRequests(),
+          receptionApi.getActivityLog(10),
+          receptionApi.getWeeklyOccupancy(),
+          receptionApi.getRevenueSplit(),
+        ]);
+
+        // KPI data
+        if (summaryRes.status === 'fulfilled' && summaryRes.value?.success) {
+          const s = summaryRes.value.data;
+          setKpiData([
+            { title: "Check-ins", value: String(s.checkIns?.value ?? 0), sub: `/${s.checkIns?.total ?? 0}`, trend: s.checkIns?.trend ?? '+0%', up: !String(s.checkIns?.trend).startsWith('-'), icon: CalendarCheck, color: '#6366f1', sparkline: s.checkIns?.sparkline || [0,0,0,0,0,0,0] },
+            { title: "Check-outs", value: String(s.checkOuts?.value ?? 0), sub: `/${s.checkOuts?.total ?? 0}`, trend: s.checkOuts?.trend ?? '+0%', up: !String(s.checkOuts?.trend).startsWith('-'), icon: LogOutIcon, color: '#f97316', sparkline: s.checkOuts?.sparkline || [0,0,0,0,0,0,0] },
+            { title: "Occupancy", value: String(s.occupancy?.value ?? 0), sub: '%', trend: s.occupancy?.trend ?? '+0%', up: !String(s.occupancy?.trend).startsWith('-'), icon: Building2, color: '#10b981', sparkline: s.occupancy?.sparkline || [0,0,0,0,0,0,0] },
+            { title: "Revenue", value: s.revenue?.value ?? '₹0', sub: '', trend: s.revenue?.trend ?? '+0%', up: !String(s.revenue?.trend).startsWith('-'), icon: DollarSign, color: '#8b5cf6', sparkline: s.revenue?.sparkline || [0,0,0,0,0,0,0] },
+            { title: "Pending Pay", value: String(s.pendingPayments?.value ?? 0), sub: '', trend: s.pendingPayments?.trend ?? '0', up: !String(s.pendingPayments?.trend).startsWith('+'), icon: CreditCard, color: '#f59e0b', sparkline: s.pendingPayments?.sparkline || [0,0,0,0,0,0,0] },
+            { title: "Available", value: String(s.availableRooms?.value ?? 0), sub: '', trend: s.availableRooms?.trend ?? '0', up: false, icon: Bed, color: '#06b6d4', sparkline: s.availableRooms?.sparkline || [0,0,0,0,0,0,0] },
+          ]);
+          setOccupancyPct(s.occupancy?.value ?? 0);
+        }
+
+        // Room status
+        if (roomStatusRes.status === 'fulfilled' && roomStatusRes.value?.success) {
+          const rs = roomStatusRes.value.data;
+          const total = rs.total || ((rs.available || 0) + (rs.occupied || 0) + (rs.cleaning || 0) + (rs.maintenance || 0) + (rs.reserved || 0));
+          setTotalRooms(total);
+          const pct = (v) => total > 0 ? Math.round((v / total) * 100) : 0;
+          setRoomStatus([
+            { label: 'Available', count: rs.available || 0, color: '#10b981', pct: pct(rs.available || 0) },
+            { label: 'Occupied', count: rs.occupied || 0, color: '#6366f1', pct: pct(rs.occupied || 0) },
+            { label: 'Cleaning', count: rs.cleaning || 0, color: '#f59e0b', pct: pct(rs.cleaning || 0) },
+            { label: 'Maintenance', count: rs.maintenance || 0, color: '#ef4444', pct: pct(rs.maintenance || 0) },
+          ]);
+        }
+
+        // Arrivals
+        if (arrivalsRes.status === 'fulfilled' && arrivalsRes.value?.success) {
+          setArrivals((arrivalsRes.value.data || []).slice(0, 5).map((a, i) => ({
+            id: i + 1, guest: a.guest?.name || 'Unknown', room: a.room?.type || '', num: a.room?.number || '',
+            time: a.expectedTime || '', source: a.source || a.bookingSource || '', payment: a.paymentStatus || 'unpaid', vip: a.guest?.vip || a.isVip || false,
+          })));
+        }
+
+        // Departures
+        if (deptRes.status === 'fulfilled' && deptRes.value?.success) {
+          setDepartures((deptRes.value.data || []).slice(0, 5).map((d, i) => ({
+            id: i + 1, guest: d.guest?.name || 'Unknown', room: d.room?.type || '', num: d.room?.number || '',
+            time: d.checkOutTime || '', source: d.source || d.bookingSource || '', payment: d.paymentStatus || 'paid', vip: d.guest?.vip || d.isVip || false,
+          })));
+        }
+
+        // Guest Requests
+        if (requestsRes.status === 'fulfilled' && requestsRes.value?.success) {
+          const catIconMap = { 'Room Service': ConciergeBell, 'Checkout': Clock, 'Maintenance': Wrench, 'Amenities': Coffee, 'Other': AlertTriangle };
+          setGuestRequests((requestsRes.value.data || []).map((r, i) => ({
+            id: r._id || i, room: `Room ${r.roomNumber}`, req: r.description, time: new Date(r.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
+            priority: r.urgency, category: r.category, catIcon: catIconMap[r.category] || AlertTriangle,
+            sla: r.isOverdue ? 'Overdue' : r.timeRemainingMinutes > 0 ? `${r.timeRemainingMinutes} min left` : 'Overdue',
+            overdue: r.isOverdue, actions: r.urgency === 'urgent' ? ['Assign', 'Ignore'] : ['Approve', 'Deny'], _id: r._id,
+          })));
+        }
+
+        // Activity Feed
+        if (activityRes.status === 'fulfilled' && activityRes.value?.success) {
+          const iconMap = { CalendarCheck, DollarSign, Sparkles, Users, LogOut: LogOutIcon, Wrench };
+          setActivityFeed((activityRes.value.data || []).map((a, i) => ({
+            text: a.text || a.description, time: a.timeAgo || a.time || formatTime(a.createdAt),
+            icon: iconMap[a.icon] || CheckCircle, color: a.color || '#6366f1', live: i === 0,
+          })));
+        }
+
+        // Weekly Occupancy
+        if (weeklyRes.status === 'fulfilled' && weeklyRes.value?.success) {
+          const wData = weeklyRes.value.data;
+          setWeeklyOccupancy(Array.isArray(wData) ? wData : wData?.days || []);
+        }
+
+        // Revenue Split
+        if (revenueRes.status === 'fulfilled' && revenueRes.value?.success) {
+          const rv = revenueRes.value.data;
+          setRevenueSegments([
+            { label: 'Rooms', value: rv.rooms || 0, color: '#6366f1' },
+            { label: 'Food & Bev', value: rv.food || 0, color: '#f59e0b' },
+            { label: 'Services', value: rv.services || 0, color: '#10b981' },
+          ]);
+        }
+
+        // Housekeeping mini-list (top 4 items from the housekeeping endpoint)
+        try {
+          const hkRes = await receptionApi.getHousekeepingTasks({ status: 'in-progress,needs-cleaning', limit: 4 });
+          if (hkRes?.success) {
+            setHousekeepingData((hkRes.data || []).slice(0, 4).map(t => ({
+              room: `Room ${t.roomNumber}`, staff: t.assignedToName || 'Pending',
+              status: t.status === 'in-progress' ? 'assigned' : t.status === 'clean' || t.status === 'inspected' ? 'done' : 'pending',
+            })));
+          }
+        } catch { /* ignore housekeeping errors */ }
+
+      } catch (err) {
+        console.warn('Dashboard data fetch error:', err);
+      } finally {
+        setDashLoading(false);
+      }
+    };
+    fetchDashboard();
+  }, [hotelId]);
+
   // ── Send Message (real API) ──
   const handleSendMessage = async () => {
     if (!msgText.trim()) return;
@@ -619,60 +757,7 @@ const DashboardContent = () => {
     default: { icon: Bell, color: '#64748b' },
   };
 
-  // ── Data ──
-  const kpiData = [
-    { title: "Check-ins", value: '24', sub: '/45', trend: '+8%', up: true, icon: CalendarCheck, color: '#6366f1', sparkline: [12, 18, 15, 22, 20, 24, 24] },
-    { title: "Check-outs", value: '12', sub: '/30', trend: '+3%', up: true, icon: LogOutIcon, color: '#f97316', sparkline: [8, 10, 7, 9, 11, 10, 12] },
-    { title: "Occupancy", value: '85', sub: '%', trend: '+2%', up: true, icon: Building2, color: '#10b981', sparkline: [78, 80, 82, 79, 83, 84, 85] },
-    { title: "Revenue", value: '₹1.8L', sub: '', trend: '+12%', up: true, icon: DollarSign, color: '#8b5cf6', sparkline: [90, 110, 105, 130, 125, 150, 180] },
-    { title: "Pending Pay", value: '7', sub: '', trend: '-2', up: false, icon: CreditCard, color: '#f59e0b', sparkline: [12, 10, 9, 11, 8, 9, 7] },
-    { title: "Available", value: '15', sub: '', trend: '-3', up: false, icon: Bed, color: '#06b6d4', sparkline: [20, 19, 18, 17, 16, 16, 15] },
-  ];
-
-  const roomStatus = [
-    { label: 'Available', count: 101, color: '#10b981', pct: 27 },
-    { label: 'Occupied', count: 202, color: '#6366f1', pct: 54 },
-    { label: 'Cleaning', count: 45, color: '#f59e0b', pct: 12 },
-    { label: 'Maintenance', count: 20, color: '#ef4444', pct: 5 },
-  ];
-
-  const activityFeed = [
-    { text: '<strong>John Doe</strong> checked in to Room 405', time: '2 min ago', icon: CalendarCheck, color: '#10b981', live: true },
-    { text: 'Payment of <strong>₹12,500</strong> received — Room 302', time: '8 min ago', icon: DollarSign, color: '#6366f1', live: false },
-    { text: 'Room 201 moved to <strong>cleaning</strong>', time: '15 min ago', icon: Sparkles, color: '#f59e0b', live: false },
-    { text: '<strong>Maria</strong> assigned to Room 302 housekeeping', time: '22 min ago', icon: Users, color: '#06b6d4', live: false },
-    { text: '<strong>Alice Cooper</strong> checked out from Room 501', time: '35 min ago', icon: LogOutIcon, color: '#f97316', live: false },
-  ];
-
-  const guestRequests = [
-    { id: 1, room: 'Room 202', req: 'Requesting 2 extra pillows and a duvet.', time: '1:07 AM', priority: 'urgent', category: 'Room Service', catIcon: ConciergeBell, sla: '5 min left', overdue: false, actions: ['Assign', 'Ignore'] },
-    { id: 2, room: 'Room 505', req: 'Late checkout request (2:00 PM).', time: '1:05 AM', priority: 'medium', category: 'Checkout', catIcon: Clock, sla: 'Overdue', overdue: true, actions: ['Approve', 'Deny'] },
-    { id: 3, room: 'Room 301', req: 'AC not cooling properly. Needs maintenance.', time: '12:45 AM', priority: 'urgent', category: 'Maintenance', catIcon: Wrench, sla: '12 min left', overdue: false, actions: ['Assign', 'Reject'] },
-  ];
-
-  const arrivals = [
-    { id: 1, guest: 'John Doe', room: 'Deluxe Sea View', num: '405', time: '12:30 PM', source: 'Website', payment: 'paid', vip: false },
-    { id: 2, guest: 'Alice Cooper', room: 'Presidential Suite', num: '501', time: '02:00 PM', source: 'Agoda', payment: 'pending', vip: true },
-    { id: 3, guest: 'Raj Patel', room: 'Standard Twin', num: '210', time: '03:30 PM', source: 'Walk-in', payment: 'unpaid', vip: false },
-  ];
-
-  const departures = [
-    { id: 1, guest: 'Emma Wilson', room: 'Deluxe King', num: '302', time: '11:00 AM', source: 'Booking.com', payment: 'paid', vip: true },
-    { id: 2, guest: 'Kenji Tanaka', room: 'Superior Room', num: '118', time: '12:00 PM', source: 'Website', payment: 'paid', vip: false },
-  ];
-
-  const housekeeping = [
-    { room: 'Room 302', staff: 'Maria Santos', status: 'assigned' },
-    { room: 'Room 405', staff: 'Pending', status: 'pending' },
-    { room: 'Room 118', staff: 'Ram Thapa', status: 'done' },
-    { room: 'Room 210', staff: 'Pending', status: 'pending' },
-  ];
-
-  const revenueSegments = [
-    { label: 'Rooms', value: 125000, color: '#6366f1' },
-    { label: 'Food & Bev', value: 35000, color: '#f59e0b' },
-    { label: 'Services', value: 18000, color: '#10b981' },
-  ];
+  // ── Data (fetched from API via state) ──
 
   const quickActions = [
     { label: 'New Booking', icon: Plus, shortcut: 'N', primary: true, onClick: () => setShowNewBookingModal(true) },
@@ -720,7 +805,7 @@ const DashboardContent = () => {
 
         <div className="sh-topbar-right">
           <LiveClock />
-          <OccupancyRing pct={85} />
+          <OccupancyRing pct={occupancyPct} />
           <div ref={notifRef} style={{ position: 'relative' }}>
             <button className="sh-topbar-btn" onClick={() => setShowNotifications(!showNotifications)}>
               <Bell size={18} />
@@ -803,7 +888,7 @@ const DashboardContent = () => {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
                   <h2 className="sh-kpi-value">
-                    {kpi.value.startsWith('₹') ? kpi.value : <AnimatedNumber value={kpi.value} />}
+                    {String(kpi.value).startsWith('₹') ? kpi.value : <AnimatedNumber value={kpi.value} />}
                   </h2>
                   {kpi.sub && <span className="sh-kpi-sub">{kpi.sub}</span>}
                 </div>
@@ -839,11 +924,11 @@ const DashboardContent = () => {
             <div className="sh-card" style={{ animationDelay: '0.2s' }}>
               <div className="sh-card-header">
                 <h3 className="sh-card-title">Live Room Status</h3>
-                <span style={{ fontSize: 12, color: 'var(--text-tertiary)', fontWeight: 500 }}>368 Total</span>
+                <span style={{ fontSize: 12, color: 'var(--text-tertiary)', fontWeight: 500 }}>{totalRooms} Total</span>
               </div>
               <div className="sh-card-body">
                 <div className="sh-room-filters">
-                  {[{ id: 'all', label: 'All', count: 368 }, ...roomStatus.map(s => ({ id: s.label.toLowerCase(), label: s.label, count: s.count }))].map(f => (
+                  {[{ id: 'all', label: 'All', count: totalRooms }, ...roomStatus.map(s => ({ id: s.label.toLowerCase(), label: s.label, count: s.count }))].map(f => (
                     <button key={f.id}
                       className={`sh-room-filter-btn ${activeRoomFilter === f.id ? 'active' : ''}`}
                       style={activeRoomFilter === f.id ? { background: f.id === 'all' ? '#6366f1' : roomStatus.find(s => s.label.toLowerCase() === f.id)?.color || '#6366f1' } : {}}
@@ -909,7 +994,7 @@ const DashboardContent = () => {
             <div className="sh-bottom-widgets">
               {/* Enhanced Weekly Occupancy */}
               <div className="sh-v2-chart-wrapper" style={{ animationDelay: '0.4s' }}>
-                <WeeklyOccupancyChart />
+                <WeeklyOccupancyChart occupancyData={weeklyOccupancy} />
               </div>
 
               {/* Enhanced Revenue Split */}
@@ -924,7 +1009,7 @@ const DashboardContent = () => {
                 </div>
                 <div className="sh-card-body">
                   <div className="sh-hk-list">
-                    {housekeeping.map((h, i) => (
+                    {housekeepingData.map((h, i) => (
                       <div className="sh-hk-item" key={i}>
                         <div>
                           <div className="sh-hk-room">{h.room}</div>
@@ -968,8 +1053,12 @@ const DashboardContent = () => {
                         <Clock size={12} /><span>{r.sla}</span>
                       </div>
                       <div className="sh-request-actions">
-                        <button className="sh-req-btn approve">{r.actions[0]}</button>
-                        <button className="sh-req-btn deny">{r.actions[1]}</button>
+                        <button className="sh-req-btn approve" onClick={async () => {
+                          if (r._id) { try { await receptionApi.assignGuestRequest(r._id); setGuestRequests(prev => prev.filter(x => x._id !== r._id)); } catch {} }
+                        }}>{r.actions[0]}</button>
+                        <button className="sh-req-btn deny" onClick={async () => {
+                          if (r._id) { try { await receptionApi.ignoreGuestRequest(r._id); setGuestRequests(prev => prev.filter(x => x._id !== r._id)); } catch {} }
+                        }}>{r.actions[1]}</button>
                       </div>
                     </div>
                   ))}

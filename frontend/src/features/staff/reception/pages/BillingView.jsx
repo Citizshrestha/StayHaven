@@ -23,71 +23,7 @@ import {
     Filter
 } from 'lucide-react';
 import './BillingView.css';
-
-// Generate billing data
-const generateBillingData = () => {
-    const guests = [
-        'Sarah Jenkins', 'Michael Foster', 'Emma Wilson', 'James Anderson',
-        'Olivia Martinez', 'Tom Cook', 'Lindsay Walton', 'Courtney Wilson',
-        'Whitney Francis', 'Leonard Krasner', 'Floyd Miles', 'Emily Selman'
-    ];
-
-    const roomTypes = ['Deluxe King', 'Presidential Suite', 'Standard Twin', 'Standard Queen', 'Executive Suite', 'Ocean View', 'Garden View'];
-    const paymentMethods = ['Credit Card', 'Debit Card', 'Cash', 'Bank Transfer', 'Online Payment'];
-    const invoiceStatuses = ['paid', 'pending', 'overdue', 'partial', 'refunded'];
-    const statusWeights = [40, 25, 10, 15, 10];
-
-    const getWeightedStatus = () => {
-        const r = Math.random() * 100;
-        let c = 0;
-        for (let i = 0; i < invoiceStatuses.length; i++) {
-            c += statusWeights[i];
-            if (r <= c) return invoiceStatuses[i];
-        }
-        return invoiceStatuses[0];
-    };
-
-    const invoices = [];
-    for (let i = 0; i < 30; i++) {
-        const guest = guests[Math.floor(Math.random() * guests.length)];
-        const roomType = roomTypes[Math.floor(Math.random() * roomTypes.length)];
-        const roomNum = (100 + Math.floor(Math.random() * 600)).toString();
-        const nights = Math.floor(Math.random() * 7) + 1;
-        const roomRate = [120, 150, 220, 280, 350, 600][Math.floor(Math.random() * 6)];
-        const roomCharges = roomRate * nights;
-        const extras = Math.floor(Math.random() * 200);
-        const tax = Math.round(roomCharges * 0.13);
-        const total = roomCharges + extras + tax;
-        const status = getWeightedStatus();
-
-        invoices.push({
-            id: `INV-${(2024000 + i).toString()}`,
-            bookingId: `#BK-${5000 + i}`,
-            guest: {
-                name: guest,
-                initials: guest.split(' ').map(n => n[0]).join('')
-            },
-            room: { type: roomType, number: roomNum },
-            checkIn: new Date(Date.now() - (Math.random() * 15 + 1) * 24 * 60 * 60 * 1000),
-            checkOut: new Date(Date.now() + (Math.random() * 5) * 24 * 60 * 60 * 1000),
-            nights,
-            charges: {
-                room: roomCharges,
-                extras,
-                tax,
-                total
-            },
-            paid: status === 'paid' ? total : status === 'partial' ? Math.round(total * 0.6) : status === 'refunded' ? total : 0,
-            balance: status === 'paid' ? 0 : status === 'partial' ? Math.round(total * 0.4) : status === 'refunded' ? 0 : total,
-            status,
-            paymentMethod: paymentMethods[Math.floor(Math.random() * paymentMethods.length)],
-            invoiceDate: new Date(Date.now() - Math.random() * 10 * 24 * 60 * 60 * 1000),
-            dueDate: new Date(Date.now() + Math.random() * 7 * 24 * 60 * 60 * 1000),
-        });
-    }
-
-    return invoices;
-};
+import * as receptionApi from '../../../../core/api/services/reception.service';
 
 const BillingView = () => {
     const { isDark } = useTheme();
@@ -101,9 +37,43 @@ const BillingView = () => {
     useEffect(() => {
         const load = async () => {
             setIsLoading(true);
-            await new Promise(r => setTimeout(r, 500));
-            setInvoices(generateBillingData());
-            setIsLoading(false);
+            try {
+                const res = await receptionApi.getInvoices({ limit: 200 });
+                if (res?.success && res.data) {
+                    const mapped = res.data.map(inv => ({
+                        id: inv.invoiceId || inv.invoiceNumber || inv._id,
+                        bookingId: inv.bookingRef || inv.booking?.bookingId || inv.bookingId || '',
+                        guest: {
+                            name: inv.guest?.fullName || inv.guestName || 'Unknown',
+                            initials: (inv.guest?.fullName || inv.guestName || 'U').split(' ').map(n => n[0]).join('')
+                        },
+                        room: {
+                            type: inv.room?.type || inv.roomType || 'Standard',
+                            number: inv.room?.roomNumber || inv.roomNumber || ''
+                        },
+                        checkIn: inv.checkIn ? new Date(inv.checkIn) : new Date(),
+                        checkOut: inv.checkOut ? new Date(inv.checkOut) : new Date(),
+                        nights: inv.nights || 1,
+                        charges: {
+                            room: inv.charges?.room || 0,
+                            extras: inv.charges?.extras || 0,
+                            tax: inv.charges?.tax || 0,
+                            total: inv.charges?.total || inv.totalAmount || 0
+                        },
+                        paid: inv.paidAmount ?? 0,
+                        balance: inv.balance ?? 0,
+                        status: inv.status || 'pending',
+                        paymentMethod: inv.paymentMethod || 'N/A',
+                        invoiceDate: inv.invoiceDate ? new Date(inv.invoiceDate) : new Date(),
+                        dueDate: inv.dueDate ? new Date(inv.dueDate) : new Date(),
+                    }));
+                    setInvoices(mapped);
+                }
+            } catch (err) {
+                console.error('Error loading invoices:', err);
+            } finally {
+                setIsLoading(false);
+            }
         };
         load();
     }, []);
