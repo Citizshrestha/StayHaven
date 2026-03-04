@@ -12,6 +12,7 @@ import { useOrderContext } from "../../../../core/context/useOrderContext";
 import { useSocket } from "../../../../core/context/SocketContext";
 import { useNotifications } from "../../../../core/context/useNotifications";
 import { useTheme } from "../../../../core/hooks/useTheme";
+import MessagingPanel from "../../../../shared/components/MessagingPanel";
 import { Plus } from "lucide-react";
 
 const WaiterDashboard = () => {
@@ -20,6 +21,7 @@ const WaiterDashboard = () => {
   const { orders, markServed, removeOrder, fetchOrders, loading, updateOrder } =
     useOrderContext();
   const [showOrderForm, setShowOrderForm] = useState(false);
+  const [isMessagingOpen, setIsMessagingOpen] = useState(false);
   const { isDark } = useTheme(); // Get theme state
 
   // Use centralized notification context (Socket + Context API)
@@ -170,6 +172,8 @@ const WaiterDashboard = () => {
           onViewChange={handleViewChange}
           notificationCount={unreadCount}
           waiterCallCount={waiterCallCount}
+          onMessagingToggle={() => setIsMessagingOpen(prev => !prev)}
+          unreadMessageCount={0}
         />
       </aside>
 
@@ -220,8 +224,17 @@ const WaiterDashboard = () => {
           onViewChange={handleViewChange}
           notificationCount={unreadCount}
           waiterCallCount={waiterCallCount}
+          onMessagingToggle={() => setIsMessagingOpen(prev => !prev)}
+          unreadMessageCount={0}
         />
       </nav>
+
+      {/* Floating Messenger Panel */}
+      <MessagingPanel
+        isOpen={isMessagingOpen}
+        onToggle={() => setIsMessagingOpen(prev => !prev)}
+        showFab={true}
+      />
     </div>
   );
 };

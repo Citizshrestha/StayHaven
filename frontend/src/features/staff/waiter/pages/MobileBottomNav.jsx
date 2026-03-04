@@ -1,5 +1,5 @@
 import React from "react";
-import { LayoutDashboard, UtensilsCrossed, Bell, Phone } from "lucide-react";
+import { LayoutDashboard, UtensilsCrossed, Bell, Phone, MessageCircle } from "lucide-react";
 
 /**
  * MobileBottomNav Component
@@ -17,18 +17,25 @@ const MobileBottomNav = ({
   onViewChange,
   notificationCount = 0,
   waiterCallCount = 0,
+  onMessagingToggle,
+  unreadMessageCount = 0,
 }) => {
   // Tab definitions - IDs must match the switch cases in WaiterDashboard
   const tabs = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "assignedTables", label: "Tables", icon: UtensilsCrossed },
     { id: "waiterCalls", label: "Calls", icon: Phone, badge: waiterCallCount },
+    { id: "messages", label: "Messages", icon: MessageCircle, badge: unreadMessageCount, action: onMessagingToggle },
     { id: "notifications", label: "Alerts", icon: Bell, badge: notificationCount },
   ];
 
-  const handleTabClick = (tabId) => {
+  const handleTabClick = (tab) => {
+    if (tab.action) {
+      tab.action();
+      return;
+    }
     if (onViewChange) {
-      onViewChange(tabId);
+      onViewChange(tab.id);
     }
   };
 
@@ -48,7 +55,7 @@ const MobileBottomNav = ({
           return (
             <button
               key={tab.id}
-              onClick={() => handleTabClick(tab.id)}
+              onClick={() => handleTabClick(tab)}
               className="relative flex flex-col items-center py-2 px-2"
               style={{
                 color: isActive ? 'var(--color-primary)' : 'var(--text-tertiary)',

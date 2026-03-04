@@ -5,6 +5,7 @@ import {
   Settings,
   LogOut,
   Phone,
+  MessageCircle,
 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -13,7 +14,7 @@ import { staffLogout } from "../../../../api/staff";
 import { useStaffAuth } from "../../../../context/StaffAuthContext";
 import StaffSettings from "../../../../components/shared/StaffSettings";
 
-const Sidebar = ({ activeView = "dashboard", onViewChange, notificationCount = 0, waiterCallCount = 0 }) => {
+const Sidebar = ({ activeView = "dashboard", onViewChange, notificationCount = 0, waiterCallCount = 0, onMessagingToggle, unreadMessageCount = 0 }) => {
   const navigate = useNavigate();
   const { staffUser, activeProperty, logout, staffRole } = useStaffAuth();
   const [showSettings, setShowSettings] = useState(false);
@@ -189,6 +190,18 @@ const Sidebar = ({ activeView = "dashboard", onViewChange, notificationCount = 0
             )}
           </button>
         )}
+
+        {/* Messages Button */}
+        <button
+          style={getMenuItemStyle(false)}
+          onClick={() => onMessagingToggle && onMessagingToggle()}
+        >
+          <MessageCircle size={20} />
+          <span style={{ fontSize: "14px" }}>Messages</span>
+          {unreadMessageCount > 0 && (
+            <span style={badgeStyle}>{unreadMessageCount > 99 ? '99+' : unreadMessageCount}</span>
+          )}
+        </button>
 
         {/* Order History removed */}
       </nav>
