@@ -220,21 +220,9 @@ export const OrderProvider = ({ children }) => {
         return;
       }
 
-      // fetch all order types and status
-      const [
-        dineInPending,
-        dineInPreparing,
-        dineInReady,
-        dineInDelivered,
-        roomPending,
-        roomPreparing,
-        roomReady,
-        roomDelivered,
-        takeawayPending,
-        takeawayPreparing,
-        takeawayReady,
-        takeawayDelivered,
-      ] = await Promise.all([
+      // fetch all order types and status — use allSettled so a transient 401
+      // on one request doesn't abort all 12 parallel fetches
+      const results = await Promise.allSettled([
         getOrders(activeProperty._id, "pending", "dineIn"),
         getOrders(activeProperty._id, "preparing", "dineIn"),
         getOrders(activeProperty._id, "ready", "dineIn"),
@@ -248,6 +236,22 @@ export const OrderProvider = ({ children }) => {
         getOrders(activeProperty._id, "ready", "takeaway"),
         getOrders(activeProperty._id, "delivered", "takeaway"),
       ]);
+
+      const [
+        dineInPending,
+        dineInPreparing,
+        dineInReady,
+        dineInDelivered,
+        roomPending,
+        roomPreparing,
+        roomReady,
+        roomDelivered,
+        takeawayPending,
+        takeawayPreparing,
+        takeawayReady,
+        takeawayDelivered,
+      ] = results.map(r => r.status === "fulfilled" ? r.value : { orders: [] });
+
 
       // merge all orders
       const allOrders = [

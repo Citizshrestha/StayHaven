@@ -53,6 +53,15 @@ export const getContacts = async (hotelId) => {
 };
 
 /**
+ * Get recent conversations (latest message per conversation partner)
+ */
+export const getConversations = async (hotelId) => {
+    const params = hotelId ? `?hotelId=${hotelId}` : "";
+    const { data } = await axiosClient.get(`${BASE}/messages/conversations${params}`);
+    return data;
+};
+
+/**
  * Initiate a call request
  */
 export const initiateCall = async ({ recipientId, channel, roomNumber, hotelId }) => {

@@ -112,24 +112,27 @@ export const SocketProvider = ({ children }) => {
   const subscribe = useCallback((event, callback) => {
     if (!socket) return () => { };
 
-    // Add listener
-    socket.on(event, (data) => {
+    // Wrap callback so we can properly unsubscribe later
+    const handler = (data) => {
       setLastEvent({ event, data, timestamp: Date.now() });
       callback(data);
-    });
+    };
 
-    // Store callback reference for cleanup
+    // Add listener with the wrapper
+    socket.on(event, handler);
+
+    // Store handler reference for cleanup
     if (!eventListeners.current.has(event)) {
       eventListeners.current.set(event, []);
     }
-    eventListeners.current.get(event).push(callback);
+    eventListeners.current.get(event).push(handler);
 
-    // Return unsubscribe function
+    // Return unsubscribe function using the same wrapper reference
     return () => {
-      socket.off(event, callback);
+      socket.off(event, handler);
       const listeners = eventListeners.current.get(event);
       if (listeners) {
-        const index = listeners.indexOf(callback);
+        const index = listeners.indexOf(handler);
         if (index > -1) {
           listeners.splice(index, 1);
         }

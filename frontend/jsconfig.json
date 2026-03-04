@@ -9,5 +9,7 @@
       "utils/*": ["utils/*"],
       "shared/*": ["components/shared/*"]
     }
-  }
+  },
+  "include": ["src"],
+  "exclude": ["node_modules"]
 }
