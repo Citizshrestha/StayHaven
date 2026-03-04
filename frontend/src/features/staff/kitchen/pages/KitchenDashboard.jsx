@@ -9,10 +9,12 @@ import { useOrderContext } from "../../../../core/context/useOrderContext";
 import { useSocket } from "../../../../core/context/SocketContext";
 import { useNotifications } from "../../../../core/context/useNotifications";
 import { useTheme } from "../../../../core/hooks/useTheme";
+import MessagingPanel from "../../../../shared/components/MessagingPanel";
 
 const KitchenDashboard = () => {
   const [activeFilter, setActiveFilter] = useState("all");
   const [activeView, setActiveView] = useState("dashboard");
+  const [isMessagingOpen, setIsMessagingOpen] = useState(false);
 
   // Use centralized theme context
   const { isDark: isDarkMode, toggleTheme: toggleDarkMode } = useTheme();
@@ -180,6 +182,8 @@ const KitchenDashboard = () => {
           onViewChange={handleViewChange}
           notificationCount={unreadCount}
           isDarkMode={isDarkMode}
+          onMessagingToggle={() => setIsMessagingOpen(prev => !prev)}
+          unreadMessageCount={0}
         />
       </aside>
 
@@ -209,8 +213,17 @@ const KitchenDashboard = () => {
           onViewChange={handleViewChange}
           notificationCount={unreadCount}
           isDarkMode={isDarkMode}
+          onMessagingToggle={() => setIsMessagingOpen(prev => !prev)}
+          unreadMessageCount={0}
         />
       </nav>
+
+      {/* Floating Messenger Panel */}
+      <MessagingPanel
+        isOpen={isMessagingOpen}
+        onToggle={() => setIsMessagingOpen(prev => !prev)}
+        showFab={true}
+      />
     </div>
   );
 };

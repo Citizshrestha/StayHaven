@@ -1,5 +1,5 @@
 import React from "react";
-import { LayoutDashboard, Bell, Settings } from "lucide-react";
+import { LayoutDashboard, Bell, Settings, MessageCircle } from "lucide-react";
 
 /**
  * KitchenMobileNav Component
@@ -17,17 +17,24 @@ const KitchenMobileNav = ({
   onViewChange,
   notificationCount = 0,
   isDarkMode = false,
+  onMessagingToggle,
+  unreadMessageCount = 0,
 }) => {
   // Tab definitions
   const tabs = [
     { id: "dashboard", label: "Orders", icon: LayoutDashboard },
     { id: "notifications", label: "Alerts", icon: Bell, badge: notificationCount },
+    { id: "messages", label: "Messages", icon: MessageCircle, badge: unreadMessageCount, action: onMessagingToggle },
     { id: "settings", label: "Settings", icon: Settings },
   ];
 
-  const handleTabClick = (tabId) => {
+  const handleTabClick = (tab) => {
+    if (tab.action) {
+      tab.action();
+      return;
+    }
     if (onViewChange) {
-      onViewChange(tabId);
+      onViewChange(tab.id);
     }
   };
 
@@ -57,7 +64,7 @@ const KitchenMobileNav = ({
           return (
             <button
               key={tab.id}
-              onClick={() => handleTabClick(tab.id)}
+              onClick={() => handleTabClick(tab)}
               className="relative flex flex-col items-center py-2 px-4"
               style={{
                 backgroundColor: "transparent",

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChefHat, Settings, LogOut, Bell, LayoutDashboard } from "lucide-react";
+import { ChefHat, Settings, LogOut, Bell, LayoutDashboard, MessageCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { staffLogout } from "../../../../api/staff";
 import { toast } from "react-toastify";
@@ -10,7 +10,9 @@ const Sidebar = ({
   activeView,
   onViewChange,
   notificationCount = 0,
-  isDarkMode = false
+  isDarkMode = false,
+  onMessagingToggle,
+  unreadMessageCount = 0,
 }) => {
   const navigate = useNavigate();
   const { staffUser, logout } = useStaffAuth();
@@ -45,6 +47,7 @@ const Sidebar = ({
   const menuItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "notifications", label: "Notifications", icon: Bell, badge: notificationCount },
+    { id: "messages", label: "Messages", icon: MessageCircle, badge: unreadMessageCount, action: onMessagingToggle },
   ];
 
   return (
@@ -109,7 +112,7 @@ const Sidebar = ({
           {menuItems.map((item) => (
             <button
               key={item.id}
-              onClick={() => onViewChange?.(item.id)}
+              onClick={() => item.action ? item.action() : onViewChange?.(item.id)}
               style={{
                 display: "flex",
                 alignItems: "center",
