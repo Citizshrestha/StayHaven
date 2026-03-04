@@ -24,16 +24,33 @@ const roomSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ['single', 'double', 'suite', 'deluxe', 'villa'],
+        enum: ['single', 'double', 'suite', 'deluxe', 'villa', 'Standard Twin', 'Standard Queen', 'Deluxe King', 'Executive Suite', 'Ocean View', 'Presidential Suite', 'Garden View'],
         required: true,
     },
     price: {
         type: Number,
         required: true,
     },
+    floor: {
+        type: Number,
+        default: 1,
+    },
+    maxGuests: {
+        type: Number,
+        default: 2,
+    },
+    rating: {
+        type: Number,
+        default: 4.0,
+        min: 0,
+        max: 5,
+    },
+    lastCleaned: {
+        type: Date,
+    },
     status: {
         type: String,
-        enum: ['available', 'occupied', 'maintenance', 'cleaning'],
+        enum: ['available', 'occupied', 'maintenance', 'cleaning', 'reserved'],
         default: 'available',
         required: true,
     },

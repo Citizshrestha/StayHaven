@@ -23,7 +23,6 @@ const bookingSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "Company",
     required: true,
-    index: true,
   },
   room: {
     type: mongoose.Schema.Types.ObjectId,
@@ -93,16 +92,52 @@ const bookingSchema = new mongoose.Schema({
   },
   bookingSource: {
     type: String,
-    enum: ['web', 'mobile', 'admin', 'api'],
+    enum: ['web', 'mobile', 'admin', 'api', 'Website', 'Agoda', 'Booking.com', 'Walk-in', 'Expedia'],
     default: 'web',
   },
+  bookingId: {
+    type: String,
+    unique: true,
+    sparse: true,
+  },
+  guest: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Guest",
+  },
+  durationNights: {
+    type: Number,
+    default: 1,
+  },
+  isVip: {
+    type: Boolean,
+    default: false,
+  },
+  earlyCheckinRequested: {
+    type: Boolean,
+    default: false,
+  },
+  expectedArrivalTime: {
+    type: String,
+  },
 }, { timestamps: true });
+
+// Auto-generate bookingId
+bookingSchema.pre("save", async function (next) {
+  if (!this.bookingId) {
+    const count = await mongoose.model("Booking").countDocuments({ company: this.company });
+    this.bookingId = `#BK-${(5001 + count).toString().padStart(4, "0")}`;
+  }
+  if (this.checkIn && this.checkOut) {
+    this.durationNights = Math.max(1, Math.ceil((this.checkOut - this.checkIn) / (1000 * 60 * 60 * 24)));
+  }
+  next();
+});
 
 // Indexes for performance
 bookingSchema.index({ user: 1, status: 1 }, { sparse: true });  // sparse because user is now optional
 bookingSchema.index({ room: 1, checkIn: 1, checkOut: 1 });
 bookingSchema.index({ hotel: 1, status: 1 });
-bookingSchema.index({ confirmationCode: 1 });
+
 bookingSchema.index({ createdAt: -1 });
 bookingSchema.index({ company: 1, status: 1 });
 bookingSchema.index({ company: 1, createdAt: -1 });
