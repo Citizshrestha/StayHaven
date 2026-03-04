@@ -1,3 +1,6 @@
+import dns from "dns";
+dns.setServers(["8.8.8.8", "8.8.4.4"]);
+
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -17,6 +20,7 @@ import roomRoutes from "./routes/roomRoutes.js";
 import guestRoutes from "./routes/guestRoutes.js";
 import bookingRoutes from "./routes/bookingRoutes.js";
 import seedRoutes from "./routes/seedRoutes.js";
+import receptionRoutes from "./routes/receptionRoutes.js";
 import cookieParser from "cookie-parser";
 import { initCloudinary } from "./config/cloudinary.js";
 import { initSocket } from "./config/socket.js";
@@ -77,7 +81,7 @@ app.use(
 // CORS — must come before rate limiter so preflight OPTIONS requests are handled
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: ["http://localhost:5173", "http://localhost:5174"],
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -149,6 +153,7 @@ app.use("/api/rooms", roomRoutes);        // Room QR management (authenticated)
 app.use("/api/bookings", bookingRoutes);  // Booking management (authenticated)
 app.use("/api/seed", seedRoutes);         // Seed test data (admin only)
 app.use("/api/guest", guestRoutes);       // Guest QR scanning (public)
+app.use("/api/reception", receptionRoutes); // Reception dashboard APIs (authenticated)
 
 // start server - use httpServer instead of app for Socket.io support
 httpServer.listen(PORT, () => {

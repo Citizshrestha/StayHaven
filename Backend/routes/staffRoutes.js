@@ -51,6 +51,7 @@ import {
   initiateCall,
   updateCallStatus,
   getContacts,
+  getConversations,
 } from "../controllers/messagingController.js";
 import {
   getNotifications,
@@ -267,6 +268,9 @@ router.put("/messages/read", protect, markMessagesRead);
 
 // Get contacts (staff list for messaging)
 router.get("/messages/contacts", protect, getContacts);
+
+// Get recent conversations (latest message per partner)
+router.get("/messages/conversations", protect, getConversations);
 
 // Initiate a call
 router.post("/messages/call", protect, initiateCall);
