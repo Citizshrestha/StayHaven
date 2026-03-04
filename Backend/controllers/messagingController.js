@@ -177,9 +177,29 @@ export const markMessagesRead = asyncHandler(async (req, res) => {
         query.sender = { $ne: req.user._id }; // Don't mark own messages
     }
 
+    // Get the messages before updating so we can notify senders
+    const messagesToMark = await Message.find(query).select("sender _id");
+
     const result = await Message.updateMany(query, {
         $set: { isRead: true, readAt: new Date() },
     });
+
+    // Emit real-time read receipts to senders so they see blue double-ticks
+    const io = getIO();
+    if (io && messagesToMark.length > 0) {
+        const readIds = messagesToMark.map(m => m._id.toString());
+        // Group by sender and notify each
+        const senders = [...new Set(messagesToMark.map(m => m.sender.toString()))];
+        senders.forEach(senderId => {
+            if (senderId !== req.user._id.toString()) {
+                io.to(`user-${senderId}`).emit("messages-read", {
+                    messageIds: readIds,
+                    readBy: req.user._id,
+                    readAt: new Date(),
+                });
+            }
+        });
+    }
 
     return res.status(200).json({
         success: true,
@@ -228,6 +248,7 @@ export const initiateCall = asyncHandler(async (req, res) => {
                 _id: callMessage.sender._id,
                 fullname: callMessage.sender.fullname,
                 role: callMessage.sender.companyRole,
+                profilePicture: callMessage.sender.profilePicture || null,
             },
             channel: callMessage.channel,
             messageType: "call_request",
@@ -349,5 +370,223 @@ export const getContacts = asyncHandler(async (req, res) => {
         success: true,
         count: contacts.length,
         contacts: grouped,
+    });
+});
+
+/**
+ * Get recent conversations (latest message per unique conversation partner)
+ * Also includes channel conversations the user is part of based on their role
+ * GET /api/staff/messages/conversations
+ */
+export const getConversations = asyncHandler(async (req, res) => {
+    const hotelId =
+        req.query.hotelId ||
+        (req.user.assignedProperties && req.user.assignedProperties[0]?._id) ||
+        req.user.assignedProperties?.[0];
+
+    if (!hotelId) {
+        return res.status(400).json({
+            success: false,
+            message: "No hotel context found",
+        });
+    }
+
+    const mongoose = (await import("mongoose")).default;
+    const userId = new mongoose.Types.ObjectId(req.user._id);
+    const hotelObjId = new mongoose.Types.ObjectId(hotelId);
+
+    // 1) Direct message conversations
+    const directConversations = await Message.aggregate([
+        {
+            $match: {
+                hotel: hotelObjId,
+                channel: "direct",
+                messageType: { $in: ["text", "call_request"] },
+                $or: [{ sender: userId }, { recipient: userId }],
+            },
+        },
+        { $sort: { createdAt: -1 } },
+        {
+            $addFields: {
+                partner: {
+                    $cond: {
+                        if: { $eq: ["$sender", userId] },
+                        then: "$recipient",
+                        else: "$sender",
+                    },
+                },
+            },
+        },
+        {
+            $group: {
+                _id: "$partner",
+                lastMessage: { $first: "$$ROOT" },
+                unreadCount: {
+                    $sum: {
+                        $cond: [
+                            {
+                                $and: [
+                                    { $ne: ["$sender", userId] },
+                                    { $eq: ["$isRead", false] },
+                                ],
+                            },
+                            1,
+                            0,
+                        ],
+                    },
+                },
+            },
+        },
+        { $sort: { "lastMessage.createdAt": -1 } },
+        { $limit: 30 },
+        {
+            $lookup: {
+                from: "users",
+                localField: "_id",
+                foreignField: "_id",
+                as: "partnerInfo",
+                pipeline: [
+                    {
+                        $project: {
+                            fullname: 1,
+                            email: 1,
+                            companyRole: 1,
+                            profilePicture: 1,
+                        },
+                    },
+                ],
+            },
+        },
+        { $unwind: { path: "$partnerInfo", preserveNullAndEmptyArrays: true } },
+        {
+            $project: {
+                partner: {
+                    _id: "$_id",
+                    fullname: "$partnerInfo.fullname",
+                    email: "$partnerInfo.email",
+                    companyRole: "$partnerInfo.companyRole",
+                    profilePicture: "$partnerInfo.profilePicture",
+                },
+                lastMessage: {
+                    _id: "$lastMessage._id",
+                    content: "$lastMessage.content",
+                    messageType: "$lastMessage.messageType",
+                    createdAt: "$lastMessage.createdAt",
+                    senderId: "$lastMessage.sender",
+                    isRead: "$lastMessage.isRead",
+                },
+                unreadCount: 1,
+            },
+        },
+    ]);
+
+    // 2) Channel conversations the user is part of based on their role
+    // Determine which channels this user should see
+    const userRole = req.user.companyRole || "";
+    const relevantChannels = [];
+    if (userRole === "waiter") relevantChannels.push("waiter");
+    else if (userRole === "chief" || userRole === "kitchen") relevantChannels.push("chef");
+    else if (userRole === "receptionist") relevantChannels.push("waiter", "chef", "guest");
+    else if (userRole === "manager") relevantChannels.push("waiter", "chef", "guest");
+    // All roles can see the "all" channel
+    relevantChannels.push("all");
+
+    let channelConversations = [];
+    if (relevantChannels.length > 0) {
+        channelConversations = await Message.aggregate([
+            {
+                $match: {
+                    hotel: hotelObjId,
+                    channel: { $in: relevantChannels },
+                    messageType: { $in: ["text", "alert"] },
+                },
+            },
+            { $sort: { createdAt: -1 } },
+            {
+                $group: {
+                    _id: "$channel",
+                    lastMessage: { $first: "$$ROOT" },
+                    unreadCount: {
+                        $sum: {
+                            $cond: [
+                                {
+                                    $and: [
+                                        { $ne: ["$sender", userId] },
+                                        { $eq: ["$isRead", false] },
+                                    ],
+                                },
+                                1,
+                                0,
+                            ],
+                        },
+                    },
+                },
+            },
+            { $sort: { "lastMessage.createdAt": -1 } },
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "lastMessage.sender",
+                    foreignField: "_id",
+                    as: "senderInfo",
+                    pipeline: [
+                        {
+                            $project: {
+                                fullname: 1,
+                                companyRole: 1,
+                            },
+                        },
+                    ],
+                },
+            },
+            { $unwind: { path: "$senderInfo", preserveNullAndEmptyArrays: true } },
+            {
+                $project: {
+                    isChannel: { $literal: true },
+                    channel: "$_id",
+                    partner: {
+                        _id: "$_id",
+                        fullname: {
+                            $switch: {
+                                branches: [
+                                    { case: { $eq: ["$_id", "waiter"] }, then: "🍽️ Waiters Channel" },
+                                    { case: { $eq: ["$_id", "chef"] }, then: "👨‍🍳 Kitchen Channel" },
+                                    { case: { $eq: ["$_id", "guest"] }, then: "🏨 Guest Channel" },
+                                    { case: { $eq: ["$_id", "receptionist"] }, then: "🏨 Reception Channel" },
+                                    { case: { $eq: ["$_id", "all"] }, then: "📢 Broadcast" },
+                                ],
+                                default: "$_id",
+                            },
+                        },
+                        companyRole: "channel",
+                    },
+                    lastMessage: {
+                        _id: "$lastMessage._id",
+                        content: {
+                            $concat: [
+                                { $ifNull: ["$senderInfo.fullname", "Someone"] },
+                                ": ",
+                                "$lastMessage.content",
+                            ],
+                        },
+                        messageType: "$lastMessage.messageType",
+                        createdAt: "$lastMessage.createdAt",
+                        senderId: "$lastMessage.sender",
+                        isRead: "$lastMessage.isRead",
+                    },
+                    unreadCount: 1,
+                },
+            },
+        ]);
+    }
+
+    // Combine and sort by last message time
+    const allConversations = [...directConversations, ...channelConversations]
+        .sort((a, b) => new Date(b.lastMessage?.createdAt) - new Date(a.lastMessage?.createdAt));
+
+    return res.status(200).json({
+        success: true,
+        count: allConversations.length,
+        data: allConversations,
     });
 });

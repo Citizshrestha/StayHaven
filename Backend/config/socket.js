@@ -18,7 +18,7 @@ let io = null;
 export const initSocket = (httpServer) => {
   io = new Server(httpServer, {
     cors: {
-      origin: process.env.FRONTEND_URL || "http://localhost:5173",
+      origin: ["http://localhost:5173", "http://localhost:5174"],
       methods: ["GET", "POST", "PUT", "DELETE"],
       credentials: true,
     },
@@ -49,6 +49,8 @@ export const initSocket = (httpServer) => {
         // Also join personal room for direct messages
         if (userId) {
           socket.join(`user-${userId}`);
+          // Store userId on the socket for WebRTC signaling
+          socket.userId = userId;
         }
         console.log(`👤 Socket ${socket.id} joined as ${role} in hotel-${hotelId}`);
       }
@@ -68,35 +70,69 @@ export const initSocket = (httpServer) => {
 
     // ── Messaging events ──
     // Typing indicator
-    socket.on("typing", ({ hotelId, channel, userId, fullname }) => {
-      const room = channel === "direct"
-        ? null
-        : `hotel-${hotelId}-${channel}s`;
-      if (room) {
+    socket.on("typing", ({ hotelId, channel, userId, fullname, recipientId }) => {
+      if (channel === "direct" && recipientId) {
+        // For DMs, emit to the recipient's personal room
+        socket.to(`user-${recipientId}`).emit("user-typing", { userId, fullname, channel });
+      } else if (channel !== "direct") {
+        // For channels, emit to the channel room
+        const room = `hotel-${hotelId}-${channel}s`;
         socket.to(room).emit("user-typing", { userId, fullname, channel });
       }
     });
 
-    socket.on("stop-typing", ({ hotelId, channel, userId }) => {
-      const room = channel === "direct"
-        ? null
-        : `hotel-${hotelId}-${channel}s`;
-      if (room) {
+    socket.on("stop-typing", ({ hotelId, channel, userId, recipientId }) => {
+      if (channel === "direct" && recipientId) {
+        socket.to(`user-${recipientId}`).emit("user-stop-typing", { userId, channel });
+      } else if (channel !== "direct") {
+        const room = `hotel-${hotelId}-${channel}s`;
         socket.to(room).emit("user-stop-typing", { userId, channel });
       }
     });
 
-    // Call management
+    // Call management – relay status so both parties stay in sync
     socket.on("answer-call", ({ callId, hotelId }) => {
+      io.to(`hotel-${hotelId}`).emit("call-status-update", { _id: callId, callStatus: "answered" });
       io.to(`hotel-${hotelId}`).emit("call-answered", { callId });
     });
 
     socket.on("decline-call", ({ callId, hotelId }) => {
+      io.to(`hotel-${hotelId}`).emit("call-status-update", { _id: callId, callStatus: "declined" });
       io.to(`hotel-${hotelId}`).emit("call-declined", { callId });
     });
 
     socket.on("end-call", ({ callId, hotelId, duration }) => {
+      io.to(`hotel-${hotelId}`).emit("call-status-update", { _id: callId, callStatus: "ended" });
       io.to(`hotel-${hotelId}`).emit("call-ended", { callId, duration });
+    });
+
+    // ── WebRTC signaling relay ───────────────────────────────────────
+    // These events relay SDP offers/answers and ICE candidates between
+    // two peers to establish a direct audio connection.
+
+    socket.on("webrtc-offer", ({ callId, offer, targetUserId, hotelId }) => {
+      const fromUserId = socket.userId || null;
+      io.to(`user-${targetUserId}`).emit("webrtc-offer", {
+        callId,
+        offer,
+        fromUserId,
+      });
+    });
+
+    socket.on("webrtc-answer", ({ callId, answer, targetUserId, hotelId }) => {
+      const fromUserId = socket.userId || null;
+      io.to(`user-${targetUserId}`).emit("webrtc-answer", {
+        callId,
+        answer,
+        fromUserId,
+      });
+    });
+
+    socket.on("webrtc-ice-candidate", ({ callId, candidate, targetUserId, hotelId }) => {
+      io.to(`user-${targetUserId}`).emit("webrtc-ice-candidate", {
+        callId,
+        candidate,
+      });
     });
 
     // Handle disconnection
