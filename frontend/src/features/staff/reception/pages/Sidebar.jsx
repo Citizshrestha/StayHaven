@@ -4,7 +4,7 @@ import { useStaffAuth } from '../../../../context/StaffAuthContext';
 import {
   LayoutDashboard, CalendarRange, LogIn, DoorOpen, Sparkles,
   Users, Receipt, BarChart3, UserCog, Settings,
-  LogOut, PanelLeftClose, PanelLeft
+  LogOut, PanelLeftClose, PanelLeft, MessageCircle
 } from 'lucide-react';
 
 const Sidebar = ({ activeView, onViewChange, collapsed, onToggleCollapse }) => {
@@ -35,6 +35,7 @@ const Sidebar = ({ activeView, onViewChange, collapsed, onToggleCollapse }) => {
         { id: 'housekeeping', label: 'Housekeeping', icon: Sparkles },
         { id: 'guests', label: 'Guests', icon: Users },
         { id: 'billing', label: 'Billing', icon: Receipt },
+        { id: 'messages', label: 'Messages', icon: MessageCircle },
       ]
     },
     {

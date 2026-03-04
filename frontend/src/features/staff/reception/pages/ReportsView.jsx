@@ -24,6 +24,7 @@ import {
   ArrowDownRight
 } from 'lucide-react';
 import './ReportsView.css';
+import * as receptionApi from '../../../../core/api/services/reception.service';
 
 const ReportsView = () => {
   const { isDark } = useTheme();
@@ -31,12 +32,46 @@ const ReportsView = () => {
   const [dateRange, setDateRange] = useState('today');
   const [showDateDropdown, setShowDateDropdown] = useState(false);
   const [selectedReport, setSelectedReport] = useState('overview');
+  const [reportData, setReportData] = useState({
+    occupancy: { current: 0, previous: 0, trend: 'up', rooms: { occupied: 0, available: 0, maintenance: 0, reserved: 0 } },
+    checkIns: { today: 0, completed: 0, pending: 0, noShow: 0 },
+    checkOuts: { today: 0, completed: 0, pending: 0, lateCheckout: 0 },
+    housekeeping: { clean: 0, dirty: 0, inProgress: 0, inspected: 0 },
+    guestActivity: { currentGuests: 0, vipGuests: 0, newArrivals: 0, departures: 0 },
+    roomStatus: [],
+    recentActivity: []
+  });
 
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 600));
-      setIsLoading(false);
+      try {
+        const res = await receptionApi.getReportsOverview({ period: dateRange });
+        if (res?.success && res.data) {
+          const d = res.data;
+          setReportData({
+            occupancy: d.occupancy || reportData.occupancy,
+            checkIns: d.checkIns || reportData.checkIns,
+            checkOuts: d.checkOuts || reportData.checkOuts,
+            housekeeping: d.housekeeping || reportData.housekeeping,
+            guestActivity: d.guestActivity || reportData.guestActivity,
+            roomStatus: d.roomStatus || [],
+            recentActivity: (d.recentActivity || []).map((a, i) => ({
+              id: a.id || i + 1,
+              type: a.type || 'check-in',
+              guest: a.guest || '',
+              room: a.room || '',
+              status: a.status || '',
+              time: a.time || a.timeAgo || '',
+              description: a.description || ''
+            }))
+          });
+        }
+      } catch (err) {
+        console.error('Error loading reports:', err);
+      } finally {
+        setIsLoading(false);
+      }
     };
     loadData();
   }, [dateRange]);
@@ -50,54 +85,6 @@ const ReportsView = () => {
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
-
-  // Sample data for reports
-  const reportData = useMemo(() => ({
-    occupancy: {
-      current: 78,
-      previous: 72,
-      trend: 'up',
-      rooms: { occupied: 78, available: 22, maintenance: 5, reserved: 12 }
-    },
-    checkIns: {
-      today: 24,
-      completed: 18,
-      pending: 6,
-      noShow: 2
-    },
-    checkOuts: {
-      today: 19,
-      completed: 15,
-      pending: 4,
-      lateCheckout: 3
-    },
-    housekeeping: {
-      clean: 65,
-      dirty: 20,
-      inProgress: 10,
-      inspected: 5
-    },
-    guestActivity: {
-      currentGuests: 156,
-      vipGuests: 12,
-      newArrivals: 24,
-      departures: 19
-    },
-    roomStatus: [
-      { type: 'Standard', total: 40, occupied: 32 },
-      { type: 'Deluxe', total: 30, occupied: 24 },
-      { type: 'Suite', total: 20, occupied: 16 },
-      { type: 'Executive', total: 10, occupied: 6 }
-    ],
-    recentActivity: [
-      { id: 1, type: 'check-in', guest: 'John Smith', room: '305', time: '10 min ago' },
-      { id: 2, type: 'check-out', guest: 'Emily Davis', room: '412', time: '25 min ago' },
-      { id: 3, type: 'housekeeping', room: '201', status: 'Cleaned', time: '30 min ago' },
-      { id: 4, type: 'check-in', guest: 'Michael Brown', room: '508', time: '45 min ago' },
-      { id: 5, type: 'maintenance', room: '103', status: 'Completed', time: '1 hour ago' },
-      { id: 6, type: 'check-out', guest: 'Sarah Wilson', room: '220', time: '1.5 hours ago' }
-    ]
-  }), [dateRange]);
 
   const getDateLabel = () => {
     const labels = {
@@ -406,10 +393,14 @@ const ReportsView = () => {
                     </div>
                     <div className="rv-activity-content flex-1 flex items-center justify-between">
                       <span className="rv-activity-text text-sm">
-                        {activity.type === 'check-in' && `${activity.guest} checked into Room ${activity.room}`}
-                        {activity.type === 'check-out' && `${activity.guest} checked out of Room ${activity.room}`}
-                        {activity.type === 'housekeeping' && `Room ${activity.room} - ${activity.status}`}
-                        {activity.type === 'maintenance' && `Room ${activity.room} - Maintenance ${activity.status}`}
+                        {activity.guest && activity.type === 'check-in' && `${activity.guest} checked into Room ${activity.room}`}
+                        {activity.guest && activity.type === 'check-out' && `${activity.guest} checked out of Room ${activity.room}`}
+                        {activity.guest && activity.type === 'housekeeping' && `Room ${activity.room} - ${activity.status}`}
+                        {activity.guest && activity.type === 'maintenance' && `Room ${activity.room} - Maintenance ${activity.status}`}
+                        {!activity.guest && activity.description && (
+                          <span dangerouslySetInnerHTML={{ __html: activity.description }} />
+                        )}
+                        {!activity.guest && !activity.description && `${activity.type} activity`}
                       </span>
                       <span className="rv-activity-time text-xs text-slate-500">{activity.time}</span>
                     </div>

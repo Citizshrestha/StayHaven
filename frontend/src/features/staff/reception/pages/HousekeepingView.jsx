@@ -19,65 +19,9 @@ import {
   MessageSquare
 } from 'lucide-react';
 import './HousekeepingView.css';
+import * as receptionApi from '../../../../core/api/services/reception.service';
 
-// Generate room data
-const generateRooms = () => {
-  const floors = [1, 2, 3, 4, 5];
-  const roomsPerFloor = 20;
-  const roomTypes = ['Standard', 'Deluxe', 'Suite', 'Executive', 'Presidential'];
-  const statuses = ['clean', 'dirty', 'in-progress', 'inspected', 'maintenance'];
-  const statusWeights = [30, 35, 15, 15, 5];
-
-  const housekeepers = [
-    { id: 1, name: 'Maria Garcia', avatar: null },
-    { id: 2, name: 'John Smith', avatar: null },
-    { id: 3, name: 'Anna Lee', avatar: null },
-    { id: 4, name: 'Carlos Rodriguez', avatar: null },
-    { id: 5, name: 'Lisa Chen', avatar: null },
-  ];
-
-  const getWeightedStatus = () => {
-    const random = Math.random() * 100;
-    let cumulative = 0;
-    for (let i = 0; i < statuses.length; i++) {
-      cumulative += statusWeights[i];
-      if (random <= cumulative) return statuses[i];
-    }
-    return statuses[0];
-  };
-
-  const rooms = [];
-
-  floors.forEach(floor => {
-    for (let room = 1; room <= roomsPerFloor; room++) {
-      const roomNumber = `${floor}${room.toString().padStart(2, '0')}`;
-      const status = getWeightedStatus();
-      const isOccupied = Math.random() > 0.3;
-      const checkoutToday = !isOccupied && Math.random() > 0.5;
-
-      rooms.push({
-        id: roomNumber,
-        number: roomNumber,
-        floor: floor,
-        type: roomTypes[Math.floor(Math.random() * roomTypes.length)],
-        status: status,
-        isOccupied: isOccupied,
-        checkoutToday: checkoutToday,
-        priority: checkoutToday ? 'high' : (Math.random() > 0.8 ? 'medium' : 'normal'),
-        assignedTo: status === 'in-progress' || status === 'inspected'
-          ? housekeepers[Math.floor(Math.random() * housekeepers.length)]
-          : null,
-        lastCleaned: status === 'clean' || status === 'inspected'
-          ? new Date(Date.now() - Math.random() * 3600000).toISOString()
-          : null,
-        notes: Math.random() > 0.9 ? 'Guest requested extra towels' : null,
-        estimatedTime: status === 'in-progress' ? Math.floor(Math.random() * 30) + 10 : null
-      });
-    }
-  });
-
-  return rooms;
-};
+const statusMap = { 'needs-cleaning': 'dirty', 'clean': 'clean', 'in-progress': 'in-progress', 'inspected': 'inspected', 'maintenance': 'maintenance', 'dirty': 'dirty' };
 
 const HousekeepingView = () => {
   const { isDark } = useTheme();
@@ -93,14 +37,41 @@ const HousekeepingView = () => {
   const [showPriorityDropdown, setShowPriorityDropdown] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState(null);
 
-  useEffect(() => {
-    const loadRooms = async () => {
-      setIsLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setRooms(generateRooms());
+  const fetchRooms = async () => {
+    setIsLoading(true);
+    try {
+      const res = await receptionApi.getHousekeepingTasks();
+      if (res?.success && res.data) {
+        const mapped = res.data.map(t => {
+          const fullType = t.roomType || t.room?.type || 'Standard';
+          const shortType = fullType.replace(/\s*(Queen|King|Twin|Double|Single)\s*/gi, '').trim() || fullType;
+          return {
+            id: t.roomNumber || t.room?.roomNumber || t._id,
+            number: t.roomNumber || t.room?.roomNumber || '',
+            floor: t.floor || t.room?.floor || parseInt(String(t.roomNumber || t.room?.roomNumber || '1')[0]) || 1,
+            type: shortType,
+            status: statusMap[t.status] || t.status || 'dirty',
+            isOccupied: t.isOccupied || t.room?.status === 'occupied',
+            checkoutToday: t.checkoutToday || false,
+            priority: t.priority || 'normal',
+            assignedTo: t.assignedTo ? { id: t.assignedTo._id || t.assignedTo, name: t.assignedTo.name || t.assignedToName || 'Staff', avatar: t.assignedTo.avatar || null } : null,
+            lastCleaned: t.lastCleaned || t.updatedAt || null,
+            notes: t.notes || null,
+            estimatedTime: t.status === 'in-progress' ? (t.estimatedTime || 20) : null,
+            _taskId: t._id,
+          };
+        });
+        setRooms(mapped);
+      }
+    } catch (err) {
+      console.error('Error loading housekeeping tasks:', err);
+    } finally {
       setIsLoading(false);
-    };
-    loadRooms();
+    }
+  };
+
+  useEffect(() => {
+    fetchRooms();
   }, []);
 
   useEffect(() => {
@@ -114,6 +85,10 @@ const HousekeepingView = () => {
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
+
+  const floors = useMemo(() => {
+    return [...new Set(rooms.map(r => r.floor))].sort((a, b) => a - b);
+  }, [rooms]);
 
   const filteredRooms = useMemo(() => {
     return rooms.filter(room => {
@@ -153,18 +128,27 @@ const HousekeepingView = () => {
     return configs[status] || { icon: AlertTriangle, label: status, class: 'hk-status-default' };
   };
 
-  const updateRoomStatus = (roomId, newStatus) => {
-    setRooms(prev => prev.map(room =>
-      room.id === roomId ? { ...room, status: newStatus } : room
-    ));
+  const updateRoomStatus = async (roomId, newStatus) => {
+    try {
+      const room = rooms.find(r => r.id === roomId);
+      if (room?._taskId) {
+        const apiStatus = newStatus === 'dirty' ? 'needs-cleaning' : newStatus;
+        await receptionApi.updateHousekeepingTask(room._taskId, { status: apiStatus });
+      }
+      setRooms(prev => prev.map(r =>
+        r.id === roomId ? { ...r, status: newStatus } : r
+      ));
+    } catch (err) {
+      console.error('Error updating room status:', err);
+      setRooms(prev => prev.map(r =>
+        r.id === roomId ? { ...r, status: newStatus } : r
+      ));
+    }
     setSelectedRoom(null);
   };
 
   const refreshData = async () => {
-    setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
-    setRooms(generateRooms());
-    setIsLoading(false);
+    await fetchRooms();
   };
 
   return (
@@ -297,7 +281,7 @@ const HousekeepingView = () => {
               >
                 All Floors
               </button>
-              {[1, 2, 3, 4, 5].map(floor => (
+              {floors.map(floor => (
                 <button
                   key={floor}
                   className={`hk-dropdown-item w-full text-left px-4 py-2.5 text-sm transition-colors duration-200 ${floorFilter === floor.toString() ? 'active' : ''}`}

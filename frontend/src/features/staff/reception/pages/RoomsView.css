@@ -547,20 +547,30 @@
 }
 
 .rv-amenity-chip {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
+    min-width: 28px;
     height: 28px;
+    padding: 0 8px;
     border-radius: 7px;
     background: #f1f5f9;
     color: #64748b;
+    font-size: 0.7rem;
+    font-weight: 600;
+    white-space: nowrap;
+    gap: 4px;
     transition: all 0.15s ease;
 }
 
 .rooms-view.dark .rv-amenity-chip {
     background: rgba(100, 116, 139, 0.15);
     color: #94a3b8;
+}
+
+/* Icon-only amenity chips stay square */
+.rv-amenity-chip svg:only-child {
+    margin: 0 -1px;
 }
 
 .rv-amenity-more {

@@ -29,87 +29,8 @@ import {
     Calendar,
     ArrowUpDown
 } from 'lucide-react';
+import * as receptionApi from '../../../../core/api/services/reception.service';
 import './RoomsView.css';
-
-// Generate room data
-const generateRoomData = () => {
-    const roomTypes = [
-        { type: 'Standard Twin', basePrice: 120, maxGuests: 2, beds: '2 Twin', sqft: 280, amenities: ['wifi', 'tv', 'ac', 'coffee'] },
-        { type: 'Standard Queen', basePrice: 150, maxGuests: 2, beds: '1 Queen', sqft: 320, amenities: ['wifi', 'tv', 'ac', 'coffee', 'bath'] },
-        { type: 'Deluxe King', basePrice: 220, maxGuests: 2, beds: '1 King', sqft: 420, amenities: ['wifi', 'tv', 'ac', 'coffee', 'bath', 'minibar'] },
-        { type: 'Executive Suite', basePrice: 350, maxGuests: 3, beds: '1 King + Sofa', sqft: 550, amenities: ['wifi', 'tv', 'ac', 'coffee', 'bath', 'minibar', 'workspace'] },
-        { type: 'Ocean View', basePrice: 280, maxGuests: 2, beds: '1 King', sqft: 380, amenities: ['wifi', 'tv', 'ac', 'coffee', 'bath', 'balcony'] },
-        { type: 'Presidential Suite', basePrice: 600, maxGuests: 4, beds: '2 King', sqft: 900, amenities: ['wifi', 'tv', 'ac', 'coffee', 'bath', 'minibar', 'workspace', 'jacuzzi'] },
-        { type: 'Garden View', basePrice: 200, maxGuests: 2, beds: '1 Queen', sqft: 350, amenities: ['wifi', 'tv', 'ac', 'coffee', 'bath', 'balcony'] },
-    ];
-
-    const floors = [1, 2, 3, 4, 5, 6, 7];
-    const statuses = ['available', 'occupied', 'cleaning', 'maintenance', 'reserved'];
-    const statusWeights = [30, 35, 15, 8, 12];
-
-    const guestNames = [
-        'Sarah Jenkins', 'Michael Foster', 'Emma Wilson', 'James Anderson',
-        'Olivia Martinez', 'Tom Cook', 'Lindsay Walton', 'Sophia Garcia'
-    ];
-
-    const getWeightedStatus = () => {
-        const random = Math.random() * 100;
-        let cumulative = 0;
-        for (let i = 0; i < statuses.length; i++) {
-            cumulative += statusWeights[i];
-            if (random <= cumulative) return statuses[i];
-        }
-        return statuses[0];
-    };
-
-    const rooms = [];
-    const roomsPerFloor = [8, 8, 8, 6, 6, 4, 3];
-
-    floors.forEach((floor, fi) => {
-        const count = roomsPerFloor[fi];
-        for (let r = 1; r <= count; r++) {
-            const roomNumber = `${floor}${r.toString().padStart(2, '0')}`;
-            const typeIndex = Math.min(fi, roomTypes.length - 1);
-            const typeData = roomTypes[(typeIndex + r) % roomTypes.length];
-            const status = getWeightedStatus();
-
-            const room = {
-                id: `RM-${roomNumber}`,
-                number: roomNumber,
-                floor: floor,
-                type: typeData.type,
-                status: status,
-                basePrice: typeData.basePrice,
-                maxGuests: typeData.maxGuests,
-                beds: typeData.beds,
-                sqft: typeData.sqft,
-                amenities: typeData.amenities,
-                rating: (3.5 + Math.random() * 1.5).toFixed(1),
-                lastCleaned: new Date(Date.now() - Math.random() * 48 * 60 * 60 * 1000),
-                condition: Math.random() > 0.1 ? 'good' : 'needs-attention',
-            };
-
-            if (status === 'occupied') {
-                room.guest = {
-                    name: guestNames[Math.floor(Math.random() * guestNames.length)],
-                    checkIn: new Date(Date.now() - Math.random() * 5 * 24 * 60 * 60 * 1000),
-                    checkOut: new Date(Date.now() + Math.random() * 5 * 24 * 60 * 60 * 1000),
-                };
-            }
-
-            if (status === 'reserved') {
-                room.reservation = {
-                    guestName: guestNames[Math.floor(Math.random() * guestNames.length)],
-                    checkIn: new Date(Date.now() + Math.random() * 3 * 24 * 60 * 60 * 1000),
-                };
-            }
-
-            rooms.push(room);
-        }
-    });
-
-    return rooms;
-};
 
 const RoomsView = () => {
     const { isDark } = useTheme();
@@ -128,9 +49,48 @@ const RoomsView = () => {
     useEffect(() => {
         const loadData = async () => {
             setIsLoading(true);
-            await new Promise(resolve => setTimeout(resolve, 600));
-            setRooms(generateRoomData());
-            setIsLoading(false);
+            try {
+                const res = await receptionApi.getRoomsList();
+                if (res?.success && res.data) {
+                    const mapped = res.data.map(r => {
+                        const bedRaw = r.beds || r.bedType || 'Queen';
+                        const bedFormatted = bedRaw.includes('King') ? (bedRaw.includes('+') || bedRaw.includes('2') ? bedRaw : '1 King')
+                            : bedRaw.includes('Queen') ? '1 Queen'
+                            : bedRaw.includes('Twin') ? '2 Twin' : bedRaw;
+                        const isOccupied = r.status === 'occupied';
+                        const isReserved = r.status === 'reserved';
+                        return {
+                            id: r._id || `RM-${r.number || r.roomNumber}`,
+                            number: r.number || r.roomNumber || '',
+                            floor: r.floor || parseInt((r.number || r.roomNumber || '1')[0]) || 1,
+                            type: r.type || r.roomName || '',
+                            status: r.status || 'available',
+                            basePrice: r.basePrice || r.price || 0,
+                            maxGuests: r.maxGuests || r.capacity?.adults || 2,
+                            beds: bedFormatted,
+                            sqft: 300,
+                            amenities: r.amenities || [],
+                            rating: r.rating || 4.0,
+                            lastCleaned: r.lastCleaned ? new Date(r.lastCleaned) : null,
+                            condition: 'good',
+                            guest: (isOccupied && r.guest) ? {
+                                name: r.guest.name,
+                                checkIn: r.guest.checkIn ? new Date(r.guest.checkIn) : null,
+                                checkOut: r.guest.checkOut ? new Date(r.guest.checkOut) : null,
+                            } : null,
+                            reservation: (isReserved && r.guest) ? {
+                                guestName: r.guest.name,
+                                checkIn: r.guest.checkIn ? new Date(r.guest.checkIn) : null,
+                            } : null,
+                        };
+                    });
+                    setRooms(mapped);
+                }
+            } catch (err) {
+                console.error('Error loading rooms:', err);
+            } finally {
+                setIsLoading(false);
+            }
         };
         loadData();
     }, []);
@@ -210,14 +170,29 @@ const RoomsView = () => {
     };
 
     const getAmenityIcon = (amenity) => {
+        const a = amenity.toLowerCase();
         const icons = {
             wifi: <Wifi size={14} />,
             tv: <Tv size={14} />,
+            'smart tv': <Tv size={14} />,
             ac: <Wind size={14} />,
             coffee: <Coffee size={14} />,
             bath: <Bath size={14} />,
+            minibar: <Coffee size={14} />,
+            workspace: <DoorOpen size={14} />,
+            balcony: <DoorOpen size={14} />,
+            jacuzzi: <Bath size={14} />,
         };
-        return icons[amenity] || null;
+        return icons[a] || null;
+    };
+
+    const getAmenityLabel = (amenity) => {
+        const labels = {
+            wifi: 'WiFi', tv: 'TV', 'smart tv': 'TV', ac: 'AC',
+            coffee: 'Coffee', bath: 'Bath', minibar: 'Mini Bar',
+            workspace: 'Desk', balcony: 'Balcony', jacuzzi: 'Jacuzzi',
+        };
+        return labels[amenity.toLowerCase()] || amenity;
     };
 
     const formatTimeSince = (date) => {
@@ -461,8 +436,8 @@ const RoomsView = () => {
 
                                 <div className="rv-room-amenities">
                                     {room.amenities.slice(0, 5).map(amenity => (
-                                        <span key={amenity} className="rv-amenity-chip" title={amenity}>
-                                            {getAmenityIcon(amenity) || amenity}
+                                        <span key={amenity} className="rv-amenity-chip" title={getAmenityLabel(amenity)}>
+                                            {getAmenityIcon(amenity) || getAmenityLabel(amenity)}
                                         </span>
                                     ))}
                                     {room.amenities.length > 5 && (

@@ -512,6 +512,22 @@
     color: white;
 }
 
+.sv-report-btn {
+    color: #f59e0b;
+    border-color: rgba(245, 158, 11, 0.3);
+}
+
+.sv-report-btn:hover {
+    background: #f59e0b !important;
+    border-color: #f59e0b !important;
+    color: white !important;
+}
+
+.staff-view.dark .sv-report-btn {
+    color: #fbbf24;
+    border-color: rgba(245, 158, 11, 0.2);
+}
+
 .sv-join-date {
     display: flex;
     align-items: center;
@@ -551,7 +567,8 @@
 @media (max-width: 768px) {
     .staff-view {
         padding: 12px;
-        padding-bottom: 80px; /* space for mobile bottom nav */
+        padding-bottom: 80px;
+        /* space for mobile bottom nav */
     }
 
     .sv-stats-grid {
