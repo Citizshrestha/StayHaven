@@ -85,8 +85,8 @@ const CheckInOutView = () => {
           ? (departuresRes.value.data || []).map(mapDeparture) : [];
 
         setData({ arrivals: arrs, departures: deps });
-      } catch (err) {
-        console.error('Error loading check-in/out data:', err);
+      } catch {
+        /* silently ignore */
       } finally {
         setIsLoading(false);
       }
@@ -170,6 +170,18 @@ const CheckInOutView = () => {
   };
 
   const processAction = async () => {
+    // Edge case guards
+    if (actionType === 'checkin' && selectedGuest.status === 'checked-in') {
+      alert('This guest is already checked in.');
+      setShowModal(false);
+      return;
+    }
+    if (actionType === 'checkout' && selectedGuest.status === 'checked-out') {
+      alert('This guest is already checked out.');
+      setShowModal(false);
+      return;
+    }
+
     setProcessingAction(true);
     try {
       if (actionType === 'checkin') {
@@ -190,13 +202,7 @@ const CheckInOutView = () => {
         }));
       }
     } catch (err) {
-      console.error('Action failed:', err);
-      // Fallback: update UI anyway for demo
-      if (activeTab === 'arrivals') {
-        setData(prev => ({ ...prev, arrivals: prev.arrivals.map(a => a.id === selectedGuest.id ? { ...a, status: 'checked-in' } : a) }));
-      } else {
-        setData(prev => ({ ...prev, departures: prev.departures.map(d => d.id === selectedGuest.id ? { ...d, status: 'checked-out', balance: 0 } : d) }));
-      }
+      alert(err.response?.data?.message || `Failed to ${actionType === 'checkin' ? 'check in' : 'check out'} guest. Please try again.`);
     } finally {
       setProcessingAction(false);
       setShowModal(false);
@@ -389,7 +395,7 @@ const CheckInOutView = () => {
           {filteredData.map(item => (
             <div key={item.id} className="cio-card rounded-xl p-5 transition-all duration-200 hover:shadow-lg">
               <div className="cio-card-header flex items-center gap-3 mb-4 pb-4 border-b border-slate-100 dark:border-slate-700">
-                <div className="cio-guest-avatar w-11 h-11 rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
+                <div className="cio-guest-avatar w-11 h-11 rounded-full flex items-center justify-center text-white text-sm font-semibold shrink-0">
                   {item.guest.initials}
                 </div>
                 <div className="cio-guest-info flex flex-col flex-1">
@@ -423,7 +429,7 @@ const CheckInOutView = () => {
                 {activeTab === 'departures' && item.balance > 0 && (
                   <div className="cio-info-row cio-balance-warning">
                     <span className="cio-info-label">Outstanding Balance</span>
-                    <span className="cio-info-value cio-balance">Rs {item.balance.toLocaleString()}</span>
+                    <span className="cio-info-value cio-balance">₹{item.balance.toLocaleString()}</span>
                   </div>
                 )}
                 {item.specialRequests && (
@@ -517,14 +523,14 @@ const CheckInOutView = () => {
 
               <div className="cio-modal-details flex flex-col gap-3">
                 <div className="cio-modal-detail flex items-center gap-3 p-3 rounded-lg">
-                  <Key size={18} className="text-slate-500 flex-shrink-0" />
+                  <Key size={18} className="text-slate-500 shrink-0" />
                   <div className="flex flex-col">
                     <span className="label text-xs text-slate-500">Room</span>
                     <span className="value text-sm font-medium">{selectedGuest.room.type} - Room {selectedGuest.room.number}</span>
                   </div>
                 </div>
                 <div className="cio-modal-detail flex items-center gap-3 p-3 rounded-lg">
-                  <Calendar size={18} className="text-slate-500 flex-shrink-0" />
+                  <Calendar size={18} className="text-slate-500 shrink-0" />
                   <div className="flex flex-col">
                     <span className="label text-xs text-slate-500">Duration</span>
                     <span className="value text-sm font-medium">
@@ -535,20 +541,20 @@ const CheckInOutView = () => {
                 {actionType === 'checkout' && (
                   <>
                     <div className="cio-modal-detail flex items-center gap-3 p-3 rounded-lg">
-                      <CreditCard size={18} className="text-slate-500 flex-shrink-0" />
+                      <CreditCard size={18} className="text-slate-500 shrink-0" />
                       <div className="flex flex-col">
                         <span className="label text-xs text-slate-500">Outstanding Balance</span>
                         <span className={`value text-sm font-medium ${selectedGuest.balance > 0 ? 'warning text-amber-600' : 'success text-green-600'}`}>
-                          {selectedGuest.balance > 0 ? `Rs ${selectedGuest.balance.toLocaleString()}` : 'Settled'}
+                          {selectedGuest.balance > 0 ? `₹${selectedGuest.balance.toLocaleString()}` : 'Settled'}
                         </span>
                       </div>
                     </div>
                     {selectedGuest.minibarCharges > 0 && (
                       <div className="cio-modal-detail flex items-center gap-3 p-3 rounded-lg">
-                        <FileText size={18} className="text-slate-500 flex-shrink-0" />
+                        <FileText size={18} className="text-slate-500 shrink-0" />
                         <div className="flex flex-col">
                           <span className="label text-xs text-slate-500">Minibar Charges</span>
-                          <span className="value text-sm font-medium">Rs {selectedGuest.minibarCharges.toLocaleString()}</span>
+                          <span className="value text-sm font-medium">₹{selectedGuest.minibarCharges.toLocaleString()}</span>
                         </div>
                       </div>
                     )}

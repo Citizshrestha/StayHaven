@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../../../../hooks/useTheme';
 import { useStaffAuth } from '../../../../context/StaffAuthContext';
 import {
@@ -19,7 +19,6 @@ import * as receptionApi from '../../../../core/api/services/reception.service';
 import { io as socketIO } from 'socket.io-client';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
-const DEV_HOTEL_ID = '692aa947419c33f4e8c9aa73';
 
 /* ── Sparkline Component ── */
 const Sparkline = ({ data, color, height = 32 }) => {
@@ -107,8 +106,8 @@ const WeeklyOccupancyChart = ({ occupancyData: propData }) => {
           <h3 className="sh-v2-chart-title">Weekly Occupancy</h3>
           <span className="sh-v2-chart-avg">Avg: {avg}%</span>
         </div>
-        <span className="sh-v2-badge up">
-          <TrendingUp size={12} /> +12%
+        <span className={`sh-v2-badge ${avg >= 70 ? 'up' : avg >= 40 ? '' : 'down'}`}>
+          <TrendingUp size={12} /> {avg}% avg
         </span>
       </div>
       <div className="sh-v2-chart-body">
@@ -260,9 +259,11 @@ const EnhancedDonutChart = ({ segments }) => {
           <h3 className="sh-v2-chart-title">Revenue Split</h3>
           <span className="sh-v2-chart-avg">This Month</span>
         </div>
+        {total > 0 && (
         <span className="sh-v2-badge up">
-          <TrendingUp size={12} /> +8.5%
+          <TrendingUp size={12} /> ₹{total.toLocaleString()}
         </span>
+        )}
       </div>
       <div className="sh-v2-donut-body">
         <div className="sh-v2-donut-wrap">
@@ -367,10 +368,10 @@ const LiveClock = () => {
 /* ══════════════════════════════════════════
    MAIN DASHBOARD CONTENT
    ══════════════════════════════════════════ */
-const DashboardContent = () => {
+const DashboardContent = ({ onNavigate }) => {
   const { isDark, toggleTheme } = useTheme();
   let staffUser = null;
-  try { const auth = useStaffAuth(); staffUser = auth?.staffUser; } catch (e) { }
+  try { const auth = useStaffAuth(); staffUser = auth?.staffUser; } catch { /* auth context unavailable */ }
 
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifTab, setNotifTab] = useState('all');
@@ -383,21 +384,26 @@ const DashboardContent = () => {
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [activeRoomFilter, setActiveRoomFilter] = useState('all');
   const [callingChannel, setCallingChannel] = useState(null);
-  const [contacts, setContacts] = useState({ waiters: [], chefs: [], receptionists: [], managers: [] });
+  const [_contacts, setContacts] = useState({ waiters: [], chefs: [], receptionists: [], managers: [] });
   const socketRef = useRef(null);
   const msgBodyRef = useRef(null);
   const hotelId = (() => {
+    // 1. Try auth context first
+    const fromCtx = staffUser?.activeProperty?._id || staffUser?.activeProperty;
+    if (fromCtx) return typeof fromCtx === 'object' ? fromCtx.toString() : fromCtx;
+
+    // 2. Try localStorage (set during login by StaffAuthContext)
     try {
       const stored = localStorage.getItem('activeProperty');
-      if (!stored) return staffUser?.activeProperty?._id || DEV_HOTEL_ID;
+      if (!stored) return null;
       const parsed = JSON.parse(stored);
-      // If it's an object with _id, extract it; if it's a plain string ID, use it directly
-      return (typeof parsed === 'object' && parsed?._id) ? parsed._id : (typeof parsed === 'string' ? parsed : staffUser?.activeProperty?._id || DEV_HOTEL_ID);
+      if (typeof parsed === 'object' && parsed?._id) return parsed._id;
+      if (typeof parsed === 'string' && parsed.length > 0) return parsed;
     } catch {
-      // If JSON parse fails, it might be a raw string ID
       const raw = localStorage.getItem('activeProperty')?.replace(/"/g, '');
-      return raw || staffUser?.activeProperty?._id || DEV_HOTEL_ID;
+      if (raw && raw.length > 0) return raw;
     }
+    return null;
   })();
   const isLoggedIn = !!staffUser;
 
@@ -409,7 +415,7 @@ const DashboardContent = () => {
   const [activeBookingId] = useState(null);
 
   // ── Live Dashboard Data (fetched from API) ──
-  const [dashLoading, setDashLoading] = useState(true);
+  const [_dashLoading, setDashLoading] = useState(true);
   const [kpiData, setKpiData] = useState([]);
   const [roomStatus, setRoomStatus] = useState([]);
   const [activityFeed, setActivityFeed] = useState([]);
@@ -434,7 +440,7 @@ const DashboardContent = () => {
 
   // ── Socket.io Connection ──
   useEffect(() => {
-    if (!isLoggedIn) return;
+    if (!isLoggedIn || !hotelId) return;
     const socket = socketIO(API_BASE, { withCredentials: true });
     socketRef.current = socket;
 
@@ -485,37 +491,31 @@ const DashboardContent = () => {
           setNotifications(res.data);
           setUnreadNotifCount(res.unreadCount);
         }
-      } catch (err) {
-        console.warn('Failed to fetch notifications:', err.message);
-      }
+      } catch { /* silently ignore */ }
     };
     fetchNotifs();
   }, [isLoggedIn]);
 
   // ── Fetch Messages when channel changes ──
   useEffect(() => {
-    if (!isLoggedIn || !showMessaging) return;
+    if (!isLoggedIn || !hotelId || !showMessaging) return;
     const fetchMessages = async () => {
       try {
         const res = await msgService.getMessages({ channel: msgRecipient, hotelId, limit: 50 });
         if (res.success) setMessages(res.data);
-      } catch (err) {
-        console.warn('Failed to fetch messages:', err.message);
-      }
+      } catch { /* silently ignore */ }
     };
     fetchMessages();
   }, [isLoggedIn, showMessaging, msgRecipient, hotelId]);
 
   // ── Fetch Contacts ──
   useEffect(() => {
-    if (!isLoggedIn || !showMessaging) return;
+    if (!isLoggedIn || !hotelId || !showMessaging) return;
     const fetchContacts = async () => {
       try {
         const res = await msgService.getContacts(hotelId);
         if (res.success) setContacts(res.contacts);
-      } catch (err) {
-        console.warn('Failed to fetch contacts:', err.message);
-      }
+      } catch { /* silently ignore */ }
     };
     fetchContacts();
   }, [isLoggedIn, showMessaging, hotelId]);
@@ -539,6 +539,10 @@ const DashboardContent = () => {
 
   // ── Fetch Dashboard Data from API ──
   useEffect(() => {
+    if (!hotelId) {
+      setDashLoading(false);
+      return;
+    }
     const fetchDashboard = async () => {
       setDashLoading(true);
       try {
@@ -548,7 +552,7 @@ const DashboardContent = () => {
           receptionApi.getTodayArrivals(),
           receptionApi.getTodayDepartures(),
           receptionApi.getGuestRequests(),
-          receptionApi.getActivityLog(10),
+          receptionApi.getActivityLog(6),
           receptionApi.getWeeklyOccupancy(),
           receptionApi.getRevenueSplit(),
         ]);
@@ -557,12 +561,12 @@ const DashboardContent = () => {
         if (summaryRes.status === 'fulfilled' && summaryRes.value?.success) {
           const s = summaryRes.value.data;
           setKpiData([
-            { title: "Check-ins", value: String(s.checkIns?.value ?? 0), sub: `/${s.checkIns?.total ?? 0}`, trend: s.checkIns?.trend ?? '+0%', up: !String(s.checkIns?.trend).startsWith('-'), icon: CalendarCheck, color: '#6366f1', sparkline: s.checkIns?.sparkline || [0,0,0,0,0,0,0] },
-            { title: "Check-outs", value: String(s.checkOuts?.value ?? 0), sub: `/${s.checkOuts?.total ?? 0}`, trend: s.checkOuts?.trend ?? '+0%', up: !String(s.checkOuts?.trend).startsWith('-'), icon: LogOutIcon, color: '#f97316', sparkline: s.checkOuts?.sparkline || [0,0,0,0,0,0,0] },
-            { title: "Occupancy", value: String(s.occupancy?.value ?? 0), sub: '%', trend: s.occupancy?.trend ?? '+0%', up: !String(s.occupancy?.trend).startsWith('-'), icon: Building2, color: '#10b981', sparkline: s.occupancy?.sparkline || [0,0,0,0,0,0,0] },
-            { title: "Revenue", value: s.revenue?.value ?? '₹0', sub: '', trend: s.revenue?.trend ?? '+0%', up: !String(s.revenue?.trend).startsWith('-'), icon: DollarSign, color: '#8b5cf6', sparkline: s.revenue?.sparkline || [0,0,0,0,0,0,0] },
-            { title: "Pending Pay", value: String(s.pendingPayments?.value ?? 0), sub: '', trend: s.pendingPayments?.trend ?? '0', up: !String(s.pendingPayments?.trend).startsWith('+'), icon: CreditCard, color: '#f59e0b', sparkline: s.pendingPayments?.sparkline || [0,0,0,0,0,0,0] },
-            { title: "Available", value: String(s.availableRooms?.value ?? 0), sub: '', trend: s.availableRooms?.trend ?? '0', up: false, icon: Bed, color: '#06b6d4', sparkline: s.availableRooms?.sparkline || [0,0,0,0,0,0,0] },
+            { title: "Check-ins", value: String(s.checkIns?.value ?? 0), sub: `/${s.checkIns?.total ?? 0}`, trend: s.checkIns?.trend ?? '+0%', up: !String(s.checkIns?.trend).startsWith('-'), icon: CalendarCheck, color: '#6366f1', sparkline: s.checkIns?.sparkline ?? [0,0,0,0,0,0,0] },
+            { title: "Check-outs", value: String(s.checkOuts?.value ?? 0), sub: `/${s.checkOuts?.total ?? 0}`, trend: s.checkOuts?.trend ?? '+0%', up: !String(s.checkOuts?.trend).startsWith('-'), icon: LogOutIcon, color: '#f97316', sparkline: s.checkOuts?.sparkline ?? [0,0,0,0,0,0,0] },
+            { title: "Occupancy", value: String(s.occupancy?.value ?? 0), sub: '%', trend: s.occupancy?.trend ?? '+0%', up: !String(s.occupancy?.trend).startsWith('-'), icon: Building2, color: '#10b981', sparkline: s.occupancy?.sparkline ?? [0,0,0,0,0,0,0] },
+            { title: "Revenue", value: s.revenue?.value ?? '₹0', sub: '', trend: s.revenue?.trend ?? '+0%', up: !String(s.revenue?.trend).startsWith('-'), icon: DollarSign, color: '#8b5cf6', sparkline: s.revenue?.sparkline ?? [0,0,0,0,0,0,0] },
+            { title: "Pending Pay", value: String(s.pendingPayments?.value ?? 0), sub: '', trend: s.pendingPayments?.trend ?? '0', up: !String(s.pendingPayments?.trend).startsWith('+'), icon: CreditCard, color: '#f59e0b', sparkline: s.pendingPayments?.sparkline ?? [0,0,0,0,0,0,0] },
+            { title: "Available", value: String(s.availableRooms?.value ?? 0), sub: '', trend: s.availableRooms?.trend ?? '0', up: false, icon: Bed, color: '#06b6d4', sparkline: s.availableRooms?.sparkline ?? [0,0,0,0,0,0,0] },
           ]);
           setOccupancyPct(s.occupancy?.value ?? 0);
         }
@@ -611,7 +615,7 @@ const DashboardContent = () => {
         // Activity Feed
         if (activityRes.status === 'fulfilled' && activityRes.value?.success) {
           const iconMap = { CalendarCheck, DollarSign, Sparkles, Users, LogOut: LogOutIcon, Wrench };
-          setActivityFeed((activityRes.value.data || []).map((a, i) => ({
+          setActivityFeed((activityRes.value.data || []).slice(0, 6).map((a, i) => ({
             text: a.text || a.description, time: a.timeAgo || a.time || formatTime(a.createdAt),
             icon: iconMap[a.icon] || CheckCircle, color: a.color || '#6366f1', live: i === 0,
           })));
@@ -644,9 +648,7 @@ const DashboardContent = () => {
           }
         } catch { /* ignore housekeeping errors */ }
 
-      } catch (err) {
-        console.warn('Dashboard data fetch error:', err);
-      } finally {
+      } catch { /* silently ignore */ } finally {
         setDashLoading(false);
       }
     };
@@ -677,8 +679,7 @@ const DashboardContent = () => {
         content: text,
         hotelId,
       });
-    } catch (err) {
-      console.error('Failed to send message:', err);
+    } catch {
       setMsgText(text); // Restore text on failure
     }
   };
@@ -694,8 +695,7 @@ const DashboardContent = () => {
       await msgService.initiateCall({ channel, hotelId });
       // Auto-end after 30 seconds (demo)
       setTimeout(() => setCallingChannel(null), 30000);
-    } catch (err) {
-      console.error('Failed to initiate call:', err);
+    } catch {
       setCallingChannel(null);
     }
   };
@@ -711,9 +711,7 @@ const DashboardContent = () => {
       await msgService.markNotificationsRead();
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
       setUnreadNotifCount(0);
-    } catch (err) {
-      console.error('Failed to mark notifications read:', err);
-    }
+    } catch { /* silently ignore */ }
   };
 
   // Filter notifications by tab
@@ -722,18 +720,9 @@ const DashboardContent = () => {
     ? notifications
     : notifications.filter(n => (notifTypeMap[notifTab] || []).includes(n.type));
 
-  // ── Mock notification data for when not logged in ──
-  const mockNotifications = [
-    { _id: '1', type: 'payment_received', title: 'Payment', message: '₹12,500 received from Room 302', createdAt: new Date(Date.now() - 120000), isRead: false, priority: 'high' },
-    { _id: '2', type: 'waiter_call', title: 'Request', message: 'Room 202 requested extra pillows', createdAt: new Date(Date.now() - 300000), isRead: false, priority: 'medium' },
-    { _id: '3', type: 'system', title: 'Housekeeping', message: 'Room 118 cleaning complete', createdAt: new Date(Date.now() - 720000), isRead: true, priority: 'low' },
-    { _id: '4', type: 'waiter_call', title: 'Checkout', message: 'Room 505 late checkout request', createdAt: new Date(Date.now() - 1080000), isRead: false, priority: 'medium' },
-    { _id: '5', type: 'payment_received', title: 'Payment', message: '₹8,200 pending — Room 210', createdAt: new Date(Date.now() - 1500000), isRead: false, priority: 'high' },
-  ];
-
-  // Use real data if available, otherwise mock
-  const displayNotifs = notifications.length > 0 ? filteredNotifs : (notifTab === 'all' ? mockNotifications : mockNotifications.filter(n => (notifTypeMap[notifTab] || []).includes(n.type)));
-  const displayUnreadCount = notifications.length > 0 ? unreadNotifCount : mockNotifications.filter(n => !n.isRead).length;
+  // Use real notification data only — no mock fallback in production
+  const displayNotifs = filteredNotifs;
+  const displayUnreadCount = unreadNotifCount;
 
   // Helper: format notification time
   const formatTime = (date) => {
@@ -871,6 +860,16 @@ const DashboardContent = () => {
           )}
         </div>
       </header>
+
+      {/* ── No Hotel Warning ── */}
+      {!hotelId && (
+        <div style={{ margin: '16px 24px', padding: '14px 20px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <AlertTriangle size={20} style={{ color: '#dc2626', flexShrink: 0 }} />
+          <span style={{ fontSize: 13, fontWeight: 500, color: '#b91c1c' }}>
+            No hotel property is linked to your account. Please contact your administrator to assign a property, then log out and log back in.
+          </span>
+        </div>
+      )}
 
       {/* ── Dashboard Body ── */}
       <div className="sh-dashboard">
@@ -1054,10 +1053,10 @@ const DashboardContent = () => {
                       </div>
                       <div className="sh-request-actions">
                         <button className="sh-req-btn approve" onClick={async () => {
-                          if (r._id) { try { await receptionApi.assignGuestRequest(r._id); setGuestRequests(prev => prev.filter(x => x._id !== r._id)); } catch {} }
+                          if (r._id) { try { await receptionApi.assignGuestRequest(r._id); setGuestRequests(prev => prev.filter(x => x._id !== r._id)); } catch { /* silent */ } }
                         }}>{r.actions[0]}</button>
                         <button className="sh-req-btn deny" onClick={async () => {
-                          if (r._id) { try { await receptionApi.ignoreGuestRequest(r._id); setGuestRequests(prev => prev.filter(x => x._id !== r._id)); } catch {} }
+                          if (r._id) { try { await receptionApi.ignoreGuestRequest(r._id); setGuestRequests(prev => prev.filter(x => x._id !== r._id)); } catch { /* silent */ } }
                         }}>{r.actions[1]}</button>
                       </div>
                     </div>
@@ -1070,7 +1069,13 @@ const DashboardContent = () => {
             <div className="sh-card" style={{ animationDelay: '0.3s' }}>
               <div className="sh-card-header">
                 <h3 className="sh-card-title">Live Activity</h3>
-                <span className="sh-card-badge" style={{ background: 'var(--accent-emerald-light)', color: 'var(--accent-emerald)' }}>● Live</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span className="sh-card-badge" style={{ background: 'var(--accent-emerald-light)', color: 'var(--accent-emerald)' }}>● Live</span>
+                  <button
+                    onClick={() => onNavigate && onNavigate('reports')}
+                    style={{ fontSize: 11, color: 'var(--accent-purple)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                  >View All</button>
+                </div>
               </div>
               <div className="sh-card-body">
                 <div className="sh-activity-list">
@@ -1199,8 +1204,8 @@ const DashboardContent = () => {
       {/* ── Modals ── */}
       <NewBookingModal isOpen={showNewBookingModal} onClose={() => setShowNewBookingModal(false)} isDark={isDark} hotelId={hotelId} />
       <WalkInGuestModal isOpen={showWalkInModal} onClose={() => setShowWalkInModal(false)} isDark={isDark} hotelId={hotelId} />
-      <ExpressCheckOutModal isOpen={showCheckOutModal} onClose={() => setShowCheckOutModal(false)} isDark={isDark} activeBookingId={activeBookingId} />
-      <RoomChangeModal isOpen={showRoomChangeModal} onClose={() => setShowRoomChangeModal(false)} isDark={isDark} activeBookingId={activeBookingId} />
+      <ExpressCheckOutModal isOpen={showCheckOutModal} onClose={() => setShowCheckOutModal(false)} isDark={isDark} activeBookingId={activeBookingId} hotelId={hotelId} />
+      <RoomChangeModal isOpen={showRoomChangeModal} onClose={() => setShowRoomChangeModal(false)} isDark={isDark} activeBookingId={activeBookingId} hotelId={hotelId} />
     </div>
   );
 };
