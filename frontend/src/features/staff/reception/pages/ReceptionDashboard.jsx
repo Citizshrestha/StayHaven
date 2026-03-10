@@ -65,7 +65,7 @@ const ReceptionDashboard = () => {
 
   const renderContent = () => {
     switch (activeView) {
-      case 'dashboard': return <DashboardContent />;
+      case 'dashboard': return <DashboardContent onNavigate={setActiveView} />;
       case 'bookings': return <BookingsView />;
       case 'checkinout': return <CheckInOutView />;
       case 'rooms': return <RoomsView />;
@@ -75,7 +75,7 @@ const ReceptionDashboard = () => {
       case 'reports': return <ReportsView />;
       case 'staff': return <StaffView onMessageStaff={handleOpenMessageFor} />;
       case 'settings': return <ReceptionSettings onClose={() => setActiveView('dashboard')} />;
-      default: return <DashboardContent />;
+      default: return <DashboardContent onNavigate={setActiveView} />;
     }
   };
 

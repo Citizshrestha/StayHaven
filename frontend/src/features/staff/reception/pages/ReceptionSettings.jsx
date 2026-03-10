@@ -260,7 +260,7 @@ const ReceptionSettings = ({ onClose }) => {
   return (
     <div className={`reception-settings ${isDark ? 'dark' : ''} flex min-h-full`}>
       {/* Settings Navigation */}
-      <div className="rs-sidebar w-64 p-6 flex-shrink-0">
+      <div className="rs-sidebar w-64 p-6 shrink-0">
         <h2 className="text-xl font-bold mb-6">Settings</h2>
         <nav className="rs-nav flex flex-col gap-1">
           {sections.map(section => (
@@ -541,7 +541,7 @@ const ReceptionSettings = ({ onClose }) => {
               <div className="rs-toggle-list flex flex-col gap-3">
                 <div className="rs-toggle-item flex items-center justify-between p-4 rounded-xl">
                   <div className="rs-toggle-info flex items-center gap-3">
-                    <Mail size={18} className="text-slate-500 flex-shrink-0" />
+                    <Mail size={18} className="text-slate-500 shrink-0" />
                     <div className="flex flex-col">
                       <span className="label text-sm font-medium">Email Notifications</span>
                       <span className="description text-xs text-slate-500">Receive notifications via email</span>
@@ -560,7 +560,7 @@ const ReceptionSettings = ({ onClose }) => {
 
                 <div className="rs-toggle-item flex items-center justify-between p-4 rounded-xl">
                   <div className="rs-toggle-info flex items-center gap-3">
-                    {notifications.soundEnabled ? <Volume2 size={18} className="text-slate-500 flex-shrink-0" /> : <VolumeX size={18} className="text-slate-500 flex-shrink-0" />}
+                    {notifications.soundEnabled ? <Volume2 size={18} className="text-slate-500 shrink-0" /> : <VolumeX size={18} className="text-slate-500 shrink-0" />}
                     <div className="flex flex-col">
                       <span className="label text-sm font-medium">Sound Notifications</span>
                       <span className="description text-xs text-slate-500">Play sound for new notifications</span>
@@ -579,7 +579,7 @@ const ReceptionSettings = ({ onClose }) => {
 
                 <div className="rs-toggle-item flex items-center justify-between p-4 rounded-xl">
                   <div className="rs-toggle-info flex items-center gap-3">
-                    <Monitor size={18} className="text-slate-500 flex-shrink-0" />
+                    <Monitor size={18} className="text-slate-500 shrink-0" />
                     <div className="flex flex-col">
                       <span className="label text-sm font-medium">Desktop Notifications</span>
                       <span className="description text-xs text-slate-500">Show browser push notifications</span>
@@ -697,7 +697,7 @@ const ReceptionSettings = ({ onClose }) => {
               <div className="rs-toggle-list flex flex-col gap-3">
                 <div className="rs-toggle-item flex items-center justify-between p-4 rounded-xl">
                   <div className="rs-toggle-info flex items-center gap-3">
-                    <RefreshCw size={18} className="text-slate-500 flex-shrink-0" />
+                    <RefreshCw size={18} className="text-slate-500 shrink-0" />
                     <div>
                       <span className="label text-sm font-medium block">Auto-refresh Dashboard</span>
                       <span className="description text-xs text-slate-500">Automatically refresh data at regular intervals</span>

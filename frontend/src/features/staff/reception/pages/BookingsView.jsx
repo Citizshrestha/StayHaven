@@ -7,7 +7,9 @@ import {
   ChevronRight,
   Calendar,
   Loader2,
-  Users
+  Users,
+  Eye,
+  X
 } from 'lucide-react';
 import * as receptionApi from '../../../../core/api/services/reception.service';
 import './BookingsView.css';
@@ -30,6 +32,7 @@ const BookingsView = () => {
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [showDateDropdown, setShowDateDropdown] = useState(false);
   const [showRoomDropdown, setShowRoomDropdown] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState(null);
 
   // Load bookings data from API
   useEffect(() => {
@@ -59,8 +62,8 @@ const BookingsView = () => {
           }));
           setBookings(mapped.sort((a, b) => b.numericId - a.numericId));
         }
-      } catch (error) {
-        console.error('Error loading bookings:', error);
+      } catch {
+        /* silently ignore */
       } finally {
         setIsLoading(false);
       }
@@ -235,7 +238,7 @@ const BookingsView = () => {
       {/* Filter Bar - Using Tailwind + CSS */}
       <div className="bv-filter-bar flex items-center gap-4 mb-6 flex-wrap">
         {/* Search Input */}
-        <div className="bv-search-wrapper relative flex-shrink-0" style={{ flexBasis: '280px' }}>
+        <div className="bv-search-wrapper relative shrink-0" style={{ flexBasis: '280px' }}>
           <Search className="bv-search-icon absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
           <input
             type="text"
@@ -426,8 +429,75 @@ const BookingsView = () => {
                   <span className="bv-date-value text-sm font-medium">{formatDate(booking.checkOut)}</span>
                 </div>
               </div>
+              <div className="bv-grid-actions" style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border-primary, #e2e8f0)', display: 'flex', gap: 8 }}>
+                <button
+                  className="bv-action-btn"
+                  onClick={() => setSelectedBooking(booking)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', fontSize: 13, fontWeight: 600, borderRadius: 8, border: '1px solid var(--border-primary, #e2e8f0)', background: 'var(--bg-surface, #f8fafc)', color: 'var(--text-primary, #334155)', cursor: 'pointer', transition: 'all 0.2s' }}
+                >
+                  <Eye size={14} /> View
+                </button>
+              </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Booking Detail Modal */}
+      {selectedBooking && (
+        <div className="bv-modal-overlay" onClick={() => setSelectedBooking(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999, padding: 20 }}>
+          <div className="bv-modal-content" onClick={e => e.stopPropagation()}
+            style={{ background: 'var(--bg-card, #fff)', borderRadius: 16, maxWidth: 480, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', borderBottom: '1px solid var(--border-primary, #e2e8f0)' }}>
+              <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: 'var(--text-primary, #1e293b)' }}>Booking Details</h3>
+              <button onClick={() => setSelectedBooking(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
+                <X size={20} style={{ color: 'var(--text-secondary, #64748b)' }} />
+              </button>
+            </div>
+            <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary, #1e293b)' }}>{selectedBooking.id}</span>
+                <span className={`bv-status-badge inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium ${getStatusClass(selectedBooking.status)}`}>
+                  {selectedBooking.status}
+                </span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-tertiary, #94a3b8)' }}>Guest</span>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary, #1e293b)' }}>{selectedBooking.guest.name}</span>
+                  <span style={{ fontSize: 12, color: 'var(--text-secondary, #64748b)' }}>{selectedBooking.guest.email}</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-tertiary, #94a3b8)' }}>Room</span>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary, #1e293b)' }}>{selectedBooking.room.type}</span>
+                  <span style={{ fontSize: 12, color: 'var(--text-secondary, #64748b)' }}>Room {selectedBooking.room.number}</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-tertiary, #94a3b8)' }}>Check In</span>
+                  <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary, #1e293b)' }}>{formatDate(selectedBooking.checkIn)}</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-tertiary, #94a3b8)' }}>Check Out</span>
+                  <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary, #1e293b)' }}>{formatDate(selectedBooking.checkOut)}</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-tertiary, #94a3b8)' }}>Duration</span>
+                  <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary, #1e293b)' }}>{selectedBooking.nights} night{selectedBooking.nights !== 1 ? 's' : ''}</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-tertiary, #94a3b8)' }}>Booked On</span>
+                  <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary, #1e293b)' }}>{formatDate(selectedBooking.createdAt)}</span>
+                </div>
+              </div>
+            </div>
+            <div style={{ padding: '14px 24px', borderTop: '1px solid var(--border-primary, #e2e8f0)', display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={() => setSelectedBooking(null)}
+                style={{ padding: '8px 20px', fontSize: 13, fontWeight: 600, borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', cursor: 'pointer' }}>
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -459,7 +529,7 @@ const BookingsView = () => {
               ) : (
                 <button
                   key={page}
-                  className={`bv-page-btn flex items-center justify-center min-w-[36px] h-9 px-3 rounded-lg text-sm transition-all duration-200 ${currentPage === page ? 'active' : ''}`}
+                  className={`bv-page-btn flex items-center justify-center min-w-9 h-9 px-3 rounded-lg text-sm transition-all duration-200 ${currentPage === page ? 'active' : ''}`}
                   onClick={() => setCurrentPage(page)}
                 >
                   {page}
