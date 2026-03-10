@@ -140,8 +140,8 @@ const GuestsView = ({ onMessageGuest }) => {
             return 0;
           }));
         }
-      } catch (err) {
-        console.error('Error loading guests:', err);
+      } catch {
+        /* silently ignore */
       } finally {
         setIsLoading(false);
       }
@@ -187,8 +187,8 @@ const GuestsView = ({ onMessageGuest }) => {
           return 0;
         }));
       }
-    } catch (err) {
-      console.error('Error reloading guests:', err);
+    } catch {
+      /* silently ignore */
     }
   };
 
@@ -199,7 +199,6 @@ const GuestsView = ({ onMessageGuest }) => {
       await receptionApi.updateGuestStatus(guest._id, newStatus);
       await reloadGuests();
     } catch (err) {
-      console.error('Failed to update guest status:', err);
       alert('Failed to update guest status: ' + (err.response?.data?.message || err.message));
     } finally {
       setActionLoading(null);
@@ -222,7 +221,6 @@ const GuestsView = ({ onMessageGuest }) => {
       setBlacklistReason('');
       await reloadGuests();
     } catch (err) {
-      console.error('Failed to update blacklist status:', err);
       alert('Failed to update blacklist: ' + (err.response?.data?.message || err.message));
     } finally {
       setActionLoading(null);
@@ -641,15 +639,15 @@ const GuestsView = ({ onMessageGuest }) => {
                 <h3 className="text-sm font-semibold mb-3">Contact Information</h3>
                 <div className="gv-modal-info-grid flex flex-col gap-2">
                   <div className="gv-info-item flex items-center gap-3 p-3 rounded-lg">
-                    <Mail size={16} className="text-slate-500 flex-shrink-0" />
+                    <Mail size={16} className="text-slate-500 shrink-0" />
                     <span className="text-sm">{selectedGuest.email}</span>
                   </div>
                   <div className="gv-info-item flex items-center gap-3 p-3 rounded-lg">
-                    <Phone size={16} className="text-slate-500 flex-shrink-0" />
+                    <Phone size={16} className="text-slate-500 shrink-0" />
                     <span className="text-sm">{selectedGuest.phone}</span>
                   </div>
                   <div className="gv-info-item flex items-center gap-3 p-3 rounded-lg">
-                    <MapPin size={16} className="text-slate-500 flex-shrink-0" />
+                    <MapPin size={16} className="text-slate-500 shrink-0" />
                     <span className="text-sm">{selectedGuest.country}</span>
                   </div>
                 </div>
@@ -724,7 +722,7 @@ const GuestsView = ({ onMessageGuest }) => {
                 </div>
                 {selectedGuest.preferences.specialRequests && (
                   <div className="gv-special-requests flex items-start gap-3 mt-3 p-4 rounded-xl">
-                    <Gift size={16} className="text-slate-500 flex-shrink-0 mt-0.5" />
+                    <Gift size={16} className="text-slate-500 shrink-0 mt-0.5" />
                     <span className="text-sm">{selectedGuest.preferences.specialRequests}</span>
                   </div>
                 )}

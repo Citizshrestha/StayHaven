@@ -63,8 +63,8 @@ const HousekeepingView = () => {
         });
         setRooms(mapped);
       }
-    } catch (err) {
-      console.error('Error loading housekeeping tasks:', err);
+    } catch {
+      /* silently ignore */
     } finally {
       setIsLoading(false);
     }
@@ -138,11 +138,8 @@ const HousekeepingView = () => {
       setRooms(prev => prev.map(r =>
         r.id === roomId ? { ...r, status: newStatus } : r
       ));
-    } catch (err) {
-      console.error('Error updating room status:', err);
-      setRooms(prev => prev.map(r =>
-        r.id === roomId ? { ...r, status: newStatus } : r
-      ));
+    } catch {
+      alert('Failed to update room status. Please try again.');
     }
     setSelectedRoom(null);
   };
@@ -559,7 +556,7 @@ const HousekeepingView = () => {
                 <div className="hk-modal-section mb-6">
                   <h3 className="text-sm font-semibold mb-3">Notes</h3>
                   <div className="hk-notes-box flex items-start gap-3 p-4 rounded-xl">
-                    <MessageSquare size={16} className="text-slate-500 flex-shrink-0 mt-0.5" />
+                    <MessageSquare size={16} className="text-slate-500 shrink-0 mt-0.5" />
                     <span className="text-sm">{selectedRoom.notes}</span>
                   </div>
                 </div>
