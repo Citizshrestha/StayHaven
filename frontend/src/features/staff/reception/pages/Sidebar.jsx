@@ -49,7 +49,7 @@ const Sidebar = ({ activeView, onViewChange, collapsed, onToggleCollapse }) => {
   ];
 
   const handleLogout = async () => {
-    try { await logout(); navigate('/staff/login'); } catch (e) { console.error(e); }
+    try { await logout(); navigate('/staff/login'); } catch { /* silently ignore */ }
   };
 
   const userName = staffUser?.fullname || 'Sarah Jenkins';

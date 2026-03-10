@@ -82,8 +82,8 @@ const StaffView = ({ onMessageStaff }) => {
                     });
                     setStaff(mapped);
                 }
-            } catch (err) {
-                console.error('Error loading staff:', err);
+            } catch {
+                /* silently ignore */
             } finally {
                 setIsLoading(false);
             }
@@ -145,7 +145,6 @@ const StaffView = ({ onMessageStaff }) => {
             setReportReason('');
             setReportUrgency('normal');
         } catch (err) {
-            console.error('Failed to report staff issue:', err);
             alert('Failed to report: ' + (err.response?.data?.message || err.message));
         } finally {
             setReportLoading(false);
