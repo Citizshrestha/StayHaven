@@ -67,8 +67,8 @@ const ReportsView = () => {
             }))
           });
         }
-      } catch (err) {
-        console.error('Error loading reports:', err);
+      } catch {
+        /* silently ignore */
       } finally {
         setIsLoading(false);
       }
@@ -293,7 +293,7 @@ const ReportsView = () => {
                 <PieChart size={18} className="text-slate-400" />
               </div>
               <div className="rv-room-distribution flex items-center gap-6">
-                <div className="rv-donut-chart w-32 h-32 flex-shrink-0">
+                <div className="rv-donut-chart w-32 h-32 shrink-0">
                   <svg viewBox="0 0 100 100">
                     <circle cx="50" cy="50" r="40" fill="none" stroke="#e2e8f0" strokeWidth="12" className="rv-donut-bg" />
                     <circle

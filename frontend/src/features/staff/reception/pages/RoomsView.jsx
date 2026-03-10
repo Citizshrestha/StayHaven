@@ -40,7 +40,7 @@ const RoomsView = () => {
     const [statusFilter, setStatusFilter] = useState('all');
     const [floorFilter, setFloorFilter] = useState('all');
     const [typeFilter, setTypeFilter] = useState('all');
-    const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+    const [_showStatusDropdown, setShowStatusDropdown] = useState(false);
     const [showFloorDropdown, setShowFloorDropdown] = useState(false);
     const [showTypeDropdown, setShowTypeDropdown] = useState(false);
     const [selectedRoom, setSelectedRoom] = useState(null);
@@ -86,8 +86,8 @@ const RoomsView = () => {
                     });
                     setRooms(mapped);
                 }
-            } catch (err) {
-                console.error('Error loading rooms:', err);
+            } catch {
+                /* silently ignore */
             } finally {
                 setIsLoading(false);
             }
@@ -200,6 +200,20 @@ const RoomsView = () => {
         if (hours < 1) return 'Just now';
         if (hours < 24) return `${hours}h ago`;
         return `${Math.floor(hours / 24)}d ago`;
+    };
+
+    const handleUpdateStatus = async (e, roomId, newStatus) => {
+        e.stopPropagation();
+        try {
+            const res = await receptionApi.updateRoomStatus(roomId, newStatus);
+            if (res?.success) {
+                setRooms(prev => prev.map(r =>
+                    r.id === roomId ? { ...r, status: newStatus, lastCleaned: newStatus === 'available' ? new Date() : r.lastCleaned } : r
+                ));
+            }
+        } catch {
+            alert('Failed to update room status. Please try again.');
+        }
     };
 
     return (
@@ -430,7 +444,7 @@ const RoomsView = () => {
                                     </div>
                                     <div className="rv-room-detail">
                                         <DollarSign size={14} />
-                                        <span>Rs {room.basePrice}/night</span>
+                                        <span>₹{room.basePrice}/night</span>
                                     </div>
                                 </div>
 
@@ -492,6 +506,36 @@ const RoomsView = () => {
                                         </span>
                                     )}
                                 </div>
+
+                                {/* Room Action Buttons */}
+                                {(room.status === 'cleaning' || room.status === 'maintenance' || room.status === 'available') && (
+                                    <div className="rv-room-actions" style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border-primary, #e2e8f0)', display: 'flex', gap: 6 }}>
+                                        {room.status === 'cleaning' && (
+                                            <button onClick={(e) => handleUpdateStatus(e, room.id, 'available')}
+                                                style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, padding: '5px 10px', fontSize: 12, fontWeight: 600, borderRadius: 6, border: 'none', background: '#10b981', color: '#fff', cursor: 'pointer' }}>
+                                                <CheckCircle size={12} /> Mark Clean
+                                            </button>
+                                        )}
+                                        {room.status === 'maintenance' && (
+                                            <button onClick={(e) => handleUpdateStatus(e, room.id, 'available')}
+                                                style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, padding: '5px 10px', fontSize: 12, fontWeight: 600, borderRadius: 6, border: 'none', background: '#10b981', color: '#fff', cursor: 'pointer' }}>
+                                                <CheckCircle size={12} /> Mark Available
+                                            </button>
+                                        )}
+                                        {room.status === 'available' && (
+                                            <>
+                                                <button onClick={(e) => handleUpdateStatus(e, room.id, 'cleaning')}
+                                                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, padding: '5px 10px', fontSize: 12, fontWeight: 600, borderRadius: 6, border: '1px solid #f59e0b', background: 'transparent', color: '#f59e0b', cursor: 'pointer' }}>
+                                                    <Sparkles size={12} /> Cleaning
+                                                </button>
+                                                <button onClick={(e) => handleUpdateStatus(e, room.id, 'maintenance')}
+                                                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, padding: '5px 10px', fontSize: 12, fontWeight: 600, borderRadius: 6, border: '1px solid #ef4444', background: 'transparent', color: '#ef4444', cursor: 'pointer' }}>
+                                                    <Wrench size={12} /> Maintenance
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         );
                     })}
