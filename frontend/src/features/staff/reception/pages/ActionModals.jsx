@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axiosClient from '../../../../axiosClient';
 import {
   X,
   Calendar,
@@ -14,7 +15,8 @@ import {
   ArrowRight,
   DollarSign,
   FileText,
-  Hash
+  Hash,
+  Search
 } from 'lucide-react';
 
 // ============================================
@@ -96,6 +98,7 @@ const ModalContainer = ({ children, isDark, width = '560px' }) => (
   </div>
 );
 
+// eslint-disable-next-line no-unused-vars
 const ModalHeader = ({ icon: Icon, title, subtitle, onClose, isDark, accentColor = '#3b82f6' }) => (
   <div
     style={{
@@ -517,13 +520,13 @@ export const NewBookingModal = ({ isOpen, onClose, isDark, hotelId }) => {
       setError('Hotel ID not set. Please ensure you are logged in properly.');
       setRooms([]);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, formData.checkIn, formData.checkOut, hotelId]);
 
   const loadAvailableRooms = async () => {
     try {
       setLoading(true);
       setError('');
-      const axiosClient = (await import('../../../../axiosClient')).default;
 
       if (!hotelId) {
         setError('Hotel ID is required');
@@ -547,7 +550,6 @@ export const NewBookingModal = ({ isOpen, onClose, isDark, hotelId }) => {
     } catch (err) {
       const errorMsg = err.response?.data?.message || err.message || 'Failed to load available rooms';
       setError(`❌ ${errorMsg}`);
-      console.error('Room loading error:', err);
       setRooms([]);
     } finally {
       setLoading(false);
@@ -589,7 +591,6 @@ export const NewBookingModal = ({ isOpen, onClose, isDark, hotelId }) => {
     try {
       setLoading(true);
       setError('');
-      const axiosClient = (await import('../../../../axiosClient')).default;
 
       await axiosClient.post('/api/bookings/new', {
         guestName: formData.guestName,
@@ -610,7 +611,6 @@ export const NewBookingModal = ({ isOpen, onClose, isDark, hotelId }) => {
     } catch (err) {
       const errorMsg = err.response?.data?.message || err.message || 'Failed to create booking';
       setError(`❌ ${errorMsg}`);
-      console.error('Booking creation error:', err);
     } finally {
       setLoading(false);
     }
@@ -805,18 +805,17 @@ export const WalkInGuestModal = ({ isOpen, onClose, isDark, hotelId }) => {
       loadAvailableRooms();
     }
     if (!isOpen) resetForm();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, hotelId]);
 
   const loadAvailableRooms = async () => {
     try {
       setLoading(true);
       setError('');
-      const axiosClient = (await import('../../../../axiosClient')).default;
       const response = await axiosClient.get('/api/bookings/available/rooms/' + hotelId);
       setRooms(response.data.rooms || []);
-    } catch (err) {
+    } catch {
       setError('Failed to load available rooms');
-      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -831,7 +830,6 @@ export const WalkInGuestModal = ({ isOpen, onClose, isDark, hotelId }) => {
     try {
       setLoading(true);
       setError('');
-      const axiosClient = (await import('../../../../axiosClient')).default;
 
       const res = await axiosClient.post('/api/bookings/walk-in/check-in', {
         guestName: formData.guestName,
@@ -854,7 +852,6 @@ export const WalkInGuestModal = ({ isOpen, onClose, isDark, hotelId }) => {
       });
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to check in guest');
-      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -1063,73 +1060,191 @@ export const WalkInGuestModal = ({ isOpen, onClose, isDark, hotelId }) => {
 // ============================================
 // 3. EXPRESS CHECK-OUT MODAL
 // ============================================
-export const ExpressCheckOutModal = ({ isOpen, onClose, isDark, activeBookingId }) => {
+export const ExpressCheckOutModal = ({ isOpen, onClose, isDark, activeBookingId, hotelId }) => {
+  const [checkedInBookings, setCheckedInBookings] = useState([]);
+  const [selectedBookingId, setSelectedBookingId] = useState(activeBookingId || '');
   const [bookingData, setBookingData] = useState(null);
   const [settlePayment, setSettlePayment] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Load booking data when modal opens or bookingId changes
+  // Reset when modal closes
+  React.useEffect(() => {
+    if (!isOpen) {
+      setCheckedInBookings([]);
+      setSelectedBookingId('');
+      setBookingData(null);
+      setSettlePayment(false);
+      setError('');
+      setSearchQuery('');
+    }
+  }, [isOpen]);
+
+  // If activeBookingId provided, use it directly
   React.useEffect(() => {
     if (isOpen && activeBookingId) {
-      loadBookingData();
+      setSelectedBookingId(activeBookingId);
+      loadBookingData(activeBookingId);
     }
   }, [isOpen, activeBookingId]);
 
-  const loadBookingData = async () => {
+  // Load checked-in bookings for selection when no activeBookingId
+  React.useEffect(() => {
+    if (isOpen && !activeBookingId && hotelId) {
+      loadCheckedInBookings();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, activeBookingId, hotelId]);
+
+  const loadCheckedInBookings = async () => {
     try {
       setLoading(true);
-      setError('');
-      const axiosClient = (await import('../../../../axiosClient')).default;
-      const response = await axiosClient.get(`/api/bookings/${activeBookingId}`);
-      setBookingData(response.data.booking);
-    } catch (err) {
-      setError('Failed to load booking details');
-      console.error(err);
+      const response = await axiosClient.get(`/api/bookings/hotel/${hotelId}`, {
+        params: { status: 'Checked-In', limit: 100 }
+      });
+      setCheckedInBookings(response.data.bookings || []);
+    } catch {
+      setError('Failed to load bookings');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCheckOut = async () => {
+  const loadBookingData = async (bookingId) => {
     try {
       setLoading(true);
       setError('');
-      const axiosClient = (await import('../../../../axiosClient')).default;
+      const response = await axiosClient.get(`/api/bookings/${bookingId}`);
+      setBookingData(response.data.booking);
+    } catch {
+      setError('Failed to load booking details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSelectBooking = (bookingId) => {
+    setSelectedBookingId(bookingId);
+    loadBookingData(bookingId);
+  };
+
+  const handleCheckOut = async () => {
+    const targetId = selectedBookingId || activeBookingId;
+    if (!targetId) {
+      setError('No booking selected');
+      return;
+    }
+    try {
+      setLoading(true);
+      setError('');
 
       await axiosClient.post('/api/bookings/check-out/express', {
-        bookingId: activeBookingId,
+        bookingId: targetId,
         settlePayment: settlePayment
       });
 
       alert('Guest checked out successfully!');
       setBookingData(null);
       setSettlePayment(false);
+      setSelectedBookingId('');
       onClose();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to check out guest');
-      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
+  // Booking selector screen when no booking is loaded yet
   if (!bookingData && isOpen) {
+    const filteredBookings = checkedInBookings.filter(b => {
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase();
+      const guestName = (b.user?.fullname || b.guestName || '').toLowerCase();
+      const roomNum = String(b.room?.roomNumber || '');
+      return guestName.includes(q) || roomNum.includes(q);
+    });
+
     return (
       <ModalOverlay isOpen={isOpen} onClose={onClose} isDark={isDark}>
-        <ModalContainer isDark={isDark} width="480px">
+        <ModalContainer isDark={isDark} width="520px">
           <ModalHeader
             icon={CheckCircle}
             title="Express Check-Out"
-            subtitle="Complete guest departure process"
+            subtitle="Select a checked-in booking to process"
             onClose={onClose}
             isDark={isDark}
             accentColor="#f97316"
           />
           <ModalBody>
-            <div style={{ textAlign: 'center', padding: '40px 20px', color: isDark ? '#94a3b8' : '#64748b' }}>
-              {loading ? 'Loading booking details...' : 'No active booking selected'}
-            </div>
+            {loading && !checkedInBookings.length ? (
+              <div style={{ textAlign: 'center', padding: '40px 20px', color: isDark ? '#94a3b8' : '#64748b' }}>
+                Loading checked-in bookings...
+              </div>
+            ) : (
+              <>
+                {error && (
+                  <div style={{ padding: '12px 16px', background: '#fee2e2', borderRadius: '8px', marginBottom: '16px', color: '#dc2626', fontSize: '13px' }}>
+                    {error}
+                  </div>
+                )}
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                    padding: '10px 14px', borderRadius: '10px',
+                    background: isDark ? 'rgba(15, 23, 42, 0.5)' : '#f8fafc',
+                    border: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid #e2e8f0'
+                  }}>
+                    <Search size={16} style={{ color: isDark ? '#64748b' : '#94a3b8' }} />
+                    <input
+                      type="text"
+                      placeholder="Search by guest name or room number..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      style={{
+                        flex: 1, border: 'none', outline: 'none', fontSize: '13px',
+                        background: 'transparent', color: isDark ? '#e2e8f0' : '#1e293b'
+                      }}
+                    />
+                  </div>
+                </div>
+                <div style={{ maxHeight: '360px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {filteredBookings.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '30px 20px', color: isDark ? '#94a3b8' : '#64748b', fontSize: '13px' }}>
+                      {checkedInBookings.length === 0 ? 'No checked-in bookings found' : 'No bookings match your search'}
+                    </div>
+                  ) : (
+                    filteredBookings.map(b => (
+                      <div
+                        key={b._id}
+                        onClick={() => handleSelectBooking(b._id)}
+                        style={{
+                          padding: '14px 16px', borderRadius: '10px', cursor: 'pointer',
+                          background: isDark ? 'rgba(15, 23, 42, 0.4)' : '#fff',
+                          border: isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid #e2e8f0',
+                          transition: 'all 0.15s ease'
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.background = isDark ? 'rgba(249,115,22,0.1)' : 'rgba(249,115,22,0.05)'; e.currentTarget.style.borderColor = 'rgba(249,115,22,0.3)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = isDark ? 'rgba(15, 23, 42, 0.4)' : '#fff'; e.currentTarget.style.borderColor = isDark ? 'rgba(255,255,255,0.06)' : '#e2e8f0'; }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <div style={{ fontSize: '14px', fontWeight: '600', color: isDark ? '#f1f5f9' : '#0f172a', marginBottom: '4px' }}>
+                              {b.user?.fullname || b.guestName || 'Guest'}
+                            </div>
+                            <div style={{ fontSize: '12px', color: isDark ? '#64748b' : '#94a3b8' }}>
+                              Room {b.room?.roomNumber || 'N/A'} &middot; {b.room?.type || ''} &middot; {new Date(b.checkIn).toLocaleDateString()} - {new Date(b.checkOut).toLocaleDateString()}
+                            </div>
+                          </div>
+                          <ArrowRight size={16} style={{ color: isDark ? '#64748b' : '#94a3b8' }} />
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </>
+            )}
           </ModalBody>
         </ModalContainer>
       </ModalOverlay>
@@ -1286,43 +1401,90 @@ export const ExpressCheckOutModal = ({ isOpen, onClose, isDark, activeBookingId 
 // ============================================
 // 4. ROOM CHANGE MODAL
 // ============================================
-export const RoomChangeModal = ({ isOpen, onClose, isDark, activeBookingId }) => {
+export const RoomChangeModal = ({ isOpen, onClose, isDark, activeBookingId, hotelId }) => {
   const [bookingData, setBookingData] = useState(null);
   const [availableRooms, setAvailableRooms] = useState([]);
   const [newRoomId, setNewRoomId] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [checkedInBookings, setCheckedInBookings] = useState([]);
+  const [selectedBookingId, setSelectedBookingId] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Load booking and available rooms when modal opens
-  React.useEffect(() => {
+  // Reset state when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setBookingData(null);
+      setAvailableRooms([]);
+      setNewRoomId('');
+      setError('');
+      setCheckedInBookings([]);
+      setSelectedBookingId('');
+      setSearchQuery('');
+    }
+  }, [isOpen]);
+
+  // If activeBookingId is provided, use it directly
+  useEffect(() => {
     if (isOpen && activeBookingId) {
-      loadBookingData();
-      loadAvailableRooms();
+      setSelectedBookingId(activeBookingId);
+      loadBookingData(activeBookingId);
+      loadAvailableRooms(activeBookingId);
     }
   }, [isOpen, activeBookingId]);
 
-  const loadBookingData = async () => {
+  // If no activeBookingId, load checked-in bookings for selection
+  useEffect(() => {
+    if (isOpen && !activeBookingId && hotelId) {
+      loadCheckedInBookings();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, activeBookingId, hotelId]);
+
+  const loadCheckedInBookings = async () => {
     try {
-      const axiosClient = (await import('../../../../axiosClient')).default;
-      const response = await axiosClient.get(`/api/bookings/${activeBookingId}`);
-      setBookingData(response.data.booking);
-    } catch (err) {
-      setError('Failed to load booking details');
-      console.error(err);
+      setLoading(true);
+      const response = await axiosClient.get(`/api/bookings/hotel/${hotelId}?status=Checked-In&limit=100`);
+      setCheckedInBookings(response.data.bookings || response.data || []);
+    } catch {
+      setError('Failed to load checked-in bookings');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const loadAvailableRooms = async () => {
+  const loadBookingData = async (bookingId) => {
     try {
-      const axiosClient = (await import('../../../../axiosClient')).default;
-      const response = await axiosClient.get('/api/bookings/available/rooms/' + activeBookingId);
-      setAvailableRooms(response.data.rooms || []);
-    } catch (err) {
-      console.error('Failed to load available rooms:', err);
+      setLoading(true);
+      setError('');
+      const response = await axiosClient.get(`/api/bookings/${bookingId}`);
+      setBookingData(response.data.booking);
+    } catch {
+      setError('Failed to load booking details');
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const loadAvailableRooms = async (bookingId) => {
+    try {
+      const response = await axiosClient.get('/api/bookings/available/rooms/' + bookingId);
+      setAvailableRooms(response.data.rooms || []);
+    } catch { /* silently ignore */ }
+  };
+
+  const handleSelectBooking = (bookingId) => {
+    setSelectedBookingId(bookingId);
+    loadBookingData(bookingId);
+    loadAvailableRooms(bookingId);
   };
 
   const handleRoomChange = async () => {
+    const targetId = selectedBookingId || activeBookingId;
+    if (!targetId) {
+      setError('No booking selected');
+      return;
+    }
     if (!newRoomId) {
       setError('Please select a new room');
       return;
@@ -1331,41 +1493,113 @@ export const RoomChangeModal = ({ isOpen, onClose, isDark, activeBookingId }) =>
     try {
       setLoading(true);
       setError('');
-      const axiosClient = (await import('../../../../axiosClient')).default;
 
       await axiosClient.post('/api/bookings/room-change', {
-        bookingId: activeBookingId,
+        bookingId: targetId,
         newRoomId: newRoomId
       });
 
       alert('Room changed successfully!');
       setNewRoomId('');
       setBookingData(null);
+      setSelectedBookingId('');
       onClose();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to change room');
-      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
+  // Booking selector screen when no booking is loaded yet
   if (!bookingData && isOpen) {
+    const filteredBookings = checkedInBookings.filter(b => {
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase();
+      const guestName = (b.user?.fullname || b.guestName || '').toLowerCase();
+      const roomNum = String(b.room?.roomNumber || '');
+      return guestName.includes(q) || roomNum.includes(q);
+    });
+
     return (
       <ModalOverlay isOpen={isOpen} onClose={onClose} isDark={isDark}>
         <ModalContainer isDark={isDark} width="520px">
           <ModalHeader
             icon={ArrowRight}
             title="Room Change"
-            subtitle="Transfer guest to a different room"
+            subtitle="Select a checked-in booking to change room"
             onClose={onClose}
             isDark={isDark}
             accentColor="#8b5cf6"
           />
           <ModalBody>
-            <div style={{ textAlign: 'center', padding: '40px 20px', color: isDark ? '#94a3b8' : '#64748b' }}>
-              {loading ? 'Loading booking details...' : 'No active booking selected'}
-            </div>
+            {loading && !checkedInBookings.length ? (
+              <div style={{ textAlign: 'center', padding: '40px 20px', color: isDark ? '#94a3b8' : '#64748b' }}>
+                Loading checked-in bookings...
+              </div>
+            ) : (
+              <>
+                {error && (
+                  <div style={{ padding: '12px 16px', background: '#fee2e2', borderRadius: '8px', marginBottom: '16px', color: '#dc2626', fontSize: '13px' }}>
+                    {error}
+                  </div>
+                )}
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                    padding: '10px 14px', borderRadius: '10px',
+                    background: isDark ? 'rgba(15, 23, 42, 0.5)' : '#f8fafc',
+                    border: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid #e2e8f0'
+                  }}>
+                    <Search size={16} style={{ color: isDark ? '#64748b' : '#94a3b8' }} />
+                    <input
+                      type="text"
+                      placeholder="Search by guest name or room number..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      style={{
+                        flex: 1, border: 'none', outline: 'none', fontSize: '13px',
+                        background: 'transparent', color: isDark ? '#e2e8f0' : '#1e293b'
+                      }}
+                    />
+                  </div>
+                </div>
+                <div style={{ maxHeight: '360px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {filteredBookings.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '30px 20px', color: isDark ? '#94a3b8' : '#64748b', fontSize: '13px' }}>
+                      {checkedInBookings.length === 0 ? 'No checked-in bookings found' : 'No bookings match your search'}
+                    </div>
+                  ) : (
+                    filteredBookings.map(b => (
+                      <div
+                        key={b._id}
+                        onClick={() => handleSelectBooking(b._id)}
+                        style={{
+                          padding: '14px 16px', borderRadius: '10px', cursor: 'pointer',
+                          background: isDark ? 'rgba(15, 23, 42, 0.4)' : '#fff',
+                          border: isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid #e2e8f0',
+                          transition: 'all 0.15s ease'
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.background = isDark ? 'rgba(139,92,246,0.1)' : 'rgba(139,92,246,0.05)'; e.currentTarget.style.borderColor = 'rgba(139,92,246,0.3)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = isDark ? 'rgba(15, 23, 42, 0.4)' : '#fff'; e.currentTarget.style.borderColor = isDark ? 'rgba(255,255,255,0.06)' : '#e2e8f0'; }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <div style={{ fontSize: '14px', fontWeight: '600', color: isDark ? '#f1f5f9' : '#0f172a', marginBottom: '4px' }}>
+                              {b.user?.fullname || b.guestName || 'Guest'}
+                            </div>
+                            <div style={{ fontSize: '12px', color: isDark ? '#64748b' : '#94a3b8' }}>
+                              Room {b.room?.roomNumber || 'N/A'} &middot; {b.room?.type || ''} &middot; {new Date(b.checkIn).toLocaleDateString()} - {new Date(b.checkOut).toLocaleDateString()}
+                            </div>
+                          </div>
+                          <ArrowRight size={16} style={{ color: isDark ? '#64748b' : '#94a3b8' }} />
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </>
+            )}
           </ModalBody>
         </ModalContainer>
       </ModalOverlay>

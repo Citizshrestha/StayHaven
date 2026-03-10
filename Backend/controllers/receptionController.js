@@ -6,6 +6,7 @@ import { HousekeepingTask } from "../models/housekeepingTask.schema.js";
 import { GuestRequest } from "../models/guestRequest.schema.js";
 import { ActivityLog } from "../models/activityLog.schema.js";
 import { User } from "../models/user.schema.js";
+import { Order } from "../models/order.schema.js";
 import { emitToHotel } from "../config/socket.js";
 
 // Helper: get hotel & company from staff user
@@ -33,8 +34,8 @@ const logActivity = async (data) => {
       emitToHotel(data.hotel.toString(), "activity-log", log);
     }
     return log;
-  } catch (e) {
-    console.error("Activity log error:", e.message);
+  } catch {
+    /* silently ignore activity log failures */
   }
 };
 
@@ -81,6 +82,30 @@ export const getDashboardSummary = async (req, res) => {
       Booking.countDocuments({ ...filter, checkOut: { $gte: start, $lte: end }, status: "Checked-In" }),
     ]);
 
+    // Build 7-day sparkline data from real DB counts
+    const sparklineData = { checkIns: [], checkOuts: [], occupancy: [], revenue: [] };
+    for (let i = 6; i >= 0; i--) {
+      const dayStart = new Date(start);
+      dayStart.setDate(dayStart.getDate() - i);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(dayStart);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      const [ci, co, rev, occ] = await Promise.all([
+        Booking.countDocuments({ ...filter, status: "Checked-In", updatedAt: { $gte: dayStart, $lte: dayEnd } }),
+        Booking.countDocuments({ ...filter, status: "Checked-Out", updatedAt: { $gte: dayStart, $lte: dayEnd } }),
+        Booking.aggregate([
+          { $match: { ...filter, status: { $in: ["Checked-In", "Checked-Out"] }, updatedAt: { $gte: dayStart, $lte: dayEnd } } },
+          { $group: { _id: null, total: { $sum: "$totalAmount" } } },
+        ]),
+        Booking.countDocuments({ ...filter, checkIn: { $lte: dayEnd }, checkOut: { $gte: dayStart }, status: { $in: ["Confirmed", "Checked-In"] } }),
+      ]);
+      sparklineData.checkIns.push(ci);
+      sparklineData.checkOuts.push(co);
+      sparklineData.revenue.push(rev[0]?.total || 0);
+      sparklineData.occupancy.push(totalRooms > 0 ? Math.round((occ / totalRooms) * 100) : 0);
+    }
+
     const revenue = todayRevenue[0]?.total || 0;
     const yRevenue = yesterdayRevenue[0]?.total || 0;
     const occupancy = totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0;
@@ -98,17 +123,16 @@ export const getDashboardSummary = async (req, res) => {
     res.json({
       success: true,
       data: {
-        checkIns: { value: todayCheckIns, total: todayCheckIns + totalArrivals, trend: calcDelta(todayCheckIns, yesterdayCheckIns), up: todayCheckIns >= yesterdayCheckIns, sparkline: [3, 5, 4, 7, todayCheckIns, 6, todayCheckIns] },
-        checkOuts: { value: todayCheckOuts, total: todayCheckOuts + totalDepartures, trend: calcDelta(todayCheckOuts, yesterdayCheckOuts), up: todayCheckOuts >= yesterdayCheckOuts, sparkline: [2, 4, 3, 5, todayCheckOuts, 4, todayCheckOuts] },
-        occupancy: { value: occupancy, trend: calcDelta(occupancy, yOccupancy), up: occupancy >= yOccupancy, sparkline: [60, 65, 70, yOccupancy, occupancy, occupancy, occupancy] },
-        revenue: { value: formatRevenue(revenue), trend: calcDelta(revenue, yRevenue), up: revenue >= yRevenue, sparkline: [8000, 12000, 10000, yRevenue || 5000, revenue || 8000, revenue || 8000, revenue || 9000] },
-        pendingPayments: { value: pendingPayments, trend: `${pendingPayments}`, up: false, sparkline: [2, 3, 1, 2, pendingPayments, 3, pendingPayments] },
-        availableRooms: { value: availableRooms, trend: `${availableRooms}`, up: false, sparkline: [10, 12, 8, 11, availableRooms, availableRooms, availableRooms] },
+        checkIns: { value: todayCheckIns, total: todayCheckIns + totalArrivals, trend: calcDelta(todayCheckIns, yesterdayCheckIns), up: todayCheckIns >= yesterdayCheckIns, sparkline: sparklineData.checkIns },
+        checkOuts: { value: todayCheckOuts, total: todayCheckOuts + totalDepartures, trend: calcDelta(todayCheckOuts, yesterdayCheckOuts), up: todayCheckOuts >= yesterdayCheckOuts, sparkline: sparklineData.checkOuts },
+        occupancy: { value: occupancy, trend: calcDelta(occupancy, yOccupancy), up: occupancy >= yOccupancy, sparkline: sparklineData.occupancy },
+        revenue: { value: formatRevenue(revenue), trend: calcDelta(revenue, yRevenue), up: revenue >= yRevenue, sparkline: sparklineData.revenue },
+        pendingPayments: { value: pendingPayments, trend: `${pendingPayments}`, up: false },
+        availableRooms: { value: availableRooms, trend: `${availableRooms}`, up: false },
         totalRooms,
       },
     });
   } catch (err) {
-    console.error("Dashboard summary error:", err);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -194,23 +218,49 @@ export const getRevenueSplit = async (req, res) => {
     thisMonth.setDate(1);
     thisMonth.setHours(0, 0, 0, 0);
 
+    // Room revenue from bookings
     const roomRevenue = await Booking.aggregate([
       { $match: { ...filter, createdAt: { $gte: thisMonth }, status: { $nin: ["Cancelled"] } } },
       { $group: { _id: null, total: { $sum: "$totalAmount" } } },
     ]);
-
     const roomTotal = roomRevenue[0]?.total || 0;
-    // Estimate food & services as percentages (in production these would come from Orders)
-    const foodBev = Math.round(roomTotal * 0.22);
-    const services = Math.round(roomTotal * 0.12);
+
+    // Food & beverage revenue from orders (dineIn + roomService)
+    const orderFilter = company ? { company } : hotel ? { hotel } : {};
+    const foodRevenue = await Order.aggregate([
+      {
+        $match: {
+          ...orderFilter,
+          createdAt: { $gte: thisMonth },
+          status: { $nin: ["cancelled"] },
+          orderType: { $in: ["dineIn", "roomService"] },
+        },
+      },
+      { $group: { _id: null, total: { $sum: "$totalPrice" } } },
+    ]);
+    const foodTotal = foodRevenue[0]?.total || 0;
+
+    // Services revenue from takeaway orders (or other service-type orders)
+    const servicesRevenue = await Order.aggregate([
+      {
+        $match: {
+          ...orderFilter,
+          createdAt: { $gte: thisMonth },
+          status: { $nin: ["cancelled"] },
+          orderType: "takeaway",
+        },
+      },
+      { $group: { _id: null, total: { $sum: "$totalPrice" } } },
+    ]);
+    const servicesTotal = servicesRevenue[0]?.total || 0;
 
     res.json({
       success: true,
       data: {
         rooms: roomTotal,
-        food: foodBev,
-        services: services,
-        total: roomTotal + foodBev + services,
+        food: foodTotal,
+        services: servicesTotal,
+        total: roomTotal + foodTotal + servicesTotal,
       },
     });
   } catch (err) {
@@ -918,10 +968,25 @@ export const getInvoices = async (req, res) => {
     ]);
 
     // Summary stats
-    const allInvoices = await Invoice.find(company ? { company } : hotel ? { hotel } : {}).lean();
+    const baseFilter = company ? { company } : hotel ? { hotel } : {};
+    const allInvoices = await Invoice.find(baseFilter).lean();
     const totalRevenue = allInvoices.reduce((s, i) => s + (i.charges?.total || 0), 0);
     const pendingTotal = allInvoices.filter((i) => i.status === "pending").reduce((s, i) => s + (i.balance || 0), 0);
     const overdueTotal = allInvoices.filter((i) => i.status === "overdue").reduce((s, i) => s + (i.balance || 0), 0);
+
+    // Revenue trend: current month vs previous month
+    const now = new Date();
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const thisMonthRevenue = allInvoices
+      .filter(i => new Date(i.issuedAt || i.createdAt) >= thisMonthStart)
+      .reduce((s, i) => s + (i.charges?.total || 0), 0);
+    const prevMonthRevenue = allInvoices
+      .filter(i => {
+        const d = new Date(i.issuedAt || i.createdAt);
+        return d >= prevMonthStart && d < thisMonthStart;
+      })
+      .reduce((s, i) => s + (i.charges?.total || 0), 0);
 
     res.json({
       success: true,
@@ -931,6 +996,8 @@ export const getInvoices = async (req, res) => {
         pending: pendingTotal,
         overdue: overdueTotal,
         totalInvoices: total,
+        thisMonthRevenue,
+        prevMonthRevenue,
       },
       pagination: { page: parseInt(page), limit: parseInt(limit), total, pages: Math.ceil(total / parseInt(limit)) },
     });
