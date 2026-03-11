@@ -1,6 +1,9 @@
 ﻿@import url('https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap');
 @import "tailwindcss";
 
+/* Enable dark mode with class strategy */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* Theme colors for hotel detail page */
 :root {
   /* Teal colors matching home page */
@@ -13,10 +16,12 @@
   --color-yellow-500: #eab308;
 }
 
-/* Reset all margins and paddings */
-* {
+/* Full width layout */
+html,
+body {
   margin: 0;
   padding: 0;
+<<<<<<< HEAD
   box-sizing: border-box;
 }
 
@@ -25,9 +30,12 @@ html,
 body {
   width: 100%;
   height: 100%;
+=======
+  width: 100%;
+>>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
   min-height: 100vh;
   overflow-x: hidden;
-  font-size: clamp(14px, 1.2vw, 18px);
+  font-size: 16px;
   scroll-behavior: smooth;
   font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
@@ -37,9 +45,13 @@ body {
 }
 
 #root {
+  margin: 0;
+  padding: 0;
   width: 100%;
   min-height: 100vh;
   overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Remove default select styling */
@@ -82,9 +94,18 @@ select {
   background: #9ca3af;
 }
 
+<<<<<<< HEAD
 /* ============================================
    THEME VARIABLES - Light & Dark Mode
    ============================================ */
+=======
+
+
+/* ============================================
+   THEME VARIABLES - Light & Dark Mode
+   ============================================ */
+
+>>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
 /* Light Theme (Default) */
 .light-theme {
   /* Backgrounds */
@@ -92,31 +113,59 @@ select {
   --bg-secondary: #f9fafb;
   --bg-tertiary: #f3f4f6;
   --bg-navbar: #fff6f6;
+<<<<<<< HEAD
+=======
+
+>>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
   /* Text Colors */
   --text-primary: #111827;
   --text-secondary: #374151;
   --text-tertiary: #6b7280;
   --text-inverse: #ffffff;
+<<<<<<< HEAD
+=======
+
+>>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
   /* Accent Colors (Teal - stays same in both themes) */
   --color-primary: #10b981;
   --color-primary-hover: #059669;
   --color-accent: #10a394;
   --color-accent-light: #ccfbf1;
+<<<<<<< HEAD
   /* Borders */
   --border-color: #e5e7eb;
   --border-color-light: #f3f4f6;
+=======
+
+  /* Borders */
+  --border-color: #e5e7eb;
+  --border-color-light: #f3f4f6;
+
+>>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
   /* Shadows */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+<<<<<<< HEAD
   /* Cards */
   --card-bg: #ffffff;
   --card-border: #e5e7eb;
+=======
+
+  /* Cards */
+  --card-bg: #ffffff;
+  --card-border: #e5e7eb;
+
+>>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
   /* Inputs */
   --input-bg: #ffffff;
   --input-border: #d1d5db;
   --input-focus: #10a394;
 }
+<<<<<<< HEAD
+=======
+
+>>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
 /* Dark Theme */
 .dark-theme {
   /* Backgrounds - From your screenshot */
@@ -127,32 +176,94 @@ select {
   --bg-tertiary: #252d3d;
   /* Hover states */
   --bg-navbar: #1a1f2e;
+<<<<<<< HEAD
+=======
+
+  /* Text Colors */
+>>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
   --text-primary: #ffffff;
   --text-secondary: #e5e7eb;
   --text-tertiary: #9ca3af;
   --text-inverse: #0f1419;
+<<<<<<< HEAD
+=======
+
+>>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
   /* Accent Colors (Same teal/green) */
   --color-primary: #34d399;
   --color-primary-hover: #10b981;
   --color-accent: #34d399;
   --color-accent-light: #1a4d3f;
+<<<<<<< HEAD
   --border-color: #2d3748;
   --border-color-light: #374151;
+=======
+
+  /* Borders */
+  --border-color: #2d3748;
+  --border-color-light: #374151;
+
+>>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
   /* Shadows - Softer for dark mode */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+<<<<<<< HEAD
   --card-bg: #1e2836;
   --card-border: #2d3748;
   --input-bg: #252d3d;
   --input-border: #374151;
   --input-focus: #34d399;
+=======
+
+  /* Cards */
+  --card-bg: #1e2836;
+  --card-border: #2d3748;
+
+  /* Inputs */
+  --input-bg: #252d3d;
+  --input-border: #374151;
+  --input-focus: #34d399;
+}
+
+/* Fix Toastify container to prevent white gaps below footer */
+.Toastify {
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.Toastify__toast-container {
+  pointer-events: auto;
+}
+
+.Toastify__toast {
+  pointer-events: auto;
+}
+
+/* Ensure Toastify doesn't add height to document */
+section.Toastify {
+  position: fixed !important;
+  top: 0;
+  bottom: auto;
+  height: 0 !important;
+  overflow: visible !important;
+}
+
+>>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
 /* Spin animation for refresh button */
 @keyframes spin {
   from {
     transform: rotate(0deg);
   }
+<<<<<<< HEAD
   to {
     transform: rotate(360deg);
   }
 }
+=======
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+>>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe

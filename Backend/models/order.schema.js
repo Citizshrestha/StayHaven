@@ -39,13 +39,22 @@ const orderSchema = new mongoose.Schema({
     type: String,
   },
 
-  // staff info 
+  // staff info (optional for guest QR orders)
   orderBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
+    required: false, // Not required for guest QR code orders
   },
   orderByName: {
+    type: String,
+  },
+  // Flag to identify guest orders vs staff orders
+  isGuestOrder: {
+    type: Boolean,
+    default: false,
+  },
+  // Guest session identifier (for tracking guest without login)
+  guestSessionId: {
     type: String,
   },
 
@@ -55,9 +64,6 @@ const orderSchema = new mongoose.Schema({
     ref: 'User',
   },
   customerName: {
-    type: String,
-  },
-  customerPhone: {
     type: String,
   },
   customerPhone: {
@@ -108,7 +114,11 @@ const orderSchema = new mongoose.Schema({
   deliveredAt: {
     type: Date,
   },
+<<<<<<< HEAD
 
+=======
+  
+>>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
   // Bill tracking
   billSent: {
     type: Boolean,

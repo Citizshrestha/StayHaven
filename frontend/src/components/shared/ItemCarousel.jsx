@@ -18,12 +18,21 @@ const ItemCarousel = ({ items = [], width = 280, height = 200 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   // Handle width as number or "100%"
+<<<<<<< HEAD
   const widthStyle = typeof width === 'number' ? `NPR {width}px` : width;
+=======
+  const widthStyle = typeof width === 'number' ? `${width}px` : width;
+>>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
   const isNarrow = widthStyle === "100%" || (typeof width === "number" && width <= 360);
   const arrowSize = isNarrow ? 28 : 32;
   const arrowInset = isNarrow ? 6 : 8;
   const arrowIconSize = isNarrow ? 16 : 18;
+<<<<<<< HEAD
 // Handle empty or invalid items
+=======
+
+  // Handle empty or invalid items
+>>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
   if (!items || items.length === 0) {
     return (
       <div
@@ -48,9 +57,14 @@ const ItemCarousel = ({ items = [], width = 280, height = 200 }) => {
   if (items.length === 1) {
     const item = items[0];
     return (
+<<<<<<< HEAD
       <div style={{ width: widthStyle, flexShrink: 0 }}>
       <div style={{ width: widthStyle, maxWidth: "100%", flexShrink: 0 }}>
 <div style={{ position: "relative" }}>
+=======
+      <div style={{ width: widthStyle, maxWidth: "100%", flexShrink: 0 }}>
+        <div style={{ position: "relative" }}>
+>>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
           <img
             src={item.image}
             alt={item.name}
@@ -137,9 +151,14 @@ const ItemCarousel = ({ items = [], width = 280, height = 200 }) => {
   const currentItem = items[currentIndex];
 
   return (
+<<<<<<< HEAD
     <div style={{ width: widthStyle, flexShrink: 0 }}>
     <div style={{ width: widthStyle, maxWidth: "100%", flexShrink: 0 }}>
 {/* Item counter badge */}
+=======
+    <div style={{ width: widthStyle, maxWidth: "100%", flexShrink: 0 }}>
+      {/* Item counter badge */}
+>>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
       <div
         style={{
           display: "flex",
@@ -188,18 +207,29 @@ const ItemCarousel = ({ items = [], width = 280, height = 200 }) => {
           onClick={goToPrevious}
           style={{
             position: "absolute",
+<<<<<<< HEAD
             left: "8px",
             left: `NPR {arrowInset}px`,
 top: "50%",
+=======
+            left: `${arrowInset}px`,
+            top: "50%",
+>>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
             transform: "translateY(-50%)",
             backgroundColor: "rgba(255, 255, 255, 0.9)",
             border: "none",
             borderRadius: "50%",
+<<<<<<< HEAD
             width: "32px",
             height: "32px",
             width: `NPR {arrowSize}px`,
             height: `NPR {arrowSize}px`,
 display: "flex",
+=======
+            width: `${arrowSize}px`,
+            height: `${arrowSize}px`,
+            display: "flex",
+>>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
             alignItems: "center",
             justifyContent: "center",
             cursor: "pointer",
@@ -215,27 +245,43 @@ display: "flex",
             e.currentTarget.style.transform = "translateY(-50%) scale(1)";
           }}
         >
+<<<<<<< HEAD
           <ChevronLeft size={18} style={{ color: "#374151" }} />
           <ChevronLeft size={arrowIconSize} style={{ color: "#374151" }} />
 </button>
+=======
+          <ChevronLeft size={arrowIconSize} style={{ color: "#374151" }} />
+        </button>
+>>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
 
         {/* Right Arrow */}
         <button
           onClick={goToNext}
           style={{
             position: "absolute",
+<<<<<<< HEAD
             right: "8px",
             right: `NPR {arrowInset}px`,
 top: "50%",
+=======
+            right: `${arrowInset}px`,
+            top: "50%",
+>>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
             transform: "translateY(-50%)",
             backgroundColor: "rgba(255, 255, 255, 0.9)",
             border: "none",
             borderRadius: "50%",
+<<<<<<< HEAD
             width: "32px",
             height: "32px",
             width: `NPR {arrowSize}px`,
             height: `NPR {arrowSize}px`,
 display: "flex",
+=======
+            width: `${arrowSize}px`,
+            height: `${arrowSize}px`,
+            display: "flex",
+>>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
             alignItems: "center",
             justifyContent: "center",
             cursor: "pointer",
@@ -251,9 +297,14 @@ display: "flex",
             e.currentTarget.style.transform = "translateY(-50%) scale(1)";
           }}
         >
+<<<<<<< HEAD
           <ChevronRight size={18} style={{ color: "#374151" }} />
           <ChevronRight size={arrowIconSize} style={{ color: "#374151" }} />
 </button>
+=======
+          <ChevronRight size={arrowIconSize} style={{ color: "#374151" }} />
+        </button>
+>>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
 
         {/* Item info overlay */}
         <div

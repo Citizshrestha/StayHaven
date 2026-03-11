@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ﻿import { useContext } from "react";
 import { OrderContext } from "./OrderContextDef";
 
@@ -9,3 +10,7 @@ export const useOrderContext = () => {
   }
   return context;
 };
+=======
+// Re-export from canonical location to avoid duplicate module instances
+export { useOrderContext } from '../core/context/useOrderContext';
+>>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe

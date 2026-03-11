@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ﻿import { useContext } from "react";
 import {ThemeContext} from  "../context/ThemeContext";
 
@@ -9,3 +10,7 @@ export const useTheme = () => {
     }
     return context;
 }
+=======
+// Re-export from canonical location to avoid duplicate module instances
+export { useTheme } from '../core/hooks/useTheme';
+>>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe

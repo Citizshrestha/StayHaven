@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ﻿/**
  * NotificationContext
  * 
@@ -270,3 +271,8 @@ export const NotificationProvider = ({ children }) => {
 // useNotifications hook is exported from useNotifications.js to satisfy React Fast Refresh
 
 export default NotificationContext;
+=======
+// Re-export from canonical location to avoid duplicate module instances
+export { NotificationProvider } from '../core/context/NotificationContext';
+export { default } from '../core/context/NotificationContext';
+>>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe

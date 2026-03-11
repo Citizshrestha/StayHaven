@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ﻿import { useEffect, useRef, useCallback } from "react";
 
 /**
@@ -71,3 +72,8 @@ export const useAutoRefresh = (fetchFunction, interval = "off", enabled = true) 
 };
 
 export default useAutoRefresh;
+=======
+// Re-export from canonical location
+export { useAutoRefresh } from '../core/hooks/useAutoRefresh';
+export { default } from '../core/hooks/useAutoRefresh';
+>>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe

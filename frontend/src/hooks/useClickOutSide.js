@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ﻿import { useEffect, useRef } from "react";
 
 const useClickOutside = (callback) => {
@@ -30,3 +31,7 @@ const useClickOutside = (callback) => {
 }
 
 export default useClickOutside;
+=======
+// Re-export from canonical location
+export { default } from '../core/hooks/useClickOutSide';
+>>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe

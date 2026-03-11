@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ﻿/**
  * Socket Context
  * 
@@ -180,3 +181,8 @@ export const useSocket = () => {
 };
 
 export default SocketContext;
+=======
+// Re-export from canonical location to avoid duplicate module instances
+export { SocketProvider, useSocket } from '../core/context/SocketContext';
+export { default } from '../core/context/SocketContext';
+>>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe

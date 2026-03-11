@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ﻿/**
  * useNotifications - Hook to access notification context
  * 
@@ -28,3 +29,8 @@ export const NOTIFICATION_TYPES = {
 };
 
 export default useNotifications;
+=======
+// Re-export from canonical location to avoid duplicate module instances
+export { useNotifications, NOTIFICATION_TYPES } from '../core/context/useNotifications';
+export { default } from '../core/context/useNotifications';
+>>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
