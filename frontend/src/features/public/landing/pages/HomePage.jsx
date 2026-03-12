@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Navbar from '../../../../shared/layout/Navbar';
+import Footer from '../../../../shared/layout/Footer';
 import {
   Search, MapPin, Calendar, Users, ChevronRight,
   Building, Shield, Clock, BadgeCheck, ArrowRight,
@@ -278,90 +279,104 @@ const Home = () => {
 
       {/* Final CTA */}
       <FinalCTA navigate={navigate} />
+
+      {/* Footer */}
+      <Footer />
     </div>
   );
 };
 
 // Trust Strip Component
 const TrustStrip = () => {
-  const sectionRef = useRef(null);
-  const itemsRef = useRef(null);
-
   const trustItems = [
     {
       icon: Building,
       title: 'Trusted across Nepal',
       description: '500+ properties nationwide',
+      gradient: 'from-teal-400 to-teal-600',
+      glow: 'group-hover:shadow-teal-200',
     },
     {
-      icon: Shield,
-      title: 'Secure payments',
+      icon: BadgeDollarSign,
+      title: 'Secure Payments',
       description: 'eSewa, Khalti & card support',
+      gradient: 'from-emerald-400 to-emerald-600',
+      glow: 'group-hover:shadow-emerald-200',
     },
     {
       icon: Clock,
-      title: 'Real-time service',
+      title: 'Real-time Service',
       description: 'Instant booking confirmation',
+      gradient: 'from-cyan-400 to-cyan-600',
+      glow: 'group-hover:shadow-cyan-200',
     },
     {
       icon: BadgeCheck,
-      title: 'Verified properties',
+      title: 'Verified Properties',
       description: 'Quality assured stays',
+      gradient: 'from-teal-500 to-teal-700',
+      glow: 'group-hover:shadow-teal-200',
+    },
+    {
+      icon: CalendarX2,
+      title: 'Easy Cancellation',
+      description: 'Hassle-free refund policy',
+      gradient: 'from-sky-400 to-sky-600',
+      glow: 'group-hover:shadow-sky-200',
+    },
+    {
+      icon: HeadphonesIcon,
+      title: '24/7 Support',
+      description: 'Always here to help you',
+      gradient: 'from-indigo-400 to-indigo-600',
+      glow: 'group-hover:shadow-indigo-200',
     },
   ];
 
-  useEffect(() => {
-    const ctx = gsap.context(() => {
-      const items = itemsRef.current?.querySelectorAll('.trust-item');
-      if (items) {
-        gsap.fromTo(
-          items,
-          { y: 15, opacity: 0 },
-          {
-            y: 0,
-            opacity: 1,
-            duration: 0.4,
-            stagger: 0.08,
-            ease: 'power1.out',
-            scrollTrigger: {
-              trigger: sectionRef.current,
-              start: 'top 85%',
-              toggleActions: 'play none none reverse',
-            },
-          }
-        );
-      }
-    }, sectionRef);
-
-    return () => ctx.revert();
-  }, []);
+  // Triplicate for seamless infinite loop
+  const marqueeItems = [...trustItems, ...trustItems, ...trustItems];
 
   return (
-    <section ref={sectionRef} className="relative z-20 bg-white py-16 -mt-2">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 xl:px-[6vw]">
-        <div
-          ref={itemsRef}
-          className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-10"
-        >
-          {trustItems.map((item, index) => (
-            <div
-              key={index}
-              className="trust-item flex items-center gap-5 p-5 rounded-2xl hover:bg-gray-50 transition-all duration-300"
-            >
-              <div className="w-14 h-14 rounded-xl bg-gradient-to-r from-teal-500 to-teal-700 flex items-center justify-center flex-shrink-0 shadow-md">
-                <item.icon className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900 text-sm md:text-base">
-                  {item.title}
-                </h3>
-                <p className="text-xs md:text-sm text-gray-600">
-                  {item.description}
-                </p>
-              </div>
+    <section className="relative z-20 bg-white py-10 -mt-2 overflow-hidden border-y border-gray-100">
+      {/* Fade edges */}
+      <div className="pointer-events-none absolute left-0 top-0 h-full w-24 z-10 bg-gradient-to-r from-white to-transparent" />
+      <div className="pointer-events-none absolute right-0 top-0 h-full w-24 z-10 bg-gradient-to-l from-white to-transparent" />
+
+      <style>{`
+        @keyframes trust-marquee {
+          0%   { transform: translateX(0); }
+          100% { transform: translateX(-33.333%); }
+        }
+        .trust-marquee-track {
+          display: flex;
+          width: max-content;
+          animation: trust-marquee 28s linear infinite;
+        }
+        .trust-marquee-track:hover {
+          animation-play-state: paused;
+        }
+      `}</style>
+
+      <div className="trust-marquee-track">
+        {marqueeItems.map((item, index) => (
+          <div
+            key={index}
+            className="flex items-center gap-4 mx-6 px-6 py-4 rounded-2xl bg-gray-50 hover:bg-white border border-gray-100 hover:border-teal-200 hover:shadow-lg transition-all duration-300 group cursor-default select-none"
+            style={{ minWidth: '260px' }}
+          >
+            <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${item.gradient} flex items-center justify-center flex-shrink-0 shadow-md ${item.glow} group-hover:scale-105 transition-all duration-300`}>
+              <item.icon className="w-5 h-5 text-white" />
             </div>
-          ))}
-        </div>
+            <div>
+              <h3 className="font-semibold text-gray-900 text-sm whitespace-nowrap group-hover:text-teal-700 transition-colors duration-200">
+                {item.title}
+              </h3>
+              <p className="text-xs text-gray-500 whitespace-nowrap">
+                {item.description}
+              </p>
+            </div>
+          </div>
+        ))}
       </div>
     </section>
   );
@@ -1373,34 +1388,73 @@ const FinalCTA = ({ navigate }) => {
     return () => ctx.revert();
   }, []);
 
+  const stats = [
+    { value: '500+', label: 'Properties', icon: Building },
+    { value: '50K+', label: 'Happy Guests', icon: Star },
+    { value: '25+', label: 'Cities', icon: MapPin },
+    { value: '4.9', label: 'Avg Rating', isStar: true, icon: Star },
+  ];
+
   return (
     <section
       ref={sectionRef}
-      className="relative py-28 md:py-36 overflow-hidden z-20"
+      className="relative bg-gray-50 z-20 py-20 md:py-28 overflow-hidden"
     >
-      <div className="absolute inset-0 bg-gradient-to-r from-teal-500 to-teal-700" />
+      {/* Subtle background decoration */}
+      <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle, #0d9488 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-teal-100/40 rounded-full blur-3xl -translate-y-1/2" />
 
       <div ref={contentRef} className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 xl:px-[6vw]">
-        <div className="max-w-3xl mx-auto text-center">
-          <h2 className="cta-headline text-white font-bold text-[clamp(32px,4vw,56px)] mb-6">
-            Ready for your next stay?
-          </h2>
-          <p className="cta-subheadline text-white/90 text-base md:text-lg mb-10 max-w-xl mx-auto">
-            Join thousands of travelers who book smarter with StayHaven across Nepal.
-          </p>
+        {/* Stats row */}
+        <div className="cta-button grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 max-w-3xl mx-auto mb-14">
+          {stats.map((stat, i) => (
+            <div key={i} className="bg-white rounded-2xl p-5 text-center shadow-sm border border-gray-100 hover:shadow-md hover:border-teal-100 transition-all duration-300">
+              <div className="text-2xl md:text-3xl font-extrabold text-gray-900 flex items-center justify-center gap-1">
+                {stat.value}
+                {stat.isStar && <Star className="w-5 h-5 text-amber-400 fill-amber-400" />}
+              </div>
+              <div className="text-xs text-gray-500 mt-1 font-semibold tracking-wider uppercase">{stat.label}</div>
+            </div>
+          ))}
+        </div>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button
-              onClick={() => navigate('/hotels')}
-              className="cta-button bg-white text-teal-700 px-8 py-4 rounded-2xl font-bold text-base hover:bg-gray-100 transition-colors inline-flex items-center justify-center"
-            >
-              <Search className="w-5 h-5 mr-2" />
-              Find your stay
-            </button>
-            <button className="cta-button bg-teal-800 text-white px-8 py-4 rounded-2xl font-bold text-base hover:bg-teal-900 transition-colors inline-flex items-center justify-center">
-              <Building className="w-5 h-5 mr-2" />
-              List your property
-            </button>
+        {/* Main CTA card */}
+        <div className="max-w-3xl mx-auto">
+          <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-10 md:p-14 text-center">
+            <div className="cta-button inline-flex items-center gap-2 bg-teal-50 border border-teal-200 rounded-full px-5 py-2 text-teal-700 text-sm font-semibold mb-7">
+              <span className="w-1.5 h-1.5 bg-teal-500 rounded-full animate-pulse" />
+              Nepal's #1 Hotel Booking Platform
+            </div>
+            <h2 className="cta-headline text-gray-900 font-extrabold text-[clamp(26px,4vw,44px)] leading-[1.2] mb-5">
+              Your Next Adventure<br />
+              Starts <span className="bg-gradient-to-r from-teal-500 to-emerald-500 bg-clip-text text-transparent">Right Here</span>
+            </h2>
+            <p className="cta-subheadline text-gray-500 text-base md:text-lg mb-9 max-w-xl mx-auto leading-relaxed">
+              Join thousands of travelers who book smarter with StayHaven. Best prices, verified hotels, instant confirmation.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-3 justify-center mb-6">
+              <button
+                onClick={() => navigate('/hotels')}
+                className="cta-button group bg-gradient-to-r from-teal-500 to-emerald-500 text-white px-8 py-3.5 rounded-xl font-bold text-sm hover:from-teal-600 hover:to-emerald-600 transition-all shadow-lg shadow-teal-500/20 hover:shadow-teal-500/30 hover:-translate-y-0.5 inline-flex items-center justify-center gap-2"
+              >
+                <Search className="w-4 h-4" />
+                Find Your Stay
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </button>
+              <button className="cta-button group border-2 border-gray-200 text-gray-700 px-8 py-3.5 rounded-xl font-bold text-sm hover:border-teal-300 hover:text-teal-700 hover:bg-teal-50 transition-all inline-flex items-center justify-center gap-2">
+                <Building className="w-4 h-4" />
+                List Your Property
+              </button>
+            </div>
+
+            <div className="flex items-center justify-center gap-4 text-xs text-gray-400">
+              <span className="flex items-center gap-1"><Shield className="w-3.5 h-3.5 text-teal-500" /> Secure checkout</span>
+              <span className="w-1 h-1 bg-gray-300 rounded-full" />
+              <span>Free cancellation</span>
+              <span className="w-1 h-1 bg-gray-300 rounded-full" />
+              <span>No hidden fees</span>
+            </div>
           </div>
         </div>
       </div>
