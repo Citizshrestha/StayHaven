@@ -201,10 +201,7 @@ const Navbar = () => {
 
   return (
     <nav
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled
-        ? 'bg-white/95 backdrop-blur-md shadow-sm'
-        : 'bg-transparent'
-        }`}
+      className="fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-white/95 backdrop-blur-md shadow-sm"
     >
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-[72px]">
@@ -216,7 +213,7 @@ const Navbar = () => {
               className="w-16 h-16 object-contain"
             />
             <span
-              className={`text-xl font-bold transition-colors ${isScrolled ? 'text-black' : 'text-white'}`}
+              className="text-xl font-bold transition-colors text-black"
               style={{ fontFamily: "Nunito" }}
             >
               Stay<span className="text-teal-500">Haven</span>
@@ -229,10 +226,7 @@ const Navbar = () => {
               <button
                 key={link.label}
                 onClick={() => navigate(link.path)}
-                className={`text-sm font-semibold tracking-wide transition-all duration-300 relative group ${isScrolled
-                  ? (location.pathname === link.path ? 'text-teal-600' : 'text-gray-700 hover:text-teal-600')
-                  : (location.pathname === link.path ? 'text-white' : 'text-white/90 hover:text-white')
-                  }`}
+                className={`text-sm font-semibold tracking-wide transition-all duration-300 relative group ${location.pathname === link.path ? 'text-teal-600' : 'text-gray-700 hover:text-teal-600'}`}
               >
                 {link.label}
                 <span className={`absolute -bottom-1 left-0 h-0.5 bg-teal-500 transition-all duration-300 ${location.pathname === link.path ? 'w-full' : 'w-0 group-hover:w-full'
@@ -341,10 +335,7 @@ const Navbar = () => {
                 <Button
                   onClick={handleLogin}
                   variant="outline"
-                  className={`rounded-2xl px-5 transition-all ${isScrolled
-                    ? "border-gray-300 text-gray-700 hover:bg-gray-50"
-                    : "border-white text-white hover:bg-white/10"
-                    }`}
+                  className="rounded-2xl px-5 transition-all border-gray-300 text-gray-700 hover:bg-gray-50"
                 >
                   Sign in
                 </Button>
