@@ -53,7 +53,10 @@ const StaffSettings = ({ onClose, variant = "waiter" }) => {
     if (saved) {
       try {
         return { ...defaultSettings, ...JSON.parse(saved) };
-      } catch {
+      } catch (error) {
+        if (import.meta.env.DEV) {
+          console.warn("Failed to parse saved staff settings", error);
+        }
         return defaultSettings;
       }
     }
@@ -139,8 +142,28 @@ const StaffSettings = ({ onClose, variant = "waiter" }) => {
       return;
     }
 
-    if (passwordState.newPassword.length < 6) {
-      toast.error("New password must be at least 6 characters long");
+    if (passwordState.newPassword.length < 8) {
+      toast.error("New password must be at least 8 characters long");
+      return;
+    }
+
+    if (!/[A-Z]/.test(passwordState.newPassword)) {
+      toast.error("New password must contain at least one uppercase letter");
+      return;
+    }
+
+    if (!/[a-z]/.test(passwordState.newPassword)) {
+      toast.error("New password must contain at least one lowercase letter");
+      return;
+    }
+
+    if (!/[0-9]/.test(passwordState.newPassword)) {
+      toast.error("New password must contain at least one number");
+      return;
+    }
+
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(passwordState.newPassword)) {
+      toast.error("New password must contain at least one special character");
       return;
     }
 
