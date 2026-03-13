@@ -3,18 +3,17 @@ import { Role } from "../models/role.schema.js";
 import jwt from "jsonwebtoken";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendEmail } from "../config/nodemailer.js";
-import { generateAccessToken, generateRefreshToken, generateOTP } from "../utils/tokenUtils.js";
+import {
+  generateAccessToken,
+  generateRefreshToken,
+  generateOTP,
+  getRefreshTokenSecret,
+} from "../utils/tokenUtils.js";
+import { validatePasswordStrength } from "../utils/passwordValidation.js";
 import crypto from "crypto";
 import { OAuth2Client } from "google-auth-library";
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-
-// Generate JWT
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE,
-  });
-};
 
 // @route GET /api/auth/check
 export const checkUserExists = asyncHandler(async (req, res) => {
@@ -167,10 +166,11 @@ export const registerUser = asyncHandler(async (req, res) => {
     });
   }
 
-  if (password.length < 6) {
+  const passwordErrors = validatePasswordStrength(password);
+  if (passwordErrors.length > 0) {
     return res.status(400).json({
       success: false,
-      message: "Password must be at least 6 characters long",
+      message: passwordErrors.join("; "),
     });
   }
 
@@ -279,6 +279,21 @@ export const sendSignupOtp = asyncHandler(async (req, res) => {
     return res.status(400).json({
       success: false,
       message: "Signup form data is required.",
+    });
+  }
+
+  if (!signupFormData.password) {
+    return res.status(400).json({
+      success: false,
+      message: "Password is required in signup form data.",
+    });
+  }
+
+  const signupPasswordErrors = validatePasswordStrength(signupFormData.password);
+  if (signupPasswordErrors.length > 0) {
+    return res.status(400).json({
+      success: false,
+      message: signupPasswordErrors.join("; "),
     });
   }
 
@@ -395,6 +410,15 @@ export const verifySignupOtp = asyncHandler(async (req, res) => {
 
   // OTP is correct! Create the user account
   const { signupFormData } = cachedData;
+
+  const verifyPasswordErrors = validatePasswordStrength(signupFormData.password || "");
+  if (verifyPasswordErrors.length > 0) {
+    delete global.signupOtpCache[userId];
+    return res.status(400).json({
+      success: false,
+      message: verifyPasswordErrors.join("; "),
+    });
+  }
   
   try {
     // Check if user already exists
@@ -571,10 +595,11 @@ export const resetPassword = asyncHandler(async (req, res) => {
     });
   }
 
-  if (newPassword.length < 6) {
+  const resetPasswordErrors = validatePasswordStrength(newPassword);
+  if (resetPasswordErrors.length > 0) {
     return res.status(400).json({
       success: false,
-      message: "Password must be at least 6 characters long.",
+      message: resetPasswordErrors.join("; "),
     });
   }
 
@@ -687,7 +712,15 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
+    const refreshSecret = getRefreshTokenSecret();
+    if (!refreshSecret) {
+      return res.status(500).json({
+        success: false,
+        message: "Refresh token secret is not configured",
+      });
+    }
+
+    const decoded = jwt.verify(token, refreshSecret);
     const user = await User.findById(decoded.id);
 
     if (!user) {
@@ -759,10 +792,11 @@ export const changePassword = asyncHandler(async (req, res) => {
       });
     }
   } else {
-    if (newPassword.length < 6) {
+    const fallbackErrors = validatePasswordStrength(newPassword);
+    if (fallbackErrors.length > 0) {
       return res.status(400).json({
         success: false,
-        message: "New password must be at least 6 characters long",
+        message: fallbackErrors.join("; "),
       });
     }
   }
