@@ -137,6 +137,7 @@ bookingSchema.pre("save", async function (next) {
 bookingSchema.index({ user: 1, status: 1 }, { sparse: true });  // sparse because user is now optional
 bookingSchema.index({ room: 1, checkIn: 1, checkOut: 1 });
 bookingSchema.index({ hotel: 1, status: 1 });
+bookingSchema.index({ hotel: 1, checkIn: 1, status: 1 });
 
 bookingSchema.index({ createdAt: -1 });
 bookingSchema.index({ company: 1, status: 1 });

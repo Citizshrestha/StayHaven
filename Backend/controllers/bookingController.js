@@ -2,12 +2,21 @@ import { Booking } from "../models/booking.schema.js";
 import { Room } from "../models/room.schema.js";
 import { Hotel } from "../models/hotel.schema.js";
 import { User } from "../models/user.schema.js";
+import { Role } from "../models/role.schema.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import crypto from "crypto";
 
 // Helper function to generate unique confirmation code
 const generateConfirmationCode = () => {
   return `BK-${Date.now()}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+};
+
+const getOrCreateGuestRole = async () => {
+  let guestRole = await Role.findOne({ name: "guest" });
+  if (!guestRole) {
+    guestRole = await Role.create({ name: "guest" });
+  }
+  return guestRole;
 };
 
 // Helper function to validate dates
@@ -143,13 +152,14 @@ export const createNewBooking = asyncHandler(async (req, res) => {
     if (guestEmail) {
       guestUser = await User.findOne({ email: guestEmail });
       if (!guestUser) {
+        const guestRole = await getOrCreateGuestRole();
         // Create a new guest user
         guestUser = await User.create({
           fullname: guestName,
           username: `guest_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
           email: guestEmail,
           password: crypto.randomBytes(16).toString('hex'),
-          companyRole: 'guest'
+          role: guestRole._id,
         });
       }
     }
@@ -252,12 +262,13 @@ export const checkInWalkInGuest = asyncHandler(async (req, res) => {
     try {
       guestUser = await User.findOne({ email: guestEmail });
       if (!guestUser) {
+        const guestRole = await getOrCreateGuestRole();
         guestUser = await User.create({
           fullname: guestName,
           username: `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           email: guestEmail,
           password: crypto.randomBytes(16).toString('hex'),
-          // Do NOT set companyRole — 'guest' is not a valid enum value
+          role: guestRole._id,
         });
       }
     } catch (err) {
