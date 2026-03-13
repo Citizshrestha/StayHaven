@@ -15,6 +15,8 @@ const roleSchema = new mongoose.Schema(
         "chief",
         "waiter",
         "receptionist",
+        "housekeeping",
+        "maintenance",
       ],
     },
     permissions: {

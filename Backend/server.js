@@ -51,6 +51,8 @@ const seedRoles = async () => {
     "waiter",
     "manager",
     "receptionist",
+    "housekeeping",
+    "maintenance",
   ];
   try {
     for (let roleName of roles) {
