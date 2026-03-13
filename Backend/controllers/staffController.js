@@ -9,6 +9,7 @@ import {
   generateRefreshToken,
   generateSecureToken,
   hashToken,
+  getRefreshTokenSecret,
 } from "../utils/tokenUtils.js";
 import { validatePasswordStrength } from "../utils/passwordValidation.js";
 import { transporter } from "../config/nodemailer.js";
@@ -573,7 +574,15 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
 
   let decoded;
   try {
-    decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+    const refreshSecret = getRefreshTokenSecret();
+    if (!refreshSecret) {
+      return res.status(500).json({
+        success: false,
+        message: "Refresh token secret is not configured",
+      });
+    }
+
+    decoded = jwt.verify(refreshToken, refreshSecret);
   } catch (err) {
     return res.status(401).json({
       success: false,

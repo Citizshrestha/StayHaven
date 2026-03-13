@@ -2,6 +2,7 @@
 import jwt from 'jsonwebtoken';
 import { User } from '../models/user.schema.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { getAccessTokenSecret } from '../utils/tokenUtils.js';
 
 export const protect = asyncHandler(async (req, res, next) => {
   let token;
@@ -23,7 +24,12 @@ export const protect = asyncHandler(async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+    const accessSecret = getAccessTokenSecret();
+    if (!accessSecret) {
+      throw Object.assign(new Error('JWT access secret is not configured'), { status: 500 });
+    }
+
+    const decoded = jwt.verify(token, accessSecret);
 
     req.user = await User.findById(decoded.id).select('-password').populate('role');
 

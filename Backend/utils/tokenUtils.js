@@ -1,21 +1,51 @@
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 
+export const getAccessTokenSecret = () =>
+  process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET;
+
+export const getRefreshTokenSecret = () =>
+  process.env.JWT_REFRESH_SECRET ||
+  process.env.JWT_ACCESS_SECRET ||
+  process.env.JWT_SECRET;
+
+const ensureSecret = (secret, label) => {
+  if (!secret) {
+    throw new Error(`${label} is not configured`);
+  }
+  return secret;
+};
+
 export const generateAccessToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET, {
+  const secret = ensureSecret(
+    getAccessTokenSecret(),
+    "JWT_ACCESS_SECRET/JWT_SECRET"
+  );
+
+  return jwt.sign({ id }, secret, {
     expiresIn: process.env.JWT_EXPIRE || "1h", // 1 hour for better session stability
   });
 };
 
 export const generateRefreshToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_REFRESH_SECRET, {
+  const secret = ensureSecret(
+    getRefreshTokenSecret(),
+    "JWT_REFRESH_SECRET/JWT_ACCESS_SECRET/JWT_SECRET"
+  );
+
+  return jwt.sign({ id }, secret, {
     expiresIn: "7d", // 7 days for refresh token
   });
 };
 
 // Generate JWT (legacy function for compatibility)
 export const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET, {
+  const secret = ensureSecret(
+    getAccessTokenSecret(),
+    "JWT_ACCESS_SECRET/JWT_SECRET"
+  );
+
+  return jwt.sign({ id }, secret, {
     expiresIn: process.env.JWT_EXPIRE || "30d",
   });
 };
