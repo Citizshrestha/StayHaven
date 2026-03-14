@@ -1,13 +1,9 @@
 import dotenv from "dotenv";
 dotenv.config();
-<<<<<<< HEAD
-import { createServer } from "http";
-=======
 
 import express from "express";
 import { createServer } from "http";
 import connectDB from "./config/db.js";
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
 import cors from "cors";
 import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
@@ -19,17 +15,10 @@ import tableRoutes from "./routes/tableRoutes.js";
 import roomRoutes from "./routes/roomRoutes.js";
 import guestRoutes from "./routes/guestRoutes.js";
 import bookingRoutes from "./routes/bookingRoutes.js";
-import seedRoutes from "./routes/seedRoutes.js";
 import cookieParser from "cookie-parser";
-<<<<<<< HEAD
 import notificationRoutes from "./routes/notificationRoutes.js";
 import { initCloudinary } from "./config/cloudinary.js";
 import { initSocket } from "./config/socket.js";
-=======
-import { initCloudinary } from "./config/cloudinary.js";
-import { initSocket } from "./config/socket.js";
-
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
 // Initialize cloudinary with env vars
 initCloudinary();
 
@@ -130,15 +119,11 @@ app.use("/api/user", userRoutes);
 app.use("/api/hotels", hotelRoutes);
 app.use("/api/company", companyRoutes);
 app.use("/api/staff", staffRoutes);
-<<<<<<< HEAD
-app.use("/api/notifications", notificationRoutes);
-=======
 app.use("/api/tables", tableRoutes);      // HotelTable management (authenticated)
 app.use("/api/rooms", roomRoutes);        // Room QR management (authenticated)
 app.use("/api/bookings", bookingRoutes);  // Booking management (authenticated)
-app.use("/api/seed", seedRoutes);         // Seed test data (admin only)
 app.use("/api/guest", guestRoutes);       // Guest QR scanning (public)
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
+app.use("/api/notifications", notificationRoutes);
 
 // start server - use httpServer instead of app for Socket.io support
 httpServer.listen(PORT, () => {

@@ -21,7 +21,6 @@ const Home = () => {
               backgroundImage: "url('https://images.unsplash.com/photo-1566073771259-6a8506099945?q=80&w=2070&auto=format&fit=crop')",
             }}
           ></div>
-          
           {/* Dark Overlay (40% opacity) */}
           <div className="absolute inset-0 bg-black opacity-40"></div>
         </div>
@@ -38,7 +37,6 @@ const Home = () => {
               <p className="text-lg md:text-xl font-medium mb-2 text-teal-400">
                 Curated Luxury Stays. Best Price Guarantee.
               </p>
-
               {/* Main Headlines */}
               <h1 className="text-4xl md:text-[3.375rem] font-bold leading-tight text-white mb-2 drop-shadow-lg">
                 Your Dream Stay Awaits
@@ -49,7 +47,7 @@ const Home = () => {
             </div>
           </div>
 
-          {/* Search Box - Original Code */}
+          {/* Search Box */}
           <div 
             style={{paddingTop: "4.5rem"}}
             className="w-full max-w-xs sm:max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-6xl mx-auto mt-4 sm:mt-6 md:mt-8 lg:mt-10 px-4 sm:px-6 md:px-8 lg:px-10"
@@ -59,37 +57,36 @@ const Home = () => {
                 div[data-search-box] {
                   margin-left: 4rem;
                   margin-left: 2.5rem;
-}
+                }
               }
               @media (min-width: 1024px) {
                 div[data-search-box] {
                   margin-left: 14rem;
                   margin-left: 11.5rem;
-}
+                }
               }
             `}</style>
             <div
               data-search-box
               style={{
                 padding: "1.5rem",
-                marginTop:"8rem",
+                marginTop: "8rem",
               }}
               className="bg-white backdrop-blur-md rounded-lg sm:rounded-xl shadow-lg w-full mx-auto lg:mr-auto lg:max-w-[90%] border border-white/20"
             >
-              <div 
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 md:gap-6"
-              >
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 md:gap-6 items-end">
                 {/* Find Hotel */}
                 <div className="text-left">
-                  <label className="block text-gray-700 text-xs sm:text-sm font-semibold mb-2">Find Hotel</label>
+                  <label style={{paddingLeft: "5px", marginTop: "2px"}} className="block text-gray-700 text-xs sm:text-sm font-semibold ">Find Hotel</label>
                   <input
                     type="text"
                     placeholder="Search here"
-                    className="w-full px-0 py-2 sm:py-3 border-0 border-b-2 border-gray-300 focus:border-teal-500 focus:outline-none text-gray-800 placeholder-gray-500 bg-transparent transition-all duration-200 text-sm sm:text-base font-medium"
+                    className="w-full h-1 px-0 py-1 sm:py-3 border-0 border-b-2 border-gray-300 focus:border-teal-500 focus:outline-none text-gray-800 placeholder-gray-500 bg-transparent transition-all duration-200 text-sm sm:text-base font-medium"
                   />
                 </div>
+
                 {/* Select Location */}
-                <div className="text-left">
+                <div>
                   <label className="block text-gray-700 text-xs sm:text-sm font-semibold mb-2">Select Location</label>
                   <select className="w-full px-0 py-2 sm:py-3 border-0 border-b-2 border-gray-300 focus:border-teal-500 focus:outline-none text-gray-800 appearance-none bg-transparent cursor-pointer transition-all duration-200 text-sm sm:text-base font-medium">
                     <option>Kathmandu</option>
@@ -99,8 +96,9 @@ const Home = () => {
                     <option>Itahari</option>
                   </select>
                 </div>
+
                 {/* Select Category */}
-                <div className="text-left">
+                <div>
                   <label className="block text-gray-700 text-xs sm:text-sm font-semibold mb-2">Select Category</label>
                   <select className="w-full px-0 py-2 sm:py-3 border-0 border-b-2 border-gray-300 focus:border-teal-500 focus:outline-none text-gray-800 appearance-none bg-transparent cursor-pointer transition-all duration-200 text-sm sm:text-base font-medium">
                     <option>Resort</option>
@@ -109,8 +107,9 @@ const Home = () => {
                     <option>Apartment</option>
                   </select>
                 </div>
+
                 {/* Select Rating */}
-                <div className="text-left">
+                <div>
                   <label className="block text-gray-700 text-xs sm:text-sm font-semibold mb-2">Select Rating</label>
                   <select className="w-full px-0 py-2 sm:py-3 border-0 border-b-2 border-gray-300 focus:border-teal-500 focus:outline-none text-gray-800 appearance-none bg-transparent cursor-pointer transition-all duration-200 text-sm sm:text-base font-medium">
                     <option>5 Star</option>
@@ -118,14 +117,12 @@ const Home = () => {
                     <option>3 Star</option>
                   </select>
                 </div>
+
                 {/* Search Button */}
-                <div className={"text-center sm:text-left lg:flex lg:items-end"}>
-                  <button 
-                    style={{
-                      padding: "0.75rem 1rem",
-                      marginTop: ".2rem",
-                    }}
-                    className="w-full bg-teal-600 hover:bg-teal-700 text-white rounded-md font-semibold text-sm sm:text-base flex items-center justify-center gap-2 transition-all duration-300 shadow-lg hover:shadow-xl lg:mt-0"
+                <div className="text-center sm:text-left flex items-end">
+                  <button
+                    style={{padding: "0.75rem 1.25rem", marginTop: "0", width: "100%"}}
+                    className="bg-teal-600 hover:bg-teal-700 text-white rounded-md font-semibold text-sm sm:text-base flex items-center justify-center gap-2 transition-all duration-300 shadow-lg hover:shadow-xl"
                     onClick={() => navigate('/hotels')}
                   >
                     <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -135,59 +132,7 @@ const Home = () => {
                   </button>
                 </div>
               </div>
-            data-search-box
-            style={{
-            padding: "1rem",
-            marginTop:"8rem",
-            }}
-            className="bg-white backdrop-blur-md rounded-lg sm:rounded-xl shadow-lg w-full mx-auto lg:mr-auto lg:max-w-[90%] border border-white/20"
-            <div 
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 md:gap-6 items-end"
-            {/* Find Hotel */}
-            <div className="text-left">
-            <label style={{paddingLeft: "5px", marginTop: "2px"}} className="block text-gray-700 text-xs sm:text-sm font-semibold ">Find Hotel</label>
-            <input
-            type="text"
-            placeholder="Search here"
-            className="w-full h-1 px-0 py-1 sm:py-3 border-0 border-b-2 border-gray-300 focus:border-teal-500 focus:outline-none text-gray-800 placeholder-gray-500 bg-transparent transition-all duration-200 text-sm sm:text-base font-medium"
-            />
             </div>
-            
-            {/* Select Location */}
-            <label className="block text-gray-700 text-xs sm:text-sm font-semibold mb-2">Select Location</label>
-            <select className="w-full px-0 py-2 sm:py-3 border-0 border-b-2 border-gray-300 focus:border-teal-500 focus:outline-none text-gray-800 appearance-none bg-transparent cursor-pointer transition-all duration-200 text-sm sm:text-base font-medium">
-            <option>Kathmandu</option>
-            <option>Pokhara</option>
-            <option>Chitwan</option>
-            <option>Butwal</option>
-            <option>Itahari</option>
-            </select>
-            {/* Select Category */}
-            <label className="block text-gray-700 text-xs sm:text-sm font-semibold mb-2">Select Category</label>
-            <option>Resort</option>
-            <option>Hotel</option>
-            <option>Villa</option>
-            <option>Apartment</option>
-            {/* Select Rating */}
-            <label className="block text-gray-700 text-xs sm:text-sm font-semibold mb-2">Select Rating</label>
-            <option>5 Star</option>
-            <option>4 Star</option>
-            <option>3 Star</option>
-            {/* Search Button */}
-            <div className="text-center sm:text-left flex items-end">
-            <button 
-            padding: "0.75rem 1.25rem",
-            marginTop: "0",
-            width: "100%",
-            className="bg-teal-600 hover:bg-teal-700 text-white rounded-md font-semibold text-sm sm:text-base flex items-center justify-center gap-2 transition-all duration-300 shadow-lg hover:shadow-xl"
-            onClick={() => navigate('/hotels')}
-            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            Search Now
-            </button>
-            </div>
-</div>
           </div>
         </div>
       </div>
@@ -198,7 +143,6 @@ const Home = () => {
       </div>
       <Footer />
     </div>
-    
   );
 };
 

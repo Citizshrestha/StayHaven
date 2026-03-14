@@ -1,4 +1,4 @@
-﻿import { User } from "../models/user.schema.js";
+import { User } from "../models/user.schema.js";
 import { Role } from "../models/role.schema.js";
 import { Hotel } from "../models/hotel.schema.js";
 // import { Company } from "../models/company.schema.js";
@@ -74,7 +74,7 @@ const getStaffInviteEmailTemplate = ({
                     <tr>
                       <td style="background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 0 8px 8px 0; padding: 16px 20px;">
                         <p style="margin: 0; font-size: 14px; color: #92400e;">
-                          <strong>â° Important:</strong> This invitation expires in <strong>${expiresIn}</strong>. Please complete your registration before then.
+                          <strong>⏰ Important:</strong> This invitation expires in <strong>${expiresIn}</strong>. Please complete your registration before then.
                         </p>
                       </td>
                     </tr>
@@ -113,10 +113,7 @@ export const staffLogin = asyncHandler(async (req, res) => {
   }
 
   const identifier = String(email).trim().toLowerCase();
-<<<<<<< HEAD
-=======
 
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
   // Find user with role (allow login via email or username)
   const user = await User.findOne({
     $or: [{ email: identifier }, { username: identifier }],
@@ -153,11 +150,8 @@ export const staffLogin = asyncHandler(async (req, res) => {
   ];
   const userRoleName = user.role?.name || user.companyRole;
 
-<<<<<<< HEAD
-  console.log("ðŸ” DEBUG - Role name being checked:", userRoleName);
+  const userRoleName = user.role?.name || user.companyRole;
 
-=======
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
   // Make role check case-insensitive
   const isAllowedRole =
     userRoleName &&
@@ -166,14 +160,14 @@ export const staffLogin = asyncHandler(async (req, res) => {
     );
 
   if (!isAllowedRole) {
-    // console.log("âŒ Access denied. User role:", userRoleName, "| Allowed roles:", allowedRoles);
+    // console.log("❌ Access denied. User role:", userRoleName, "| Allowed roles:", allowedRoles);
     return res.status(403).json({
       success: false,
       message: "Access denied. Staff account required.",
     });
   }
 
-  // console.log("âœ… Role check passed for:", userRoleName);
+  // console.log("✅ Role check passed for:", userRoleName);
 
   // Check if user is active
   if (!user.isActive) {
@@ -206,15 +200,9 @@ export const staffLogin = asyncHandler(async (req, res) => {
   // Cookie options for cross-origin compatibility
   const isProduction = process.env.NODE_ENV === "production";
   const cookieOptions = {
-<<<<<<< HEAD
-    secure: isProduction,
-    sameSite: isProduction ? "None" : "Lax", // "None" for cross-origin in prod, "Lax" for dev
-    httpOnly: true,
-=======
     httpOnly: true,
     secure: isProduction,
     sameSite: isProduction ? "None" : "Lax", // "None" for cross-origin in prod, "Lax" for dev
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
   };
 
   // Set access token cookie (1 hour for better UX)
@@ -235,10 +223,7 @@ export const staffLogin = asyncHandler(async (req, res) => {
 
   // Determine redirect path based on role
   const roleForRouting = String(userRoleName || "").toLowerCase();
-<<<<<<< HEAD
-=======
   let redirectPath = "/";
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
   switch (roleForRouting) {
     case "chief":
       redirectPath = "/kitchen-dashboard";
@@ -540,19 +525,11 @@ export const staffLogout = asyncHandler(async (req, res) => {
   // Cookie options matching login for proper clearing
   const isProduction = process.env.NODE_ENV === "production";
   const cookieOptions = {
-<<<<<<< HEAD
-    secure: isProduction,
-    sameSite: isProduction ? "None" : "Lax",
-    httpOnly: true,
-  };
-=======
     httpOnly: true,
     secure: isProduction,
     sameSite: isProduction ? "None" : "Lax",
     expires: new Date(0),
   };
-
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
   res.cookie("refreshToken", "", cookieOptions);
   res.cookie("accessToken", "", cookieOptions);
 
@@ -606,15 +583,9 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
   // Cookie options for cross-origin compatibility
   const isProduction = process.env.NODE_ENV === "production";
   const cookieOptions = {
-<<<<<<< HEAD
-    secure: isProduction,
-    sameSite: isProduction ? "None" : "Lax",
-    httpOnly: true,
-=======
     httpOnly: true,
     secure: isProduction,
     sameSite: isProduction ? "None" : "Lax",
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
   };
 
   // set new cookies
@@ -751,7 +722,7 @@ export const inviteStaff = asyncHandler(async (req, res) => {
   // send invite email
   const managerName = req.user.fullname || "Your Manager";
   const roleCapitalized = role.charAt(0).toUpperCase() + role.slice(1);
-  console.log("ðŸ“§ Sending invite email with role:", roleCapitalized);
+  console.log("📧 Sending invite email with role:", roleCapitalized);
 
   const emailTemplate = getStaffInviteEmailTemplate({
     staffName: fullname,
@@ -828,11 +799,8 @@ export const verifyInviteToken = asyncHandler(async (req, res) => {
       success: false,
       message:
         "Invite link has been expired. please ask your manager for a new one",
-<<<<<<< HEAD
       expired: true,
-=======
       expired: true, // frontend can show "Request new invite" button
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
     });
   }
 
@@ -902,10 +870,7 @@ export const completeOnBoarding = asyncHandler(async (req, res) => {
       success: false,
       message:
         "Invite link has been expired. please ask your manager for a new one",
-<<<<<<< HEAD
 
-=======
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
       expired: true,
     });
   }
@@ -960,15 +925,6 @@ export const completeOnBoarding = asyncHandler(async (req, res) => {
           _id: prop._id,
           name: prop.name,
         })) || [],
-<<<<<<< HEAD
-      assignedProperties:
-        user.assignedProperties?.map((prop) => ({
-          _id: prop._id,
-          name: prop.name,
-        })) || [],
-
-=======
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
     },
   });
 });
@@ -1010,10 +966,6 @@ export const resendInvite = asyncHandler(async (req, res) => {
   //  Check status - can only resend for 'invited' accounts
   // If status is 'active', they already onboarded - no need to resend
   if (staff.accountStatus !== "invited") {
-<<<<<<< HEAD
-
-=======
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
     return res.status(400).json({
       success: false,
       message: "Can only resend invites for pending invitations",
@@ -1168,10 +1120,7 @@ export const changePassword = asyncHandler(async (req, res) => {
       message: "Current Password and New Password are required",
     });
   }
-<<<<<<< HEAD
-=======
 
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
   // find logged-in user
   const user = req.user._id;
   const currentUser = await User.findById(user).select("+password");
@@ -1225,12 +1174,9 @@ export const changePassword = asyncHandler(async (req, res) => {
   });
 });
 
-<<<<<<< HEAD
 
 
 
-=======
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
 export const forgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
 
@@ -1241,10 +1187,7 @@ export const forgotPassword = asyncHandler(async (req, res) => {
     });
   }
 
-<<<<<<< HEAD
 
-=======
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
   const user = await User.findOne({ email: email.toLowerCase() })
     .populate("role")
     .populate("assignedProperties", "name");
@@ -1264,10 +1207,7 @@ export const forgotPassword = asyncHandler(async (req, res) => {
     "admin",
     "owner",
   ];
-<<<<<<< HEAD
 
-=======
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
   const userRole = (user.role?.name || user.companyRole).toLowerCase();
 
   if (!userRole || !staffRoles.includes(userRole)) {
@@ -1276,10 +1216,7 @@ export const forgotPassword = asyncHandler(async (req, res) => {
       message: "User with this email and role not found!",
     });
   }
-<<<<<<< HEAD
-=======
 
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
   // generate a secure random token
   const resetToken = generateSecureToken();
 
@@ -1318,7 +1255,7 @@ export const forgotPassword = asyncHandler(async (req, res) => {
               <!-- Header -->
               <tr>
                 <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; text-align: center;">
-                  <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 600;">ðŸ” Password Reset</h1>
+                  <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 600;">🔐 Password Reset</h1>
                   <p style="margin: 10px 0 0; color: rgba(255,255,255,0.9); font-size: 16px;">Reset your account password</p>
                 </td>
               </tr>
@@ -1349,7 +1286,7 @@ export const forgotPassword = asyncHandler(async (req, res) => {
                     <tr>
                       <td style="background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 0 8px 8px 0; padding: 16px 20px;">
                         <p style="margin: 0; font-size: 14px; color: #92400e;">
-                          <strong>â° Important:</strong> This link expires in <strong>1 hour</strong>. If you didn't request this, please ignore this email.
+                          <strong>⏰ Important:</strong> This link expires in <strong>1 hour</strong>. If you didn't request this, please ignore this email.
                         </p>
                       </td>
                     </tr>
@@ -1394,12 +1331,9 @@ export const forgotPassword = asyncHandler(async (req, res) => {
   });
 });
 
-<<<<<<< HEAD
 
 
 
-=======
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
 // Reset Password - Complete the password reset with token
 export const resetPassword = asyncHandler(async (req, res) => {
   //Extract token and newPassword from request body
@@ -1438,16 +1372,13 @@ export const resetPassword = asyncHandler(async (req, res) => {
   if (!user) {
     return res.status(400).json({
       success: false,
-<<<<<<< HEAD
 
       message: "Invalid or expired reset token. Please request a new reset link.",
       message:
         "Invalid or expired reset token. Please request a new reset link.",
 
-=======
       message:
         "Invalid or expired reset token. Please request a new reset link.",
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
     });
   }
 
@@ -1480,39 +1411,27 @@ export const updateProfilePicture = asyncHandler(async (req, res) => {
       message: "No image file provided",
     });
   }
-<<<<<<< HEAD
-=======
 
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
   try {
     // Get staff details for folder structure
     const staffDetails = {
       role: req.user.companyRole || req.user.role?.name || 'staff',
       fullname: req.user.fullname || 'unknown'
     };
-<<<<<<< HEAD
-=======
 
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
     // upload to cloudinary with staff-specific folder structure
     const result = await uploadToCloudinary(
       req.file.buffer,
       staffDetails
     );
-<<<<<<< HEAD
-=======
 
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
     // update user in db
     const user = await User.findByIdAndUpdate(
       req.user._id,
       { profilePicture: result.secure_url },
       { new: true }
     ).select("-password");
-<<<<<<< HEAD
-=======
 
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
     res.status(200).json({
       success: true,
       message: "Profile Picture Updated Successfully",

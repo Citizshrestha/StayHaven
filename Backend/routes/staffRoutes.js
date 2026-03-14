@@ -23,10 +23,7 @@ import {
   getOrders,
   updateOrderStatus,
   updateOrder,
-<<<<<<< HEAD
-=======
   getOrderById,
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
   deleteOrder,
   sendBillToCustomer,
 } from "../controllers/orderController.js";
@@ -46,21 +43,6 @@ import {
   bulkUpdateAssignments,
 } from "../controllers/tableAssignment.controller.js";
 import { getMenuItems, getMenuCategories } from "../controllers/menuController.js";
-import {
-  createWaiterCall,
-  getActiveWaiterCalls,
-  acknowledgeWaiterCall,
-  resolveWaiterCall,
-  getWaiterCallHistory,
-} from "../controllers/waitercall.controller.js";
-import {
-  assignTables,
-  getTableAssignments,
-  getMyAssignment,
-  lookupAssignedWaiter,
-  removeAssignment,
-  bulkUpdateAssignments,
-} from "../controllers/tableAssignment.controller.js";
 import { protect, authorize } from "../middleware/authMiddleware.js";
 import { upload } from "../middleware/upload.js";
 
