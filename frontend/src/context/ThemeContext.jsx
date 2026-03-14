@@ -1,5 +1,4 @@
-<<<<<<< HEAD
-﻿import { createContext, useEffect, useState } from "react"
+import { createContext, useEffect, useState } from "react"
 
 
 // create an context
@@ -36,7 +35,3 @@ export const ThemeProvider = ({ children }) => {
         </ThemeContext.Provider>
     );
 };
-=======
-// Re-export from canonical location to avoid duplicate module instances
-export { ThemeContext, ThemeProvider } from '../core/context/ThemeContext';
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe

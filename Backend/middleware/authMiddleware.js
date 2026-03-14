@@ -22,16 +22,11 @@ export const protect = asyncHandler(async (req, res, next) => {
     });
   }
 
-<<<<<<< HEAD
-try {
-  const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
-  console.log("Auth Middleware - Decoded Token:", decoded);
-=======
   try {
     const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
+    console.log("Auth Middleware - Decoded Token:", decoded);
 
-  req.user = await User.findById(decoded.id).select('-password').populate('role');
+    req.user = await User.findById(decoded.id).select('-password').populate('role');
 
     if (!req.user) {
       console.error("Auth Middleware - User not found for ID:", decoded.id);
@@ -48,29 +43,21 @@ try {
     if (error.status === 401) {
       throw error;
     }
-  throw error;
-}
+    throw error;
+  }
 
-<<<<<<< HEAD
-console.log("Auth Middleware - User found:", req.user._id, req.user.fullname);
-next();
-=======
+  console.log("Auth Middleware - User found:", req.user._id, req.user.fullname);
   next();
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
 });
 
 export const authorize = (...roles) => {
-return asyncHandler(async (req, res, next) => {
-  const userRole = req.user?.role?.name || req.user?.companyRole;
+  return asyncHandler(async (req, res, next) => {
+    const userRole = req.user?.role?.name || req.user?.companyRole;
 
-<<<<<<< HEAD
-  console.log(`Authorize - User: ${req.user?._id}, Role: ${userRole}, Required: ${roles.join(',')}`);
-=======
+    console.log(`Authorize - User: ${req.user?._id}, Role: ${userRole}, Required: ${roles.join(',')}`);
 
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
-
-  if (!userRole || !roles.includes(userRole)) {
-    throw Object.assign(new Error(`User role '${userRole || 'unknown'}' is not authorized`), {
+    if (!userRole || !roles.includes(userRole)) {
+      throw Object.assign(new Error(`User role '${userRole || 'unknown'}' is not authorized`), {
         status: 403,
       });
     }

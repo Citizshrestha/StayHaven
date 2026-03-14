@@ -1,5 +1,4 @@
-﻿import React, { useState } from 'react';
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AddHotel from './AddHotel'; // Adjust path as needed
 import './HotelManagement.css';
@@ -12,21 +11,22 @@ const HotelManagement = () => {
   const [isAddHotelOpen, setIsAddHotelOpen] = useState(false);
   const [editingHotel, setEditingHotel] = useState(null);
 
-  const navigationItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', path: '/' },
-  // Scroll to top when component mounts
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
-    { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', path: '/superadmindashboard' },
-{ id: 'user-management', label: 'User Management', icon: 'group', path: '/usermanagement' },
-    { id: 'hotel-management', label: 'Hotel Management', icon: 'apartment', path: '/hotelmanagement', active: true },
-    { id: 'booking-management', label: 'Booking Management', icon: 'book_online', path: '/bookingmanagement' },
-    { id: 'finance', label: 'Finance', icon: 'payments', path: '/finance' },
-    { id: 'review-moderation', label: 'Review Moderation', icon: 'rate_review', path: '/reviewmoderation' },
-    { id: 'content-management', label: 'Content Management', icon: 'wysiwyg', path: '/contentmanagement' },
-    { id: 'system-config', label: 'System Configuration', icon: 'tune', path: '/systemconfig' },
-  ];
+// Scroll to top when component mounts
+useEffect(() => {
+  window.scrollTo(0, 0);
+}, []);
+
+const navigationItems = [
+  { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', path: '/' },
+  { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', path: '/superadmindashboard' },
+  { id: 'user-management', label: 'User Management', icon: 'group', path: '/usermanagement' },
+  { id: 'hotel-management', label: 'Hotel Management', icon: 'apartment', path: '/hotelmanagement', active: true },
+  { id: 'booking-management', label: 'Booking Management', icon: 'book_online', path: '/bookingmanagement' },
+  { id: 'finance', label: 'Finance', icon: 'payments', path: '/finance' },
+  { id: 'review-moderation', label: 'Review Moderation', icon: 'rate_review', path: '/reviewmoderation' },
+  { id: 'content-management', label: 'Content Management', icon: 'wysiwyg', path: '/contentmanagement' },
+  { id: 'system-config', label: 'System Configuration', icon: 'tune', path: '/systemconfig' },
+];
 
   const bottomNavItems = [
     { id: 'analytics', label: 'Analytics', icon: 'analytics' },

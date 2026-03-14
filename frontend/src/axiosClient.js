@@ -1,5 +1,4 @@
-<<<<<<< HEAD
-﻿import axios from "axios";
+import axios from "axios";
 
 const axiosClient = axios.create({
     baseURL: import.meta.env.VITE_API_BASE_URL,
@@ -128,7 +127,3 @@ axiosClient.interceptors.response.use(
 );
 
 export default axiosClient;
-=======
-// Re-export from canonical location
-export { default } from './core/api/client';
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe

@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 ﻿import { useState, useRef, useEffect } from "react";
-=======
-import { useState, useRef, useEffect } from "react";
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
 import {
   Bell, Settings as SettingsIcon, Zap, X,
   ChevronRight, Lock, Eye, EyeOff, Camera
@@ -12,11 +8,7 @@ import { toast } from "react-toastify";
 import { changePassword } from "../../api/auth";
 import { useTheme } from "../../hooks/useTheme";
 import axiosClient from "../../axiosClient";
-<<<<<<< HEAD
 import "../WaiterDashboard/settings/WaiterSettings.css";
-=======
-import "../../features/staff/waiter/pages/settings/WaiterSettings.css";
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
 
 /**
  * Unified Settings component for both Waiter and Kitchen dashboards

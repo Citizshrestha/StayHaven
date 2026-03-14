@@ -135,62 +135,13 @@ const Home = () => {
                   </button>
                 </div>
               </div>
-            data-search-box
-            style={{
-            padding: "1rem",
-            marginTop:"8rem",
-            }}
-            className="bg-white backdrop-blur-md rounded-lg sm:rounded-xl shadow-lg w-full mx-auto lg:mr-auto lg:max-w-[90%] border border-white/20"
-            <div 
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 md:gap-6 items-end"
-            {/* Find Hotel */}
-            <div className="text-left">
-            <label style={{paddingLeft: "5px", marginTop: "2px"}} className="block text-gray-700 text-xs sm:text-sm font-semibold ">Find Hotel</label>
-            <input
-            type="text"
-            placeholder="Search here"
-            className="w-full h-1 px-0 py-1 sm:py-3 border-0 border-b-2 border-gray-300 focus:border-teal-500 focus:outline-none text-gray-800 placeholder-gray-500 bg-transparent transition-all duration-200 text-sm sm:text-base font-medium"
-            />
-            </div>
-            
-            {/* Select Location */}
-            <label className="block text-gray-700 text-xs sm:text-sm font-semibold mb-2">Select Location</label>
-            <select className="w-full px-0 py-2 sm:py-3 border-0 border-b-2 border-gray-300 focus:border-teal-500 focus:outline-none text-gray-800 appearance-none bg-transparent cursor-pointer transition-all duration-200 text-sm sm:text-base font-medium">
-            <option>Kathmandu</option>
-            <option>Pokhara</option>
-            <option>Chitwan</option>
-            <option>Butwal</option>
-            <option>Itahari</option>
-            </select>
-            {/* Select Category */}
-            <label className="block text-gray-700 text-xs sm:text-sm font-semibold mb-2">Select Category</label>
-            <option>Resort</option>
-            <option>Hotel</option>
-            <option>Villa</option>
-            <option>Apartment</option>
-            {/* Select Rating */}
-            <label className="block text-gray-700 text-xs sm:text-sm font-semibold mb-2">Select Rating</label>
-            <option>5 Star</option>
-            <option>4 Star</option>
-            <option>3 Star</option>
-            {/* Search Button */}
-            <div className="text-center sm:text-left flex items-end">
-            <button 
-            padding: "0.75rem 1.25rem",
-            marginTop: "0",
-            width: "100%",
-            className="bg-teal-600 hover:bg-teal-700 text-white rounded-md font-semibold text-sm sm:text-base flex items-center justify-center gap-2 transition-all duration-300 shadow-lg hover:shadow-xl"
-            onClick={() => navigate('/hotels')}
-            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            Search Now
-            </button>
-            </div>
-</div>
-          </div>
+
         </div>
       </div>
+
+      </div>
+      </div>
+      
 
       {/* Featured Hotels Section with Categories */}
       <div id="destination">

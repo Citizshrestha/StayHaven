@@ -71,11 +71,7 @@ export const getActiveWaiterCalls = asyncHandler(async (req, res) => {
     });
   }
 
-<<<<<<< HEAD
   const calls = await WaiterCall.find({
-=======
-  const calls = await WaiterCall.find({ 
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
     hotel: hotelId,
     status: { $in: ['open', 'acknowledged', 'inProgress'] }
   })
@@ -98,10 +94,6 @@ export const acknowledgeWaiterCall = asyncHandler(async (req, res) => {
   const { callId } = req.params;
 
   const call = await WaiterCall.findById(callId);
-<<<<<<< HEAD
-
-=======
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
   if (!call) {
     return res.status(404).json({
       success: false,
@@ -127,20 +119,13 @@ export const acknowledgeWaiterCall = asyncHandler(async (req, res) => {
     roomNumber: call.roomNumber,
     acknowledgedBy: req.user.fullname,
     acknowledgedAt: call.acknowledgedAt,
-<<<<<<< HEAD
     message: "Call acknowledged",
     call,
-=======
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
   });
 
   return res.status(200).json({
     success: true,
-<<<<<<< HEAD
     message: "Call acknowledged successfully",
-=======
-    message: "Call acknowledged",
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
     call,
   });
 });
@@ -154,10 +139,6 @@ export const resolveWaiterCall = asyncHandler(async (req, res) => {
   const { notes } = req.body;
 
   const call = await WaiterCall.findById(callId);
-<<<<<<< HEAD
-
-=======
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
   if (!call) {
     return res.status(404).json({
       success: false,
@@ -176,19 +157,12 @@ export const resolveWaiterCall = asyncHandler(async (req, res) => {
     roomNumber: call.roomNumber,
     resolvedBy: req.user.fullname,
     resolvedAt: call.resolvedAt,
-<<<<<<< HEAD
     message: "Call resolved",
-=======
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
   });
 
   return res.status(200).json({
     success: true,
-<<<<<<< HEAD
     message: "Call resolved successfully",
-=======
-    message: "Call resolved",
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
     call,
   });
 });
@@ -216,10 +190,7 @@ export const getWaiterCallHistory = asyncHandler(async (req, res) => {
     createdAt: { $gte: today },
   })
     .populate('raisedBy', 'fullname')
-<<<<<<< HEAD
-=======
     .populate('assignedTo', 'fullname')
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
     .sort({ createdAt: -1 });
 
   return res.status(200).json({

@@ -114,11 +114,7 @@ const orderSchema = new mongoose.Schema({
   deliveredAt: {
     type: Date,
   },
-<<<<<<< HEAD
 
-=======
-  
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
   // Bill tracking
   billSent: {
     type: Boolean,

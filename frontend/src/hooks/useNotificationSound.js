@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-﻿
-
 import { useCallback, useRef, useEffect, useState } from "react";
 
 // Sound file URLs (using free sound effects)
@@ -159,7 +156,3 @@ const useNotificationSound = () => {
 };
 
 export default useNotificationSound;
-=======
-// Re-export from canonical location
-export { default } from '../core/hooks/useNotificationSound';
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe

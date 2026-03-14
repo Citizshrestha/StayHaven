@@ -1,5 +1,4 @@
-<<<<<<< HEAD
-﻿import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { OrderContext } from "./OrderContextDef";
 import { getActiveProperty, getOrders, createOrder, updateOrder as updateOrderApi, updateOrderStatus as updateOrderStatusApi } from "../api/staff";
 
@@ -314,7 +313,4 @@ export const OrderProvider = ({ children }) => {
     </OrderContext.Provider>
   );
 };
-=======
-// Re-export from canonical location to avoid duplicate module instances
-export { OrderProvider } from '../core/context/OrderContext';
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
+

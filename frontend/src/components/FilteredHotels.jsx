@@ -45,8 +45,7 @@ const FilteredHotels = () => {
                   <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#374151', marginBottom: '8px' }}>City</label>
                   <div style={{ position: 'relative' }}>
                     <select style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: '8px', appearance: 'none', backgroundColor: '#ffffff', color: '#374151', fontSize: '0.875rem', outline: 'none' }}>
-                    <select style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: '8px', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', backgroundColor: '#ffffff', backgroundImage: 'none', color: '#374151', fontSize: '0.875rem', outline: 'none' }}>
-<option>Kathmandu</option>
+                      <option>Kathmandu</option>
                       <option>Pokhara</option>
                       <option>Lalitpur</option>
                       <option>Bhaktapur</option>

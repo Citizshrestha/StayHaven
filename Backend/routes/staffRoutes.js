@@ -23,10 +23,7 @@ import {
   getOrders,
   updateOrderStatus,
   updateOrder,
-<<<<<<< HEAD
-=======
   getOrderById,
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
   deleteOrder,
   sendBillToCustomer,
 } from "../controllers/orderController.js";
@@ -46,21 +43,6 @@ import {
   bulkUpdateAssignments,
 } from "../controllers/tableAssignment.controller.js";
 import { getMenuItems, getMenuCategories } from "../controllers/menuController.js";
-import {
-  createWaiterCall,
-  getActiveWaiterCalls,
-  acknowledgeWaiterCall,
-  resolveWaiterCall,
-  getWaiterCallHistory,
-} from "../controllers/waitercall.controller.js";
-import {
-  assignTables,
-  getTableAssignments,
-  getMyAssignment,
-  lookupAssignedWaiter,
-  removeAssignment,
-  bulkUpdateAssignments,
-} from "../controllers/tableAssignment.controller.js";
 import { protect, authorize } from "../middleware/authMiddleware.js";
 import { upload } from "../middleware/upload.js";
 
@@ -112,17 +94,11 @@ router.put(
   authorize("waiter", "manager"),
   updateOrder
 );
-<<<<<<< HEAD
-// Send bill to customer - waiter, manager can send
-router.post(
-  "/orders/:orderId/send-bill",
-=======
 
 // Send bill to customer - waiter, manager can send
 router.post(
   "/orders/:orderId/send-bill",
   protect,
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
   authorize("waiter", "receptionist", "manager"),
   sendBillToCustomer
 );
@@ -184,11 +160,6 @@ router.delete(
   deleteOrder
 );
 
-<<<<<<< HEAD
-=======
-// ORDER HISTORY route removed
-
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
 // WAITER CALL ROUTES
 // Create a waiter call (from guest room or table)
 router.post(
@@ -196,19 +167,6 @@ router.post(
   protect,
   createWaiterCall
 );
-<<<<<<< HEAD
-// Get all active waiter calls for a hotel
-router.get("/waiter-calls", protect, getActiveWaiterCalls);
-// Get waiter call history (today)
-router.get("/waiter-calls/history", protect, getWaiterCallHistory);
-// Acknowledge a waiter call
-router.put(
-  "/waiter-calls/:callId/acknowledge",
-  authorize("waiter", "manager"),
-  acknowledgeWaiterCall
-);
-=======
-
 // Get all active waiter calls for a hotel
 router.get("/waiter-calls", protect, getActiveWaiterCalls);
 
@@ -222,70 +180,16 @@ router.put(
   authorize("waiter", "manager"),
   acknowledgeWaiterCall
 );
-
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
 // Resolve a waiter call
 router.put(
   "/waiter-calls/:callId/resolve",
   protect,
-<<<<<<< HEAD
-=======
   authorize("waiter", "manager"),
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
   resolveWaiterCall
 );
 
 // TABLE ASSIGNMENT ROUTES
-// Get current waiter's table assignment
-router.get("/table-assignments/my", protect, getMyAssignment);
-<<<<<<< HEAD
 // Lookup which waiter is assigned to a specific table or room
 router.get("/table-assignments/lookup", protect, lookupAssignedWaiter);
-=======
-
-// Lookup which waiter is assigned to a specific table or room
-router.get("/table-assignments/lookup", protect, lookupAssignedWaiter);
-
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
-// Get all table assignments for a hotel (manager+)
-router.get(
-  "/table-assignments",
-  protect,
-  authorize("manager", "admin", "owner"),
-  getTableAssignments
-);
-<<<<<<< HEAD
-=======
-
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
-// Assign tables to a waiter (manager+)
-router.post(
-  "/table-assignments",
-  protect,
-  authorize("manager", "admin", "owner"),
-  assignTables
-);
-<<<<<<< HEAD
-=======
-
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
-// Remove a table assignment (manager+)
-router.delete(
-  "/table-assignments/:assignmentId",
-  protect,
-  authorize("manager", "admin", "owner"),
-  removeAssignment
-);
-<<<<<<< HEAD
-=======
-
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
-// Bulk update table assignments (manager+)
-router.put(
-  "/table-assignments/bulk",
-  protect,
-  authorize("manager", "admin", "owner"),
-  bulkUpdateAssignments
-);
 
 export default router;

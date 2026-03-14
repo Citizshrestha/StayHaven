@@ -1,5 +1,4 @@
-<<<<<<< HEAD
-﻿/* eslint-disable react-refresh/only-export-components */
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import axios from "axios";
 
@@ -169,8 +168,3 @@ export const useStaffAuth = () => {
 };
 
 export default StaffAuthContext;
-=======
-// Re-export from canonical location to avoid duplicate module instances
-export { StaffAuthProvider, useStaffAuth } from '../core/context/StaffAuthContext';
-export { default } from '../core/context/StaffAuthContext';
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe

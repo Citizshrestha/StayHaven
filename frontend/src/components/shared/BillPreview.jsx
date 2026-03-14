@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 ﻿import { useRef } from "react";
-=======
-import { useRef } from "react";
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
 import { X, Printer, Send } from "lucide-react";
 import { toast } from "react-toastify";
 
