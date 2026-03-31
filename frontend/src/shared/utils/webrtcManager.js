@@ -13,24 +13,46 @@
  * 6. Audio streams connected — both parties hear each other
  */
 
+/**
+ * ICE Servers for NAT traversal
+ * STUN: Discovers public IP address
+ * TURN: Relays traffic when direct connection fails (not included in free tier)
+ */
 const ICE_SERVERS = [
+    // Google STUN servers (free, reliable)
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
     { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
+    // Additional STUN servers for redundancy
+    { urls: 'stun:stun.services.mozilla.com' },
+    { urls: 'stun:stun.stunprotocol.org:3478' },
 ];
 
 /**
- * Inject a bandwidth limit into an SDP string for the audio m-line.
- * Adds "b=AS:128" (128 kbps) right after the audio mid line so the
- * browser's encoder targets high-quality Opus at that bitrate.
+ * Inject bandwidth and codec preferences into SDP for optimal voice quality.
+ * - Sets audio bitrate to 128 kbps (high quality Opus)
+ * - Prioritizes Opus codec with optimal settings
  */
 function setAudioBitrate(sdp, bitrateKbps = 128) {
     // Insert b=AS line after every "m=audio ..." section's c= line
-    return sdp.replace(
+    let modifiedSdp = sdp.replace(
         /(m=audio[^\r\n]*\r\n(?:.*\r\n)*?)(c=IN [^\r\n]*\r\n)/g,
         `$1$2b=AS:${bitrateKbps}\r\n`
     );
+
+    // Prioritize Opus codec and set optimal parameters
+    // maxaveragebitrate=128000 (128 kbps)
+    // stereo=0 (mono for voice)
+    // useinbandfec=1 (forward error correction)
+    // usedtx=0 (disable discontinuous transmission for consistent quality)
+    modifiedSdp = modifiedSdp.replace(
+        /(a=rtpmap:(\d+) opus\/48000\/2\r\n)/g,
+        '$1a=fmtp:$2 maxaveragebitrate=128000;stereo=0;useinbandfec=1;usedtx=0\r\n'
+    );
+
+    return modifiedSdp;
 }
 
 class WebRTCCallManager {
@@ -62,23 +84,39 @@ class WebRTCCallManager {
     }
 
     /**
-     * Get user's microphone stream
+     * Get user's microphone stream with professional-grade audio settings
      */
     async getLocalStream() {
         if (this.localStream) return this.localStream;
         try {
             this.localStream = await navigator.mediaDevices.getUserMedia({
                 audio: {
-                    echoCancellation: true,
-                    noiseSuppression: true,
-                    autoGainControl: true,
-                    sampleRate: 48000,
-                    sampleSize: 16,
-                    channelCount: 1,
+                    // Echo cancellation - CRITICAL for preventing feedback
+                    echoCancellation: { ideal: true },
+                    // Noise suppression - removes background noise
+                    noiseSuppression: { ideal: true },
+                    // Auto gain control - normalizes volume levels
+                    autoGainControl: { ideal: true },
+                    // High sample rate for crystal clear audio
+                    sampleRate: { ideal: 48000 },
+                    // 16-bit audio depth
+                    sampleSize: { ideal: 16 },
+                    // Mono audio (reduces bandwidth, improves quality)
+                    channelCount: { ideal: 1 },
+                    // Latency - lower is better for real-time
+                    latency: { ideal: 0.01 },
+                    // Voice-optimized processing
+                    googEchoCancellation: { ideal: true },
+                    googAutoGainControl: { ideal: true },
+                    googNoiseSuppression: { ideal: true },
+                    googHighpassFilter: { ideal: true },
+                    googTypingNoiseDetection: { ideal: true },
+                    googAudioMirroring: { ideal: false },
                 },
                 video: false,
             });
-            console.log('🎤 Mic stream acquired, track id:', this.localStream.getAudioTracks()[0]?.id);
+            console.log('🎤 Mic stream acquired with professional audio settings');
+            console.log('🎤 Track settings:', this.localStream.getAudioTracks()[0]?.getSettings());
             return this.localStream;
         } catch (err) {
             console.error('Failed to get microphone access:', err);
@@ -87,14 +125,22 @@ class WebRTCCallManager {
     }
 
     /**
-     * Create peer connection with ICE handling
+     * Create peer connection with optimized settings for voice calls
      */
     _createPeerConnection() {
         if (this.peerConnection) {
             this.peerConnection.close();
         }
 
-        this.peerConnection = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+        this.peerConnection = new RTCPeerConnection({
+            iceServers: ICE_SERVERS,
+            // Optimize for low latency voice calls
+            iceCandidatePoolSize: 10,
+            // Bundle policy - max-bundle reduces latency
+            bundlePolicy: 'max-bundle',
+            // RTC configuration for better audio
+            rtcpMuxPolicy: 'require',
+        });
 
         // Send ICE candidates to the other peer via signaling
         this.peerConnection.onicecandidate = (event) => {
