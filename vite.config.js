@@ -10,7 +10,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   root: './frontend',
-  publicDir: '../public',
+  publicDir: 'public',
   build: {
     outDir: '../dist',
     emptyOutDir: true,
