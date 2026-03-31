@@ -83,7 +83,9 @@ const RestaurantManagement = ({ embedded = false }) => {
     setActiveSection(sectionId);
     try {
       if (typeof window !== 'undefined') window.location.hash = `#${sectionId}`;
-    } catch (e) {}
+    } catch {
+      // no-op
+    }
     console.log(`Navigating to: ${sectionId}`);
   };
 

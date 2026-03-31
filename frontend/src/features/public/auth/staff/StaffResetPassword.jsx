@@ -20,7 +20,7 @@ const StaffResetPassword = () => {
     }
 
 
-  }, [token])
+  }, [token, navigate])
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -44,7 +44,7 @@ const StaffResetPassword = () => {
           navigate("/staff/login");
         }, 500);
       }
-    } catch (error) {
+    } catch {
       toast.error("Failed to reset password. Please try again.");
     } finally {
       setLoading(false);

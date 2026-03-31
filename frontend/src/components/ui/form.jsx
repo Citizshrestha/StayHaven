@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 "use client"
 
 import * as React from "react"
@@ -133,7 +134,6 @@ function FormMessage({ className, ...props }) {
   )
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 export {
   useFormField,
   Form,

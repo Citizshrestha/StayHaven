@@ -9,14 +9,12 @@ import './Navbar.css';
 const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [user, setUser] = useState(null);
-  const [isScrolled, setIsScrolled] = useState(false);
   const [wishlistCount, setWishlistCount] = useState(0);
   const [cartCount, setCartCount] = useState(0);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const dropdownRef = useRef(null);
-  const sentinelRef = useRef(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -95,36 +93,6 @@ const Navbar = () => {
     };
     window.addEventListener("cartUpdated", handleCartUpdate);
     return () => window.removeEventListener("cartUpdated", handleCartUpdate);
-  }, []);
-
-  // Handle scroll to change navbar background using Intersection Observer
-  useEffect(() => {
-    const sentinel = document.createElement('div');
-    sentinel.style.position = 'absolute';
-    sentinel.style.top = '0';
-    sentinel.style.height = '100px';
-    sentinel.style.width = '1px';
-    sentinel.style.pointerEvents = 'none';
-    document.body.prepend(sentinel);
-    sentinelRef.current = sentinel;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        // When sentinel is NOT intersecting (out of view), we've scrolled
-        setIsScrolled(!entry.isIntersecting);
-      },
-      {
-        threshold: 0,
-        rootMargin: '-1px 0px 0px 0px'
-      }
-    );
-
-    observer.observe(sentinel);
-
-    return () => {
-      observer.disconnect();
-      sentinel.remove();
-    };
   }, []);
 
   const handleLogin = () => {

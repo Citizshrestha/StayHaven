@@ -83,16 +83,18 @@ const Footer = () => {
               </p>
 
               <div className="space-y-2 mb-5">
-                {[
-                  { Icon: MapPin, text: 'Thamel, Kathmandu, Nepal' },
-                  { Icon: Phone, text: '+977 01-2136 567' },
-                  { Icon: Mail, text: 'support@stayhaven.com.np' },
-                ].map(({ Icon, text }, i) => (
-                  <div key={i} className="flex items-center gap-2 text-sm text-gray-500">
-                    <Icon className="w-3.5 h-3.5 text-teal-500 flex-shrink-0" />
-                    {text}
-                  </div>
-                ))}
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <MapPin className="w-3.5 h-3.5 text-teal-500 flex-shrink-0" />
+                  Thamel, Kathmandu, Nepal
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <Phone className="w-3.5 h-3.5 text-teal-500 flex-shrink-0" />
+                  +977 01-2136 567
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <Mail className="w-3.5 h-3.5 text-teal-500 flex-shrink-0" />
+                  support@stayhaven.com.np
+                </div>
               </div>
 
               <div className="flex items-center gap-2">

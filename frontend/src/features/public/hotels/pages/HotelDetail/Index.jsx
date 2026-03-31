@@ -14,7 +14,7 @@ const HotelDetail = () => {
   return (
     <div className="min-h-screen bg-linear-to-b from-gray-50 to-white">
 
-      <mainclassName="w-full mt-0" style={{ marginTop: "5rem" }}>
+      <main className="w-full mt-0" style={{ marginTop: "5rem" }}>
         {/* Image Gallery */}
         <HotelImageGallery images={hotel.images} />
 
