@@ -245,20 +245,23 @@ const RightPanel = ({ orders = [] }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validate location before submitting
-    const locationValue = formData.orderType === 'dineIn' ? formData.tableNumber : formData.roomNumber;
-    const locationType = formData.orderType === 'dineIn' ? 'Table' : 'Room';
-    // Extract just the number for comparison
-    const numberValue = locationValue.replace(/\D/g, '') || locationValue.trim();
+    // Validate location before submitting (only for dineIn and roomService)
+    if (formData.orderType !== 'takeaway') {
+      const locationValue = formData.orderType === 'dineIn' ? formData.tableNumber : formData.roomNumber;
+      const locationType = formData.orderType === 'dineIn' ? 'Table' : 'Room';
+      
+      // Extract just the number for comparison
+      const numberValue = locationValue.replace(/\D/g, '') || locationValue.trim();
 
-    // Check against the appropriate set based on order type
-    const isOccupied = formData.orderType === 'dineIn'
-      ? activeLocations.tables.has(numberValue)
-      : activeLocations.rooms.has(numberValue);
+      // Check against the appropriate set based on order type
+      const isOccupied = formData.orderType === 'dineIn'
+        ? activeLocations.tables.has(numberValue)
+        : activeLocations.rooms.has(numberValue);
 
-    if (isOccupied) {
-      setLocationError(`${locationType} ${locationValue} already has an active order. Please select a different ${locationType.toLowerCase()}.`);
-      return; // Don't submit if location is occupied
+      if (isOccupied) {
+        setLocationError(`${locationType} ${locationValue} already has an active order. Please select a different ${locationType.toLowerCase()}.`);
+        return; // Don't submit if location is occupied
+      }
     }
 
     try {
@@ -387,51 +390,84 @@ const RightPanel = ({ orders = [] }) => {
                   letterSpacing: "0.5px",
                   marginBottom: "12px"
                 }}>ORDER TYPE</label>
-                <div style={{ display: "flex", gap: "12px" }}>
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                   <button type="button"
                     onClick={() => setFormData({ ...formData, orderType: "dineIn" })}
                     style={{
-                      flex: 1,
-                      padding: "14px 20px",
+                      flex: "1 1 calc(33.333% - 6px)",
+                      minWidth: "90px",
+                      padding: "12px 8px",
                       backgroundColor: formData.orderType === "dineIn" ? "#10B981" : colors.typeBtn,
                       color: formData.orderType === "dineIn" ? "white" : colors.typeBtnText,
                       border: "none",
                       borderRadius: "12px",
                       cursor: "pointer",
-                      fontSize: "15px",
+                      fontSize: "13px",
                       fontWeight: "600",
                       transition: "all 0.2s",
                       display: "flex",
+                      flexDirection: "column",
                       alignItems: "center",
                       justifyContent: "center",
-                      gap: "8px"
+                      gap: "4px",
+                      whiteSpace: "nowrap"
                     }}>
-                    🍽️ Dine In
+                    <span style={{ fontSize: "20px" }}>🍽️</span>
+                    <span>Dine In</span>
                   </button>
                   <button type="button"
                     onClick={() => setFormData({ ...formData, orderType: "roomService" })}
                     style={{
-                      flex: 1,
-                      padding: "14px 20px",
+                      flex: "1 1 calc(33.333% - 6px)",
+                      minWidth: "90px",
+                      padding: "12px 8px",
                       backgroundColor: formData.orderType === "roomService" ? "#10B981" : colors.typeBtn,
                       color: formData.orderType === "roomService" ? "white" : colors.typeBtnText,
                       border: "none",
                       borderRadius: "12px",
                       cursor: "pointer",
-                      fontSize: "15px",
+                      fontSize: "13px",
                       fontWeight: "600",
                       transition: "all 0.2s",
                       display: "flex",
+                      flexDirection: "column",
                       alignItems: "center",
                       justifyContent: "center",
-                      gap: "8px"
+                      gap: "4px",
+                      whiteSpace: "nowrap"
                     }}>
-                    🛏️ Room Service
+                    <span style={{ fontSize: "20px" }}>🛏️</span>
+                    <span>Room</span>
+                  </button>
+                  <button type="button"
+                    onClick={() => setFormData({ ...formData, orderType: "takeaway" })}
+                    style={{
+                      flex: "1 1 calc(33.333% - 6px)",
+                      minWidth: "90px",
+                      padding: "12px 8px",
+                      backgroundColor: formData.orderType === "takeaway" ? "#10B981" : colors.typeBtn,
+                      color: formData.orderType === "takeaway" ? "white" : colors.typeBtnText,
+                      border: "none",
+                      borderRadius: "12px",
+                      cursor: "pointer",
+                      fontSize: "13px",
+                      fontWeight: "600",
+                      transition: "all 0.2s",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "4px",
+                      whiteSpace: "nowrap"
+                    }}>
+                    <span style={{ fontSize: "20px" }}>🥡</span>
+                    <span>Takeaway</span>
                   </button>
                 </div>
               </div>
 
-              {/* Location */}
+              {/* Location - Only show for dineIn and roomService */}
+              {formData.orderType !== "takeaway" && (
               <div style={{ marginBottom: "24px" }}>
                 <label style={{
                   display: "block",
@@ -449,7 +485,7 @@ const RightPanel = ({ orders = [] }) => {
                     top: "50%",
                     transform: "translateY(-50%)",
                     fontSize: "18px"
-                  }}>🏪</span>
+                  }}>{formData.orderType === "dineIn" ? "🏪" : "🛏️"}</span>
                   <input
                     type="text"
                     name={formData.orderType === "dineIn" ? "tableNumber" : "roomNumber"}
@@ -494,6 +530,7 @@ const RightPanel = ({ orders = [] }) => {
                   </div>
                 )}
               </div>
+              )}
               {/* Customer Details */}
               <div style={{ backgroundColor: colors.cardBg, borderRadius: "16px", padding: "20px", marginBottom: "24px" }}>
                 <div style={{ marginBottom: "16px" }}>
@@ -581,104 +618,191 @@ const RightPanel = ({ orders = [] }) => {
               {/* Order Items */}
               <div style={{ marginBottom: "24px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-                  <span style={{ fontSize: "16px", fontWeight: "700", color: colors.text }}>Order Items</span>
+                  <span style={{ fontSize: "18px", fontWeight: "800", color: colors.text }}>Order Items</span>
                   <span style={{
                     backgroundColor: isDark ? "rgba(16, 185, 129, 0.2)" : "#D1FAE5",
                     color: "#10B981",
-                    padding: "4px 12px",
-                    borderRadius: "12px",
-                    fontSize: "12px",
+                    padding: "6px 14px",
+                    borderRadius: "20px",
+                    fontSize: "13px",
                     fontWeight: "700"
-                  }}>{formData.items.length} items</span>
+                  }}>{formData.items.length} {formData.items.length === 1 ? 'item' : 'items'}</span>
                 </div>
                 {formData.items.map((item, index) => (
                   <div key={index} style={{
                     backgroundColor: colors.itemCardBg,
-                    border: `1px solid ${colors.border}`,
+                    border: `2px solid ${colors.border}`,
                     borderRadius: "16px",
-                    padding: "16px",
-                    marginBottom: "12px",
-                    boxShadow: isDark ? "none" : "0 1px 2px 0 rgba(0, 0, 0, 0.05)"
-                  }}>
-                    <input
-                      type="text"
-                      placeholder="Club Sandwich"
-                      value={item.name}
-                      onChange={(e) => handleItemChange(index, "name", e.target.value)}
-                      required
-                      style={{
-                        width: "100%",
-                        padding: "0",
-                        marginBottom: "6px",
-                        border: "none",
-                        fontSize: "16px",
-                        fontWeight: "600",
-                        color: colors.text,
-                        backgroundColor: "transparent",
-                        outline: "none"
-                      }} />
-                    <input
-                      type="text"
-                      placeholder="Extra mayo, no pickles"
-                      value={item.notes || ""}
-                      onChange={(e) => handleItemChange(index, "notes", e.target.value)}
-                      style={{
-                        width: "100%",
-                        padding: "0",
-                        marginBottom: "16px",
-                        border: "none",
-                        fontSize: "13px",
+                    padding: "20px",
+                    marginBottom: "16px",
+                    boxShadow: isDark ? "none" : "0 2px 8px 0 rgba(0, 0, 0, 0.06)",
+                    transition: "all 0.2s"
+                  }}
+                  onMouseOver={(e) => { e.currentTarget.style.borderColor = "#10B981"; e.currentTarget.style.boxShadow = "0 4px 12px 0 rgba(16, 185, 129, 0.15)"; }}
+                  onMouseOut={(e) => { e.currentTarget.style.borderColor = colors.border; e.currentTarget.style.boxShadow = isDark ? "none" : "0 2px 8px 0 rgba(0, 0, 0, 0.06)"; }}>
+                    
+                    {/* Item Number Badge */}
+                    <div style={{ 
+                      display: "inline-flex", 
+                      alignItems: "center", 
+                      justifyContent: "center",
+                      width: "28px",
+                      height: "28px",
+                      borderRadius: "50%",
+                      backgroundColor: "#10B981",
+                      color: "white",
+                      fontSize: "13px",
+                      fontWeight: "700",
+                      marginBottom: "12px"
+                    }}>
+                      {index + 1}
+                    </div>
+
+                    {/* Item Name */}
+                    <div style={{ marginBottom: "12px" }}>
+                      <label style={{
+                        display: "block",
+                        fontSize: "10px",
+                        fontWeight: "700",
                         color: colors.textTertiary,
-                        backgroundColor: "transparent",
-                        outline: "none"
-                      }} />
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                        <button type="button"
-                          onClick={() => handleItemChange(index, "quantity", Math.max(1, item.quantity - 1))}
-                          style={{
-                            width: "32px",
-                            height: "32px",
-                            borderRadius: "50%",
-                            border: `1px solid ${colors.border}`,
-                            background: colors.itemCardBg,
-                            cursor: "pointer",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: "18px",
-                            color: colors.textSecondary,
-                            transition: "all 0.2s"
-                          }}
-                          onMouseOver={(e) => { e.currentTarget.style.background = colors.typeBtn; }}
-                          onMouseOut={(e) => { e.currentTarget.style.background = colors.itemCardBg; }}>
-                          −
-                        </button>
-                        <span style={{ fontSize: "16px", fontWeight: "600", minWidth: "20px", textAlign: "center", color: colors.text }}>{item.quantity}</span>
-                        <button type="button"
-                          onClick={() => handleItemChange(index, "quantity", item.quantity + 1)}
-                          style={{
-                            width: "32px",
-                            height: "32px",
-                            borderRadius: "50%",
-                            border: `1px solid ${colors.border}`,
-                            background: colors.itemCardBg,
-                            cursor: "pointer",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: "18px",
-                            color: colors.textSecondary,
-                            transition: "all 0.2s"
-                          }}
-                          onMouseOver={(e) => { e.currentTarget.style.background = colors.typeBtn; }}
-                          onMouseOut={(e) => { e.currentTarget.style.background = colors.itemCardBg; }}>
-                          +
-                        </button>
+                        textTransform: "uppercase",
+                        letterSpacing: "0.5px",
+                        marginBottom: "6px"
+                      }}>Item Name</label>
+                      <input
+                        type="text"
+                        placeholder="e.g., Club Sandwich"
+                        value={item.name}
+                        onChange={(e) => handleItemChange(index, "name", e.target.value)}
+                        required
+                        style={{
+                          width: "100%",
+                          padding: "12px 14px",
+                          border: `1px solid ${colors.border}`,
+                          borderRadius: "10px",
+                          fontSize: "16px",
+                          fontWeight: "600",
+                          color: colors.text,
+                          backgroundColor: colors.inputBg,
+                          outline: "none",
+                          transition: "border 0.2s"
+                        }}
+                        onFocus={(e) => e.target.style.borderColor = "#10B981"}
+                        onBlur={(e) => e.target.style.borderColor = colors.border} />
+                    </div>
+
+                    {/* Special Instructions */}
+                    <div style={{ marginBottom: "16px" }}>
+                      <label style={{
+                        display: "block",
+                        fontSize: "10px",
+                        fontWeight: "700",
+                        color: colors.textTertiary,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.5px",
+                        marginBottom: "6px"
+                      }}>Special Instructions (Optional)</label>
+                      <input
+                        type="text"
+                        placeholder="e.g., Extra mayo, no pickles"
+                        value={item.notes || ""}
+                        onChange={(e) => handleItemChange(index, "notes", e.target.value)}
+                        style={{
+                          width: "100%",
+                          padding: "12px 14px",
+                          border: `1px solid ${colors.border}`,
+                          borderRadius: "10px",
+                          fontSize: "14px",
+                          color: colors.textSecondary,
+                          backgroundColor: colors.inputBg,
+                          outline: "none",
+                          transition: "border 0.2s"
+                        }}
+                        onFocus={(e) => e.target.style.borderColor = "#10B981"}
+                        onBlur={(e) => e.target.style.borderColor = colors.border} />
+                    </div>
+
+                    {/* Quantity and Price Row */}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px" }}>
+                      {/* Quantity Controls */}
+                      <div style={{ flex: "0 0 auto" }}>
+                        <label style={{
+                          display: "block",
+                          fontSize: "10px",
+                          fontWeight: "700",
+                          color: colors.textTertiary,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.5px",
+                          marginBottom: "8px"
+                        }}>Quantity</label>
+                        <div style={{ display: "flex", alignItems: "center", gap: "12px", backgroundColor: colors.inputBg, borderRadius: "12px", padding: "8px 12px", border: `1px solid ${colors.border}` }}>
+                          <button type="button"
+                            onClick={() => handleItemChange(index, "quantity", Math.max(1, item.quantity - 1))}
+                            style={{
+                              width: "36px",
+                              height: "36px",
+                              borderRadius: "8px",
+                              border: "none",
+                              background: "#10B981",
+                              color: "white",
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: "20px",
+                              fontWeight: "700",
+                              transition: "all 0.2s"
+                            }}
+                            onMouseOver={(e) => { e.currentTarget.style.background = "#059669"; e.currentTarget.style.transform = "scale(1.05)"; }}
+                            onMouseOut={(e) => { e.currentTarget.style.background = "#10B981"; e.currentTarget.style.transform = "scale(1)"; }}>
+                            −
+                          </button>
+                          <span style={{ fontSize: "18px", fontWeight: "700", minWidth: "30px", textAlign: "center", color: colors.text }}>{item.quantity}</span>
+                          <button type="button"
+                            onClick={() => handleItemChange(index, "quantity", item.quantity + 1)}
+                            style={{
+                              width: "36px",
+                              height: "36px",
+                              borderRadius: "8px",
+                              border: "none",
+                              background: "#10B981",
+                              color: "white",
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: "20px",
+                              fontWeight: "700",
+                              transition: "all 0.2s"
+                            }}
+                            onMouseOver={(e) => { e.currentTarget.style.background = "#059669"; e.currentTarget.style.transform = "scale(1.05)"; }}
+                            onMouseOut={(e) => { e.currentTarget.style.background = "#10B981"; e.currentTarget.style.transform = "scale(1)"; }}>
+                            +
+                          </button>
+                        </div>
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <div style={{ display: "flex", alignItems: "center", fontSize: "18px", fontWeight: "700", color: colors.text }}>
-                          <span>Rs.</span>
+
+                      {/* Price Input */}
+                      <div style={{ flex: "1 1 auto" }}>
+                        <label style={{
+                          display: "block",
+                          fontSize: "10px",
+                          fontWeight: "700",
+                          color: colors.textTertiary,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.5px",
+                          marginBottom: "8px"
+                        }}>Price (Rs.)</label>
+                        <div style={{ position: "relative" }}>
+                          <span style={{
+                            position: "absolute",
+                            left: "14px",
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            fontSize: "16px",
+                            fontWeight: "700",
+                            color: colors.textSecondary
+                          }}>₹</span>
                           <input
                             type="number"
                             value={item.price || 0}
@@ -686,18 +810,26 @@ const RightPanel = ({ orders = [] }) => {
                             min="0"
                             onChange={(e) => handleItemChange(index, "price", parseFloat(e.target.value) || 0)}
                             style={{
-                              width: "140px", // increased to allow at least 4 digits to be visible on desktop
-                              border: "none",
-                              fontSize: "18px",
+                              width: "100%",
+                              padding: "12px 14px 12px 36px",
+                              border: `1px solid ${colors.border}`,
+                              borderRadius: "10px",
+                              fontSize: "16px",
                               fontWeight: "700",
                               textAlign: "left",
                               outline: "none",
                               color: colors.text,
-                              backgroundColor: "transparent",
-                              marginLeft: "4px"
-                            }} />
+                              backgroundColor: colors.inputBg,
+                              transition: "border 0.2s"
+                            }}
+                            onFocus={(e) => e.target.style.borderColor = "#10B981"}
+                            onBlur={(e) => e.target.style.borderColor = colors.border} />
                         </div>
-                        {formData.items.length > 1 && (
+                      </div>
+
+                      {/* Delete Button */}
+                      {formData.items.length > 1 && (
+                        <div style={{ flex: "0 0 auto", display: "flex", alignItems: "flex-end", paddingBottom: "8px" }}>
                           <button type="button"
                             onClick={() => removeItem(index)}
                             style={{
@@ -716,8 +848,8 @@ const RightPanel = ({ orders = [] }) => {
                             onMouseOut={(e) => { e.currentTarget.style.background = isDark ? "rgba(239, 68, 68, 0.2)" : "#FEE2E2"; }}>
                             <X size={14} color={isDark ? "#FCA5A5" : "#DC2626"} />
                           </button>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
