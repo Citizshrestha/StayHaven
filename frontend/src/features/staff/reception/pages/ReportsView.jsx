@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../../../hooks/useTheme';
 import {
   Calendar,
@@ -49,12 +49,12 @@ const ReportsView = () => {
         const res = await receptionApi.getReportsOverview({ period: dateRange });
         if (res?.success && res.data) {
           const d = res.data;
-          setReportData({
-            occupancy: d.occupancy || reportData.occupancy,
-            checkIns: d.checkIns || reportData.checkIns,
-            checkOuts: d.checkOuts || reportData.checkOuts,
-            housekeeping: d.housekeeping || reportData.housekeeping,
-            guestActivity: d.guestActivity || reportData.guestActivity,
+          setReportData(prev => ({
+            occupancy: d.occupancy || prev.occupancy,
+            checkIns: d.checkIns || prev.checkIns,
+            checkOuts: d.checkOuts || prev.checkOuts,
+            housekeeping: d.housekeeping || prev.housekeeping,
+            guestActivity: d.guestActivity || prev.guestActivity,
             roomStatus: d.roomStatus || [],
             recentActivity: (d.recentActivity || []).map((a, i) => ({
               id: a.id || i + 1,
@@ -65,7 +65,7 @@ const ReportsView = () => {
               time: a.time || a.timeAgo || '',
               description: a.description || ''
             }))
-          });
+          }));
         }
       } catch {
         /* silently ignore */
@@ -126,6 +126,12 @@ const ReportsView = () => {
       'maintenance': 'orange'
     };
     return colors[type] || 'gray';
+  };
+
+  const showValue = (value, suffix = '') => {
+    const num = Number(value);
+    if (!Number.isFinite(num) || num === 0) return '—';
+    return `${num}${suffix}`;
   };
 
   const reportTabs = [
@@ -215,10 +221,10 @@ const ReportsView = () => {
                 <span className="text-sm font-medium">Occupancy Rate</span>
               </div>
               <div className="rv-metric-value flex items-center gap-2 mb-3">
-                <span className="value text-3xl font-bold">{reportData.occupancy.current}%</span>
+                <span className="value text-3xl font-bold">{showValue(reportData.occupancy.current, '%')}</span>
                 <span className={`trend flex items-center text-sm font-medium ${reportData.occupancy.trend}`}>
                   {getTrendIcon(reportData.occupancy.trend)}
-                  {Math.abs(reportData.occupancy.current - reportData.occupancy.previous)}%
+                  {showValue(Math.abs(reportData.occupancy.current - reportData.occupancy.previous), '%')}
                 </span>
               </div>
               <div className="rv-metric-bar h-2 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
@@ -232,16 +238,16 @@ const ReportsView = () => {
                 <span className="text-sm font-medium">Today's Check-ins</span>
               </div>
               <div className="rv-metric-value flex items-center gap-2 mb-3">
-                <span className="value text-3xl font-bold">{reportData.checkIns.completed}/{reportData.checkIns.today}</span>
+                <span className="value text-3xl font-bold">{showValue(reportData.checkIns.completed)}/{showValue(reportData.checkIns.today)}</span>
               </div>
               <div className="rv-metric-stats flex flex-wrap gap-3">
                 <span className="stat completed flex items-center gap-1 text-xs text-green-600">
                   <CheckCircle size={14} />
-                  {reportData.checkIns.completed} Completed
+                  {showValue(reportData.checkIns.completed)} Completed
                 </span>
                 <span className="stat pending flex items-center gap-1 text-xs text-amber-600">
                   <Clock size={14} />
-                  {reportData.checkIns.pending} Pending
+                  {showValue(reportData.checkIns.pending)} Pending
                 </span>
               </div>
             </div>
@@ -252,16 +258,16 @@ const ReportsView = () => {
                 <span className="text-sm font-medium">Today's Check-outs</span>
               </div>
               <div className="rv-metric-value flex items-center gap-2 mb-3">
-                <span className="value text-3xl font-bold">{reportData.checkOuts.completed}/{reportData.checkOuts.today}</span>
+                <span className="value text-3xl font-bold">{showValue(reportData.checkOuts.completed)}/{showValue(reportData.checkOuts.today)}</span>
               </div>
               <div className="rv-metric-stats flex flex-wrap gap-3">
                 <span className="stat completed flex items-center gap-1 text-xs text-green-600">
                   <CheckCircle size={14} />
-                  {reportData.checkOuts.completed} Completed
+                  {showValue(reportData.checkOuts.completed)} Completed
                 </span>
                 <span className="stat pending flex items-center gap-1 text-xs text-amber-600">
                   <Clock size={14} />
-                  {reportData.checkOuts.pending} Pending
+                  {showValue(reportData.checkOuts.pending)} Pending
                 </span>
               </div>
             </div>
@@ -272,14 +278,14 @@ const ReportsView = () => {
                 <span className="text-sm font-medium">Current Guests</span>
               </div>
               <div className="rv-metric-value flex items-center gap-2 mb-3">
-                <span className="value text-3xl font-bold">{reportData.guestActivity.currentGuests}</span>
+                <span className="value text-3xl font-bold">{showValue(reportData.guestActivity.currentGuests)}</span>
               </div>
               <div className="rv-metric-stats flex flex-wrap gap-3">
                 <span className="stat vip text-xs font-medium text-amber-600">
-                  {reportData.guestActivity.vipGuests} VIP
+                  {showValue(reportData.guestActivity.vipGuests)} VIP
                 </span>
                 <span className="stat new text-xs font-medium text-green-600">
-                  +{reportData.guestActivity.newArrivals} New
+                  +{showValue(reportData.guestActivity.newArrivals)} New
                 </span>
               </div>
             </div>
@@ -448,28 +454,28 @@ const ReportsView = () => {
           <div className="rv-detail-content">
             <div className="rv-big-stat text-center mb-8 p-6 rounded-xl">
               <span className="label text-sm text-slate-500 block mb-2">Current Occupancy</span>
-              <span className="value text-5xl font-bold block mb-2">{reportData.occupancy.current}%</span>
+              <span className="value text-5xl font-bold block mb-2">{showValue(reportData.occupancy.current, '%')}</span>
               <span className={`change flex items-center justify-center gap-1 text-sm font-medium ${reportData.occupancy.trend}`}>
                 {getTrendIcon(reportData.occupancy.trend)}
-                {Math.abs(reportData.occupancy.current - reportData.occupancy.previous)}% vs yesterday
+                {showValue(Math.abs(reportData.occupancy.current - reportData.occupancy.previous), '%')} vs yesterday
               </span>
             </div>
             <div className="rv-stat-grid grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="rv-stat-box p-4 rounded-xl text-center">
                 <span className="label text-xs text-slate-500 block mb-1">Occupied Rooms</span>
-                <span className="value text-2xl font-bold">{reportData.occupancy.rooms.occupied}</span>
+                <span className="value text-2xl font-bold">{showValue(reportData.occupancy.rooms.occupied)}</span>
               </div>
               <div className="rv-stat-box p-4 rounded-xl text-center">
                 <span className="label text-xs text-slate-500 block mb-1">Available Rooms</span>
-                <span className="value text-2xl font-bold">{reportData.occupancy.rooms.available}</span>
+                <span className="value text-2xl font-bold">{showValue(reportData.occupancy.rooms.available)}</span>
               </div>
               <div className="rv-stat-box p-4 rounded-xl text-center">
                 <span className="label text-xs text-slate-500 block mb-1">Reserved Today</span>
-                <span className="value text-2xl font-bold">{reportData.occupancy.rooms.reserved}</span>
+                <span className="value text-2xl font-bold">{showValue(reportData.occupancy.rooms.reserved)}</span>
               </div>
               <div className="rv-stat-box p-4 rounded-xl text-center">
                 <span className="label text-xs text-slate-500 block mb-1">Under Maintenance</span>
-                <span className="value text-2xl font-bold">{reportData.occupancy.rooms.maintenance}</span>
+                <span className="value text-2xl font-bold">{showValue(reportData.occupancy.rooms.maintenance)}</span>
               </div>
             </div>
           </div>
@@ -488,19 +494,19 @@ const ReportsView = () => {
               <h3 className="flex items-center gap-2 text-base font-semibold mb-4"><LogIn size={18} className="text-green-600" /> Check-ins</h3>
               <div className="rv-ops-stats grid grid-cols-2 gap-3">
                 <div className="rv-ops-stat p-3 rounded-lg text-center">
-                  <span className="value text-xl font-bold block">{reportData.checkIns.today}</span>
+                  <span className="value text-xl font-bold block">{showValue(reportData.checkIns.today)}</span>
                   <span className="label text-xs text-slate-500">Total Expected</span>
                 </div>
                 <div className="rv-ops-stat success p-3 rounded-lg text-center">
-                  <span className="value text-xl font-bold block text-green-600">{reportData.checkIns.completed}</span>
+                  <span className="value text-xl font-bold block text-green-600">{showValue(reportData.checkIns.completed)}</span>
                   <span className="label text-xs text-slate-500">Completed</span>
                 </div>
                 <div className="rv-ops-stat warning p-3 rounded-lg text-center">
-                  <span className="value text-xl font-bold block text-amber-600">{reportData.checkIns.pending}</span>
+                  <span className="value text-xl font-bold block text-amber-600">{showValue(reportData.checkIns.pending)}</span>
                   <span className="label text-xs text-slate-500">Pending</span>
                 </div>
                 <div className="rv-ops-stat danger p-3 rounded-lg text-center">
-                  <span className="value text-xl font-bold block text-red-600">{reportData.checkIns.noShow}</span>
+                  <span className="value text-xl font-bold block text-red-600">{showValue(reportData.checkIns.noShow)}</span>
                   <span className="label text-xs text-slate-500">No Show</span>
                 </div>
               </div>
@@ -509,19 +515,19 @@ const ReportsView = () => {
               <h3 className="flex items-center gap-2 text-base font-semibold mb-4"><LogOut size={18} className="text-blue-600" /> Check-outs</h3>
               <div className="rv-ops-stats grid grid-cols-2 gap-3">
                 <div className="rv-ops-stat p-3 rounded-lg text-center">
-                  <span className="value text-xl font-bold block">{reportData.checkOuts.today}</span>
+                  <span className="value text-xl font-bold block">{showValue(reportData.checkOuts.today)}</span>
                   <span className="label text-xs text-slate-500">Total Expected</span>
                 </div>
                 <div className="rv-ops-stat success p-3 rounded-lg text-center">
-                  <span className="value text-xl font-bold block text-green-600">{reportData.checkOuts.completed}</span>
+                  <span className="value text-xl font-bold block text-green-600">{showValue(reportData.checkOuts.completed)}</span>
                   <span className="label text-xs text-slate-500">Completed</span>
                 </div>
                 <div className="rv-ops-stat warning p-3 rounded-lg text-center">
-                  <span className="value text-xl font-bold block text-amber-600">{reportData.checkOuts.pending}</span>
+                  <span className="value text-xl font-bold block text-amber-600">{showValue(reportData.checkOuts.pending)}</span>
                   <span className="label text-xs text-slate-500">Pending</span>
                 </div>
                 <div className="rv-ops-stat info p-3 rounded-lg text-center">
-                  <span className="value text-xl font-bold block text-blue-600">{reportData.checkOuts.lateCheckout}</span>
+                  <span className="value text-xl font-bold block text-blue-600">{showValue(reportData.checkOuts.lateCheckout)}</span>
                   <span className="label text-xs text-slate-500">Late Checkout</span>
                 </div>
               </div>
@@ -553,22 +559,22 @@ const ReportsView = () => {
             <div className="rv-hk-grid grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="rv-hk-card clean flex flex-col items-center gap-2 p-5 rounded-xl text-center">
                 <CheckCircle size={24} className="text-green-600" />
-                <span className="value text-2xl font-bold">{reportData.housekeeping.clean}</span>
+                <span className="value text-2xl font-bold">{showValue(reportData.housekeeping.clean)}</span>
                 <span className="label text-xs text-slate-500">Clean Rooms</span>
               </div>
               <div className="rv-hk-card dirty flex flex-col items-center gap-2 p-5 rounded-xl text-center">
                 <XCircle size={24} className="text-red-600" />
-                <span className="value text-2xl font-bold">{reportData.housekeeping.dirty}</span>
+                <span className="value text-2xl font-bold">{showValue(reportData.housekeeping.dirty)}</span>
                 <span className="label text-xs text-slate-500">Dirty Rooms</span>
               </div>
               <div className="rv-hk-card in-progress flex flex-col items-center gap-2 p-5 rounded-xl text-center">
                 <Clock size={24} className="text-amber-600" />
-                <span className="value text-2xl font-bold">{reportData.housekeeping.inProgress}</span>
+                <span className="value text-2xl font-bold">{showValue(reportData.housekeeping.inProgress)}</span>
                 <span className="label text-xs text-slate-500">In Progress</span>
               </div>
               <div className="rv-hk-card inspected flex flex-col items-center gap-2 p-5 rounded-xl text-center">
                 <Sparkles size={24} className="text-indigo-600" />
-                <span className="value text-2xl font-bold">{reportData.housekeeping.inspected}</span>
+                <span className="value text-2xl font-bold">{showValue(reportData.housekeeping.inspected)}</span>
                 <span className="label text-xs text-slate-500">Inspected</span>
               </div>
             </div>

@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 import './ReceptionSettings.css';
 
-const ReceptionSettings = ({ onClose }) => {
+const ReceptionSettings = () => {
   const { isDark, toggleTheme } = useTheme();
   const { staffUser, updateUser } = useStaffAuth();
   const [activeSection, setActiveSection] = useState('profile');

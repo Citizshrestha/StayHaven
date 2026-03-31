@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axiosClient from '../../../../axiosClient';
+import { ModalErrorBoundary, withModalErrorBoundary } from '../components/ModalErrorBoundary';
+import GuestCommunicationModal from '../components/GuestCommunicationModal';
+import BulkCheckInModal from '../components/BulkCheckInModal';
+import { toast } from 'react-toastify';
 import {
   X,
   Calendar,
@@ -490,6 +494,26 @@ export const NewBookingModal = ({ isOpen, onClose, isDark, hotelId }) => {
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successData, setSuccessData] = useState(null);
+
+  const resetForm = () => {
+    setFormData({ guestName: '', phone: '', email: '', checkIn: '', checkOut: '', roomId: '', guests: '1', specialRequests: '' });
+    setRooms([]);
+    setError('');
+    setSuccessData(null);
+  };
+
+  const handleClose = () => {
+    if (loading) return;
+    resetForm();
+    onClose();
+  };
+
+  React.useEffect(() => {
+    if (!isOpen) {
+      resetForm();
+    }
+  }, [isOpen]);
 
   // Load available rooms when modal opens or dates change
   React.useEffect(() => {
@@ -592,7 +616,7 @@ export const NewBookingModal = ({ isOpen, onClose, isDark, hotelId }) => {
       setLoading(true);
       setError('');
 
-      await axiosClient.post('/api/bookings/new', {
+      const response = await axiosClient.post('/api/bookings/new', {
         guestName: formData.guestName,
         guestEmail: formData.email,
         guestPhone: formData.phone,
@@ -604,10 +628,16 @@ export const NewBookingModal = ({ isOpen, onClose, isDark, hotelId }) => {
         hotelId: hotelId
       });
 
-      // Show success and close modal
-      alert('✅ Booking created successfully!');
-      setFormData({ guestName: '', phone: '', email: '', checkIn: '', checkOut: '', roomId: '', guests: '1', specialRequests: '' });
-      onClose();
+      const createdBooking = response?.data?.booking;
+      const selectedRoom = rooms.find((r) => r._id === formData.roomId);
+
+      setSuccessData({
+        confirmationCode: response?.data?.confirmationCode || createdBooking?.confirmationCode || 'N/A',
+        guestName: formData.guestName,
+        roomLabel: selectedRoom ? `Room ${selectedRoom.roomNumber} - ${selectedRoom.type}` : 'Selected Room',
+        checkIn: formData.checkIn,
+        checkOut: formData.checkOut
+      });
     } catch (err) {
       const errorMsg = err.response?.data?.message || err.message || 'Failed to create booking';
       setError(`❌ ${errorMsg}`);
@@ -629,17 +659,70 @@ export const NewBookingModal = ({ isOpen, onClose, isDark, hotelId }) => {
   ];
 
   return (
-    <ModalOverlay isOpen={isOpen} onClose={onClose} isDark={isDark}>
+    <ModalOverlay isOpen={isOpen} onClose={handleClose} isDark={isDark}>
       <ModalContainer isDark={isDark} width="600px">
         <ModalHeader
           icon={Calendar}
           title="New Booking"
           subtitle="Create a new reservation for your guest"
-          onClose={onClose}
+          onClose={handleClose}
           isDark={isDark}
           accentColor="#3b82f6"
         />
         <ModalBody>
+          {successData ? (
+            <div style={{ textAlign: 'center', padding: '18px 8px 8px' }}>
+              <div
+                style={{
+                  width: '72px',
+                  height: '72px',
+                  borderRadius: '50%',
+                  background: isDark
+                    ? 'linear-gradient(135deg, rgba(16,185,129,0.28), rgba(16,185,129,0.12))'
+                    : 'linear-gradient(135deg, #dcfce7, #bbf7d0)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 16px',
+                  border: '1px solid rgba(16,185,129,0.35)'
+                }}
+              >
+                <CheckCircle size={36} style={{ color: '#10b981' }} />
+              </div>
+
+              <h3 style={{ fontSize: '22px', fontWeight: '800', color: isDark ? '#ecfeff' : '#065f46', marginBottom: '8px' }}>
+                Booking Confirmed 🎉
+              </h3>
+              <p style={{ fontSize: '14px', color: isDark ? '#94a3b8' : '#64748b', marginBottom: '18px' }}>
+                Reservation successfully created for <strong>{successData.guestName}</strong>
+              </p>
+
+              <div
+                style={{
+                  background: isDark ? 'rgba(16,185,129,0.08)' : '#f0fdf4',
+                  border: '1px solid rgba(16,185,129,0.2)',
+                  borderRadius: '14px',
+                  padding: '16px',
+                  marginBottom: '16px',
+                  textAlign: 'left'
+                }}
+              >
+                <div style={{ fontSize: '12px', color: isDark ? '#a7f3d0' : '#047857', marginBottom: '6px', fontWeight: 700, letterSpacing: '0.4px' }}>
+                  CONFIRMATION CODE
+                </div>
+                <div style={{ fontSize: '20px', fontWeight: 900, color: '#10b981', letterSpacing: '1.4px', marginBottom: '12px' }}>
+                  {successData.confirmationCode}
+                </div>
+                <div style={{ fontSize: '13px', color: isDark ? '#cbd5e1' : '#334155', marginBottom: '4px' }}>
+                  <strong>Room:</strong> {successData.roomLabel}
+                </div>
+                <div style={{ fontSize: '13px', color: isDark ? '#cbd5e1' : '#334155' }}>
+                  <strong>Stay:</strong> {new Date(successData.checkIn).toLocaleDateString()} - {new Date(successData.checkOut).toLocaleDateString()}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
           {error && (
             <div style={{
               padding: '12px 16px',
@@ -754,16 +837,27 @@ export const NewBookingModal = ({ isOpen, onClose, isDark, hotelId }) => {
               }}
             />
           </FormGroup>
+            </>
+          )}
         </ModalBody>
-        <ModalFooter isDark={isDark}>
-          <SecondaryButton onClick={onClose} isDark={isDark} disabled={loading}>
-            Cancel
-          </SecondaryButton>
-          <PrimaryButton onClick={handleSubmit} isDark={isDark} disabled={loading || !formData.roomId}>
-            <CheckCircle size={18} />
-            {loading ? 'Creating...' : 'Create Booking'}
-          </PrimaryButton>
-        </ModalFooter>
+        {successData ? (
+          <ModalFooter isDark={isDark}>
+            <PrimaryButton onClick={handleClose} isDark={isDark}>
+              <CheckCircle size={18} />
+              Awesome, Done
+            </PrimaryButton>
+          </ModalFooter>
+        ) : (
+          <ModalFooter isDark={isDark}>
+            <SecondaryButton onClick={handleClose} isDark={isDark} disabled={loading}>
+              Cancel
+            </SecondaryButton>
+            <PrimaryButton onClick={handleSubmit} isDark={isDark} disabled={loading || !formData.roomId}>
+              <CheckCircle size={18} />
+              {loading ? 'Creating...' : 'Create Booking'}
+            </PrimaryButton>
+          </ModalFooter>
+        )}
       </ModalContainer>
     </ModalOverlay>
   );
@@ -1144,7 +1238,14 @@ export const ExpressCheckOutModal = ({ isOpen, onClose, isDark, activeBookingId,
         settlePayment: settlePayment
       });
 
-      alert('Guest checked out successfully!');
+      toast.success('Guest checked out successfully!', {
+        position: 'top-right',
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
       setBookingData(null);
       setSettlePayment(false);
       setSelectedBookingId('');
@@ -1431,6 +1532,7 @@ export const RoomChangeModal = ({ isOpen, onClose, isDark, activeBookingId, hote
       loadBookingData(activeBookingId);
       loadAvailableRooms(activeBookingId);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, activeBookingId]);
 
   // If no activeBookingId, load checked-in bookings for selection
@@ -1468,7 +1570,13 @@ export const RoomChangeModal = ({ isOpen, onClose, isDark, activeBookingId, hote
 
   const loadAvailableRooms = async (bookingId) => {
     try {
-      const response = await axiosClient.get('/api/bookings/available/rooms/' + bookingId);
+      const response = await axiosClient.get('/api/bookings/available/rooms/' + hotelId, {
+        params: {
+          bookingId,
+          checkIn: bookingData?.checkIn,
+          checkOut: bookingData?.checkOut,
+        },
+      });
       setAvailableRooms(response.data.rooms || []);
     } catch { /* silently ignore */ }
   };
@@ -1499,7 +1607,14 @@ export const RoomChangeModal = ({ isOpen, onClose, isDark, activeBookingId, hote
         newRoomId: newRoomId
       });
 
-      alert('Room changed successfully!');
+      toast.success('Room changed successfully!', {
+        position: 'top-right',
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
       setNewRoomId('');
       setBookingData(null);
       setSelectedBookingId('');
@@ -1756,9 +1871,24 @@ export const RoomChangeModal = ({ isOpen, onClose, isDark, activeBookingId, hote
   );
 };
 
+// Wrap exports with error boundary to prevent dashboard crashes
+export const NewBookingModalWrapped = withModalErrorBoundary(NewBookingModal, { modalName: 'New Booking' });
+export const WalkInGuestModalWrapped = withModalErrorBoundary(WalkInGuestModal, { modalName: 'Walk-In Guest' });
+export const ExpressCheckOutModalWrapped = withModalErrorBoundary(ExpressCheckOutModal, { modalName: 'Express Check-Out' });
+export const RoomChangeModalWrapped = withModalErrorBoundary(RoomChangeModal, { modalName: 'Room Change' });
+
+// Export new modals with error boundaries
+export const GuestCommunicationModalWrapped = withModalErrorBoundary(GuestCommunicationModal, { modalName: 'Guest Communication' });
+export const BulkCheckInModalWrapped = withModalErrorBoundary(BulkCheckInModal, { modalName: 'Bulk Check-In' });
+
+// Also export wrapped versions as default for backward compatibility
 export default {
-  NewBookingModal,
-  WalkInGuestModal,
-  ExpressCheckOutModal,
-  RoomChangeModal
+  NewBookingModal: NewBookingModalWrapped,
+  WalkInGuestModal: WalkInGuestModalWrapped,
+  ExpressCheckOutModal: ExpressCheckOutModalWrapped,
+  RoomChangeModal: RoomChangeModalWrapped,
+  GuestCommunicationModal: GuestCommunicationModalWrapped,
+  BulkCheckInModal: BulkCheckInModalWrapped,
+  // Also export error boundary for direct use
+  ModalErrorBoundary
 };

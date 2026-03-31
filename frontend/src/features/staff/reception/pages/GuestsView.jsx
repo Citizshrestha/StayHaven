@@ -27,6 +27,7 @@ import {
   ShieldCheck,
   Ban
 } from 'lucide-react';
+import { toast } from 'react-toastify';
 import './GuestsView.css';
 import * as receptionApi from '../../../../core/api/services/reception.service';
 
@@ -199,7 +200,15 @@ const GuestsView = ({ onMessageGuest }) => {
       await receptionApi.updateGuestStatus(guest._id, newStatus);
       await reloadGuests();
     } catch (err) {
-      alert('Failed to update guest status: ' + (err.response?.data?.message || err.message));
+      toast.error('Failed to update guest status: ' + (err.response?.data?.message || err.message), {
+        position: 'top-right',
+        autoClose: 4000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        theme: isDark ? 'dark' : 'light',
+      });
     } finally {
       setActionLoading(null);
     }
@@ -221,7 +230,15 @@ const GuestsView = ({ onMessageGuest }) => {
       setBlacklistReason('');
       await reloadGuests();
     } catch (err) {
-      alert('Failed to update blacklist: ' + (err.response?.data?.message || err.message));
+      toast.error('Failed to update blacklist: ' + (err.response?.data?.message || err.message), {
+        position: 'top-right',
+        autoClose: 4000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        theme: isDark ? 'dark' : 'light',
+      });
     } finally {
       setActionLoading(null);
     }

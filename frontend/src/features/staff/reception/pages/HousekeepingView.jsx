@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import './HousekeepingView.css';
 import * as receptionApi from '../../../../core/api/services/reception.service';
+import { toast } from 'react-toastify';
 
 const statusMap = { 'needs-cleaning': 'dirty', 'clean': 'clean', 'in-progress': 'in-progress', 'inspected': 'inspected', 'maintenance': 'maintenance', 'dirty': 'dirty' };
 
@@ -139,7 +140,15 @@ const HousekeepingView = () => {
         r.id === roomId ? { ...r, status: newStatus } : r
       ));
     } catch {
-      alert('Failed to update room status. Please try again.');
+      toast.error('Failed to update room status. Please try again.', {
+        position: 'top-right',
+        autoClose: 4000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        theme: isDark ? 'dark' : 'light',
+      });
     }
     setSelectedRoom(null);
   };

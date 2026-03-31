@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useStaffAuth } from '../../../../context/StaffAuthContext';
 import {
   LayoutDashboard, CalendarRange, LogIn, DoorOpen, Sparkles,
-  Users, Receipt, BarChart3, UserCog, Settings,
+  Users, Receipt, BarChart3, UserCog, Settings, UtensilsCrossed,
   LogOut, PanelLeftClose, PanelLeft, MessageCircle
 } from 'lucide-react';
 
@@ -15,7 +15,7 @@ const Sidebar = ({ activeView, onViewChange, collapsed, onToggleCollapse }) => {
     const auth = useStaffAuth();
     staffUser = auth?.staffUser;
     logout = auth?.logout || logout;
-  } catch (e) { /* dev mode */ }
+  } catch { /* dev mode */ }
 
   const profilePic = staffUser?.profilePicture || null;
 
@@ -34,6 +34,7 @@ const Sidebar = ({ activeView, onViewChange, collapsed, onToggleCollapse }) => {
       items: [
         { id: 'housekeeping', label: 'Housekeeping', icon: Sparkles },
         { id: 'guests', label: 'Guests', icon: Users },
+        { id: 'orders', label: 'Orders', icon: UtensilsCrossed },
         { id: 'billing', label: 'Billing', icon: Receipt },
         { id: 'messages', label: 'Messages', icon: MessageCircle },
       ]

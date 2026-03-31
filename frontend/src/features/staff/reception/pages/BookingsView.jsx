@@ -14,6 +14,58 @@ import {
 import * as receptionApi from '../../../../core/api/services/reception.service';
 import './BookingsView.css';
 
+const getInitials = (fullName, fallback = 'U') => {
+  const name = String(fullName || fallback).trim();
+  return name
+    .split(' ')
+    .map((n) => n.trim())
+    .filter(Boolean)
+    .slice(0, 3)
+    .map((n) => n[0]?.toUpperCase())
+    .filter(Boolean)
+    .join('');
+};
+
+const normalizeAvatarUrl = (raw) => {
+  const v = raw ? String(raw).trim() : '';
+  if (!v) return null;
+
+  if (v.startsWith('http://') || v.startsWith('https://')) return v;
+  if (v.startsWith('//')) return `https:${v}`;
+
+  const base = import.meta.env.VITE_API_BASE_URL ? String(import.meta.env.VITE_API_BASE_URL).trim() : '';
+  if (!base) return v; // best-effort fallback
+
+  const baseNoTrailingSlash = base.replace(/\/+$/, '');
+  if (v.startsWith('/')) return `${baseNoTrailingSlash}${v}`;
+  return `${baseNoTrailingSlash}/${v}`;
+};
+
+const GuestAvatar = ({ avatar, name, initials }) => {
+  const [failed, setFailed] = useState(false);
+
+  const showAvatar = !!avatar && !failed;
+  const safeName = name || 'Guest';
+  const safeInitials = initials || getInitials(name, 'U');
+
+  if (showAvatar) {
+    return (
+      <img
+        src={avatar}
+        alt={safeName}
+        className="bv-guest-avatar w-10 h-10 rounded-full object-cover"
+        onError={() => setFailed(true)}
+      />
+    );
+  }
+
+  return (
+    <div className="bv-guest-avatar-placeholder w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold shrink-0">
+      {safeInitials}
+    </div>
+  );
+};
+
 const BookingsView = () => {
   const { isDark } = useTheme();
 
@@ -33,41 +85,62 @@ const BookingsView = () => {
   const [showDateDropdown, setShowDateDropdown] = useState(false);
   const [showRoomDropdown, setShowRoomDropdown] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
+  const [loadError, setLoadError] = useState('');
 
-  // Load bookings data from API
-  useEffect(() => {
-    const loadBookings = async () => {
-      setIsLoading(true);
-      try {
-        const res = await receptionApi.getReservations({ limit: 200 });
-        if (res?.success && res.data) {
-          const mapped = res.data.map(b => ({
+  const loadBookings = async () => {
+    setIsLoading(true);
+    setLoadError('');
+    try {
+      const res = await receptionApi.getReservations({ limit: 200 });
+      if (res?.success && res.data) {
+        const mapped = res.data.map((b) => {
+          const guestName =
+            b.guest?.name ||
+            b.guest?.fullName ||
+            b.guest?.full_name ||
+            b.guestInfo?.name ||
+            b.guest?.guestName ||
+            'Unknown';
+
+          const avatarRaw =
+            b.guest?.avatar ||
+            b.guest?.avatarUrl ||
+            b.guest?.profilePicture ||
+            null;
+
+          return {
             id: b.id || b.bookingId || b._id,
             numericId: parseInt(String(b.id || b.bookingId || '').replace('#BK-', '')) || 0,
             guest: {
-              name: b.guest?.name || b.guestInfo?.name || 'Unknown',
+              name: guestName,
               email: b.guest?.email || b.guestInfo?.email || '',
-              avatar: null,
-              initials: (b.guest?.name || b.guestInfo?.name || 'U').split(' ').map(n => n[0]).join(''),
+              avatar: normalizeAvatarUrl(avatarRaw),
+              initials: getInitials(guestName, 'U'),
             },
             room: {
-              type: b.room?.type || '',
-              number: b.room?.number || '',
+              type: b.room?.type || b.room?.roomName || '',
+              number: b.room?.number || b.room?.roomNumber || '',
             },
             checkIn: new Date(b.checkIn),
             checkOut: new Date(b.checkOut),
             status: b.status === 'Checked-In' ? 'Checked In' : b.status === 'Checked-Out' ? 'Checked Out' : b.status,
-            nights: b.durationNights || 1,
+            nights: b.nights || b.durationNights || 1,
             createdAt: new Date(b.createdAt || b.checkIn),
-          }));
-          setBookings(mapped.sort((a, b) => b.numericId - a.numericId));
-        }
-      } catch {
-        /* silently ignore */
-      } finally {
-        setIsLoading(false);
+          };
+        });
+        setBookings(mapped.sort((a, b) => b.numericId - a.numericId));
+      } else {
+        setLoadError('Unable to load reservations. Please try again.');
       }
-    };
+    } catch {
+      setLoadError('Unable to load reservations. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Load bookings data from API
+  useEffect(() => {
     loadBookings();
   }, []);
 
@@ -115,14 +188,15 @@ const BookingsView = () => {
         const checkIn = new Date(booking.checkIn);
 
         switch (dateFilter) {
-          case 'today':
+          case 'today': {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const tomorrow = new Date(today);
             tomorrow.setDate(tomorrow.getDate() + 1);
             if (checkIn < today || checkIn >= tomorrow) return false;
             break;
-          case 'this-week':
+          }
+          case 'this-week': {
             const weekStart = new Date(now);
             weekStart.setDate(now.getDate() - now.getDay());
             weekStart.setHours(0, 0, 0, 0);
@@ -130,16 +204,19 @@ const BookingsView = () => {
             weekEnd.setDate(weekEnd.getDate() + 7);
             if (checkIn < weekStart || checkIn >= weekEnd) return false;
             break;
-          case 'this-month':
+          }
+          case 'this-month': {
             const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
             const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
             if (checkIn < monthStart || checkIn > monthEnd) return false;
             break;
-          case 'last-month':
+          }
+          case 'last-month': {
             const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
             const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
             if (checkIn < lastMonthStart || checkIn > lastMonthEnd) return false;
             break;
+          }
           default:
             break;
         }
@@ -235,6 +312,18 @@ const BookingsView = () => {
 
   return (
     <div className={`bookings-view ${isDark ? 'dark' : ''}`}>
+      {!!loadError && (
+        <div style={{ marginBottom: 14, padding: '12px 14px', borderRadius: 10, border: '1px solid #fecaca', background: '#fef2f2', color: '#b91c1c', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <span style={{ fontSize: 13, fontWeight: 500 }}>{loadError}</span>
+          <button
+            onClick={loadBookings}
+            style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #fca5a5', background: '#fff', color: '#991b1b', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* Filter Bar - Using Tailwind + CSS */}
       <div className="bv-filter-bar flex items-center gap-4 mb-6 flex-wrap">
         {/* Search Input */}
@@ -399,17 +488,11 @@ const BookingsView = () => {
                 </span>
               </div>
               <div className="bv-grid-guest flex items-center gap-3 mb-4 pb-4 border-b border-slate-100 dark:border-slate-700">
-                {booking.guest.avatar ? (
-                  <img
-                    src={booking.guest.avatar}
-                    alt={booking.guest.name}
-                    className="bv-guest-avatar w-10 h-10 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="bv-guest-avatar-placeholder w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold">
-                    {booking.guest.initials}
-                  </div>
-                )}
+                <GuestAvatar
+                  avatar={booking.guest.avatar}
+                  name={booking.guest.name}
+                  initials={booking.guest.initials}
+                />
                 <div className="bv-guest-details flex flex-col gap-0.5">
                   <span className="bv-guest-name font-medium">{booking.guest.name}</span>
                   <span className="bv-guest-email text-sm text-slate-500">{booking.guest.email}</span>

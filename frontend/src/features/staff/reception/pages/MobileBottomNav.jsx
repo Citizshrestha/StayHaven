@@ -1,12 +1,13 @@
 import React from 'react';
-import { LayoutDashboard, CalendarRange, LogIn, Sparkles, Users, Settings } from 'lucide-react';
+import { LayoutDashboard, CalendarRange, LogIn, Sparkles, Users, Settings, UtensilsCrossed } from 'lucide-react';
 
 const MobileBottomNav = ({ activeView, onViewChange }) => {
   const tabs = [
     { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
     { id: 'bookings', label: 'Bookings', icon: CalendarRange },
     { id: 'checkinout', label: 'Check-In', icon: LogIn },
-    { id: 'housekeeping', label: 'Rooms', icon: Sparkles },
+    { id: 'housekeeping', label: 'Housekeeping', icon: Sparkles },
+    { id: 'orders', label: 'Orders', icon: UtensilsCrossed },
     { id: 'guests', label: 'Guests', icon: Users },
     { id: 'settings', label: 'More', icon: Settings },
   ];

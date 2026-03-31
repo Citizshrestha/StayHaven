@@ -30,6 +30,7 @@ import {
     ArrowUpDown
 } from 'lucide-react';
 import * as receptionApi from '../../../../core/api/services/reception.service';
+import { toast } from 'react-toastify';
 import './RoomsView.css';
 
 const RoomsView = () => {
@@ -45,53 +46,58 @@ const RoomsView = () => {
     const [showTypeDropdown, setShowTypeDropdown] = useState(false);
     const [selectedRoom, setSelectedRoom] = useState(null);
     const [sortBy, setSortBy] = useState('number');
+    const [loadError, setLoadError] = useState('');
+
+    const loadData = async () => {
+        setIsLoading(true);
+        setLoadError('');
+        try {
+            const res = await receptionApi.getRoomsList();
+            if (res?.success && res.data) {
+                const mapped = res.data.map(r => {
+                    const bedRaw = r.beds || r.bedType || 'Queen';
+                    const bedFormatted = bedRaw.includes('King') ? (bedRaw.includes('+') || bedRaw.includes('2') ? bedRaw : '1 King')
+                        : bedRaw.includes('Queen') ? '1 Queen'
+                        : bedRaw.includes('Twin') ? '2 Twin' : bedRaw;
+                    const isOccupied = r.status === 'occupied';
+                    const isReserved = r.status === 'reserved';
+                    return {
+                        id: r._id || `RM-${r.number || r.roomNumber}`,
+                        number: r.number || r.roomNumber || '',
+                        floor: r.floor || parseInt((r.number || r.roomNumber || '1')[0]) || 1,
+                        type: r.type || r.roomName || '',
+                        status: r.status || 'available',
+                        basePrice: r.basePrice || r.price || 0,
+                        maxGuests: r.maxGuests || r.capacity?.adults || 2,
+                        beds: bedFormatted,
+                        sqft: 300,
+                        amenities: r.amenities || [],
+                        rating: r.rating || 4.0,
+                        lastCleaned: r.lastCleaned ? new Date(r.lastCleaned) : null,
+                        condition: 'good',
+                        guest: (isOccupied && r.guest) ? {
+                            name: r.guest.name,
+                            checkIn: r.guest.checkIn ? new Date(r.guest.checkIn) : null,
+                            checkOut: r.guest.checkOut ? new Date(r.guest.checkOut) : null,
+                        } : null,
+                        reservation: (isReserved && r.guest) ? {
+                            guestName: r.guest.name,
+                            checkIn: r.guest.checkIn ? new Date(r.guest.checkIn) : null,
+                        } : null,
+                    };
+                });
+                setRooms(mapped);
+            } else {
+                setLoadError('Unable to load rooms at the moment.');
+            }
+        } catch {
+            setLoadError('Unable to load rooms at the moment.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const loadData = async () => {
-            setIsLoading(true);
-            try {
-                const res = await receptionApi.getRoomsList();
-                if (res?.success && res.data) {
-                    const mapped = res.data.map(r => {
-                        const bedRaw = r.beds || r.bedType || 'Queen';
-                        const bedFormatted = bedRaw.includes('King') ? (bedRaw.includes('+') || bedRaw.includes('2') ? bedRaw : '1 King')
-                            : bedRaw.includes('Queen') ? '1 Queen'
-                            : bedRaw.includes('Twin') ? '2 Twin' : bedRaw;
-                        const isOccupied = r.status === 'occupied';
-                        const isReserved = r.status === 'reserved';
-                        return {
-                            id: r._id || `RM-${r.number || r.roomNumber}`,
-                            number: r.number || r.roomNumber || '',
-                            floor: r.floor || parseInt((r.number || r.roomNumber || '1')[0]) || 1,
-                            type: r.type || r.roomName || '',
-                            status: r.status || 'available',
-                            basePrice: r.basePrice || r.price || 0,
-                            maxGuests: r.maxGuests || r.capacity?.adults || 2,
-                            beds: bedFormatted,
-                            sqft: 300,
-                            amenities: r.amenities || [],
-                            rating: r.rating || 4.0,
-                            lastCleaned: r.lastCleaned ? new Date(r.lastCleaned) : null,
-                            condition: 'good',
-                            guest: (isOccupied && r.guest) ? {
-                                name: r.guest.name,
-                                checkIn: r.guest.checkIn ? new Date(r.guest.checkIn) : null,
-                                checkOut: r.guest.checkOut ? new Date(r.guest.checkOut) : null,
-                            } : null,
-                            reservation: (isReserved && r.guest) ? {
-                                guestName: r.guest.name,
-                                checkIn: r.guest.checkIn ? new Date(r.guest.checkIn) : null,
-                            } : null,
-                        };
-                    });
-                    setRooms(mapped);
-                }
-            } catch {
-                /* silently ignore */
-            } finally {
-                setIsLoading(false);
-            }
-        };
         loadData();
     }, []);
 
@@ -212,12 +218,32 @@ const RoomsView = () => {
                 ));
             }
         } catch {
-            alert('Failed to update room status. Please try again.');
+            toast.error('Failed to update room status. Please try again.', {
+                position: 'top-right',
+                autoClose: 4000,
+                hideProgressBar: false,
+                closeOnClick: true,
+                pauseOnHover: true,
+                draggable: true,
+                theme: isDark ? 'dark' : 'light',
+            });
         }
     };
 
     return (
         <div className={`rooms-view ${isDark ? 'dark' : ''}`}>
+            {!!loadError && (
+                <div style={{ marginBottom: 14, padding: '12px 14px', borderRadius: 10, border: '1px solid #fecaca', background: '#fef2f2', color: '#b91c1c', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                    <span style={{ fontSize: 13, fontWeight: 500 }}>{loadError}</span>
+                    <button
+                        onClick={loadData}
+                        style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #fca5a5', background: '#fff', color: '#991b1b', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
+                    >
+                        Retry
+                    </button>
+                </div>
+            )}
+
             {/* Stats Overview */}
             <div className="rv-stats-grid">
                 <div className="rv-stat-card rv-stat-total">

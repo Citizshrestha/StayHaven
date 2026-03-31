@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import './StaffView.css';
 import * as receptionApi from '../../../../core/api/services/reception.service';
+import { toast } from 'react-toastify';
 
 const getDeptFromRole = (role) => {
     const r = (role || '').toLowerCase();
@@ -140,12 +141,28 @@ const StaffView = ({ onMessageStaff }) => {
         setReportLoading(true);
         try {
             await receptionApi.notifyManagerAboutStaff(reportModal.staff._id, reportReason, reportUrgency);
-            alert('Issue reported to management successfully.');
+            toast.success('Issue reported to management successfully.', {
+                position: 'top-right',
+                autoClose: 3000,
+                hideProgressBar: false,
+                closeOnClick: true,
+                pauseOnHover: true,
+                draggable: true,
+                theme: isDark ? 'dark' : 'light',
+            });
             setReportModal({ open: false, staff: null });
             setReportReason('');
             setReportUrgency('normal');
         } catch (err) {
-            alert('Failed to report: ' + (err.response?.data?.message || err.message));
+            toast.error('Failed to report: ' + (err.response?.data?.message || err.message), {
+                position: 'top-right',
+                autoClose: 4000,
+                hideProgressBar: false,
+                closeOnClick: true,
+                pauseOnHover: true,
+                draggable: true,
+                theme: isDark ? 'dark' : 'light',
+            });
         } finally {
             setReportLoading(false);
         }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTheme } from '../../../../hooks/useTheme';
 import {
     Search,
@@ -36,6 +36,7 @@ const BillingView = () => {
     const [showStatusDropdown, setShowStatusDropdown] = useState(false);
     const [selectedInvoice, setSelectedInvoice] = useState(null);
     const [revenueTrend, setRevenueTrend] = useState(null);
+    const [loadError, setLoadError] = useState('');
 
     // Get hotel info for invoice branding
     const hotelInfo = useMemo(() => {
@@ -49,59 +50,63 @@ const BillingView = () => {
         return null;
     }, []);
 
-    useEffect(() => {
-        const load = async () => {
-            setIsLoading(true);
-            try {
-                const res = await receptionApi.getInvoices({ limit: 200 });
-                if (res?.success && res.data) {
-                    const mapped = res.data.map(inv => ({
-                        _id: inv._id,
-                        id: inv.invoiceId || inv.invoiceNumber || inv._id,
-                        bookingId: inv.bookingRef || inv.booking?.bookingId || inv.bookingId || '',
-                        guest: {
-                            name: inv.guest?.fullName || inv.guestName || 'Unknown',
-                            initials: (inv.guest?.fullName || inv.guestName || 'U').split(' ').map(n => n[0]).join('')
-                        },
-                        room: {
-                            type: inv.room?.type || inv.roomType || 'Standard',
-                            number: inv.room?.roomNumber || inv.roomNumber || ''
-                        },
-                        checkIn: inv.checkIn ? new Date(inv.checkIn) : new Date(),
-                        checkOut: inv.checkOut ? new Date(inv.checkOut) : new Date(),
-                        nights: inv.nights || 1,
-                        charges: {
-                            room: inv.charges?.room || 0,
-                            extras: inv.charges?.extras || 0,
-                            taxRate: inv.charges?.taxRate || 13,
-                            tax: inv.charges?.tax || 0,
-                            total: inv.charges?.total || inv.totalAmount || 0
-                        },
-                        paid: inv.paid ?? 0,
-                        balance: inv.balance ?? 0,
-                        status: inv.status || 'pending',
-                        paymentMethod: inv.paymentMethod || 'N/A',
-                        invoiceDate: inv.invoiceDate || inv.issuedAt ? new Date(inv.invoiceDate || inv.issuedAt) : new Date(),
-                        dueDate: inv.dueDate ? new Date(inv.dueDate) : new Date(),
-                    }));
-                    setInvoices(mapped);
-                }
-                // Revenue trend from backend summary
-                if (res?.summary) {
-                    const { thisMonthRevenue = 0, prevMonthRevenue = 0 } = res.summary;
-                    if (prevMonthRevenue > 0) {
-                        setRevenueTrend(((thisMonthRevenue - prevMonthRevenue) / prevMonthRevenue * 100).toFixed(1));
-                    } else if (thisMonthRevenue > 0) {
-                        setRevenueTrend(100);
-                    }
-                }
-            } catch {
-                /* silently ignore */
-            } finally {
-                setIsLoading(false);
+    const loadInvoices = async () => {
+        setIsLoading(true);
+        setLoadError('');
+        try {
+            const res = await receptionApi.getInvoices({ limit: 200 });
+            if (res?.success && res.data) {
+                const mapped = res.data.map(inv => ({
+                    _id: inv._id,
+                    id: inv.invoiceId || inv.invoiceNumber || inv._id,
+                    bookingId: inv.bookingRef || inv.booking?.bookingId || inv.bookingId || '',
+                    guest: {
+                        name: inv.guest?.fullName || inv.guestName || 'Unknown',
+                        initials: (inv.guest?.fullName || inv.guestName || 'U').split(' ').map(n => n[0]).join('')
+                    },
+                    room: {
+                        type: inv.room?.type || inv.roomType || 'Standard',
+                        number: inv.room?.roomNumber || inv.roomNumber || ''
+                    },
+                    checkIn: inv.checkIn ? new Date(inv.checkIn) : new Date(),
+                    checkOut: inv.checkOut ? new Date(inv.checkOut) : new Date(),
+                    nights: inv.nights || 1,
+                    charges: {
+                        room: inv.charges?.room || 0,
+                        extras: inv.charges?.extras || 0,
+                        taxRate: inv.charges?.taxRate || 13,
+                        tax: inv.charges?.tax || 0,
+                        total: inv.charges?.total || inv.totalAmount || 0
+                    },
+                    paid: inv.paid ?? 0,
+                    balance: inv.balance ?? 0,
+                    status: inv.status || 'pending',
+                    paymentMethod: inv.paymentMethod || 'N/A',
+                    invoiceDate: inv.invoiceDate || inv.issuedAt ? new Date(inv.invoiceDate || inv.issuedAt) : new Date(),
+                    dueDate: inv.dueDate ? new Date(inv.dueDate) : new Date(),
+                }));
+                setInvoices(mapped);
+            } else {
+                setLoadError('Unable to load billing data. Please try again.');
             }
-        };
-        load();
+            // Revenue trend from backend summary
+            if (res?.summary) {
+                const { thisMonthRevenue = 0, prevMonthRevenue = 0 } = res.summary;
+                if (prevMonthRevenue > 0) {
+                    setRevenueTrend(((thisMonthRevenue - prevMonthRevenue) / prevMonthRevenue * 100).toFixed(1));
+                } else if (thisMonthRevenue > 0) {
+                    setRevenueTrend(100);
+                }
+            }
+        } catch {
+            setLoadError('Unable to load billing data. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        loadInvoices();
     }, []);
 
     useEffect(() => {
@@ -147,8 +152,6 @@ const BillingView = () => {
     const formatDate = (date) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
     // ── Invoice Action Handlers ──
-    const printRef = useRef(null);
-
     const handleViewInvoice = useCallback((inv) => {
         setSelectedInvoice(inv);
     }, []);
@@ -173,6 +176,18 @@ const BillingView = () => {
 
     return (
         <div className={`billing-view ${isDark ? 'dark' : ''}`}>
+            {!!loadError && (
+                <div style={{ marginBottom: 14, padding: '12px 14px', borderRadius: 10, border: '1px solid #fecaca', background: '#fef2f2', color: '#b91c1c', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                    <span style={{ fontSize: 13, fontWeight: 500 }}>{loadError}</span>
+                    <button
+                        onClick={loadInvoices}
+                        style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #fca5a5', background: '#fff', color: '#991b1b', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
+                    >
+                        Retry
+                    </button>
+                </div>
+            )}
+
             {/* Revenue Stats */}
             <div className="bl-stats-grid">
                 <div className="bl-stat-card bl-revenue">

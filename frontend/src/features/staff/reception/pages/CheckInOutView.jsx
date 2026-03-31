@@ -18,9 +18,12 @@ import {
   Loader2,
   X,
   Printer,
-  FileText
+  FileText,
+  MessageSquare,
+  Send
 } from 'lucide-react';
 import * as receptionApi from '../../../../core/api/services/reception.service';
+import { toast } from 'react-toastify';
 import './CheckInOutView.css';
 
 const CheckInOutView = () => {
@@ -35,63 +38,111 @@ const CheckInOutView = () => {
   const [showModal, setShowModal] = useState(false);
   const [actionType, setActionType] = useState(null);
   const [processingAction, setProcessingAction] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const [selectedBookingIds, setSelectedBookingIds] = useState([]);
+  const [bulkProcessing, setBulkProcessing] = useState(false);
+  const [bulkResult, setBulkResult] = useState(null);
+  const [templates, setTemplates] = useState([]);
+  const [selectedTemplateKey, setSelectedTemplateKey] = useState('checkin_welcome');
+  const [templateCustomBody, setTemplateCustomBody] = useState('');
+  const [sendCommunication, setSendCommunication] = useState(false);
+  const [sendingCommunication, setSendingCommunication] = useState(false);
 
-  useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
-      try {
-        const [arrivalsRes, departuresRes] = await Promise.allSettled([
-          receptionApi.getTodayArrivals(),
-          receptionApi.getTodayDepartures(),
-        ]);
+  const loadData = async () => {
+    setIsLoading(true);
+    setLoadError('');
+    try {
+      const [arrivalsRes, departuresRes] = await Promise.allSettled([
+        receptionApi.getTodayArrivals(),
+        receptionApi.getTodayDepartures(),
+      ]);
 
-        const mapArrival = (a, i) => ({
-          id: a._id || `ARR-${i}`,
+      const mapArrival = (a, i) => {
+        const statusRaw = String(a.status || '').toLowerCase();
+        const mappedStatus = statusRaw === 'checked-in'
+          ? 'checked-in'
+          : statusRaw === 'arrived'
+            ? 'arrived'
+            : 'expected';
+
+        return {
+          id: a.bookingId || `ARR-${i}`,
+          recordId: a._id || '',
           bookingId: a.bookingId || '',
           guest: {
             name: a.guest?.name || a.guestInfo?.name || 'Unknown',
             email: a.guest?.email || a.guestInfo?.email || '',
             phone: a.guest?.phone || a.guestInfo?.phone || '',
+            avatar: a.guest?.avatarUrl || a.guest?.avatar || null,
             initials: (a.guest?.name || a.guestInfo?.name || 'U').split(' ').map(n => n[0]).join(''),
           },
           room: { type: a.room?.type || '', number: a.room?.number || '' },
           expectedTime: a.expectedTime || a.expectedArrivalTime || '',
           nights: a.durationNights || 1,
-          status: a.status === 'Checked-In' ? 'checked-in' : a.status === 'Confirmed' ? 'expected' : 'expected',
+          status: mappedStatus,
           specialRequests: a.earlyCheckinRequested ? 'Early check-in requested' : null,
           paymentStatus: a.paymentStatus || 'pending',
-        });
+        };
+      };
 
-        const mapDeparture = (d, i) => ({
-          id: d._id || `DEP-${i}`,
+      const mapDeparture = (d, i) => {
+        const statusRaw = String(d.status || '').toLowerCase();
+        const mappedStatus = statusRaw === 'checked-out' ? 'checked-out' : statusRaw === 'checking-out' ? 'checking-out' : 'in-room';
+
+        return {
+          id: d.bookingId || `DEP-${i}`,
+          recordId: d._id || '',
           bookingId: d.bookingId || '',
           guest: {
             name: d.guest?.name || d.guestInfo?.name || 'Unknown',
             email: d.guest?.email || d.guestInfo?.email || '',
             phone: d.guest?.phone || d.guestInfo?.phone || '',
+            avatar: d.guest?.avatarUrl || d.guest?.avatar || null,
             initials: (d.guest?.name || d.guestInfo?.name || 'U').split(' ').map(n => n[0]).join(''),
           },
           room: { type: d.room?.type || '', number: d.room?.number || '' },
           checkOutTime: d.checkOutTime || '11:00',
           stayDuration: d.durationNights || 1,
-          status: d.status === 'Checked-Out' ? 'checked-out' : 'in-room',
+          status: mappedStatus,
           balance: d.balance ?? 0,
           minibarCharges: 0,
-        });
+        };
+      };
 
-        const arrs = arrivalsRes.status === 'fulfilled' && arrivalsRes.value?.success
-          ? (arrivalsRes.value.data || []).map(mapArrival) : [];
-        const deps = departuresRes.status === 'fulfilled' && departuresRes.value?.success
-          ? (departuresRes.value.data || []).map(mapDeparture) : [];
+      const arrs = arrivalsRes.status === 'fulfilled' && arrivalsRes.value?.success
+        ? (arrivalsRes.value.data || []).map(mapArrival) : [];
+      const deps = departuresRes.status === 'fulfilled' && departuresRes.value?.success
+        ? (departuresRes.value.data || []).map(mapDeparture) : [];
 
-        setData({ arrivals: arrs, departures: deps });
+      if ((arrivalsRes.status === 'rejected' || !arrivalsRes.value?.success) && (departuresRes.status === 'rejected' || !departuresRes.value?.success)) {
+        setLoadError('Unable to load arrivals/departures. Please try again.');
+      }
+
+      setData({ arrivals: arrs, departures: deps });
+      setSelectedBookingIds([]);
+    } catch {
+      setLoadError('Unable to load arrivals/departures. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  useEffect(() => {
+    const loadTemplates = async () => {
+      try {
+        const res = await receptionApi.getGuestCommunicationTemplates();
+        if (res?.success && Array.isArray(res.data)) {
+          setTemplates(res.data);
+        }
       } catch {
-        /* silently ignore */
-      } finally {
-        setIsLoading(false);
+        // templates are optional UX enhancement; fail silently
       }
     };
-    loadData();
+    loadTemplates();
   }, []);
 
   useEffect(() => {
@@ -124,6 +175,72 @@ const CheckInOutView = () => {
       return true;
     });
   }, [currentData, searchQuery, statusFilter]);
+
+  const getBookingKey = (item) => String(item.recordId || item.id || '');
+
+  const isSelectableArrival = (item) => activeTab === 'arrivals' && item.status !== 'checked-in' && !!item.recordId;
+
+  const visibleSelectableIds = useMemo(() => {
+    if (activeTab !== 'arrivals') return [];
+    return filteredData
+      .filter(isSelectableArrival)
+      .map(getBookingKey)
+      .filter(Boolean);
+  }, [activeTab, filteredData]);
+
+  const toggleSelectOne = (item) => {
+    const id = getBookingKey(item);
+    if (!id || !isSelectableArrival(item)) return;
+    setSelectedBookingIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const toggleSelectAllVisible = () => {
+    if (visibleSelectableIds.length === 0) return;
+    const allSelected = visibleSelectableIds.every(id => selectedBookingIds.includes(id));
+    if (allSelected) {
+      setSelectedBookingIds(prev => prev.filter(id => !visibleSelectableIds.includes(id)));
+      return;
+    }
+    setSelectedBookingIds(prev => Array.from(new Set([...prev, ...visibleSelectableIds])));
+  };
+
+  const clearBulkSelection = () => setSelectedBookingIds([]);
+
+  const handleBulkCheckIn = async () => {
+    if (selectedBookingIds.length === 0) return;
+    setBulkProcessing(true);
+    setBulkResult(null);
+    try {
+      const res = await receptionApi.performBulkCheckIn({ bookingIds: selectedBookingIds });
+      const successIds = new Set((res?.data?.success || []).map(s => String(s.bookingId)));
+      if (successIds.size > 0) {
+        setData(prev => ({
+          ...prev,
+          arrivals: prev.arrivals.map(a => {
+            const id = String(a.recordId || a.id || '');
+            return successIds.has(id) ? { ...a, status: 'checked-in' } : a;
+          })
+        }));
+      }
+      setBulkResult({
+        success: res?.data?.success?.length || 0,
+        failed: res?.data?.failed?.length || 0,
+      });
+      setSelectedBookingIds([]);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Bulk check-in failed. Please retry.', {
+        position: 'top-right',
+        autoClose: 4000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        theme: isDark ? 'dark' : 'light',
+      });
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
 
   const getStatusOptions = () => {
     if (activeTab === 'arrivals') {
@@ -166,18 +283,37 @@ const CheckInOutView = () => {
   const handleAction = (item, type) => {
     setSelectedGuest(item);
     setActionType(type);
+    setSendCommunication(false);
+    setTemplateCustomBody('');
+    setSelectedTemplateKey(type === 'checkout' ? 'checkout_thankyou' : 'checkin_welcome');
     setShowModal(true);
   };
 
   const processAction = async () => {
     // Edge case guards
     if (actionType === 'checkin' && selectedGuest.status === 'checked-in') {
-      alert('This guest is already checked in.');
+      toast.info('This guest is already checked in.', {
+        position: 'top-center',
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        theme: isDark ? 'dark' : 'light',
+      });
       setShowModal(false);
       return;
     }
     if (actionType === 'checkout' && selectedGuest.status === 'checked-out') {
-      alert('This guest is already checked out.');
+      toast.info('This guest is already checked out.', {
+        position: 'top-center',
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        theme: isDark ? 'dark' : 'light',
+      });
       setShowModal(false);
       return;
     }
@@ -185,7 +321,7 @@ const CheckInOutView = () => {
     setProcessingAction(true);
     try {
       if (actionType === 'checkin') {
-        await receptionApi.performCheckIn(selectedGuest.id);
+        await receptionApi.performCheckIn(selectedGuest.recordId || selectedGuest.id);
         setData(prev => ({
           ...prev,
           arrivals: prev.arrivals.map(a =>
@@ -193,7 +329,7 @@ const CheckInOutView = () => {
           )
         }));
       } else {
-        await receptionApi.performCheckOut(selectedGuest.id);
+        await receptionApi.performCheckOut(selectedGuest.recordId || selectedGuest.id);
         setData(prev => ({
           ...prev,
           departures: prev.departures.map(d =>
@@ -201,12 +337,45 @@ const CheckInOutView = () => {
           )
         }));
       }
+
+      if (sendCommunication && selectedGuest?.recordId) {
+        try {
+          setSendingCommunication(true);
+          await receptionApi.sendGuestCommunication({
+            bookingId: selectedGuest.recordId,
+            templateKey: selectedTemplateKey,
+            customBody: templateCustomBody.trim() || undefined,
+          });
+        } catch (err) {
+          toast.warning(err.response?.data?.message || 'Action succeeded, but guest communication failed to send.', {
+            position: 'top-right',
+            autoClose: 5000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+            theme: isDark ? 'dark' : 'light',
+          });
+        } finally {
+          setSendingCommunication(false);
+        }
+      }
     } catch (err) {
-      alert(err.response?.data?.message || `Failed to ${actionType === 'checkin' ? 'check in' : 'check out'} guest. Please try again.`);
+      toast.error(err.response?.data?.message || `Failed to ${actionType === 'checkin' ? 'check in' : 'check out'} guest. Please try again.`, {
+        position: 'top-right',
+        autoClose: 4000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        theme: isDark ? 'dark' : 'light',
+      });
     } finally {
       setProcessingAction(false);
       setShowModal(false);
       setSelectedGuest(null);
+      setSendCommunication(false);
+      setTemplateCustomBody('');
     }
   };
 
@@ -229,6 +398,18 @@ const CheckInOutView = () => {
 
   return (
     <div className={`checkinout-view ${isDark ? 'dark' : ''}`}>
+      {!!loadError && (
+        <div style={{ marginBottom: 16, padding: '12px 14px', borderRadius: 10, border: '1px solid #fecaca', background: '#fef2f2', color: '#b91c1c', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <span style={{ fontSize: 13, fontWeight: 500 }}>{loadError}</span>
+          <button
+            onClick={loadData}
+            style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #fca5a5', background: '#fff', color: '#991b1b', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* Stats Cards */}
       <div className="cio-stats-grid grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         {activeTab === 'arrivals' ? (
@@ -372,6 +553,46 @@ const CheckInOutView = () => {
         </div>
       </div>
 
+      {activeTab === 'arrivals' && (
+        <div className="cio-bulk-toolbar">
+          <div className="cio-bulk-toolbar-left">
+            <button
+              className="cio-bulk-btn"
+              onClick={toggleSelectAllVisible}
+              disabled={visibleSelectableIds.length === 0 || bulkProcessing}
+            >
+              {visibleSelectableIds.length > 0 && visibleSelectableIds.every(id => selectedBookingIds.includes(id))
+                ? 'Unselect Visible'
+                : 'Select Visible'}
+            </button>
+            <button
+              className="cio-bulk-btn secondary"
+              onClick={clearBulkSelection}
+              disabled={selectedBookingIds.length === 0 || bulkProcessing}
+            >
+              Clear Selection
+            </button>
+          </div>
+          <div className="cio-bulk-toolbar-right">
+            <span className="cio-bulk-count">{selectedBookingIds.length} selected</span>
+            <button
+              className="cio-action-btn cio-checkin-btn"
+              onClick={handleBulkCheckIn}
+              disabled={selectedBookingIds.length === 0 || bulkProcessing}
+            >
+              {bulkProcessing ? <Loader2 size={16} className="cio-btn-spinner" /> : <LogIn size={16} />}
+              {bulkProcessing ? 'Processing...' : `Bulk Check-In (${selectedBookingIds.length})`}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {bulkResult && (
+        <div className="cio-bulk-result">
+          Bulk check-in completed — Success: <strong>{bulkResult.success}</strong>, Failed: <strong>{bulkResult.failed}</strong>
+        </div>
+      )}
+
       {/* Loading State */}
       {isLoading && (
         <div className="cio-loading flex flex-col items-center justify-center py-20 gap-4">
@@ -395,9 +616,27 @@ const CheckInOutView = () => {
           {filteredData.map(item => (
             <div key={item.id} className="cio-card rounded-xl p-5 transition-all duration-200 hover:shadow-lg">
               <div className="cio-card-header flex items-center gap-3 mb-4 pb-4 border-b border-slate-100 dark:border-slate-700">
-                <div className="cio-guest-avatar w-11 h-11 rounded-full flex items-center justify-center text-white text-sm font-semibold shrink-0">
-                  {item.guest.initials}
-                </div>
+                {activeTab === 'arrivals' && (
+                  <label className="cio-select-checkbox" title="Select for bulk check-in">
+                    <input
+                      type="checkbox"
+                      checked={selectedBookingIds.includes(getBookingKey(item))}
+                      onChange={() => toggleSelectOne(item)}
+                      disabled={!isSelectableArrival(item) || bulkProcessing}
+                    />
+                  </label>
+                )}
+                {item.guest.avatar ? (
+                  <img
+                    src={item.guest.avatar}
+                    alt={item.guest.name}
+                    className="cio-guest-avatar-img w-11 h-11 rounded-full object-cover shrink-0"
+                  />
+                ) : (
+                  <div className="cio-guest-avatar w-11 h-11 rounded-full flex items-center justify-center text-white text-sm font-semibold shrink-0">
+                    {item.guest.initials}
+                  </div>
+                )}
                 <div className="cio-guest-info flex flex-col flex-1">
                   <span className="cio-guest-name font-semibold">{item.guest.name}</span>
                   <span className="cio-booking-id text-sm text-slate-500">{item.bookingId}</span>
@@ -583,6 +822,52 @@ const CheckInOutView = () => {
                   </label>
                 </div>
               )}
+
+              {selectedGuest?.guest?.email && (
+                <div className="cio-template-panel">
+                  <label className="cio-template-toggle">
+                    <input
+                      type="checkbox"
+                      checked={sendCommunication}
+                      onChange={(e) => setSendCommunication(e.target.checked)}
+                    />
+                    <span>
+                      <MessageSquare size={14} />
+                      Send guest communication email after {actionType === 'checkin' ? 'check-in' : 'check-out'}
+                    </span>
+                  </label>
+
+                  {sendCommunication && (
+                    <>
+                      <div className="cio-template-meta">
+                        To: <strong>{selectedGuest.guest.email}</strong>
+                      </div>
+                      <div className="cio-template-select-wrap">
+                        <select
+                          className="cio-template-select"
+                          value={selectedTemplateKey}
+                          onChange={(e) => setSelectedTemplateKey(e.target.value)}
+                        >
+                          {(templates.length > 0 ? templates : [
+                            { key: 'checkin_welcome', label: 'Check-in Welcome' },
+                            { key: 'checkout_thankyou', label: 'Check-out Thank You' },
+                            { key: 'payment_reminder', label: 'Payment Reminder' }
+                          ]).map(t => (
+                            <option key={t.key} value={t.key}>{t.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <textarea
+                        className="cio-template-textarea"
+                        placeholder="Optional custom message body override..."
+                        value={templateCustomBody}
+                        onChange={(e) => setTemplateCustomBody(e.target.value)}
+                        rows={3}
+                      />
+                    </>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="cio-modal-footer flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-700">
@@ -602,12 +887,17 @@ const CheckInOutView = () => {
               <button
                 className={`cio-modal-btn primary ${actionType} flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all duration-200`}
                 onClick={processAction}
-                disabled={processingAction}
+                disabled={processingAction || sendingCommunication}
               >
                 {processingAction ? (
                   <>
                     <Loader2 className="cio-btn-spinner animate-spin" size={16} />
                     Processing...
+                  </>
+                ) : sendingCommunication ? (
+                  <>
+                    <Send size={16} />
+                    Sending Communication...
                   </>
                 ) : (
                   <>

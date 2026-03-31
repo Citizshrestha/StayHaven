@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../../../../hooks/useTheme';
 import { useStaffAuth } from '../../../../context/StaffAuthContext';
+import { toast } from 'react-toastify';
 import {
   Search, Bell, Sun, Moon, ArrowUpRight, ArrowDownRight,
   CalendarCheck, LogOut as LogOutIcon, Bed, Plus, UserPlus,
@@ -687,7 +688,15 @@ const DashboardContent = ({ onNavigate }) => {
   // ── Initiate Call ──
   const handleCall = async (channel) => {
     if (!isLoggedIn) {
-      alert('Please log in to use calling features');
+      toast.info('Please log in to use calling features', {
+        position: 'top-center',
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        theme: isDark ? 'dark' : 'light',
+      });
       return;
     }
     setCallingChannel(channel);
