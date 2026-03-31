@@ -52,6 +52,11 @@ import {
   updateCallStatus,
   getContacts,
   getConversations,
+  deleteConversation,
+  archiveConversation,
+  muteConversation,
+  unmuteConversation,
+  markConversationUnread,
 } from "../controllers/messagingController.js";
 import {
   getNotifications,
@@ -101,7 +106,7 @@ router.get("/orders", protect, getOrders);
 // Get single order
 router.get("/orders/:orderId", protect, getOrderById);
 
-// Update order status - waiter, chief, manager can update
+// Update order status - ONLY waiter, chief, manager can update (NOT receptionist)
 router.put(
   "/orders/:orderId/status",
   protect,
@@ -113,7 +118,7 @@ router.put(
 router.put(
   "/orders/:orderId",
   protect,
-  authorize("waiter", "manager"),
+  authorize("waiter", "manager", "receptionist"),
   updateOrder
 );
 
@@ -271,6 +276,21 @@ router.get("/messages/contacts", protect, getContacts);
 
 // Get recent conversations (latest message per partner)
 router.get("/messages/conversations", protect, getConversations);
+
+// Delete conversation (soft delete - archives for this user)
+router.delete("/messages/conversations/:partnerId", protect, deleteConversation);
+
+// Archive conversation
+router.post("/messages/conversations/:partnerId/archive", protect, archiveConversation);
+
+// Mute conversation
+router.post("/messages/conversations/:partnerId/mute", protect, muteConversation);
+
+// Unmute conversation
+router.post("/messages/conversations/:partnerId/unmute", protect, unmuteConversation);
+
+// Mark conversation as unread
+router.post("/messages/conversations/:partnerId/mark-unread", protect, markConversationUnread);
 
 // Initiate a call
 router.post("/messages/call", protect, initiateCall);
