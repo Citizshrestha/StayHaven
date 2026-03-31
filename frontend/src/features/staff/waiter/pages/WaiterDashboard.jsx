@@ -73,8 +73,6 @@ const WaiterDashboard = () => {
     setActiveView(view);
   };
 
-  const [selectedOrderId, setSelectedOrderId] = useState(null);
-
   const handleFilterByArea = (areaName) => {
     // Switch to dashboard view and set filter to show orders for this area
     setActiveFilter(`area:${areaName}`);
@@ -84,7 +82,6 @@ const WaiterDashboard = () => {
   // Handle notification click - navigate to that order in dashboard
   const handleNotificationClick = (notification) => {
     if (notification.orderId) {
-      setSelectedOrderId(notification.orderId);
       setActiveFilter("all"); // Show all orders to ensure the order is visible
       setActiveView("dashboard");
 
@@ -99,7 +96,6 @@ const WaiterDashboard = () => {
             orderElement.style.boxShadow = '';
           }, 2000);
         }
-        setSelectedOrderId(null);
       }, 100);
     }
   };
