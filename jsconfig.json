@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "baseUrl": "src",
+    "baseUrl": "frontend/src",
     "paths": {
       "@/*": ["./*"],
       "components/*": ["components/*"],
@@ -10,6 +10,6 @@
       "shared/*": ["components/shared/*"]
     }
   },
-  "include": ["src"],
-  "exclude": ["node_modules"]
+  "include": ["frontend/src"],
+  "exclude": ["node_modules", "Backend", "dist"]
 }
