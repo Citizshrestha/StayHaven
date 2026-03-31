@@ -13,6 +13,8 @@
 import { Server } from "socket.io";
 
 let io = null;
+// Track online users: Map<userId, { socketId, hotelId, role, fullname }>
+const onlineUsers = new Map();
 
 
 export const initSocket = (httpServer) => {
@@ -30,33 +32,72 @@ export const initSocket = (httpServer) => {
     pingTimeout: 60000,
     // How often to ping clients to check connection
     pingInterval: 25000,
+    // Enable transport upgrade from HTTP to WebSocket
+    transports: ['websocket', 'polling'],
+    // Allow upgrades
+    allowUpgrades: true,
   });
 
   // Handle new connections
   io.on("connection", (socket) => {
     console.log(`🔌 Client connected: ${socket.id}`);
 
+    // Extract user info from auth
+    const { userId, role, hotelId } = socket.handshake.auth || {};
+
     // When a staff member joins, add them to their hotel's room
     // This allows us to send updates only to staff of a specific hotel
     socket.on("join-hotel", (hotelId) => {
       if (hotelId) {
         socket.join(`hotel-${hotelId}`);
+        socket.hotelId = hotelId;
         console.log(`👤 Socket ${socket.id} joined hotel room: hotel-${hotelId}`);
       }
     });
 
     // When a staff member joins, also add them to their role-specific room
-    socket.on("join-role", ({ hotelId, role, userId }) => {
+    socket.on("join-role", ({ hotelId, role, userId, fullname }) => {
       if (hotelId && role) {
         // Join role-specific room (e.g., "hotel-123-waiters")
         socket.join(`hotel-${hotelId}-${role}s`);
         // Also join personal room for direct messages
         if (userId) {
           socket.join(`user-${userId}`);
-          // Store userId on the socket for WebRTC signaling
+          // Store userId on the socket for WebRTC signaling and presence
           socket.userId = userId;
+          socket.userRole = role;
+          socket.hotelId = hotelId;
+          socket.fullname = fullname;
+
+          // Add to online users
+          onlineUsers.set(userId, {
+            socketId: socket.id,
+            hotelId,
+            role,
+            fullname: fullname || 'Unknown',
+          });
+
+          // Notify all users in the hotel that this user is online
+          io.to(`hotel-${hotelId}`).emit("user-online", {
+            userId,
+            fullname: fullname || 'Unknown',
+            role,
+          });
+
+          // Send list of currently online users to the newly connected user
+          const onlineUsersInHotel = Array.from(onlineUsers.entries())
+            .filter(([_, userData]) => userData.hotelId === hotelId)
+            .map(([userId, userData]) => ({
+              userId,
+              fullname: userData.fullname,
+              role: userData.role,
+            }));
+
+          socket.emit("online-users", onlineUsersInHotel);
+
+          console.log(`👤 Socket ${socket.id} joined as ${role} in hotel-${hotelId}, userId: ${userId}`);
+          console.log(`📊 Online users in hotel ${hotelId}:`, onlineUsersInHotel.length);
         }
-        console.log(`👤 Socket ${socket.id} joined as ${role} in hotel-${hotelId}`);
       }
     });
 
@@ -142,6 +183,18 @@ export const initSocket = (httpServer) => {
     // Handle disconnection
     socket.on("disconnect", (reason) => {
       console.log(`🔌 Client disconnected: ${socket.id}, Reason: ${reason}`);
+
+      // Remove from online users and notify others
+      if (socket.userId && socket.hotelId) {
+        onlineUsers.delete(socket.userId);
+
+        // Notify all users in the hotel that this user is offline
+        io.to(`hotel-${socket.hotelId}`).emit("user-offline", {
+          userId: socket.userId,
+        });
+
+        console.log(`👤 User ${socket.userId} went offline from hotel ${socket.hotelId}`);
+      }
     });
 
     // Handle errors

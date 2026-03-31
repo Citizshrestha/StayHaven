@@ -80,6 +80,7 @@ export const SocketProvider = ({ children }) => {
         hotelId: activeProperty._id,
         role: staffUser.role,
         userId: staffUser._id,
+        fullname: staffUser.fullname || staffUser.name || 'Unknown',
       });
     });
 
