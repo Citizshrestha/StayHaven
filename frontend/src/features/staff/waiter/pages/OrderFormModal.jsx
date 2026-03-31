@@ -138,41 +138,84 @@ const OrderFormModal = ({ onClose }) => {
                             letterSpacing: "0.5px",
                             marginBottom: "10px"
                         }}>ORDER TYPE</label>
-                        <div style={{ display: "flex", gap: "10px" }}>
+                        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                             <button type="button"
                                 onClick={() => setFormData({ ...formData, orderType: "dineIn" })}
                                 style={{
-                                    flex: 1,
-                                    padding: "12px 16px",
+                                    flex: "1 1 calc(33.333% - 6px)",
+                                    minWidth: "90px",
+                                    padding: "12px 8px",
                                     backgroundColor: formData.orderType === "dineIn" ? "#10B981" : colors.buttonInactive,
                                     color: formData.orderType === "dineIn" ? "white" : colors.buttonInactiveText,
                                     border: "none",
                                     borderRadius: "12px",
                                     cursor: "pointer",
-                                    fontSize: "14px",
+                                    fontSize: "13px",
                                     fontWeight: "600",
+                                    transition: "all 0.2s",
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    gap: "4px",
+                                    whiteSpace: "nowrap"
                                 }}>
-                                🍽️ Dine In
+                                <span style={{ fontSize: "20px" }}>🍽️</span>
+                                <span>Dine In</span>
                             </button>
                             <button type="button"
                                 onClick={() => setFormData({ ...formData, orderType: "roomService" })}
                                 style={{
-                                    flex: 1,
-                                    padding: "12px 16px",
+                                    flex: "1 1 calc(33.333% - 6px)",
+                                    minWidth: "90px",
+                                    padding: "12px 8px",
                                     backgroundColor: formData.orderType === "roomService" ? "#10B981" : colors.buttonInactive,
                                     color: formData.orderType === "roomService" ? "white" : colors.buttonInactiveText,
                                     border: "none",
                                     borderRadius: "12px",
                                     cursor: "pointer",
-                                    fontSize: "14px",
+                                    fontSize: "13px",
                                     fontWeight: "600",
+                                    transition: "all 0.2s",
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    gap: "4px",
+                                    whiteSpace: "nowrap"
                                 }}>
-                                🛏️ Room Service
+                                <span style={{ fontSize: "20px" }}>🛏️</span>
+                                <span>Room</span>
+                            </button>
+                            <button type="button"
+                                onClick={() => setFormData({ ...formData, orderType: "takeaway" })}
+                                style={{
+                                    flex: "1 1 calc(33.333% - 6px)",
+                                    minWidth: "90px",
+                                    padding: "12px 8px",
+                                    backgroundColor: formData.orderType === "takeaway" ? "#10B981" : colors.buttonInactive,
+                                    color: formData.orderType === "takeaway" ? "white" : colors.buttonInactiveText,
+                                    border: "none",
+                                    borderRadius: "12px",
+                                    cursor: "pointer",
+                                    fontSize: "13px",
+                                    fontWeight: "600",
+                                    transition: "all 0.2s",
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    gap: "4px",
+                                    whiteSpace: "nowrap"
+                                }}>
+                                <span style={{ fontSize: "20px" }}>🥡</span>
+                                <span>Takeaway</span>
                             </button>
                         </div>
                     </div>
 
-                    {/* Location */}
+                    {/* Location - Only show for dineIn and roomService */}
+                    {formData.orderType !== "takeaway" && (
                     <div style={{ marginBottom: "20px" }}>
                         <label style={{
                             display: "block",
@@ -183,25 +226,35 @@ const OrderFormModal = ({ onClose }) => {
                             letterSpacing: "0.5px",
                             marginBottom: "10px"
                         }}>LOCATION</label>
-                        <input
-                            type="text"
-                            name={formData.orderType === "dineIn" ? "tableNumber" : "roomNumber"}
-                            value={formData.orderType === "dineIn" ? formData.tableNumber : formData.roomNumber}
-                            onChange={handleInputChange}
-                            placeholder={formData.orderType === "dineIn" ? "e.g., Table 5" : "e.g., Room 204"}
-                            required
-                            style={{
-                                width: "100%",
-                                padding: "14px",
-                                borderRadius: "12px",
-                                border: `1px solid ${colors.inputBorder}`,
-                                backgroundColor: colors.inputBg,
-                                color: colors.text,
-                                fontSize: "15px",
-                                outline: "none",
-                                boxSizing: "border-box"
-                            }} />
+                        <div style={{ position: "relative" }}>
+                            <span style={{
+                                position: "absolute",
+                                left: "14px",
+                                top: "50%",
+                                transform: "translateY(-50%)",
+                                fontSize: "18px"
+                            }}>{formData.orderType === "dineIn" ? "🏪" : "🛏️"}</span>
+                            <input
+                                type="text"
+                                name={formData.orderType === "dineIn" ? "tableNumber" : "roomNumber"}
+                                value={formData.orderType === "dineIn" ? formData.tableNumber : formData.roomNumber}
+                                onChange={handleInputChange}
+                                placeholder={formData.orderType === "dineIn" ? "e.g., Table 5" : "e.g., Room 204"}
+                                required
+                                style={{
+                                    width: "100%",
+                                    padding: "14px 14px 14px 46px",
+                                    borderRadius: "12px",
+                                    border: `1px solid ${colors.inputBorder}`,
+                                    backgroundColor: colors.inputBg,
+                                    color: colors.text,
+                                    fontSize: "15px",
+                                    outline: "none",
+                                    boxSizing: "border-box"
+                                }} />
+                        </div>
                     </div>
+                    )}
 
                     {/* Customer Name */}
                     <div style={{ marginBottom: "20px" }}>
@@ -235,7 +288,7 @@ const OrderFormModal = ({ onClose }) => {
 
                     {/* Order Items */}
                     <div style={{ marginBottom: "20px" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
                             <span style={{ fontSize: "14px", fontWeight: "700", color: colors.text }}>Order Items</span>
                             <span style={{
                                 backgroundColor: colors.itemBadgeBg,
@@ -250,113 +303,214 @@ const OrderFormModal = ({ onClose }) => {
                             <div key={index} style={{
                                 backgroundColor: colors.cardBg,
                                 border: `1px solid ${colors.border}`,
-                                borderRadius: "12px",
-                                padding: "14px",
-                                marginBottom: "10px",
+                                borderRadius: "16px",
+                                padding: "16px",
+                                marginBottom: "12px",
+                                position: "relative"
                             }}>
-                                <input
-                                    type="text"
-                                    placeholder="Item name"
-                                    value={item.name}
-                                    onChange={(e) => handleItemChange(index, "name", e.target.value)}
-                                    required
-                                    style={{
-                                        width: "100%",
-                                        padding: "0",
-                                        marginBottom: "8px",
-                                        border: "none",
-                                        fontSize: "15px",
-                                        fontWeight: "600",
-                                        color: colors.text,
-                                        outline: "none",
-                                        background: "transparent"
-                                    }} />
-                                <input
-                                    type="text"
-                                    placeholder="Special notes (optional)"
-                                    value={item.notes || ""}
-                                    onChange={(e) => handleItemChange(index, "notes", e.target.value)}
-                                    style={{
-                                        width: "100%",
-                                        padding: "0",
-                                        marginBottom: "12px",
-                                        border: "none",
-                                        fontSize: "13px",
-                                        color: colors.textTertiary,
-                                        outline: "none",
-                                        background: "transparent"
-                                    }} />
-                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                                        <button type="button"
-                                            onClick={() => handleItemChange(index, "quantity", Math.max(1, item.quantity - 1))}
-                                            style={{
-                                                width: "30px",
-                                                height: "30px",
-                                                borderRadius: "50%",
-                                                border: `1px solid ${colors.border}`,
-                                                background: colors.inputBg,
-                                                color: colors.text,
-                                                cursor: "pointer",
-                                                fontSize: "16px",
-                                            }}>−</button>
-                                        <span style={{ fontSize: "15px", fontWeight: "600", minWidth: "20px", textAlign: "center", color: colors.text }}>{item.quantity}</span>
-                                        <button type="button"
-                                            onClick={() => handleItemChange(index, "quantity", item.quantity + 1)}
-                                            style={{
-                                                width: "30px",
-                                                height: "30px",
-                                                borderRadius: "50%",
-                                                border: `1px solid ${colors.border}`,
-                                                background: colors.inputBg,
-                                                color: colors.text,
-                                                cursor: "pointer",
-                                                fontSize: "16px",
-                                            }}>+</button>
-                                    </div>
-                                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                                        <span style={{ fontSize: "16px", fontWeight: "700", color: colors.text }}>Rs.</span>
-                                        <input
-                                            type="number"
-                                            value={item.price || 0}
-                                            step="0.01"
-                                            min="0"
-                                            onChange={(e) => handleItemChange(index, "price", parseFloat(e.target.value) || 0)}
-                                            style={{
-                                                width: "90px",
-                                                border: "none",
-                                                fontSize: "16px",
-                                                fontWeight: "700",
-                                                color: colors.text,
-                                                outline: "none",
-                                                background: "transparent",
-                                                boxSizing: "border-box"
-                                            }} />
-                                        {formData.items.length > 1 && (
+                                {/* Item Number Badge */}
+                                <div style={{
+                                    position: "absolute",
+                                    top: "12px",
+                                    left: "12px",
+                                    width: "28px",
+                                    height: "28px",
+                                    borderRadius: "50%",
+                                    backgroundColor: colors.itemBadgeBg,
+                                    color: colors.itemBadgeText,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    fontSize: "14px",
+                                    fontWeight: "700"
+                                }}>
+                                    {String.fromCharCode(9312 + index)}
+                                </div>
+
+                                {/* Item Name */}
+                                <div style={{ marginBottom: "12px", paddingLeft: "36px" }}>
+                                    <label style={{
+                                        display: "block",
+                                        fontSize: "10px",
+                                        fontWeight: "700",
+                                        color: colors.textSecondary,
+                                        textTransform: "uppercase",
+                                        letterSpacing: "0.5px",
+                                        marginBottom: "6px"
+                                    }}>Item Name</label>
+                                    <input
+                                        type="text"
+                                        placeholder="e.g., Chicken Momo"
+                                        value={item.name}
+                                        onChange={(e) => handleItemChange(index, "name", e.target.value)}
+                                        required
+                                        style={{
+                                            width: "100%",
+                                            padding: "10px 12px",
+                                            border: `1px solid ${colors.border}`,
+                                            borderRadius: "8px",
+                                            fontSize: "14px",
+                                            fontWeight: "600",
+                                            color: colors.text,
+                                            backgroundColor: colors.inputBg,
+                                            outline: "none",
+                                            boxSizing: "border-box"
+                                        }} />
+                                </div>
+
+                                {/* Special Instructions */}
+                                <div style={{ marginBottom: "12px" }}>
+                                    <label style={{
+                                        display: "block",
+                                        fontSize: "10px",
+                                        fontWeight: "700",
+                                        color: colors.textSecondary,
+                                        textTransform: "uppercase",
+                                        letterSpacing: "0.5px",
+                                        marginBottom: "6px"
+                                    }}>Special Instructions (Optional)</label>
+                                    <input
+                                        type="text"
+                                        placeholder="e.g., Extra spicy, no onions"
+                                        value={item.notes || ""}
+                                        onChange={(e) => handleItemChange(index, "notes", e.target.value)}
+                                        style={{
+                                            width: "100%",
+                                            padding: "10px 12px",
+                                            border: `1px solid ${colors.border}`,
+                                            borderRadius: "8px",
+                                            fontSize: "13px",
+                                            color: colors.textTertiary,
+                                            backgroundColor: colors.inputBg,
+                                            outline: "none",
+                                            boxSizing: "border-box"
+                                        }} />
+                                </div>
+
+                                {/* Quantity and Price Row */}
+                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
+                                    {/* Quantity */}
+                                    <div style={{ flex: 1 }}>
+                                        <label style={{
+                                            display: "block",
+                                            fontSize: "10px",
+                                            fontWeight: "700",
+                                            color: colors.textSecondary,
+                                            textTransform: "uppercase",
+                                            letterSpacing: "0.5px",
+                                            marginBottom: "6px"
+                                        }}>Quantity</label>
+                                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                                             <button type="button"
-                                                onClick={() => removeItem(index)}
+                                                onClick={() => handleItemChange(index, "quantity", Math.max(1, item.quantity - 1))}
                                                 style={{
-                                                    width: "26px",
-                                                    height: "26px",
-                                                    borderRadius: "50%",
+                                                    width: "36px",
+                                                    height: "36px",
+                                                    borderRadius: "8px",
                                                     border: "none",
-                                                    background: colors.removeBtnBg,
+                                                    background: "#10B981",
+                                                    color: "white",
                                                     cursor: "pointer",
+                                                    fontSize: "18px",
+                                                    fontWeight: "700",
                                                     display: "flex",
                                                     alignItems: "center",
-                                                    justifyContent: "center",
-                                                }}>
-                                                <X size={12} color="#DC2626" />
-                                            </button>
-                                        )}
+                                                    justifyContent: "center"
+                                                }}>−</button>
+                                            <span style={{ 
+                                                fontSize: "16px", 
+                                                fontWeight: "700", 
+                                                minWidth: "30px", 
+                                                textAlign: "center", 
+                                                color: colors.text 
+                                            }}>{item.quantity}</span>
+                                            <button type="button"
+                                                onClick={() => handleItemChange(index, "quantity", item.quantity + 1)}
+                                                style={{
+                                                    width: "36px",
+                                                    height: "36px",
+                                                    borderRadius: "8px",
+                                                    border: "none",
+                                                    background: "#10B981",
+                                                    color: "white",
+                                                    cursor: "pointer",
+                                                    fontSize: "18px",
+                                                    fontWeight: "700",
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    justifyContent: "center"
+                                                }}>+</button>
+                                        </div>
                                     </div>
+
+                                    {/* Price */}
+                                    <div style={{ flex: 1 }}>
+                                        <label style={{
+                                            display: "block",
+                                            fontSize: "10px",
+                                            fontWeight: "700",
+                                            color: colors.textSecondary,
+                                            textTransform: "uppercase",
+                                            letterSpacing: "0.5px",
+                                            marginBottom: "6px"
+                                        }}>Price (Rs.)</label>
+                                        <div style={{ position: "relative" }}>
+                                            <span style={{
+                                                position: "absolute",
+                                                left: "12px",
+                                                top: "50%",
+                                                transform: "translateY(-50%)",
+                                                fontSize: "14px",
+                                                fontWeight: "700",
+                                                color: colors.textSecondary
+                                            }}>₹</span>
+                                            <input
+                                                type="number"
+                                                value={item.price || 0}
+                                                step="0.01"
+                                                min="0"
+                                                onChange={(e) => handleItemChange(index, "price", parseFloat(e.target.value) || 0)}
+                                                style={{
+                                                    width: "100%",
+                                                    padding: "10px 12px 10px 28px",
+                                                    border: `1px solid ${colors.border}`,
+                                                    borderRadius: "8px",
+                                                    fontSize: "14px",
+                                                    fontWeight: "700",
+                                                    color: colors.text,
+                                                    backgroundColor: colors.inputBg,
+                                                    outline: "none",
+                                                    boxSizing: "border-box"
+                                                }} />
+                                        </div>
+                                    </div>
+
+                                    {/* Remove Button */}
+                                    {formData.items.length > 1 && (
+                                        <button type="button"
+                                            onClick={() => removeItem(index)}
+                                            style={{
+                                                width: "36px",
+                                                height: "36px",
+                                                borderRadius: "8px",
+                                                border: "none",
+                                                background: colors.removeBtnBg,
+                                                cursor: "pointer",
+                                                display: "flex",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                                alignSelf: "flex-end"
+                                            }}>
+                                            <X size={16} color="#DC2626" />
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         ))}
                         <button type="button" onClick={addItem}
                             style={{
                                 width: "100%",
-                                padding: "12px",
+                                padding: "14px",
                                 backgroundColor: "transparent",
                                 color: colors.dashedText,
                                 border: `2px dashed ${colors.dashedBorder}`,
