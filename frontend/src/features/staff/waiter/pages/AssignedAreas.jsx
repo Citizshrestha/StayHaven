@@ -2,10 +2,9 @@ import { useState, useEffect, useMemo } from "react";
 import { MapPin, Users, Clock, ChefHat, CheckCircle, AlertCircle, X, Calendar } from "lucide-react";
 import axiosClient from "../../../../axiosClient";
 
-const AssignedAreas = ({ orders = [], onFilterByArea, onClose, isDarkMode = false }) => {
+const AssignedAreas = ({ orders = [], onFilterByArea, onClose }) => {
   const [isMobile, setIsMobile] = useState(false);
   const [myAssignment, setMyAssignment] = useState(null);
-  const [loadingAssignment, setLoadingAssignment] = useState(true);
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -27,7 +26,7 @@ const AssignedAreas = ({ orders = [], onFilterByArea, onClose, isDarkMode = fals
       } catch (error) {
         console.error('Failed to fetch table assignment:', error);
       } finally {
-        setLoadingAssignment(false);
+        // no-op
       }
     };
     fetchMyAssignment();

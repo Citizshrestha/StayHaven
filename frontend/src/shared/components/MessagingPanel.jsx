@@ -10,6 +10,8 @@
  * - Typing indicators shown in chat header
  * - Blue double-tick for read messages, gray for sent
  * - Unread message counts
+ * - Conversation actions: Delete, Archive, Mark Unread, Mute
+ * - Mobile-friendly 3-dot menu
  * - Dark mode support
  */
 
@@ -17,7 +19,8 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
     MessageCircle, X, Search, Send, Phone, PhoneOff, PhoneIncoming,
     ArrowLeft, Mic, MicOff, Volume2, VolumeX, Users, User, Loader2,
-    CheckCheck, Check, MoreVertical, Video, Clock, Smile
+    CheckCheck, Check, MoreVertical, Video, Clock, Smile, Trash2,
+    Archive, BellOff, Bell, MailOpen
 } from 'lucide-react';
 import { useSocket } from '../../core/context/SocketContext';
 import { useStaffAuth } from '../../core/context/StaffAuthContext';
@@ -340,6 +343,8 @@ const MessagingPanel = ({
     const [typingUsers, setTypingUsers] = useState([]);
     const [activeCall, setActiveCall] = useState(null);
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const [activeConvMenu, setActiveConvMenu] = useState(null); // Track which conversation menu is open
+    const [mutedConversations, setMutedConversations] = useState(new Set()); // Track muted conversations
 
     const messagesEndRef = useRef(null);
     const inputRef = useRef(null);
@@ -877,6 +882,91 @@ const MessagingPanel = ({
         setTypingUsers([]);
     };
 
+    // Handle conversation actions
+    const handleDeleteConversation = async (partnerId, e) => {
+        e?.stopPropagation();
+        if (!window.confirm('Delete this conversation? This cannot be undone.')) return;
+        
+        try {
+            await messagingApi.deleteConversation(partnerId, hotelId);
+            // Remove from local state
+            setConversations(prev => prev.filter(c => c.partner?._id !== partnerId));
+            setActiveConvMenu(null);
+            // Close chat if it's the active one
+            if (activeChat?.contact?._id === partnerId) {
+                setActiveChat(null);
+            }
+        } catch (err) {
+            console.error('Failed to delete conversation:', err);
+            alert('Failed to delete conversation. Please try again.');
+        }
+    };
+
+    const handleArchiveConversation = async (partnerId, e) => {
+        e?.stopPropagation();
+        try {
+            await messagingApi.archiveConversation(partnerId, hotelId);
+            // Remove from local state
+            setConversations(prev => prev.filter(c => c.partner?._id !== partnerId));
+            setActiveConvMenu(null);
+            // Close chat if it's the active one
+            if (activeChat?.contact?._id === partnerId) {
+                setActiveChat(null);
+            }
+        } catch (err) {
+            console.error('Failed to archive conversation:', err);
+            alert('Failed to archive conversation. Please try again.');
+        }
+    };
+
+    const handleMuteConversation = async (partnerId, e) => {
+        e?.stopPropagation();
+        try {
+            const isMuted = mutedConversations.has(partnerId);
+            if (isMuted) {
+                await messagingApi.unmuteConversation(partnerId, hotelId);
+                setMutedConversations(prev => {
+                    const next = new Set(prev);
+                    next.delete(partnerId);
+                    return next;
+                });
+            } else {
+                await messagingApi.muteConversation(partnerId, hotelId);
+                setMutedConversations(prev => new Set(prev).add(partnerId));
+            }
+            setActiveConvMenu(null);
+        } catch (err) {
+            console.error('Failed to mute/unmute conversation:', err);
+            alert('Failed to update mute status. Please try again.');
+        }
+    };
+
+    const handleMarkUnread = async (partnerId, e) => {
+        e?.stopPropagation();
+        try {
+            await messagingApi.markConversationUnread(partnerId, hotelId);
+            // Update local state to show as unread
+            setConversations(prev => prev.map(c =>
+                c.partner?._id === partnerId ? { ...c, unreadCount: 1 } : c
+            ));
+            setActiveConvMenu(null);
+        } catch (err) {
+            console.error('Failed to mark as unread:', err);
+            alert('Failed to mark as unread. Please try again.');
+        }
+    };
+
+    // Close menu when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (activeConvMenu && !e.target.closest('.msg-conv-menu-wrapper')) {
+                setActiveConvMenu(null);
+            }
+        };
+        document.addEventListener('click', handleClickOutside);
+        return () => document.removeEventListener('click', handleClickOutside);
+    }, [activeConvMenu]);
+
     // Get all contacts flattened
     const allContacts = useMemo(() => {
         const all = [
@@ -958,32 +1048,84 @@ const MessagingPanel = ({
                         ? '📞 Call'
                         : conv.lastMessage?.content || '';
                     const isChannel = conv.isChannel || conv.channel;
+                    const partnerId = conv.partner?._id;
+                    const isMuted = mutedConversations.has(partnerId);
 
                     return (
-                        <button
-                            key={conv.partner?._id || conv.channel}
-                            className={`msg-contact-item ${activeChat?.contact?._id === conv.partner?._id && !isChannel ? 'active' : ''} ${activeChat?.channel === conv.channel && isChannel ? 'active' : ''}`}
-                            onClick={() => isChannel ? openChannelChat(conv.channel) : openDirectChat(conv.partner)}
-                        >
-                            <ContactAvatar contact={conv.partner} />
-                            <div className="msg-contact-info">
-                                <span className="msg-contact-name">{conv.partner?.fullname || 'Unknown'}</span>
-                                <span className={`msg-conv-preview ${conv.unreadCount > 0 ? 'unread' : ''}`}>
-                                    {!isChannel && isSentByMe && (
-                                        conv.lastMessage?.isRead
-                                            ? <CheckCheck size={13} style={{ color: '#3b82f6', marginRight: 3, verticalAlign: 'middle', display: 'inline' }} />
-                                            : <Check size={13} style={{ opacity: 0.4, marginRight: 3, verticalAlign: 'middle', display: 'inline' }} />
+                        <div key={partnerId || conv.channel} className="msg-conv-item-wrapper">
+                            <button
+                                className={`msg-contact-item ${activeChat?.contact?._id === partnerId && !isChannel ? 'active' : ''} ${activeChat?.channel === conv.channel && isChannel ? 'active' : ''}`}
+                                onClick={() => isChannel ? openChannelChat(conv.channel) : openDirectChat(conv.partner)}
+                            >
+                                <ContactAvatar contact={conv.partner} />
+                                <div className="msg-contact-info">
+                                    <span className="msg-contact-name">
+                                        {isMuted && <BellOff size={12} style={{ marginRight: 4, opacity: 0.5, verticalAlign: 'middle' }} />}
+                                        {conv.partner?.fullname || 'Unknown'}
+                                    </span>
+                                    <span className={`msg-conv-preview ${conv.unreadCount > 0 ? 'unread' : ''}`}>
+                                        {!isChannel && isSentByMe && (
+                                            conv.lastMessage?.isRead
+                                                ? <CheckCheck size={13} style={{ color: '#3b82f6', marginRight: 3, verticalAlign: 'middle', display: 'inline' }} />
+                                                : <Check size={13} style={{ opacity: 0.4, marginRight: 3, verticalAlign: 'middle', display: 'inline' }} />
+                                        )}
+                                        {!isChannel && isSentByMe ? 'You: ' : ''}{msgPreview.length > 30 ? msgPreview.slice(0, 30) + '...' : msgPreview}
+                                    </span>
+                                </div>
+                                <div className="msg-contact-meta">
+                                    <span className="msg-contact-time">{formatTime(conv.lastMessage?.createdAt)}</span>
+                                    {conv.unreadCount > 0 && (
+                                        <span className="msg-contact-unread">{conv.unreadCount > 99 ? '99+' : conv.unreadCount}</span>
                                     )}
-                                    {!isChannel && isSentByMe ? 'You: ' : ''}{msgPreview.length > 30 ? msgPreview.slice(0, 30) + '...' : msgPreview}
-                                </span>
-                            </div>
-                            <div className="msg-contact-meta">
-                                <span className="msg-contact-time">{formatTime(conv.lastMessage?.createdAt)}</span>
-                                {conv.unreadCount > 0 && (
-                                    <span className="msg-contact-unread">{conv.unreadCount > 99 ? '99+' : conv.unreadCount}</span>
-                                )}
-                            </div>
-                        </button>
+                                </div>
+                            </button>
+                            {!isChannel && (
+                                <div className="msg-conv-menu-wrapper">
+                                    <button
+                                        className="msg-conv-menu-btn"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setActiveConvMenu(activeConvMenu === partnerId ? null : partnerId);
+                                        }}
+                                        aria-label="Conversation options"
+                                    >
+                                        <MoreVertical size={16} />
+                                    </button>
+                                    {activeConvMenu === partnerId && (
+                                        <div className="msg-conv-menu">
+                                            <button
+                                                className="msg-conv-menu-item"
+                                                onClick={(e) => handleMarkUnread(partnerId, e)}
+                                            >
+                                                <MailOpen size={16} />
+                                                <span>Mark as Unread</span>
+                                            </button>
+                                            <button
+                                                className="msg-conv-menu-item"
+                                                onClick={(e) => handleMuteConversation(partnerId, e)}
+                                            >
+                                                {isMuted ? <Bell size={16} /> : <BellOff size={16} />}
+                                                <span>{isMuted ? 'Unmute' : 'Mute'}</span>
+                                            </button>
+                                            <button
+                                                className="msg-conv-menu-item"
+                                                onClick={(e) => handleArchiveConversation(partnerId, e)}
+                                            >
+                                                <Archive size={16} />
+                                                <span>Archive</span>
+                                            </button>
+                                            <button
+                                                className="msg-conv-menu-item danger"
+                                                onClick={(e) => handleDeleteConversation(partnerId, e)}
+                                            >
+                                                <Trash2 size={16} />
+                                                <span>Delete</span>
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
                     );
                 })}
             </div>
