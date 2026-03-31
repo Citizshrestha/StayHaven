@@ -37,9 +37,11 @@ export const passwordResetLimiter = rateLimit({
 });
 
 // General API — high enough for dashboards with polling/auto-refresh
+// For real-time order management: ~1 request/second = 900 requests/15min per user
+// With 5 concurrent users = 4500 requests/15min
 export const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: isDev ? 5000 : 500, // dev: effectively unlimited | prod: 500/15min
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: isDev ? 10000 : 5000, // dev: 10k | prod: 5000 requests per 15min (~5.5 req/sec)
   message: {
     success: false,
     message: "Too many requests. Please slow down and try again later.",
@@ -85,9 +87,10 @@ export const signupLimiter = rateLimit({
 });
 
 // Reception dashboard — generous for polling but protect against abuse
+// Reception staff need frequent updates for bookings, check-ins, orders
 export const receptionLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: isDev ? 2000 : 300, // dev: 2000 | prod: 300 requests per 15 min
+  max: isDev ? 5000 : 2000, // dev: 5000 | prod: 2000 requests per 15 min (~2.2 req/sec)
   message: {
     success: false,
     message: "Too many reception requests. Please slow down.",
