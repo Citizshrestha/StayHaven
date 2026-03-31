@@ -85,42 +85,74 @@ class WebRTCCallManager {
 
     /**
      * Get user's microphone stream with professional-grade audio settings
+     * AGGRESSIVE echo cancellation to prevent feedback loops
      */
     async getLocalStream() {
         if (this.localStream) return this.localStream;
+        
+        // Try with exact constraints first (most aggressive echo cancellation)
+        const aggressiveConstraints = {
+            audio: {
+                // MANDATORY echo cancellation - prevents speaker feedback
+                echoCancellation: { exact: true },
+                // MANDATORY noise suppression - removes background noise
+                noiseSuppression: { exact: true },
+                // MANDATORY auto gain control - prevents volume spikes
+                autoGainControl: { exact: true },
+                // High sample rate for crystal clear audio
+                sampleRate: { ideal: 48000 },
+                // 16-bit audio depth
+                sampleSize: { ideal: 16 },
+                // Mono audio (reduces bandwidth, improves quality)
+                channelCount: { ideal: 1 },
+                // Latency - lower is better for real-time
+                latency: { ideal: 0.01 },
+                // Google-specific MANDATORY echo cancellation
+                googEchoCancellation: { exact: true },
+                googAutoGainControl: { exact: true },
+                googNoiseSuppression: { exact: true },
+                googHighpassFilter: { exact: true },
+                googTypingNoiseDetection: { exact: true },
+                googAudioMirroring: { exact: false },
+                // Additional noise reduction
+                googNoiseSuppression2: { exact: true },
+                googEchoCancellation2: { exact: true },
+                googDAEchoCancellation: { exact: true },
+            },
+            video: false,
+        };
+
+        // Fallback constraints if browser doesn't support exact constraints
+        const fallbackConstraints = {
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true,
+                sampleRate: { ideal: 48000 },
+                channelCount: { ideal: 1 },
+                latency: { ideal: 0.01 },
+            },
+            video: false,
+        };
+
         try {
-            this.localStream = await navigator.mediaDevices.getUserMedia({
-                audio: {
-                    // Echo cancellation - CRITICAL for preventing feedback
-                    echoCancellation: { ideal: true },
-                    // Noise suppression - removes background noise
-                    noiseSuppression: { ideal: true },
-                    // Auto gain control - normalizes volume levels
-                    autoGainControl: { ideal: true },
-                    // High sample rate for crystal clear audio
-                    sampleRate: { ideal: 48000 },
-                    // 16-bit audio depth
-                    sampleSize: { ideal: 16 },
-                    // Mono audio (reduces bandwidth, improves quality)
-                    channelCount: { ideal: 1 },
-                    // Latency - lower is better for real-time
-                    latency: { ideal: 0.01 },
-                    // Voice-optimized processing
-                    googEchoCancellation: { ideal: true },
-                    googAutoGainControl: { ideal: true },
-                    googNoiseSuppression: { ideal: true },
-                    googHighpassFilter: { ideal: true },
-                    googTypingNoiseDetection: { ideal: true },
-                    googAudioMirroring: { ideal: false },
-                },
-                video: false,
-            });
-            console.log('🎤 Mic stream acquired with professional audio settings');
+            // Try aggressive constraints first
+            this.localStream = await navigator.mediaDevices.getUserMedia(aggressiveConstraints);
+            console.log('🎤 Mic stream acquired with AGGRESSIVE echo cancellation');
             console.log('🎤 Track settings:', this.localStream.getAudioTracks()[0]?.getSettings());
             return this.localStream;
         } catch (err) {
-            console.error('Failed to get microphone access:', err);
-            throw new Error('Microphone access denied. Please allow microphone permission.');
+            console.warn('⚠️ Aggressive constraints failed, trying fallback:', err.message);
+            try {
+                // Fallback to standard constraints
+                this.localStream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
+                console.log('🎤 Mic stream acquired with standard echo cancellation');
+                console.log('🎤 Track settings:', this.localStream.getAudioTracks()[0]?.getSettings());
+                return this.localStream;
+            } catch (fallbackErr) {
+                console.error('❌ Failed to get microphone access:', fallbackErr);
+                throw new Error('Microphone access denied. Please allow microphone permission.');
+            }
         }
     }
 
@@ -167,7 +199,8 @@ class WebRTCCallManager {
                 this.remoteAudio = document.createElement('audio');
                 this.remoteAudio.autoplay = true;
                 this.remoteAudio.playsInline = true;
-                this.remoteAudio.volume = 1.0;
+                // Start with 80% volume (will be boosted to 100% when speaker enabled)
+                this.remoteAudio.volume = 0.8;
                 // Hidden element — no visual presence
                 Object.assign(this.remoteAudio.style, {
                     position: 'fixed', width: '0', height: '0',
@@ -353,14 +386,18 @@ class WebRTCCallManager {
 
     /**
      * Set speaker volume (for the remote audio)
+     * When enabled: 100% volume for clear audio
+     * When disabled: 40% volume (muted but not silent)
      */
     setSpeaker(enabled) {
         if (this.remoteAudio) {
-            this.remoteAudio.volume = enabled ? 1.0 : 0.6;
+            // Higher volume when speaker is ON for better clarity
+            this.remoteAudio.volume = enabled ? 1.0 : 0.4;
+            console.log(`🔊 Speaker ${enabled ? 'ON' : 'OFF'}: volume=${this.remoteAudio.volume}`);
         }
         // AudioContext gain path (legacy — kept for safety)
         if (this._remoteGain) {
-            this._remoteGain.gain.value = enabled ? 1.0 : 0.6;
+            this._remoteGain.gain.value = enabled ? 1.0 : 0.4;
         }
     }
 
