@@ -60,6 +60,19 @@ const messageSchema = new mongoose.Schema(
             type: Date,
             default: null,
         },
+        // Conversation management fields
+        archived: {
+            type: Boolean,
+            default: false,
+        },
+        archivedBy: [{
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+        }],
+        mutedBy: [{
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+        }],
     },
     { timestamps: true }
 );

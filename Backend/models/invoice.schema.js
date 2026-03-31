@@ -42,8 +42,33 @@ const invoiceSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// ═════════════════════════════════════════════════════════════════════════════
+// INDEXES FOR PRODUCTION PERFORMANCE
+// ═════════════════════════════════════════════════════════════════════════════
+
+// Core lookups
+invoiceSchema.index({ invoiceId: 1 });
+invoiceSchema.index({ booking: 1 });
+invoiceSchema.index({ bookingRef: 1 });
+
+// Dashboard queries
 invoiceSchema.index({ company: 1, status: 1 });
+invoiceSchema.index({ company: 1, issuedAt: -1 });
+invoiceSchema.index({ company: 1, status: 1, issuedAt: -1 });
+
 invoiceSchema.index({ hotel: 1, issuedAt: -1 });
+invoiceSchema.index({ hotel: 1, status: 1 });
+invoiceSchema.index({ hotel: 1, status: 1, issuedAt: -1 });
+
+// Overdue invoice queries
+invoiceSchema.index({ status: 1, dueDate: 1 });
+invoiceSchema.index({ hotel: 1, status: 1, dueDate: 1 });
+
+// Guest billing history
+invoiceSchema.index({ guest: 1, issuedAt: -1 });
+
+// Text search
+invoiceSchema.index({ guestName: "text", invoiceId: "text", bookingRef: "text" });
 
 
 invoiceSchema.pre("save", async function (next) {

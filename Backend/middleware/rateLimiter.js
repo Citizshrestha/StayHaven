@@ -59,3 +59,88 @@ export const sensitiveOpLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// OTP endpoints — prevent email bombing and brute force
+export const otpLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: isDev ? 50 : 5, // 5 OTP requests per hour in production
+  message: {
+    success: false,
+    message: "Too many OTP requests. Please try again after 1 hour.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Signup registration — prevent mass account creation
+export const signupLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: isDev ? 100 : 10, // 10 registrations per hour
+  message: {
+    success: false,
+    message: "Too many registration attempts. Please try again later.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Reception dashboard — generous for polling but protect against abuse
+export const receptionLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: isDev ? 2000 : 300, // dev: 2000 | prod: 300 requests per 15 min
+  message: {
+    success: false,
+    message: "Too many reception requests. Please slow down.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Strict limiter for reception write operations (check-in, payments, etc.)
+export const receptionWriteLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: isDev ? 100 : 30, // dev: 100 | prod: 30 writes per minute
+  message: {
+    success: false,
+    message: "Too many write operations. Please wait a moment.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: false, // Count all requests including successful ones
+});
+
+// Batch operations limiter — prevent abuse of bulk operations
+export const batchLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: isDev ? 100 : 20, // dev: 100 | prod: 20 batch operations per hour
+  message: {
+    success: false,
+    message: "Too many batch operations. Please try again later.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Payment operations limiter
+export const paymentLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: isDev ? 100 : 20, // dev: 100 | prod: 20 payment operations per minute
+  message: {
+    success: false,
+    message: "Too many payment attempts. Please wait a moment.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Export operations limiter — protect against resource-intensive exports
+export const exportLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: isDev ? 50 : 10, // dev: 50 | prod: 10 exports per 15 min
+  message: {
+    success: false,
+    message: "Too many export requests. Please try again later.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});

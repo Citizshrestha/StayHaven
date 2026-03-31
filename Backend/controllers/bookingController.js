@@ -1,6 +1,7 @@
 import { Booking } from "../models/booking.schema.js";
 import { Room } from "../models/room.schema.js";
 import { Hotel } from "../models/hotel.schema.js";
+import { Guest } from "../models/guest.schema.js";
 import { User } from "../models/user.schema.js";
 import { Role } from "../models/role.schema.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -62,6 +63,38 @@ const checkRoomAvailability = async (roomId, checkIn, checkOut, excludeBookingId
   return !conflicts;
 };
 
+const getUserRole = (req) => req.user?.role?.name || req.user?.companyRole;
+
+const getAssignedHotelIds = (req) => {
+  const assigned = req.user?.assignedProperties || [];
+  return assigned
+    .map((p) => (typeof p === "object" ? p?._id?.toString() : p?.toString()))
+    .filter(Boolean);
+};
+
+const assertHotelAccess = async (req, hotelId) => {
+  const role = getUserRole(req);
+  const assignedHotelIds = getAssignedHotelIds(req);
+  const userCompany = req.user?.company?._id?.toString?.() || req.user?.company?.toString?.() || req.user?.company;
+
+  const hotel = await Hotel.findById(hotelId).select("company");
+  if (!hotel) {
+    throw Object.assign(new Error("Hotel not found"), { status: 404 });
+  }
+
+  // Receptionists are property-scoped
+  if (role === "receptionist" && assignedHotelIds.length > 0 && !assignedHotelIds.includes(hotelId.toString())) {
+    throw Object.assign(new Error("Not authorized for this hotel"), { status: 403 });
+  }
+
+  // Enforce same-company scope for non-owner users
+  if (role !== "owner" && userCompany && hotel.company?.toString() !== userCompany.toString()) {
+    throw Object.assign(new Error("Not authorized for this hotel company"), { status: 403 });
+  }
+
+  return hotel;
+};
+
 // ============================================
 // 1. CREATE NEW BOOKING
 // ============================================
@@ -115,6 +148,8 @@ export const createNewBooking = asyncHandler(async (req, res) => {
   if (!hotel) {
     throw Object.assign(new Error('Hotel not found'), { status: 404 });
   }
+
+  await assertHotelAccess(req, hotelId);
 
   // Check if room exists and belongs to this hotel
   const room = await Room.findById(roomId);
@@ -188,8 +223,12 @@ export const createNewBooking = asyncHandler(async (req, res) => {
     bookingSource: 'admin'
   });
 
-  // Update room status to occupied
-  room.status = 'occupied';
+  // Mark room as reserved for a confirmed booking.
+  // Actual occupancy is set at check-in time.
+  if (!room.company && hotel.company) {
+    room.company = hotel.company;
+  }
+  room.status = 'reserved';
   await room.save();
 
   res.status(201).json({
@@ -245,6 +284,8 @@ export const checkInWalkInGuest = asyncHandler(async (req, res) => {
   if (!hotel) {
     throw Object.assign(new Error('Hotel not found'), { status: 404 });
   }
+
+  await assertHotelAccess(req, hotelId);
 
   // Check if room exists and is available
   const room = await Room.findById(roomId);
@@ -314,6 +355,9 @@ export const checkInWalkInGuest = asyncHandler(async (req, res) => {
   const booking = await Booking.create(bookingPayload);
 
   // Update room status
+  if (!room.company && hotel.company) {
+    room.company = hotel.company;
+  }
   room.status = 'occupied';
   await room.save();
 
@@ -341,6 +385,8 @@ export const expressCheckOut = asyncHandler(async (req, res) => {
     throw Object.assign(new Error('Booking not found'), { status: 404 });
   }
 
+  await assertHotelAccess(req, booking.hotel);
+
   // Check if guest is currently checked in
   if (booking.status !== 'Checked-In') {
     throw Object.assign(
@@ -359,11 +405,24 @@ export const expressCheckOut = asyncHandler(async (req, res) => {
 
   await booking.save();
 
-  // Update room status back to available
+  // Move room to cleaning (same lifecycle as reception check-out endpoint)
   const room = await Room.findById(booking.room);
   if (room) {
-    room.status = 'available';
+    if (!room.company && booking.company) {
+      room.company = booking.company;
+    }
+    room.status = 'cleaning';
     await room.save();
+  }
+
+  // Best-effort guest profile update for consistency with reception flow
+  if (booking.guest) {
+    await Guest.findByIdAndUpdate(booking.guest, {
+      status: "Checked-Out",
+      currentBooking: null,
+      currentRoom: null,
+      $inc: { totalStays: 1, totalSpent: booking.totalAmount || 0 },
+    });
   }
 
   res.status(200).json({
@@ -394,6 +453,8 @@ export const changeGuestRoom = asyncHandler(async (req, res) => {
   if (!booking) {
     throw Object.assign(new Error('Booking not found'), { status: 404 });
   }
+
+  await assertHotelAccess(req, booking.hotel);
 
   // Check if guest is checked in
   if (booking.status !== 'Checked-In') {
@@ -453,6 +514,12 @@ export const changeGuestRoom = asyncHandler(async (req, res) => {
   await booking.save();
 
   // Update room statuses
+  if (!oldRoom.company && booking.company) {
+    oldRoom.company = booking.company;
+  }
+  if (!newRoom.company && booking.company) {
+    newRoom.company = booking.company;
+  }
   oldRoom.status = 'available';
   newRoom.status = 'occupied';
   await oldRoom.save();
@@ -482,6 +549,8 @@ export const getBookingById = asyncHandler(async (req, res) => {
     throw Object.assign(new Error('Booking not found'), { status: 404 });
   }
 
+  await assertHotelAccess(req, booking.hotel?._id || booking.hotel);
+
   res.status(200).json({
     success: true,
     booking
@@ -492,11 +561,14 @@ export const getBookingById = asyncHandler(async (req, res) => {
 // 6. GET HOTEL BOOKINGS (for reception dashboard)
 // ============================================
 export const getHotelBookings = asyncHandler(async (req, res) => {
-  const { hotelId, status, page = 1, limit = 20 } = req.query;
+  const { hotelId } = req.params;
+  const { status, page = 1, limit = 20 } = req.query;
 
   if (!hotelId) {
     throw Object.assign(new Error('Hotel ID is required'), { status: 400 });
   }
+
+  await assertHotelAccess(req, hotelId);
 
   const query = { hotel: hotelId };
 
@@ -504,12 +576,15 @@ export const getHotelBookings = asyncHandler(async (req, res) => {
     query.status = status;
   }
 
-  const skip = (page - 1) * limit;
+  const parsedPage = parseInt(page, 10);
+  const parsedLimit = parseInt(limit, 10);
+  const skip = (parsedPage - 1) * parsedLimit;
+
   const bookings = await Booking.find(query)
     .populate(['user', 'room'])
     .sort({ createdAt: -1 })
     .skip(skip)
-    .limit(parseInt(limit));
+    .limit(parsedLimit);
 
   const total = await Booking.countDocuments(query);
 
@@ -517,8 +592,8 @@ export const getHotelBookings = asyncHandler(async (req, res) => {
     success: true,
     count: bookings.length,
     total,
-    totalPages: Math.ceil(total / limit),
-    currentPage: parseInt(page),
+    totalPages: Math.ceil(total / parsedLimit),
+    currentPage: parsedPage,
     bookings
   });
 });
@@ -535,10 +610,16 @@ export const getAvailableRooms = asyncHandler(async (req, res) => {
     throw Object.assign(new Error('Hotel ID is required'), { status: 400 });
   }
 
+  await assertHotelAccess(req, hotelId);
+
   let query = { hotel: hotelId, status: 'available' };
 
   // If dates provided, check for conflicts
   if (checkIn && checkOut) {
+    // For date-aware availability checks we can include reserved rooms,
+    // then exclude conflicting bookings by date overlap.
+    query.status = { $in: ['available', 'reserved'] };
+
     const occupiedRoomIds = await Booking.distinct('room', {
       hotel: hotelId,
       status: { $in: ['Confirmed', 'Checked-In'] },

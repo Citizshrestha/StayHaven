@@ -121,11 +121,45 @@ const bookingSchema = new mongoose.Schema({
   },
 }, { timestamps: true });
 
-// Auto-generate bookingId
+// Auto-generate bookingId with collision handling
 bookingSchema.pre("save", async function (next) {
   if (!this.bookingId) {
-    const count = await mongoose.model("Booking").countDocuments({ company: this.company });
-    this.bookingId = `#BK-${(5001 + count).toString().padStart(4, "0")}`;
+    const Booking = mongoose.model("Booking");
+    const company = this.company;
+    
+    // Find the highest existing bookingId for this company
+    const lastBooking = await Booking
+      .findOne({ company, bookingId: { $regex: /^#BK-\d+$/ } })
+      .sort({ bookingId: -1 })
+      .select("bookingId")
+      .lean();
+    
+    let nextNum = 5001; // Default starting number
+    if (lastBooking?.bookingId) {
+      const match = lastBooking.bookingId.match(/#BK-(\d+)/);
+      if (match) {
+        nextNum = parseInt(match[1], 10) + 1;
+      }
+    }
+    
+    // Ensure uniqueness with retry
+    let attempts = 0;
+    const maxAttempts = 10;
+    while (attempts < maxAttempts) {
+      const candidateId = `#BK-${nextNum.toString().padStart(4, "0")}`;
+      const exists = await Booking.exists({ company, bookingId: candidateId });
+      if (!exists) {
+        this.bookingId = candidateId;
+        break;
+      }
+      nextNum++;
+      attempts++;
+    }
+    
+    if (!this.bookingId) {
+      // Fallback to timestamp-based ID
+      this.bookingId = `#BK-${Date.now().toString(36).toUpperCase()}`;
+    }
   }
   if (this.checkIn && this.checkOut) {
     this.durationNights = Math.max(1, Math.ceil((this.checkOut - this.checkIn) / (1000 * 60 * 60 * 24)));
@@ -133,15 +167,41 @@ bookingSchema.pre("save", async function (next) {
   next();
 });
 
-// Indexes for performance
-bookingSchema.index({ user: 1, status: 1 }, { sparse: true });  // sparse because user is now optional
-bookingSchema.index({ room: 1, checkIn: 1, checkOut: 1 });
-bookingSchema.index({ hotel: 1, status: 1 });
-bookingSchema.index({ hotel: 1, checkIn: 1, status: 1 });
+// ═════════════════════════════════════════════════════════════════════════════
+// INDEXES FOR PRODUCTION PERFORMANCE
+// ═════════════════════════════════════════════════════════════════════════════
 
-bookingSchema.index({ createdAt: -1 });
+// Core lookups
+bookingSchema.index({ user: 1, status: 1 }, { sparse: true });
+bookingSchema.index({ guest: 1, status: 1 });
+bookingSchema.index({ bookingId: 1 });
+bookingSchema.index({ confirmationCode: 1 }, { sparse: true });
+
+// Room availability checks (critical for conflict prevention)
+bookingSchema.index({ room: 1, checkIn: 1, checkOut: 1 });
+bookingSchema.index({ room: 1, status: 1, checkIn: 1, checkOut: 1 });
+
+// Dashboard queries - today's check-ins/check-outs
+bookingSchema.index({ hotel: 1, status: 1, checkIn: 1 });
+bookingSchema.index({ hotel: 1, status: 1, checkOut: 1 });
+bookingSchema.index({ hotel: 1, status: 1, updatedAt: -1 });
+bookingSchema.index({ hotel: 1, paymentStatus: 1, status: 1 });
+
+// Company-level aggregations
 bookingSchema.index({ company: 1, status: 1 });
 bookingSchema.index({ company: 1, createdAt: -1 });
+bookingSchema.index({ company: 1, checkIn: 1, status: 1 });
+
+// Date-based queries for reports
+bookingSchema.index({ createdAt: -1 });
+bookingSchema.index({ checkIn: 1, status: 1 });
+bookingSchema.index({ checkOut: 1, status: 1 });
+
+// Compound index for reception dashboard (most common query)
+bookingSchema.index({ hotel: 1, checkIn: 1, checkOut: 1, status: 1 });
+
+// Text search for guest info
+bookingSchema.index({ "guestInfo.name": "text", bookingId: "text" });
 
 export const Booking = mongoose.model("Booking", bookingSchema);
 

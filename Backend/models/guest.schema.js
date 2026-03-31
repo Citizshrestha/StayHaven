@@ -42,9 +42,32 @@ const guestSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// ═════════════════════════════════════════════════════════════════════════════
+// INDEXES FOR PRODUCTION PERFORMANCE
+// ═════════════════════════════════════════════════════════════════════════════
+
 guestSchema.index({ hotel: 1, email: 1 });
-guestSchema.index({ hotel: 1, fullName: "text" });
+guestSchema.index({ hotel: 1, phone: 1 });
+guestSchema.index({ hotel: 1, status: 1 });
+guestSchema.index({ hotel: 1, membershipTier: 1 });
+guestSchema.index({ hotel: 1, vipStatus: 1, status: 1 });
+guestSchema.index({ hotel: 1, createdAt: -1 });
+
+// Company-level indexes
 guestSchema.index({ company: 1, status: 1 });
+guestSchema.index({ company: 1, membershipTier: 1 });
+guestSchema.index({ company: 1, createdAt: -1 });
+guestSchema.index({ company: 1, totalSpent: -1 }); // For loyalty reporting
+
+// Text search
+guestSchema.index({ fullName: "text", email: "text", phone: "text" });
+
+// Unique lookup
+guestSchema.index({ guestId: 1 });
+
+// Dashboard quick lookup
+guestSchema.index({ currentBooking: 1 }, { sparse: true });
+guestSchema.index({ company: 1, blacklisted: 1 });
 
 // Auto-generate guestId
 guestSchema.pre("save", async function (next) {

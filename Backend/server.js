@@ -26,11 +26,19 @@ import { initCloudinary } from "./config/cloudinary.js";
 import { initSocket } from "./config/socket.js";
 import { apiLimiter } from "./middleware/rateLimiter.js";
 import { auditMiddleware } from "./middleware/auditLogger.js";
+import { initSentry, sentryRequestHandler, sentryTracingHandler, sentryErrorHandler } from "./config/sentry.js";
+import { errorHandler, notFound } from "./middleware/errorHandler.js";
 
 // Initialize cloudinary with env vars
 initCloudinary();
 
 const app = express();
+
+// Initialize Sentry BEFORE any other middleware
+initSentry(app);
+app.use(sentryRequestHandler());
+app.use(sentryTracingHandler());
+
 // Create HTTP server for Socket.io
 const httpServer = createServer(app);
 
@@ -81,9 +89,13 @@ app.use(
 );
 
 // CORS — must come before rate limiter so preflight OPTIONS requests are handled
+const CORS_ORIGINS = process.env.CLIENT_URL
+  ? process.env.CLIENT_URL.split(",").map((s) => s.trim())
+  : ["http://localhost:5173", "http://localhost:5174"];
+
 app.use(
   cors({
-    origin: ["http://localhost:5173", "http://localhost:5174"],
+    origin: CORS_ORIGINS,
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -156,6 +168,19 @@ app.use("/api/bookings", bookingRoutes);  // Booking management (authenticated)
 app.use("/api/seed", seedRoutes);         // Seed test data (admin only)
 app.use("/api/guest", guestRoutes);       // Guest QR scanning (public)
 app.use("/api/reception", receptionRoutes); // Reception dashboard APIs (authenticated)
+
+// ═══════════════════════════════════════════
+// Error Handling Middleware (MUST BE LAST)
+// ═══════════════════════════════════════════
+
+// Sentry error handler (must be before other error handlers)
+app.use(sentryErrorHandler());
+
+// 404 handler for undefined routes
+app.use(notFound);
+
+// Centralized error handler
+app.use(errorHandler);
 
 // start server - use httpServer instead of app for Socket.io support
 httpServer.listen(PORT, () => {

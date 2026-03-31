@@ -103,8 +103,30 @@ const roomSchema = new mongoose.Schema({
 
 }, { timestamps: true })
 
+// ═════════════════════════════════════════════════════════════════════════════
+// INDEXES FOR PRODUCTION PERFORMANCE
+// ═════════════════════════════════════════════════════════════════════════════
+
 // Compound index for unique room numbers per hotel
-roomSchema.index({ hotel: 1, roomNumber: 1 }, { unique: true })
+roomSchema.index({ hotel: 1, roomNumber: 1 }, { unique: true });
+
+// Status queries for dashboard (available, occupied, maintenance, etc.)
+roomSchema.index({ hotel: 1, status: 1 });
+roomSchema.index({ company: 1, status: 1 });
+
+// Room type filtering
+roomSchema.index({ hotel: 1, type: 1 });
+roomSchema.index({ hotel: 1, floor: 1 });
+
+// Combined index for room listing with filters
+roomSchema.index({ hotel: 1, status: 1, type: 1 });
+roomSchema.index({ hotel: 1, status: 1, floor: 1 });
+
+// Text search
+roomSchema.index({ roomName: "text", roomNumber: "text", type: "text" });
+
+// QR code lookups
+roomSchema.index({ uniqueToken: 1 }, { unique: true, sparse: true });
 
 // Note: uniqueToken index is already created by the unique: true field option (sparse)
 

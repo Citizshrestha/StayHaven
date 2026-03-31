@@ -34,7 +34,33 @@ const guestRequestSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// ═════════════════════════════════════════════════════════════════════════════
+// INDEXES FOR PRODUCTION PERFORMANCE
+// ═════════════════════════════════════════════════════════════════════════════
+
+// Dashboard queries (most common - open requests by urgency)
+guestRequestSchema.index({ hotel: 1, status: 1, urgency: 1 });
+guestRequestSchema.index({ hotel: 1, status: 1, createdAt: -1 });
 guestRequestSchema.index({ company: 1, status: 1 });
 guestRequestSchema.index({ hotel: 1, urgency: 1 });
+
+// Room-based queries
+guestRequestSchema.index({ room: 1, status: 1 });
+guestRequestSchema.index({ roomNumber: 1, status: 1 });
+
+// Staff assignment queries
+guestRequestSchema.index({ assignedTo: 1, status: 1 });
+guestRequestSchema.index({ hotel: 1, assignedTo: 1, status: 1 });
+
+// Overdue request queries
+guestRequestSchema.index({ hotel: 1, isOverdue: 1, status: 1 });
+guestRequestSchema.index({ isOverdue: 1, status: 1, createdAt: -1 });
+
+// Category filtering
+guestRequestSchema.index({ hotel: 1, category: 1, status: 1 });
+
+// Guest lookup
+guestRequestSchema.index({ guest: 1, createdAt: -1 });
+guestRequestSchema.index({ booking: 1, status: 1 });
 
 export const GuestRequest = mongoose.model("GuestRequest", guestRequestSchema);

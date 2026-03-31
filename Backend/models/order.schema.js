@@ -133,12 +133,37 @@ const orderSchema = new mongoose.Schema({
   },
 }, { timestamps: true });
 
-// Indexes for performance
-orderSchema.index({ hotel: 1, orderNumber: 1 }, { unique: true }); // Unique order number per hotel
-orderSchema.index({ room: 1, status: 1 });  // find orders by hotel and staus
-orderSchema.index({ hotel: 1, status: 1 });
-orderSchema.index({ orderBy: 1, createdAt: -1 });  // find orders by staff
-orderSchema.index({ status: 1, createdAt: -1 });  // find orders by status (newest first)
+// ═════════════════════════════════════════════════════════════════════════════
+// INDEXES FOR PRODUCTION PERFORMANCE
+// ═════════════════════════════════════════════════════════════════════════════
+
+// Unique order number per hotel
+orderSchema.index({ hotel: 1, orderNumber: 1 }, { unique: true });
+
+// Dashboard queries (active orders)
+orderSchema.index({ hotel: 1, status: 1, createdAt: -1 });
+orderSchema.index({ hotel: 1, status: 1, priority: 1 });
+orderSchema.index({ hotel: 1, orderType: 1, status: 1 });
+
+// Room service queries
+orderSchema.index({ room: 1, status: 1 });
+orderSchema.index({ roomNumber: 1, status: 1 });
+
+// Staff queries
+orderSchema.index({ orderBy: 1, createdAt: -1 });
+orderSchema.index({ orderBy: 1, status: 1 });
+
+// Guest order queries
+orderSchema.index({ isGuestOrder: 1, status: 1, createdAt: -1 });
+orderSchema.index({ guestSessionId: 1, createdAt: -1 }, { sparse: true });
+
+// Status-based queries (kitchen display)
+orderSchema.index({ status: 1, createdAt: -1 });
+orderSchema.index({ status: 1, priority: 1, createdAt: -1 });
+
+// Revenue aggregation
+orderSchema.index({ hotel: 1, createdAt: -1, status: 1 });
+orderSchema.index({ hotel: 1, orderType: 1, createdAt: -1 });
 
 // Pre-save hook to auto-generate order number
 orderSchema.pre('save', async function (next) {

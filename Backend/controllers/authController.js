@@ -1,5 +1,6 @@
 import { User } from "../models/user.schema.js";
 import { Role } from "../models/role.schema.js";
+import { OTP } from "../models/otp.schema.js";
 import jwt from "jsonwebtoken";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendEmail } from "../config/nodemailer.js";
@@ -306,22 +307,30 @@ export const sendSignupOtp = asyncHandler(async (req, res) => {
     });
   }
 
-  // Generate OTP - simple approach
+  // Generate OTP
   const otp = generateOTP();
-  
-  // Store signup data in simple memory cache (will work for single server)
-  global.signupOtpCache = global.signupOtpCache || {};
-  global.signupOtpCache[email] = {
-    otp: otp,
-    signupFormData: signupFormData,
-    expiresAt: Date.now() + 15 * 60 * 1000, // 15 minutes
-    createdAt: Date.now()
-  };
 
-  console.log("💾 Storing signup OTP in memory:", {
+  // Invalidate any existing OTPs for this email
+  await OTP.invalidateExisting(email, "signup");
+
+  // Store OTP in MongoDB with hashed password
+  await OTP.create({
     email,
     otp,
-    expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString()
+    type: "signup",
+    signupFormData: {
+      fullName: signupFormData.fullName || signupFormData.fullname,
+      fullname: signupFormData.fullname || signupFormData.fullName,
+      username: signupFormData.username,
+      password: signupFormData.password, // Will be hashed by pre-save hook
+    },
+    expiresAt: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
+  });
+
+  console.log("💾 Storing signup OTP in database:", {
+    email,
+    otp,
+    expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
   });
 
   const mailOptions = {
@@ -345,15 +354,15 @@ The StayHaven Team 🌟
 
   try {
     await sendEmail(mailOptions);
-    
+
     return res.status(200).json({
       success: true,
       message: "OTP sent to your email successfully.",
-      userId: email // Return email as identifier
+      userId: email, // Return email as identifier
     });
   } catch (error) {
     // Clean up temp data if email fails
-    delete global.signupOtpCache[email];
+    await OTP.invalidateExisting(email, "signup");
     console.error("❌ Failed to send OTP email:", error);
     return res.status(500).json({
       success: false,
@@ -373,43 +382,45 @@ export const verifySignupOtp = asyncHandler(async (req, res) => {
     });
   }
 
-  // Check if OTP exists in memory cache
-  global.signupOtpCache = global.signupOtpCache || {};
-  const cachedData = global.signupOtpCache[userId]; // userId is email
+  const email = userId.toLowerCase().trim();
+
+  // Find valid OTP in database
+  const otpRecord = await OTP.findValidOTP(email, otp, "signup");
 
   console.log("🔍 Verifying signup OTP:", {
-    email: userId,
+    email,
     otp,
-    cacheExists: !!cachedData,
-    cachedOtp: cachedData?.otp
+    found: !!otpRecord,
   });
 
-  if (!cachedData) {
+  if (!otpRecord) {
     return res.status(404).json({
       success: false,
       message: "OTP expired or not found. Please request a new OTP.",
     });
   }
 
-  // Check if OTP has expired
-  if (Date.now() > cachedData.expiresAt) {
-    delete global.signupOtpCache[userId];
+  // Check if max attempts exceeded (5 attempts)
+  if (otpRecord.attempts >= 5) {
+    await OTP.deleteOne({ _id: otpRecord._id });
     return res.status(400).json({
       success: false,
-      message: "OTP has expired. Please request a new one.",
+      message: "Too many failed attempts. Please request a new OTP.",
     });
   }
 
   // Check if OTP matches
-  if (cachedData.otp !== otp) {
+  if (otpRecord.otp !== otp) {
+    await otpRecord.incrementAttempts();
     return res.status(400).json({
       success: false,
       message: "Invalid OTP. Please try again.",
     });
   }
 
-  // OTP is correct! Create the user account
-  const { signupFormData } = cachedData;
+  // OTP is correct! Mark as verified and get signup data
+  await otpRecord.markVerified();
+  const { signupFormData } = otpRecord;
 
   const verifyPasswordErrors = validatePasswordStrength(signupFormData.password || "");
   if (verifyPasswordErrors.length > 0) {
@@ -441,13 +452,13 @@ export const verifySignupOtp = asyncHandler(async (req, res) => {
     const newUser = await User.create({
       fullname: signupFormData.fullName || signupFormData.fullname,
       username: signupFormData.username,
-      email: userId,
-      password: signupFormData.password,
+      email,
+      password: signupFormData.password, // Already hashed from OTP record
       role: guestRole._id,
     });
 
-    // Clean up cache
-    delete global.signupOtpCache[userId];
+    // Clean up OTP record from database
+    await OTP.deleteOne({ _id: otpRecord._id });
 
     console.log("✅ User created successfully:", newUser.email);
 
@@ -458,15 +469,15 @@ export const verifySignupOtp = asyncHandler(async (req, res) => {
 
   } catch (error) {
     console.error("❌ Error creating user:", error);
-    delete global.signupOtpCache[userId];
-    
+    await OTP.deleteOne({ _id: otpRecord._id });
+
     if (error.code === 11000) {
       return res.status(400).json({
         success: false,
         message: "Email or username already exists. Please try with different credentials.",
       });
     }
-    
+
     return res.status(500).json({
       success: false,
       message: "Failed to create user account. Please try again.",

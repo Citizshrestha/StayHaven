@@ -35,7 +35,4 @@ const roleSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Index for unique role names
-roleSchema.index({ name: 1 }, { unique: true });
-
 export const Role = mongoose.model("Role", roleSchema);

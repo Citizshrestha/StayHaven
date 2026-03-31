@@ -31,8 +31,29 @@ const housekeepingTaskSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// ═════════════════════════════════════════════════════════════════════════════
+// INDEXES FOR PRODUCTION PERFORMANCE
+// ═════════════════════════════════════════════════════════════════════════════
+
+// Dashboard queries
 housekeepingTaskSchema.index({ company: 1, status: 1 });
+housekeepingTaskSchema.index({ hotel: 1, status: 1 });
+housekeepingTaskSchema.index({ hotel: 1, status: 1, priority: 1 });
 housekeepingTaskSchema.index({ hotel: 1, roomNumber: 1 });
+
+// Staff assignment queries
 housekeepingTaskSchema.index({ assignedTo: 1, status: 1 });
+housekeepingTaskSchema.index({ assignedTo: 1, createdAt: -1 });
+
+// Priority and checkout queries
+housekeepingTaskSchema.index({ hotel: 1, checkoutToday: 1, status: 1 });
+housekeepingTaskSchema.index({ hotel: 1, priority: 1, status: 1 });
+
+// Room lookup
+housekeepingTaskSchema.index({ room: 1, status: 1 });
+
+// Time-based queries
+housekeepingTaskSchema.index({ hotel: 1, completedAt: -1 });
+housekeepingTaskSchema.index({ createdAt: -1 });
 
 export const HousekeepingTask = mongoose.model("HousekeepingTask", housekeepingTaskSchema);

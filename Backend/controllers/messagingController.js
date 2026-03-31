@@ -374,6 +374,201 @@ export const getContacts = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Delete a conversation (soft delete - marks messages as archived for this user)
+ * DELETE /api/staff/messages/conversations/:partnerId
+ */
+export const deleteConversation = asyncHandler(async (req, res) => {
+    const { partnerId } = req.params;
+    const hotelId =
+        req.body.hotelId ||
+        (req.user.assignedProperties && req.user.assignedProperties[0]?._id) ||
+        req.user.assignedProperties?.[0];
+
+    if (!hotelId) {
+        return res.status(400).json({
+            success: false,
+            message: "No hotel context found",
+        });
+    }
+
+    // Mark all messages in this conversation as archived for this user
+    const result = await Message.updateMany(
+        {
+            hotel: hotelId,
+            channel: "direct",
+            $or: [
+                { sender: req.user._id, recipient: partnerId },
+                { sender: partnerId, recipient: req.user._id },
+            ],
+        },
+        {
+            $addToSet: { archivedBy: req.user._id },
+        }
+    );
+
+    return res.status(200).json({
+        success: true,
+        message: "Conversation deleted",
+        modifiedCount: result.modifiedCount,
+    });
+});
+
+/**
+ * Archive a conversation
+ * POST /api/staff/messages/conversations/:partnerId/archive
+ */
+export const archiveConversation = asyncHandler(async (req, res) => {
+    const { partnerId } = req.params;
+    const hotelId =
+        req.body.hotelId ||
+        (req.user.assignedProperties && req.user.assignedProperties[0]?._id) ||
+        req.user.assignedProperties?.[0];
+
+    if (!hotelId) {
+        return res.status(400).json({
+            success: false,
+            message: "No hotel context found",
+        });
+    }
+
+    const result = await Message.updateMany(
+        {
+            hotel: hotelId,
+            channel: "direct",
+            $or: [
+                { sender: req.user._id, recipient: partnerId },
+                { sender: partnerId, recipient: req.user._id },
+            ],
+        },
+        {
+            $addToSet: { archivedBy: req.user._id },
+        }
+    );
+
+    return res.status(200).json({
+        success: true,
+        message: "Conversation archived",
+        modifiedCount: result.modifiedCount,
+    });
+});
+
+/**
+ * Mute a conversation
+ * POST /api/staff/messages/conversations/:partnerId/mute
+ */
+export const muteConversation = asyncHandler(async (req, res) => {
+    const { partnerId } = req.params;
+    const hotelId =
+        req.body.hotelId ||
+        (req.user.assignedProperties && req.user.assignedProperties[0]?._id) ||
+        req.user.assignedProperties?.[0];
+
+    if (!hotelId) {
+        return res.status(400).json({
+            success: false,
+            message: "No hotel context found",
+        });
+    }
+
+    const result = await Message.updateMany(
+        {
+            hotel: hotelId,
+            channel: "direct",
+            $or: [
+                { sender: req.user._id, recipient: partnerId },
+                { sender: partnerId, recipient: req.user._id },
+            ],
+        },
+        {
+            $addToSet: { mutedBy: req.user._id },
+        }
+    );
+
+    return res.status(200).json({
+        success: true,
+        message: "Conversation muted",
+        modifiedCount: result.modifiedCount,
+    });
+});
+
+/**
+ * Unmute a conversation
+ * POST /api/staff/messages/conversations/:partnerId/unmute
+ */
+export const unmuteConversation = asyncHandler(async (req, res) => {
+    const { partnerId } = req.params;
+    const hotelId =
+        req.body.hotelId ||
+        (req.user.assignedProperties && req.user.assignedProperties[0]?._id) ||
+        req.user.assignedProperties?.[0];
+
+    if (!hotelId) {
+        return res.status(400).json({
+            success: false,
+            message: "No hotel context found",
+        });
+    }
+
+    const result = await Message.updateMany(
+        {
+            hotel: hotelId,
+            channel: "direct",
+            $or: [
+                { sender: req.user._id, recipient: partnerId },
+                { sender: partnerId, recipient: req.user._id },
+            ],
+        },
+        {
+            $pull: { mutedBy: req.user._id },
+        }
+    );
+
+    return res.status(200).json({
+        success: true,
+        message: "Conversation unmuted",
+        modifiedCount: result.modifiedCount,
+    });
+});
+
+/**
+ * Mark conversation as unread
+ * POST /api/staff/messages/conversations/:partnerId/mark-unread
+ */
+export const markConversationUnread = asyncHandler(async (req, res) => {
+    const { partnerId } = req.params;
+    const hotelId =
+        req.body.hotelId ||
+        (req.user.assignedProperties && req.user.assignedProperties[0]?._id) ||
+        req.user.assignedProperties?.[0];
+
+    if (!hotelId) {
+        return res.status(400).json({
+            success: false,
+            message: "No hotel context found",
+        });
+    }
+
+    // Mark the most recent message from partner as unread
+    const result = await Message.updateMany(
+        {
+            hotel: hotelId,
+            channel: "direct",
+            sender: partnerId,
+            recipient: req.user._id,
+        },
+        {
+            $set: { isRead: false, readAt: null },
+        }
+    );
+
+    return res.status(200).json({
+        success: true,
+        message: "Conversation marked as unread",
+        modifiedCount: result.modifiedCount,
+    });
+});
+
+/**
  * Get recent conversations (latest message per unique conversation partner)
  * Also includes channel conversations the user is part of based on their role
  * GET /api/staff/messages/conversations
@@ -403,6 +598,7 @@ export const getConversations = asyncHandler(async (req, res) => {
                 channel: "direct",
                 messageType: { $in: ["text", "call_request"] },
                 $or: [{ sender: userId }, { recipient: userId }],
+                archivedBy: { $ne: userId }, // Exclude archived conversations
             },
         },
         { $sort: { createdAt: -1 } },
@@ -457,15 +653,59 @@ export const getConversations = asyncHandler(async (req, res) => {
                 ],
             },
         },
+        {
+            $lookup: {
+                from: "guests",
+                localField: "_id",
+                foreignField: "_id",
+                as: "guestInfo",
+                pipeline: [
+                    {
+                        $project: {
+                            fullName: 1,
+                            email: 1,
+                            phone: 1,
+                            avatarUrl: 1,
+                            membershipTier: 1,
+                        },
+                    },
+                ],
+            },
+        },
         { $unwind: { path: "$partnerInfo", preserveNullAndEmptyArrays: true } },
+        { $unwind: { path: "$guestInfo", preserveNullAndEmptyArrays: true } },
         {
             $project: {
                 partner: {
                     _id: "$_id",
-                    fullname: "$partnerInfo.fullname",
-                    email: "$partnerInfo.email",
-                    companyRole: "$partnerInfo.companyRole",
-                    profilePicture: "$partnerInfo.profilePicture",
+                    fullname: {
+                        $cond: {
+                            if: { $ifNull: ["$guestInfo.fullName", false] },
+                            then: "$guestInfo.fullName",
+                            else: "$partnerInfo.fullname"
+                        }
+                    },
+                    email: {
+                        $cond: {
+                            if: { $ifNull: ["$guestInfo.email", false] },
+                            then: "$guestInfo.email",
+                            else: "$partnerInfo.email"
+                        }
+                    },
+                    companyRole: {
+                        $cond: {
+                            if: { $ifNull: ["$guestInfo._id", false] },
+                            then: "guest",
+                            else: "$partnerInfo.companyRole"
+                        }
+                    },
+                    profilePicture: {
+                        $cond: {
+                            if: { $ifNull: ["$guestInfo.avatarUrl", false] },
+                            then: "$guestInfo.avatarUrl",
+                            else: "$partnerInfo.profilePicture"
+                        }
+                    },
                 },
                 lastMessage: {
                     _id: "$lastMessage._id",
