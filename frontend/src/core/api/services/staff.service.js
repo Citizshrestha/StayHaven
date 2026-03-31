@@ -9,7 +9,8 @@ export const staffLogin = async (email, password) => {
 
   if (response.data.success) {
     if (response.data.accessToken) {
-      localStorage.setItem("staffAccessToken", response.data.accessToken);
+      sessionStorage.setItem("staffAccessToken", response.data.accessToken);
+      localStorage.setItem("staffAccessToken", response.data.accessToken); // backward compatibility fallback
     }
     localStorage.setItem("staffUserId", response.data.user._id);
     localStorage.setItem("staffUser", JSON.stringify(response.data.user));
@@ -35,6 +36,7 @@ export const staffLogout = async () => {
     console.error("Logout error:", error);
   } finally {
     // Clear all staff data
+    sessionStorage.removeItem("staffAccessToken");
     localStorage.removeItem("staffAccessToken");
     localStorage.removeItem("staffUser");
     localStorage.removeItem("staffUserId");
@@ -52,7 +54,7 @@ export const getStaffProfile = async () => {
 
 // Check if staff is authenticated
 export const isStaffAuthenticated = () => {
-  return !!localStorage.getItem("staffAccessToken");
+  return !!(sessionStorage.getItem("staffAccessToken") || localStorage.getItem("staffAccessToken"));
 };
 
 // Get current staff user
@@ -86,9 +88,30 @@ export const createOrder = async (orderData) => {
 };
 
 // get order
-export const getOrders = async (hotelId, status = "pending", orderType = "dineIn") => {
+export const getOrders = async (arg1, statusArg = "all", orderTypeArg = "all") => {
+  // Backward compatible signature support:
+  // - New: getOrders({ hotelId, status, orderType, page, limit, search })
+  // - Old: getOrders(hotelId, status, orderType)
+  const params = typeof arg1 === 'object' && arg1 !== null
+    ? {
+      hotelId: arg1.hotelId,
+      status: arg1.status ?? "all",
+      orderType: arg1.orderType ?? "all",
+      page: arg1.page ?? 1,
+      limit: arg1.limit ?? 100,
+      search: arg1.search ?? "",
+    }
+    : {
+      hotelId: arg1,
+      status: statusArg,
+      orderType: orderTypeArg,
+      page: 1,
+      limit: 100,
+      search: "",
+    };
+
   const response = await axiosClient.get("/api/staff/orders", {
-    params: { hotelId, status, orderType }
+    params
   });
 
   return response.data;
@@ -118,6 +141,18 @@ export const resetPassword = async (token, newPassword) => {
 // Update an order
 export const updateOrder = async (orderId, orderData) => {
   const response = await axiosClient.put(`/api/staff/orders/${orderId}`, orderData);
+  return response.data;
+}
+
+export const sendOrderBill = async (orderId, payload) => {
+  const response = await axiosClient.post(`/api/staff/orders/${orderId}/send-bill`, payload);
+  return response.data;
+}
+
+export const getMenuItems = async (hotelId, category = '', available = 'all') => {
+  const response = await axiosClient.get('/api/staff/menu-items', {
+    params: { hotelId, category, available }
+  });
   return response.data;
 }
 

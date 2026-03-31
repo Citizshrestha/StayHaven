@@ -19,6 +19,21 @@ import { useStaffAuth } from "./StaffAuthContext";
 import useNotificationSound from "../hooks/useNotificationSound";
 import { NOTIFICATION_TYPES } from "./useNotifications";
 
+const formatOrderLocation = ({ orderType, roomNumber, tableNumber }) => {
+  if (orderType === "roomService") {
+    return roomNumber ? `Room ${roomNumber}` : "Room Service";
+  }
+  if (orderType === "dineIn") {
+    return tableNumber ? `Table ${tableNumber}` : "Dine-in";
+  }
+  if (orderType === "takeaway") {
+    return "Takeaway";
+  }
+  if (tableNumber) return `Table ${tableNumber}`;
+  if (roomNumber) return `Room ${roomNumber}`;
+  return "Order";
+};
+
 const NotificationContext = createContext(null);
 
 // Note: NOTIFICATION_TYPES and useNotifications hook are in useNotifications.js
@@ -145,9 +160,11 @@ export const NotificationProvider = ({ children }) => {
         console.log('🔊 [NotificationContext] Playing sound for new order');
         playWithVibration('newOrder');
         
-        const location = data.order.orderType === 'roomService'
-          ? `Room ${data.order.roomNumber}`
-          : `Table ${data.order.tableNumber}`;
+        const location = formatOrderLocation({
+          orderType: data.order.orderType,
+          roomNumber: data.order.roomNumber,
+          tableNumber: data.order.tableNumber,
+        });
         
         addNotification({
           type: NOTIFICATION_TYPES.NEW_ORDER,
@@ -196,9 +213,11 @@ export const NotificationProvider = ({ children }) => {
             pending: '⏳',
           };
           const emoji = statusEmoji[data.status] || '📝';
-          const location = data.orderType === 'roomService'
-            ? `Room ${data.roomNumber}`
-            : `Table ${data.tableNumber}`;
+          const location = formatOrderLocation({
+            orderType: data.orderType,
+            roomNumber: data.roomNumber,
+            tableNumber: data.tableNumber,
+          });
           return `${emoji} Order #${data.orderNumber} (${location}) → ${data.status.toUpperCase()}`;
         })();
         

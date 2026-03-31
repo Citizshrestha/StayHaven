@@ -62,6 +62,56 @@ export const getConversations = async (hotelId) => {
 };
 
 /**
+ * Delete a conversation (soft delete - archives for this user)
+ */
+export const deleteConversation = async (partnerId, hotelId) => {
+    const { data } = await axiosClient.delete(`${BASE}/messages/conversations/${partnerId}`, {
+        data: { hotelId },
+    });
+    return data;
+};
+
+/**
+ * Archive a conversation
+ */
+export const archiveConversation = async (partnerId, hotelId) => {
+    const { data } = await axiosClient.post(`${BASE}/messages/conversations/${partnerId}/archive`, {
+        hotelId,
+    });
+    return data;
+};
+
+/**
+ * Mute a conversation
+ */
+export const muteConversation = async (partnerId, hotelId) => {
+    const { data } = await axiosClient.post(`${BASE}/messages/conversations/${partnerId}/mute`, {
+        hotelId,
+    });
+    return data;
+};
+
+/**
+ * Unmute a conversation
+ */
+export const unmuteConversation = async (partnerId, hotelId) => {
+    const { data } = await axiosClient.post(`${BASE}/messages/conversations/${partnerId}/unmute`, {
+        hotelId,
+    });
+    return data;
+};
+
+/**
+ * Mark conversation as unread
+ */
+export const markConversationUnread = async (partnerId, hotelId) => {
+    const { data } = await axiosClient.post(`${BASE}/messages/conversations/${partnerId}/mark-unread`, {
+        hotelId,
+    });
+    return data;
+};
+
+/**
  * Initiate a call request
  */
 export const initiateCall = async ({ recipientId, channel, roomNumber, hotelId }) => {

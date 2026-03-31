@@ -31,7 +31,7 @@ const isSoundEnabledInSettings = () => {
       try {
         const settings = JSON.parse(kitchenSaved);
         return settings.sound !== false; // Explicitly check for false
-      } catch (e) {
+      } catch {
         // Ignore parse errors, default to enabled
       }
     }
@@ -44,7 +44,7 @@ const isSoundEnabledInSettings = () => {
       try {
         const settings = JSON.parse(waiterSaved);
         return settings.sound !== false; // Explicitly check for false
-      } catch (e) {
+      } catch {
         // Ignore parse errors, default to enabled
       }
     }
@@ -69,16 +69,17 @@ const useNotificationSound = () => {
 
   // Initialize Audio objects
   useEffect(() => {
+    const audios = audioRefs.current;
     Object.entries(SOUND_URLS).forEach(([key, url]) => {
       const audio = new Audio(url);
       audio.preload = "auto";
       audio.volume = 0.7; // 70% volume
-      audioRefs.current[key] = audio;
+      audios[key] = audio;
     });
 
     // Cleanup on unmount
     return () => {
-      Object.values(audioRefs.current).forEach(audio => {
+      Object.values(audios).forEach(audio => {
         audio.pause();
         audio.src = "";
       });

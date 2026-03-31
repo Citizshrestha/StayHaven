@@ -19,7 +19,7 @@ axiosClient.interceptors.request.use(
         const url = String(config.url || "");
         const isStaffRequest = url.includes("/api/staff") || url.includes("/api/reception");
 
-        const staffAccessToken = localStorage.getItem("staffAccessToken");
+        const staffAccessToken = sessionStorage.getItem("staffAccessToken") || localStorage.getItem("staffAccessToken");
         const accessToken = localStorage.getItem('accessToken');
 
         const tokenToUse = isStaffRequest
@@ -66,7 +66,7 @@ axiosClient.interceptors.response.use(
         );
 
         // Determine if user is logged in (staff or normal user)
-        const hasStaffSession = !!localStorage.getItem('staffAccessToken');
+        const hasStaffSession = !!(sessionStorage.getItem('staffAccessToken') || localStorage.getItem('staffAccessToken'));
         const hasUserSession = !!localStorage.getItem('userId');
 
         // Only attempt refresh if:
@@ -104,6 +104,7 @@ axiosClient.interceptors.response.use(
 
                 // Store in the correct key
                 if (isStaffRequest && hasStaffSession) {
+                    sessionStorage.setItem('staffAccessToken', newAccessToken);
                     localStorage.setItem('staffAccessToken', newAccessToken);
                 } else {
                     localStorage.setItem('accessToken', newAccessToken);
@@ -114,6 +115,7 @@ axiosClient.interceptors.response.use(
             } catch (refreshErr) {
                 // Clear appropriate tokens and redirect to login
                 if (isStaffRequest && hasStaffSession) {
+                    sessionStorage.removeItem('staffAccessToken');
                     localStorage.removeItem('staffAccessToken');
                     localStorage.removeItem('staffUser');
                     localStorage.removeItem('staffUserId');

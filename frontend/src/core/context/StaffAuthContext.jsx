@@ -28,11 +28,12 @@ export const StaffAuthProvider = ({ children }) => {
       );
       
       if (data.success && data.accessToken) {
-        localStorage.setItem("staffAccessToken", data.accessToken);
+        sessionStorage.setItem("staffAccessToken", data.accessToken);
+        localStorage.setItem("staffAccessToken", data.accessToken); // backward compatibility fallback
         return true;
       }
       return false;
-    } catch (error) {
+    } catch {
       // Refresh token absent or expired — silently fail; the axios interceptor
       // in client.js will handle actual 401s from real API calls.
       return false;
@@ -50,7 +51,7 @@ export const StaffAuthProvider = ({ children }) => {
     
     // Set up new timer for proactive refresh
     refreshTimerRef.current = setInterval(() => {
-      const hasToken = localStorage.getItem("staffAccessToken");
+      const hasToken = sessionStorage.getItem("staffAccessToken") || localStorage.getItem("staffAccessToken");
       if (hasToken) {
         refreshToken();
       }
@@ -63,7 +64,7 @@ export const StaffAuthProvider = ({ children }) => {
       try {
         const savedUser = localStorage.getItem("staffUser");
         const savedRole = localStorage.getItem("staffRole");
-        const savedToken = localStorage.getItem("staffAccessToken");
+        const savedToken = sessionStorage.getItem("staffAccessToken") || localStorage.getItem("staffAccessToken");
         
         if (savedUser && savedRole && savedToken) {
           const user = JSON.parse(savedUser);
@@ -83,6 +84,7 @@ export const StaffAuthProvider = ({ children }) => {
         localStorage.removeItem("staffUser");
         localStorage.removeItem("staffRole");
         localStorage.removeItem("activeProperty");
+        sessionStorage.removeItem("staffAccessToken");
         localStorage.removeItem("staffAccessToken");
       } finally {
         setIsLoading(false);
@@ -123,6 +125,7 @@ export const StaffAuthProvider = ({ children }) => {
     localStorage.removeItem("staffUser");
     localStorage.removeItem("staffRole");
     localStorage.removeItem("activeProperty");
+    sessionStorage.removeItem("staffAccessToken");
     localStorage.removeItem("staffAccessToken");
     localStorage.removeItem("restaurant_orders");
   };

@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 /**
  * Socket Context
  * 
@@ -24,7 +25,7 @@ import { getActiveProperty, getCurrentStaffUser } from "../../api/staff";
 const SocketContext = createContext(null);
 
 // Backend server URL
-const SOCKET_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const SOCKET_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
 /**
  * SocketProvider Component
