@@ -5,6 +5,36 @@ import { Hotel } from "../models/hotel.schema.js";
 import { MenuItem } from "../models/menuItem.schema.js";
 import { emitToHotel, emitToWaiters, emitToKitchen } from "../config/socket.js";
 
+const getUserRole = (req) => req.user?.role?.name || req.user?.companyRole;
+
+const getAssignedHotelIds = (req) => {
+  const assigned = req.user?.assignedProperties || [];
+  return assigned
+    .map((p) => (typeof p === "object" ? p?._id?.toString() : p?.toString()))
+    .filter(Boolean);
+};
+
+const assertHotelAccess = async (req, hotelId) => {
+  const role = getUserRole(req);
+  const assignedHotelIds = getAssignedHotelIds(req);
+  const userCompany = req.user?.company?._id?.toString?.() || req.user?.company?.toString?.() || req.user?.company;
+
+  const hotel = await Hotel.findById(hotelId).select("company");
+  if (!hotel) {
+    throw Object.assign(new Error("Hotel not found"), { status: 404 });
+  }
+
+  if (role === "receptionist" && assignedHotelIds.length > 0 && !assignedHotelIds.includes(hotelId.toString())) {
+    throw Object.assign(new Error("Not authorized for this hotel"), { status: 403 });
+  }
+
+  if (role !== "owner" && userCompany && hotel.company?.toString() !== userCompany.toString()) {
+    throw Object.assign(new Error("Not authorized for this hotel company"), { status: 403 });
+  }
+
+  return hotel;
+};
+
 export const createOrder = asyncHandler(async (req, res) => {
   const {
     hotelId,
@@ -19,12 +49,6 @@ export const createOrder = asyncHandler(async (req, res) => {
     customerName,
     customerPhone,
   } = req.body;
-
-  // DEBUG: Log received data
-  console.log(
-    "Create Order - Received data:",
-    JSON.stringify(req.body, null, 2)
-  );
 
   // basic hotel and items availability checks
   if (!hotelId || !Array.isArray(items) || items.length === 0) {
@@ -49,14 +73,8 @@ export const createOrder = asyncHandler(async (req, res) => {
     });
   }
 
-  // validate if hotel exists or not
-  const hotel = await Hotel.findById(hotelId);
-  if (!hotel) {
-    return res.status(404).json({
-      success: false,
-      message: "Hotel not found",
-    });
-  }
+  // validate hotel + property/company scope
+  await assertHotelAccess(req, hotelId);
 
   // if roomService and roomId provided, validate room belongs to that hotel
   let validatedRoomId = null;
@@ -192,28 +210,54 @@ export const createOrder = asyncHandler(async (req, res) => {
 });
 
 export const getOrders = asyncHandler(async (req, res) => {
-  const { hotelId, status, orderType } = req.query;
+  const { hotelId, status, orderType, page = 1, limit = 100, search } = req.query;
 
-  const filter = {};
-  if (hotelId && status && orderType) {
-    filter.hotel = hotelId;
-    filter.status = status;
-    filter.orderType = orderType;
-  } else {
-    return res.status(404).json({
+  if (!hotelId) {
+    return res.status(400).json({
       success: false,
-      message: "HotelId, Status and OrderType are required",
+      message: "hotelId is required",
     });
   }
 
-  const orders = await Order.find(filter)
-    .populate("orderBy", "fullname email")
-    .populate("items.menuItem", "name price image")
-    .sort({ createdAt: -1 });
+  await assertHotelAccess(req, hotelId);
+
+  const parsedPage = parseInt(page, 10);
+  const parsedLimit = Math.min(parseInt(limit, 10), 200);
+  const skip = (parsedPage - 1) * parsedLimit;
+
+  const filter = { hotel: hotelId };
+  if (status && status !== "all") filter.status = status;
+  if (orderType && orderType !== "all") filter.orderType = orderType;
+  if (search) {
+    filter.$or = [
+      { customerName: { $regex: search, $options: "i" } },
+      { roomNumber: { $regex: search, $options: "i" } },
+      { tableNumber: { $regex: search, $options: "i" } },
+      { orderByName: { $regex: search, $options: "i" } },
+    ];
+    const n = Number(search);
+    if (!Number.isNaN(n)) {
+      filter.$or.push({ orderNumber: n });
+    }
+  }
+
+  const [orders, total] = await Promise.all([
+    Order.find(filter)
+      .populate("orderBy", "fullname email")
+      .populate("items.menuItem", "name price image")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parsedLimit),
+    Order.countDocuments(filter),
+  ]);
 
   return res.status(200).json({
     success: true,
     count: orders.length,
+    total,
+    page: parsedPage,
+    limit: parsedLimit,
+    totalPages: Math.ceil(total / parsedLimit),
     orders,
   });
 });
@@ -244,6 +288,8 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
       message: "Order not found",
     });
   }
+
+  await assertHotelAccess(req, order.hotel);
   order.status = status;
 
   if (status === "delivered") {
@@ -253,7 +299,7 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
   await order.save();
 
   // Get the role of the user making this update
-  const updaterRole = req.user?.role || 'staff';
+  const updaterRole = getUserRole(req) || 'staff';
   const updaterName = req.user?.fullname || 'Staff';
 
   // Emit real-time event for order status update
@@ -325,6 +371,8 @@ export const updateOrder = asyncHandler(async (req, res) => {
     });
   }
 
+  await assertHotelAccess(req, order.hotel);
+
   // Only allow editing pending or confirmed orders
   const editableStatuses = ["pending", "confirmed"];
   if (!editableStatuses.includes(order.status)) {
@@ -394,6 +442,8 @@ export const getOrderById = asyncHandler(async (req, res) => {
       message: "Order not found",
     });
   }
+
+  await assertHotelAccess(req, order.hotel?._id || order.hotel);
 
   return res.status(200).json({
     success: true,
@@ -478,6 +528,8 @@ export const deleteOrder = asyncHandler(async (req, res) => {
     });
   }
 
+  await assertHotelAccess(req, order.hotel);
+
   // allowing deletion only of pending, cancelled, and new orders
   const deletableStatus = ["pending", "cancelled", "new"];
   if (!deletableStatus.includes(order.status)) {
@@ -522,6 +574,8 @@ export const sendBillToCustomer = asyncHandler(async (req, res) => {
       message: "Order not found",
     });
   }
+
+  await assertHotelAccess(req, order.hotel?._id || order.hotel);
 
   // Validate contact based on method
   if (method === 'email' && !email) {

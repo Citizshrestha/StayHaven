@@ -16,9 +16,13 @@ let io = null;
 
 
 export const initSocket = (httpServer) => {
+  const corsOrigins = process.env.CLIENT_URL
+    ? process.env.CLIENT_URL.split(",").map((s) => s.trim())
+    : ["http://localhost:5173", "http://localhost:5174"];
+
   io = new Server(httpServer, {
     cors: {
-      origin: ["http://localhost:5173", "http://localhost:5174"],
+      origin: corsOrigins,
       methods: ["GET", "POST", "PUT", "DELETE"],
       credentials: true,
     },
