@@ -140,8 +140,8 @@ const Home = () => {
           {/* Headline */}
           <h1
             ref={headlineRef}
-            className="text-white font-extrabold text-[clamp(40px,5vw,72px)] leading-[1.05] max-w-[52vw] mb-6 text-left"
-            style={{ paddingTop: '4rem', marginLeft: '0px' }}
+            className="text-white font-extrabold text-[clamp(32px,5vw,72px)] leading-[1.1] max-w-full md:max-w-[52vw] mb-6 text-left"
+            style={{ paddingTop: '2rem', marginLeft: '0px' }}
           >
             <span className="word inline-block">Book</span>{' '}
             <span className="word inline-block">smarter.</span>
@@ -1406,53 +1406,53 @@ const FinalCTA = ({ navigate }) => {
 
       <div ref={contentRef} className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 xl:px-[6vw]">
         {/* Stats row */}
-        <div className="cta-button grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 max-w-3xl mx-auto mb-14">
+        <div className="cta-button grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 max-w-3xl mx-auto mb-10 md:mb-14">
           {stats.map((stat, i) => (
-            <div key={i} className="bg-white rounded-2xl p-5 text-center shadow-sm border border-gray-100 hover:shadow-md hover:border-teal-100 transition-all duration-300">
+            <div key={i} className="bg-white rounded-2xl p-4 md:p-5 text-center shadow-sm border border-gray-100 hover:shadow-md hover:border-teal-100 transition-all duration-300">
               <div className="text-2xl md:text-3xl font-extrabold text-gray-900 flex items-center justify-center gap-1">
                 {stat.value}
                 {stat.isStar && <Star className="w-5 h-5 text-amber-400 fill-amber-400" />}
               </div>
-              <div className="text-xs text-gray-500 mt-1 font-semibold tracking-wider uppercase">{stat.label}</div>
+              <div className="text-[10px] md:text-xs text-gray-600 mt-1 font-semibold tracking-wider uppercase">{stat.label}</div>
             </div>
           ))}
         </div>
 
         {/* Main CTA card */}
         <div className="max-w-3xl mx-auto">
-          <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-10 md:p-14 text-center">
-            <div className="cta-button inline-flex items-center gap-2 bg-teal-50 border border-teal-200 rounded-full px-5 py-2 text-teal-700 text-sm font-semibold mb-7">
-              <span className="w-1.5 h-1.5 bg-teal-500 rounded-full animate-pulse" />
+          <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-6 md:p-10 lg:p-14 text-center">
+            <div className="cta-button inline-flex items-center gap-2 bg-teal-500 rounded-full px-4 md:px-5 py-2 text-white text-xs md:text-sm font-semibold mb-5 md:mb-7 shadow-sm">
+              <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
               Nepal's #1 Hotel Booking Platform
             </div>
-            <h2 className="cta-headline text-gray-900 font-extrabold text-[clamp(26px,4vw,44px)] leading-[1.2] mb-5">
+            <h2 className="cta-headline text-gray-900 font-extrabold text-[clamp(24px,5vw,44px)] leading-[1.2] mb-4 md:mb-5 px-2">
               Your Next Adventure<br />
               Starts <span className="bg-gradient-to-r from-teal-500 to-emerald-500 bg-clip-text text-transparent">Right Here</span>
             </h2>
-            <p className="cta-subheadline text-gray-500 text-base md:text-lg mb-9 max-w-xl mx-auto leading-relaxed">
+            <p className="cta-subheadline text-gray-600 text-sm md:text-base lg:text-lg mb-6 md:mb-9 max-w-xl mx-auto leading-relaxed px-2">
               Join thousands of travelers who book smarter with StayHaven. Best prices, verified hotels, instant confirmation.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-3 justify-center mb-6">
+            <div className="flex flex-col sm:flex-row gap-3 justify-center mb-5 md:mb-6 px-2">
               <button
                 onClick={() => navigate('/hotels')}
-                className="cta-button group bg-gradient-to-r from-teal-500 to-emerald-500 text-white px-8 py-3.5 rounded-xl font-bold text-sm hover:from-teal-600 hover:to-emerald-600 transition-all shadow-lg shadow-teal-500/20 hover:shadow-teal-500/30 hover:-translate-y-0.5 inline-flex items-center justify-center gap-2"
+                className="cta-button group bg-gradient-to-r from-teal-500 to-emerald-500 text-white px-6 md:px-8 py-3 md:py-3.5 rounded-xl font-bold text-sm hover:from-teal-600 hover:to-emerald-600 transition-all shadow-lg shadow-teal-500/20 hover:shadow-teal-500/30 hover:-translate-y-0.5 inline-flex items-center justify-center gap-2"
               >
                 <Search className="w-4 h-4" />
                 Find Your Stay
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </button>
-              <button className="cta-button group border-2 border-gray-200 text-gray-700 px-8 py-3.5 rounded-xl font-bold text-sm hover:border-teal-300 hover:text-teal-700 hover:bg-teal-50 transition-all inline-flex items-center justify-center gap-2">
+              <button className="cta-button group border-2 border-gray-200 text-gray-700 bg-white px-6 md:px-8 py-3 md:py-3.5 rounded-xl font-bold text-sm hover:border-teal-300 hover:text-teal-700 hover:bg-teal-50 transition-all inline-flex items-center justify-center gap-2">
                 <Building className="w-4 h-4" />
                 List Your Property
               </button>
             </div>
 
-            <div className="flex items-center justify-center gap-4 text-xs text-gray-400">
-              <span className="flex items-center gap-1"><Shield className="w-3.5 h-3.5 text-teal-500" /> Secure checkout</span>
-              <span className="w-1 h-1 bg-gray-300 rounded-full" />
+            <div className="flex flex-wrap items-center justify-center gap-3 md:gap-4 text-[10px] md:text-xs text-gray-500 px-2">
+              <span className="flex items-center gap-1"><Shield className="w-3 md:w-3.5 h-3 md:h-3.5 text-teal-500" /> Secure checkout</span>
+              <span className="w-1 h-1 bg-gray-300 rounded-full hidden sm:block" />
               <span>Free cancellation</span>
-              <span className="w-1 h-1 bg-gray-300 rounded-full" />
+              <span className="w-1 h-1 bg-gray-300 rounded-full hidden sm:block" />
               <span>No hidden fees</span>
             </div>
           </div>
