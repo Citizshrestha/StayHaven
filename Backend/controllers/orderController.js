@@ -420,6 +420,34 @@ export const updateOrder = asyncHandler(async (req, res) => {
 
   await order.save();
 
+  // Emit real-time update to all staff in the hotel
+  const updaterName = req.user?.fullname || "Staff";
+  const location = order.orderType === "roomService"
+    ? `Room ${order.room?.roomNumber || "N/A"}`
+    : order.orderType === "dineIn"
+    ? `Table ${order.table?.tableNumber || "N/A"}`
+    : "Takeaway";
+
+  const eventData = {
+    orderId: order._id,
+    orderNumber: order.orderNumber,
+    status: order.status,
+    orderType: order.orderType,
+    location,
+    totalPrice: order.totalPrice,
+    items: order.items,
+    customerName: order.customerName,
+    priority: order.priority,
+    updatedBy: updaterName,
+    updatedAt: new Date(),
+  };
+
+  // Notify all staff in the hotel about the order update
+  emitToHotel(order.hotel.toString(), "order-updated", {
+    ...eventData,
+    message: `📝 ${updaterName} updated Order #${order.orderNumber} (${location})`,
+  });
+
   return res.status(200).json({
     success: true,
     message: "Order updated successfully",

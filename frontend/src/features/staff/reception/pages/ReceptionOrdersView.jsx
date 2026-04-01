@@ -944,9 +944,30 @@ const ReceptionOrdersView = () => {
       }
     });
 
+    // Refresh orders when order details are updated (price, items, etc.)
+    const unsubscribeOrderUpdate = subscribe('order-updated', (data) => {
+      console.log('📡 Order updated:', data);
+      // Silently refresh orders
+      silentRefresh();
+      
+      // Show toast notification for order updates
+      if (data.orderNumber) {
+        toast.info(`Order #${data.orderNumber} was updated`, {
+          position: 'top-right',
+          autoClose: 3000,
+          style: { 
+            background: 'linear-gradient(135deg, #8B5CF6, #7C3AED)', 
+            color: '#fff', 
+            fontWeight: 600 
+          },
+        });
+      }
+    });
+
     return () => {
       unsubscribeStatusUpdate();
       unsubscribeNewOrder();
+      unsubscribeOrderUpdate();
     };
   }, [subscribe, hotelId, statusFilter, typeFilter, search]);
 

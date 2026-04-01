@@ -38,14 +38,20 @@ const WaiterDashboard = () => {
   const { subscribe } = useSocket();
 
   useEffect(() => {
-    const prevBodyOverflow = document.body.style.overflow;
-    const prevHtmlOverflow = document.documentElement.style.overflow;
-    document.body.style.overflow = "hidden";
-    document.documentElement.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prevBodyOverflow;
-      document.documentElement.style.overflow = prevHtmlOverflow;
-    };
+    // Only prevent body scroll on desktop (lg and above)
+    // Allow natural scrolling on mobile/tablet
+    const isDesktop = window.innerWidth >= 1024;
+    
+    if (isDesktop) {
+      const prevBodyOverflow = document.body.style.overflow;
+      const prevHtmlOverflow = document.documentElement.style.overflow;
+      document.body.style.overflow = "hidden";
+      document.documentElement.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = prevBodyOverflow;
+        document.documentElement.style.overflow = prevHtmlOverflow;
+      };
+    }
   }, []);
 
   // Subscribe to socket events for order data refresh only
@@ -63,9 +69,15 @@ const WaiterDashboard = () => {
       fetchOrders({ silent: true });
     });
 
+    // Refresh orders when order details are updated (price, items, etc.)
+    const unsubscribeOrderUpdate = subscribe('order-updated', () => {
+      fetchOrders({ silent: true });
+    });
+
     return () => {
       unsubscribeStatusUpdate();
       unsubscribeNewOrder();
+      unsubscribeOrderUpdate();
     };
   }, [subscribe, fetchOrders]);
 

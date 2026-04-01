@@ -233,6 +233,31 @@ export const NotificationProvider = ({ children }) => {
       })
     );
 
+    // Order details updated (price, items, customer info, etc.)
+    unsubscribers.push(
+      subscribe('order-updated', (data) => {
+        console.log('✏️ [NotificationContext] Order updated:', data);
+        
+        // Skip if this is our own update (self-notification)
+        if (data.updaterId && currentUserId && data.updaterId === currentUserId) {
+          console.log('🔇 Skipping self-notification for order update:', data.orderNumber);
+          return;
+        }
+        
+        // Use the message from backend
+        const message = data.message || `Order #${data.orderNumber} was updated`;
+        
+        addNotification({
+          type: NOTIFICATION_TYPES.ORDER_STATUS, // Reuse ORDER_STATUS type
+          message,
+          orderId: data.orderId,
+          orderNumber: data.orderNumber,
+        });
+        
+        playWithVibration('notification');
+      })
+    );
+
     // Waiter call notifications (for waiters only)
     if (staffRole === 'waiter') {
       unsubscribers.push(
