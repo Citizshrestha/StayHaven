@@ -168,3 +168,40 @@ export const updateProfilePicture = async (file) => {
 
   return response.data;
 }
+
+// ═══════════════════════════════════════════
+// MESSAGING - Edit, Delete, Block
+// ═══════════════════════════════════════════
+
+// Edit a message
+export const editMessage = async (messageId, content) => {
+  const response = await axiosClient.put(`/api/staff/messages/${messageId}`, { content });
+  return response.data;
+};
+
+// Delete a message
+export const deleteMessage = async (messageId) => {
+  const response = await axiosClient.delete(`/api/staff/messages/${messageId}`);
+  return response.data;
+};
+
+// Block a user
+export const blockUser = async (userId, hotelId, reason = null) => {
+  const response = await axiosClient.post(`/api/staff/messages/block/${userId}`, {
+    hotelId,
+    reason,
+  });
+  return response.data;
+};
+
+// Unblock a user
+export const unblockUser = async (userId) => {
+  const response = await axiosClient.delete(`/api/staff/messages/block/${userId}`);
+  return response.data;
+};
+
+// Get blocked users list
+export const getBlockedUsers = async () => {
+  const response = await axiosClient.get('/api/staff/messages/blocked');
+  return response.data;
+};

@@ -830,3 +830,273 @@ export const getConversations = asyncHandler(async (req, res) => {
         data: allConversations,
     });
 });
+
+/**
+ * Edit a message (only sender can edit within 15 minutes)
+ * PUT /api/staff/messages/:messageId
+ */
+export const editMessage = asyncHandler(async (req, res) => {
+    const { messageId } = req.params;
+    const { content } = req.body;
+
+    if (!content || content.trim().length === 0) {
+        return res.status(400).json({
+            success: false,
+            message: "Content is required",
+        });
+    }
+
+    const message = await Message.findById(messageId);
+    if (!message) {
+        return res.status(404).json({
+            success: false,
+            message: "Message not found",
+        });
+    }
+
+    // Only sender can edit their own message
+    if (message.sender.toString() !== req.user._id.toString()) {
+        return res.status(403).json({
+            success: false,
+            message: "You can only edit your own messages",
+        });
+    }
+
+    // Check if message is already deleted
+    if (message.isDeleted) {
+        return res.status(400).json({
+            success: false,
+            message: "Cannot edit a deleted message",
+        });
+    }
+
+    // Check if message is within 15 minutes (900000 ms)
+    const fifteenMinutes = 15 * 60 * 1000;
+    const messageAge = Date.now() - new Date(message.createdAt).getTime();
+    if (messageAge > fifteenMinutes) {
+        return res.status(400).json({
+            success: false,
+            message: "Messages can only be edited within 15 minutes",
+        });
+    }
+
+    // Update message
+    message.content = content.trim();
+    message.isEdited = true;
+    message.editedAt = new Date();
+    await message.save();
+
+    // Emit real-time update
+    const io = getIO();
+    if (io) {
+        const payload = {
+            _id: message._id,
+            content: message.content,
+            isEdited: true,
+            editedAt: message.editedAt,
+        };
+
+        // Broadcast to appropriate room
+        if (message.channel === "direct" && message.recipient) {
+            io.to(`user-${message.recipient}`).emit("message-edited", payload);
+            io.to(`user-${message.sender}`).emit("message-edited", payload);
+        } else {
+            const roomName = message.channel === "waiter"
+                ? `hotel-${message.hotel}-waiters`
+                : message.channel === "chef"
+                ? `hotel-${message.hotel}-chiefs`
+                : `hotel-${message.hotel}`;
+            io.to(roomName).emit("message-edited", payload);
+        }
+    }
+
+    return res.status(200).json({
+        success: true,
+        message: "Message edited successfully",
+        data: message,
+    });
+});
+
+/**
+ * Delete a message (soft delete - marks as deleted)
+ * DELETE /api/staff/messages/:messageId
+ */
+export const deleteMessage = asyncHandler(async (req, res) => {
+    const { messageId } = req.params;
+
+    const message = await Message.findById(messageId);
+    if (!message) {
+        return res.status(404).json({
+            success: false,
+            message: "Message not found",
+        });
+    }
+
+    // Only sender can delete their own message
+    if (message.sender.toString() !== req.user._id.toString()) {
+        return res.status(403).json({
+            success: false,
+            message: "You can only delete your own messages",
+        });
+    }
+
+    // Check if already deleted
+    if (message.isDeleted) {
+        return res.status(400).json({
+            success: false,
+            message: "Message is already deleted",
+        });
+    }
+
+    // Soft delete
+    message.isDeleted = true;
+    message.deletedAt = new Date();
+    message.deletedBy = req.user._id;
+    message.content = "This message was deleted";
+    await message.save();
+
+    // Emit real-time update
+    const io = getIO();
+    if (io) {
+        const payload = {
+            _id: message._id,
+            isDeleted: true,
+            deletedAt: message.deletedAt,
+            content: "This message was deleted",
+        };
+
+        // Broadcast to appropriate room
+        if (message.channel === "direct" && message.recipient) {
+            io.to(`user-${message.recipient}`).emit("message-deleted", payload);
+            io.to(`user-${message.sender}`).emit("message-deleted", payload);
+        } else {
+            const roomName = message.channel === "waiter"
+                ? `hotel-${message.hotel}-waiters`
+                : message.channel === "chef"
+                ? `hotel-${message.hotel}-chiefs`
+                : `hotel-${message.hotel}`;
+            io.to(roomName).emit("message-deleted", payload);
+        }
+    }
+
+    return res.status(200).json({
+        success: true,
+        message: "Message deleted successfully",
+    });
+});
+
+/**
+ * Block a user
+ * POST /api/staff/messages/block/:userId
+ */
+export const blockUser = asyncHandler(async (req, res) => {
+    const { userId } = req.params;
+    const { reason } = req.body;
+
+    const hotelId =
+        req.body.hotelId ||
+        (req.user.assignedProperties && req.user.assignedProperties[0]?._id) ||
+        req.user.assignedProperties?.[0];
+
+    if (!hotelId) {
+        return res.status(400).json({
+            success: false,
+            message: "No hotel context found",
+        });
+    }
+
+    // Cannot block yourself
+    if (userId === req.user._id.toString()) {
+        return res.status(400).json({
+            success: false,
+            message: "You cannot block yourself",
+        });
+    }
+
+    // Check if user exists
+    const userToBlock = await User.findById(userId);
+    if (!userToBlock) {
+        return res.status(404).json({
+            success: false,
+            message: "User not found",
+        });
+    }
+
+    // Import BlockedUser model
+    const { BlockedUser } = await import("../models/blockedUser.schema.js");
+
+    // Check if already blocked
+    const existingBlock = await BlockedUser.findOne({
+        blocker: req.user._id,
+        blocked: userId,
+    });
+
+    if (existingBlock) {
+        return res.status(400).json({
+            success: false,
+            message: "User is already blocked",
+        });
+    }
+
+    // Create block
+    await BlockedUser.create({
+        hotel: hotelId,
+        blocker: req.user._id,
+        blocked: userId,
+        reason: reason || null,
+    });
+
+    return res.status(201).json({
+        success: true,
+        message: "User blocked successfully",
+    });
+});
+
+/**
+ * Unblock a user
+ * DELETE /api/staff/messages/block/:userId
+ */
+export const unblockUser = asyncHandler(async (req, res) => {
+    const { userId } = req.params;
+
+    // Import BlockedUser model
+    const { BlockedUser } = await import("../models/blockedUser.schema.js");
+
+    const result = await BlockedUser.deleteOne({
+        blocker: req.user._id,
+        blocked: userId,
+    });
+
+    if (result.deletedCount === 0) {
+        return res.status(404).json({
+            success: false,
+            message: "Block not found",
+        });
+    }
+
+    return res.status(200).json({
+        success: true,
+        message: "User unblocked successfully",
+    });
+});
+
+/**
+ * Get blocked users list
+ * GET /api/staff/messages/blocked
+ */
+export const getBlockedUsers = asyncHandler(async (req, res) => {
+    // Import BlockedUser model
+    const { BlockedUser } = await import("../models/blockedUser.schema.js");
+
+    const blockedUsers = await BlockedUser.find({
+        blocker: req.user._id,
+    })
+        .populate("blocked", "fullname email companyRole profilePicture")
+        .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+        success: true,
+        count: blockedUsers.length,
+        data: blockedUsers,
+    });
+});

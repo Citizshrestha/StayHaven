@@ -37,6 +37,29 @@ const messageSchema = new mongoose.Schema(
             maxlength: 2000,
             trim: true,
         },
+        // Track if message was edited
+        isEdited: {
+            type: Boolean,
+            default: false,
+        },
+        editedAt: {
+            type: Date,
+            default: null,
+        },
+        // Track if message was deleted
+        isDeleted: {
+            type: Boolean,
+            default: false,
+        },
+        deletedAt: {
+            type: Date,
+            default: null,
+        },
+        deletedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            default: null,
+        },
         messageType: {
             type: String,
             enum: ["text", "alert", "call_request", "system"],

@@ -1568,3 +1568,263 @@
     background: #24273a;
     color: #64748b;
 }
+
+/* ─── Message Actions (Edit/Delete) ─── */
+.msg-bubble-wrapper {
+    position: relative;
+}
+
+.msg-bubble-actions {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+.msg-bubble-wrapper:hover .msg-bubble-actions {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.msg-bubble-wrapper.sent .msg-bubble-actions {
+    left: -70px;
+}
+
+.msg-bubble-wrapper.received .msg-bubble-actions {
+    right: -70px;
+}
+
+.msg-action-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0, 0, 0, 0.05);
+    color: #64748b;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.msg-action-btn:hover {
+    background: rgba(0, 0, 0, 0.1);
+    color: #1e293b;
+    transform: scale(1.1);
+}
+
+.msg-action-btn.delete:hover {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+/* ─── Edited/Deleted Message Indicators ─── */
+.msg-bubble-edited {
+    font-size: 11px;
+    color: #94a3b8;
+    font-style: italic;
+    margin-top: 2px;
+}
+
+.msg-bubble.deleted {
+    opacity: 0.6;
+    font-style: italic;
+    color: #94a3b8;
+}
+
+/* ─── Edit Message Input ─── */
+.msg-edit-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 2px solid #6366f1;
+    border-radius: 12px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: none;
+    outline: none;
+}
+
+.msg-edit-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    justify-content: flex-end;
+}
+
+.msg-edit-btn {
+    padding: 6px 16px;
+    border-radius: 8px;
+    border: none;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.msg-edit-btn.save {
+    background: #6366f1;
+    color: #fff;
+}
+
+.msg-edit-btn.save:hover {
+    background: #4f46e5;
+}
+
+.msg-edit-btn.cancel {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+.msg-edit-btn.cancel:hover {
+    background: #e2e8f0;
+}
+
+/* ─── Block User Modal ─── */
+.msg-block-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    animation: fadeIn 0.2s ease;
+}
+
+.msg-block-modal {
+    background: #fff;
+    border-radius: 16px;
+    padding: 24px;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: slideUp 0.3s ease;
+}
+
+.msg-block-modal h3 {
+    margin: 0 0 8px 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.msg-block-modal p {
+    margin: 0 0 20px 0;
+    font-size: 14px;
+    color: #64748b;
+    line-height: 1.5;
+}
+
+.msg-block-modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.msg-block-modal-btn {
+    padding: 10px 20px;
+    border-radius: 10px;
+    border: none;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.msg-block-modal-btn.cancel {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+.msg-block-modal-btn.cancel:hover {
+    background: #e2e8f0;
+}
+
+.msg-block-modal-btn.block {
+    background: #dc2626;
+    color: #fff;
+}
+
+.msg-block-modal-btn.block:hover {
+    background: #b91c1c;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* ─── Contact Options Menu ─── */
+.msg-contact-options {
+    position: absolute;
+    top: 60px;
+    right: 16px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    padding: 8px;
+    min-width: 180px;
+    z-index: 1000;
+    animation: slideDown 0.2s ease;
+}
+
+.msg-contact-option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    font-size: 14px;
+    color: #1e293b;
+}
+
+.msg-contact-option:hover {
+    background: #f1f5f9;
+}
+
+.msg-contact-option.danger {
+    color: #dc2626;
+}
+
+.msg-contact-option.danger:hover {
+    background: #fee2e2;
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateY(-10px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}

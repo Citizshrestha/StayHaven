@@ -57,6 +57,11 @@ import {
   muteConversation,
   unmuteConversation,
   markConversationUnread,
+  editMessage,
+  deleteMessage,
+  blockUser,
+  unblockUser,
+  getBlockedUsers,
 } from "../controllers/messagingController.js";
 import {
   getNotifications,
@@ -297,6 +302,21 @@ router.post("/messages/call", protect, initiateCall);
 
 // Update call status
 router.put("/messages/call/:callId", protect, updateCallStatus);
+
+// Edit a message (within 15 minutes)
+router.put("/messages/:messageId", protect, editMessage);
+
+// Delete a message (soft delete)
+router.delete("/messages/:messageId", protect, deleteMessage);
+
+// Block a user
+router.post("/messages/block/:userId", protect, blockUser);
+
+// Unblock a user
+router.delete("/messages/block/:userId", protect, unblockUser);
+
+// Get blocked users list
+router.get("/messages/blocked", protect, getBlockedUsers);
 
 // ═══════════════════════════════════════════
 // NOTIFICATION ROUTES
