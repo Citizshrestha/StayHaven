@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { motion as Motion } from 'framer-motion';
 import Navbar from '../../../../shared/layout/Navbar';
 import Footer from '../../../../shared/layout/Footer';
 import {
@@ -12,9 +13,20 @@ import {
   BarChart3, MessageSquare, BadgePercent
 } from 'lucide-react';
 import { Input } from '../../../../shared/ui/input';
-import { Button } from '../../../../shared/ui/button';
 
 gsap.registerPlugin(ScrollTrigger);
+
+const HERO_BG_URL =
+  'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1920&q=80';
+
+const heroFieldShell =
+  'hero-field-shell flex h-8 w-full min-w-0 items-center gap-1.5 rounded-md border border-[rgba(0,0,0,0.08)] bg-white px-2 pr-1';
+
+const heroInputClass =
+  'hero-panel-input !m-0 !h-full !min-h-0 !w-full min-w-0 !flex-1 !rounded-none !border-0 !bg-transparent !px-0 !py-0 !text-[13px] !leading-tight !font-medium !text-[#64748b] !shadow-none !ring-0 !outline-none placeholder:!text-[#94a3b8] focus-visible:!border-0 focus-visible:!ring-0 focus-visible:!ring-offset-0';
+
+const heroSelectClass =
+  'hero-panel-select !m-0 h-full min-h-0 w-full min-w-0 flex-1 cursor-pointer appearance-none border-0 bg-transparent py-0 text-[13px] font-medium leading-tight text-[#64748b] outline-none ring-0 focus:ring-0';
 
 const Home = () => {
   const navigate = useNavigate();
@@ -23,41 +35,30 @@ const Home = () => {
   const subheadlineRef = useRef(null);
   const searchCardRef = useRef(null);
   const overlayRef = useRef(null);
+  const imageParallaxRef = useRef(null);
+  const badgesRef = useRef(null);
+  const [ripples, setRipples] = useState([]);
 
-  // Initialize GSAP animations
+  // GSAP: scroll parallax + hero exit (entrance handled by Framer Motion)
   useEffect(() => {
     const ctx = gsap.context(() => {
-      // Entrance animation (on page load)
-      const tl = gsap.timeline({ defaults: { ease: 'power2.out' } });
-
-      // Headline animation - split by words
-      if (headlineRef.current) {
-        const words = headlineRef.current.querySelectorAll('.word');
-        tl.fromTo(
-          words,
-          { y: 28, opacity: 0 },
-          { y: 0, opacity: 1, duration: 0.8, stagger: 0.08 },
-          0.2
+      if (imageParallaxRef.current) {
+        gsap.fromTo(
+          imageParallaxRef.current,
+          { yPercent: -5 },
+          {
+            yPercent: 5,
+            ease: 'none',
+            scrollTrigger: {
+              trigger: heroRef.current,
+              start: 'top top',
+              end: 'bottom top',
+              scrub: 0.85,
+            },
+          }
         );
       }
 
-      // Subheadline
-      tl.fromTo(
-        subheadlineRef.current,
-        { y: 18, opacity: 0 },
-        { y: 0, opacity: 1, duration: 0.6 },
-        0.5
-      );
-
-      // Search card
-      tl.fromTo(
-        searchCardRef.current,
-        { y: 40, opacity: 0, scale: 0.985 },
-        { y: 0, opacity: 1, scale: 1, duration: 0.7 },
-        0.6
-      );
-
-      // Scroll-driven exit animation
       const scrollTl = gsap.timeline({
         scrollTrigger: {
           trigger: heroRef.current,
@@ -68,8 +69,6 @@ const Home = () => {
         },
       });
 
-      // Phase 1 (0-70%): hold - elements stay visible
-      // Phase 2 (70-100%): exit
       scrollTl.fromTo(
         headlineRef.current,
         { y: 0, opacity: 1 },
@@ -91,10 +90,19 @@ const Home = () => {
         0.75
       );
 
+      if (badgesRef.current) {
+        scrollTl.fromTo(
+          badgesRef.current,
+          { y: 0, opacity: 1 },
+          { y: '-8vh', opacity: 0, ease: 'power2.in' },
+          0.74
+        );
+      }
+
       scrollTl.fromTo(
         overlayRef.current,
         { scale: 1, y: 0 },
-        { scale: 1.06, y: '-4vh' },
+        { scale: 1.045, y: '-3vh' },
         0.7
       );
     }, heroRef);
@@ -102,152 +110,302 @@ const Home = () => {
     return () => ctx.revert();
   }, []);
 
+  const onSearchRipple = (e) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const id = `${Date.now()}-${Math.random()}`;
+    setRipples((prev) => [...prev, { id, x: e.clientX - r.left, y: e.clientY - r.top }]);
+    window.setTimeout(() => {
+      setRipples((prev) => prev.filter((x) => x.id !== id));
+    }, 650);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 overflow-x-hidden flex flex-col">
+      <style>{`
+        @keyframes hero-ripple {
+          to {
+            transform: scale(24);
+            opacity: 0;
+          }
+        }
+        .sh-eyebrow {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: rgba(14, 165, 160, 0.15);
+          border: 1px solid rgba(14, 165, 160, 0.4);
+          border-radius: 20px;
+          padding: 5px 14px;
+          margin-bottom: 20px;
+        }
+        .sh-eyebrow-dot {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: #0ea5a0;
+          flex-shrink: 0;
+        }
+        .sh-eyebrow span:last-child {
+          font-size: 11px;
+          font-weight: 700;
+          color: #5ee8e3;
+          letter-spacing: 0.08em;
+        }
+        .sh-trust-badge {
+          background: rgba(255, 255, 255, 0.12);
+          border: 1px solid rgba(255, 255, 255, 0.22);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+          border-radius: 20px;
+          padding: 7px 16px;
+          font-size: 12px;
+          font-weight: 600;
+          color: rgba(255, 255, 255, 0.9);
+        }
+        .sh-trust-dot {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: #f97316;
+          flex-shrink: 0;
+        }
+        .hero-date-input::-webkit-calendar-picker-indicator {
+          display: none;
+          -webkit-appearance: none;
+        }
+        .hero-date-input::-webkit-datetime-edit-fields-wrapper {
+          padding: 0;
+        }
+        .hero-field-shell .hero-panel-input,
+        .hero-field-shell .hero-date-input {
+          min-height: 0;
+        }
+        .hero-date-input::-webkit-datetime-edit {
+          padding: 0;
+          line-height: 1.25;
+        }
+        .sh-hero-search-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 0;
+          align-items: stretch;
+        }
+        @media (min-width: 1024px) {
+          .sh-hero-search-grid {
+            grid-template-columns: 1.4fr 1fr 1fr 1fr auto;
+          }
+        }
+      `}</style>
       <Navbar />
       {/* Hero Section */}
-      <section
-        ref={heroRef}
-        className="relative min-h-screen w-full overflow-hidden z-10"
-      >
-        {/* Background Image */}
+      <section ref={heroRef} className="relative z-10 w-full overflow-hidden">
         <div
           ref={overlayRef}
-          className="absolute inset-0 w-full h-full"
+          className="absolute inset-0 z-0 w-full min-h-full overflow-hidden"
           style={{ willChange: 'transform' }}
         >
-          <img
-            src="/images/hero-resort.jpg"
-            alt="Luxury resort aerial view"
-            className="w-full h-full object-cover"
-            style={{ objectPosition: 'center 35%' }}
+          <Motion.div
+            ref={imageParallaxRef}
+            className="absolute inset-0 z-0 scale-110"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+            style={{
+              backgroundImage: `url('${HERO_BG_URL}')`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat',
+            }}
           />
-          {/* Gradient Overlay */}
           <div
-            className="absolute inset-0"
+            className="pointer-events-none absolute inset-0 z-[1]"
             style={{
               background:
-                'linear-gradient(180deg, rgba(11,15,28,0.35) 0%, rgba(11,15,28,0.55) 100%)',
+                'linear-gradient(180deg, rgba(10, 25, 35, 0.70) 0%, rgba(10, 25, 35, 0.40) 40%, rgba(10, 25, 35, 0.75) 100%)',
             }}
           />
         </div>
 
-        {/* Content */}
-        <div
-          className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 xl:px-[6vw] min-h-screen flex flex-col justify-center pt-[72px] pb-20"
-          style={{ marginTop: '60px' }}
-        >
-          {/* Headline */}
-          <h1
-            ref={headlineRef}
-            className="text-white font-extrabold text-[clamp(32px,5vw,72px)] leading-[1.1] max-w-full md:max-w-[52vw] mb-6 text-left"
-            style={{ paddingTop: '2rem', marginLeft: '0px' }}
-          >
-            <span className="word inline-block">Book</span>{' '}
-            <span className="word inline-block">smarter.</span>
-            <br />
-            <span className="word inline-block">Stay</span>{' '}
-            <span className="word inline-block">better.</span>
-          </h1>
+        <div className="relative z-[2] mx-auto flex w-full max-w-[1100px] flex-col items-center px-4 pt-[100px] pb-[80px] text-center sm:px-6">
+          <div ref={headlineRef} className="flex w-full flex-col items-center antialiased">
+            <div className="sh-eyebrow">
+              <span className="sh-eyebrow-dot" aria-hidden />
+              <span>NEPAL&apos;S #1 HOTEL BOOKING PLATFORM</span>
+            </div>
+            <div className="mb-[18px] flex flex-col items-center gap-0">
+              <Motion.span
+                className="block text-white"
+                style={{
+                  fontSize: 'clamp(2.25rem, 6vw, 72px)',
+                  fontWeight: 800,
+                  lineHeight: 1.1,
+                  textShadow: '0 2px 20px rgba(0,0,0,0.3)',
+                }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.55, ease: 'easeOut' }}
+              >
+                Book smarter.
+              </Motion.span>
+              <Motion.span
+                className="block"
+                style={{
+                  fontSize: 'clamp(2.25rem, 6vw, 72px)',
+                  fontWeight: 800,
+                  lineHeight: 1.1,
+                  color: '#0ea5a0',
+                  textShadow: '0 2px 20px rgba(0,0,0,0.3)',
+                }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4, duration: 0.55, ease: 'easeOut' }}
+              >
+                Stay better.
+              </Motion.span>
+            </div>
+          </div>
 
-          {/* Subheadline */}
-          <p
+          <Motion.p
             ref={subheadlineRef}
-            className="text-white/90 text-lg md:text-xl max-w-[44vw] mb-12 leading-relaxed"
-            style={{ marginTop: '10px', marginLeft: '0px' }}
+            className="mx-auto mb-9 w-full max-w-[540px] text-center text-[17px] leading-[1.65]"
+            style={{ color: 'rgba(255,255,255,0.78)' }}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.95, duration: 0.5, ease: 'easeOut' }}
           >
-            Discover Nepal's finest hotels, manage stays, and enjoy seamless in-hotel services —
-            all in one platform.
-          </p>
+            Discover Nepal&apos;s finest hotels, manage your stay, and enjoy seamless
+            in-hotel services — all in one place.
+          </Motion.p>
 
-          {/* Search Card */}
-          <div className="flex-1 flex items-end pb-8 mb-8" style={{ marginBottom: '4rem' }}>
-            <div
-              ref={searchCardRef}
-              className="bg-white/95 backdrop-blur-sm rounded-[28px] p-4 md:p-5 card-shadow max-w-[900px] w-full shadow-2xl"
-              style={{ border: '1px solid rgba(11,15,28,0.08)' }}
-            >
-              <div className="flex flex-col lg:flex-row gap-3 lg:gap-4">
-                {/* Location */}
-                <div className="flex-1">
-                  <label className="text-[13px] font-medium text-[#6B7280] uppercase tracking-wide mb-1.5 block">
-                    Where to?
-                  </label>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-teal-600 pointer-events-none z-10" />
-                    <Input
-                      placeholder="Search destinations in Nepal"
-                      className="pl-10 pr-3 h-11 rounded-2xl border-[#e5e7eb] focus:ring-2 focus:ring-[#2F5AF6]/20 focus:border-[#2F5AF6] text-[13px]"
-                    />
-                  </div>
-                </div>
-
-                {/* Check-in */}
-                <div className="flex-1">
-                  <label className="text-[13px] font-medium text-[#6B7280] uppercase tracking-wide mb-1.5 block">
-                    Check-in
-                  </label>
-                  <div className="relative">
-                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-teal-600 pointer-events-none z-10" />
-                    <Input
-                      type="date"
-                      className="pl-10 pr-3 h-11 rounded-2xl border-[#e5e7eb] focus:ring-2 focus:ring-[#2F5AF6]/20 focus:border-[#2F5AF6] text-[13px]"
-                    />
-                  </div>
-                </div>
-
-                {/* Check-out */}
-                <div className="flex-1">
-                  <label className="text-[13px] font-medium text-[#6B7280] uppercase tracking-wide mb-1.5 block">
-                    Check-out
-                  </label>
-                  <div className="relative">
-                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-teal-600 pointer-events-none z-10" />
-                    <Input
-                      type="date"
-                      className="pl-10 pr-3 h-11 rounded-2xl border-[#e5e7eb] focus:ring-2 focus:ring-[#2F5AF6]/20 focus:border-[#2F5AF6] text-[13px]"
-                    />
-                  </div>
-                </div>
-
-                {/* Guests */}
-                <div className="w-full lg:w-44">
-                  <label className="text-[11px] font-medium text-[#6B7280] uppercase tracking-wide mb-1.5 block">
-                    Guests
-                  </label>
-                  <div className="relative">
-                    <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-teal-600 pointer-events-none z-10" />
-                    <select className="w-full h-11 pl-10 pr-8 rounded-2xl border border-[#e5e7eb] bg-white text-[#0B0F1C] text-[13px] focus:ring-2 focus:ring-[#2F5AF6]/20 focus:border-[#2F5AF6] appearance-none">
-                      <option>1 Guest</option>
-                      <option>2 Guests</option>
-                      <option>3 Guests</option>
-                      <option>4+ Guests</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Search Button */}
-                <div className="flex items-end">
-                  <Button
-                    onClick={() => navigate('/hotels')}
-                    className="bg-gradient-to-r from-teal-500 to-teal-700 h-11 px-8 rounded-2xl text-white font-semibold hover:from-teal-600 hover:to-teal-800 active:from-teal-700 active:to-teal-900 transition-all w-full lg:w-auto">
-                    <Search className="w-[18px] h-[18px] mr-2" />
-                    Search
-                  </Button>
-                </div>
-              </div>
-
-              {/* Secondary Link */}
-              <div className="mt-4 flex items-center">
-                <a
-                  href="#"
-                  onClick={(e) => { e.preventDefault(); navigate('/hotels'); }}
-                  className="text-sm text-teal-600 font-medium flex items-center no-underline hover:text-teal-700 transition-colors"
+          <Motion.div
+            ref={searchCardRef}
+            className="mb-5 w-full max-w-[860px] rounded-2xl px-4 py-3 shadow-[0_20px_60px_rgba(0,0,0,0.22)] sm:px-[18px]"
+            style={{ background: 'rgba(255,255,255,0.97)' }}
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1.15, duration: 0.55, ease: 'easeOut' }}
+          >
+            <div className="sh-hero-search-grid">
+              <div className="flex min-h-0 min-w-0 flex-col border-b border-[rgba(0,0,0,0.08)] px-3 py-1.5 text-left lg:border-b-0 lg:[border-right:1px_solid_rgba(0,0,0,0.08)] lg:px-4 lg:py-1.5">
+                <label
+                  className="mb-1 block text-[10px] font-bold uppercase leading-none tracking-[0.1em] text-[#64748b]"
+                  htmlFor="hero-where"
                 >
-                  Explore last-minute deals
-                  <ChevronRight className="w-4 h-4 ml-1" />
-                </a>
+                  Where to?
+                </label>
+                <div className={heroFieldShell}>
+                  <MapPin className="size-3.5 shrink-0 text-[#0ea5a0]" aria-hidden />
+                  <Input
+                    id="hero-where"
+                    placeholder="Search destinations in Nepal"
+                    className={heroInputClass}
+                  />
+                </div>
               </div>
+
+              <div className="flex min-h-0 min-w-0 flex-col border-b border-[rgba(0,0,0,0.08)] px-3 py-1.5 text-left lg:border-b-0 lg:[border-right:1px_solid_rgba(0,0,0,0.08)] lg:px-4 lg:py-1.5">
+                <label
+                  className="mb-1 block text-[10px] font-bold uppercase leading-none tracking-[0.1em] text-[#64748b]"
+                  htmlFor="hero-checkin"
+                >
+                  Check-in
+                </label>
+                <div className={heroFieldShell}>
+                  <Calendar className="size-3.5 shrink-0 text-[#0ea5a0]" aria-hidden />
+                  <Input
+                    id="hero-checkin"
+                    type="date"
+                    className={`hero-date-input ${heroInputClass}`}
+                  />
+                </div>
+              </div>
+
+              <div className="flex min-h-0 min-w-0 flex-col border-b border-[rgba(0,0,0,0.08)] px-3 py-1.5 text-left lg:border-b-0 lg:[border-right:1px_solid_rgba(0,0,0,0.08)] lg:px-4 lg:py-1.5">
+                <label
+                  className="mb-1 block text-[10px] font-bold uppercase leading-none tracking-[0.1em] text-[#64748b]"
+                  htmlFor="hero-checkout"
+                >
+                  Check-out
+                </label>
+                <div className={heroFieldShell}>
+                  <Calendar className="size-3.5 shrink-0 text-[#0ea5a0]" aria-hidden />
+                  <Input
+                    id="hero-checkout"
+                    type="date"
+                    className={`hero-date-input ${heroInputClass}`}
+                  />
+                </div>
+              </div>
+
+              <div className="flex min-h-0 min-w-0 flex-col border-b border-[rgba(0,0,0,0.08)] px-3 py-1.5 text-left lg:border-b-0 lg:[border-right:1px_solid_rgba(0,0,0,0.08)] lg:px-4 lg:py-1.5">
+                <span className="mb-1 block text-[10px] font-bold uppercase leading-none tracking-[0.1em] text-[#64748b]">
+                  Guests
+                </span>
+                <div className={heroFieldShell}>
+                  <Users className="size-3.5 shrink-0 text-[#0ea5a0]" aria-hidden />
+                  <select
+                    className={heroSelectClass}
+                    style={{ colorScheme: 'light' }}
+                    aria-label="Number of guests"
+                  >
+                    <option>1 Guest</option>
+                    <option>2 Guests</option>
+                    <option>3 Guests</option>
+                    <option>4+ Guests</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex flex-col justify-end border-t border-[rgba(0,0,0,0.08)] px-3 py-2 lg:border-t-0 lg:border-0 lg:px-2 lg:pb-1.5 lg:pt-0">
+                <span
+                  className="mb-1 hidden text-[10px] font-bold uppercase leading-none tracking-[0.1em] lg:invisible lg:block"
+                  aria-hidden
+                >
+                  Guests
+                </span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    onSearchRipple(e);
+                    navigate('/hotels');
+                  }}
+                  className="relative inline-flex h-8 w-full cursor-pointer items-center justify-center overflow-hidden whitespace-nowrap rounded-[10px] border-0 bg-[#0ea5a0] px-5 text-[13px] font-bold text-white transition-colors hover:bg-[#0d9489] lg:w-auto lg:self-center"
+                >
+                  {ripples.map((r) => (
+                    <span
+                      key={r.id}
+                      className="pointer-events-none absolute size-3 rounded-full bg-white/40"
+                      style={{
+                        left: r.x,
+                        top: r.y,
+                        transform: 'translate(-50%, -50%) scale(0)',
+                        animation: 'hero-ripple 0.6s ease-out forwards',
+                      }}
+                    />
+                  ))}
+                  <Search className="mr-1.5 size-3.5 shrink-0" strokeWidth={2.5} />
+                  Search
+                </button>
+              </div>
+            </div>
+
+          </Motion.div>
+
+          <div
+            ref={badgesRef}
+            className="mb-0 flex w-full max-w-[860px] flex-wrap items-center justify-center gap-[10px]"
+          >
+            <div className="sh-trust-badge inline-flex items-center gap-2">
+              <span aria-hidden>🏨</span>
+              <span>50,000+ Happy Travelers</span>
+            </div>
+            <div className="sh-trust-badge inline-flex items-center gap-2">
+              <span aria-hidden>⭐</span>
+              <span>4.8/5.0 Verified Reviews</span>
+            </div>
+            <div className="sh-trust-badge inline-flex items-center gap-2">
+              <span className="sh-trust-dot" aria-hidden />
+              <span>23 viewing now · Secure booking</span>
             </div>
           </div>
         </div>
@@ -337,7 +495,13 @@ const TrustStrip = () => {
   const marqueeItems = [...trustItems, ...trustItems, ...trustItems];
 
   return (
-    <section className="relative z-20 bg-white py-10 -mt-2 overflow-hidden border-y border-gray-100">
+    <Motion.section
+      className="relative z-20 bg-white py-10 -mt-2 overflow-hidden border-y border-gray-100"
+      initial={{ opacity: 0, y: 28 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-60px' }}
+      transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+    >
       {/* Fade edges */}
       <div className="pointer-events-none absolute left-0 top-0 h-full w-24 z-10 bg-gradient-to-r from-white to-transparent" />
       <div className="pointer-events-none absolute right-0 top-0 h-full w-24 z-10 bg-gradient-to-l from-white to-transparent" />
@@ -378,7 +542,7 @@ const TrustStrip = () => {
           </div>
         ))}
       </div>
-    </section>
+    </Motion.section>
   );
 };
 
@@ -1100,7 +1264,9 @@ const Testimonials = () => {
         'The best booking experience I have had — clean app, great support, and amazing properties across Nepal. StayHaven makes travel planning effortless.',
       author: 'Aayush S.',
       role: 'Frequent traveler',
-      avatar: 'AS',
+      image:
+        'https://images.unsplash.com/photo-1557862921-37829c790f19?w=200&h=200&fit=crop&crop=faces&q=80',
+      imageAlt: 'Portrait of Aayush, frequent traveler',
       rating: 5,
     },
     {
@@ -1108,7 +1274,9 @@ const Testimonials = () => {
         'We listed our boutique hotel in Pokhara and saw a 30% uplift in direct bookings within the first quarter. The dashboard is incredibly intuitive.',
       author: 'Priya T.',
       role: 'Hotel owner, Pokhara',
-      avatar: 'PT',
+      image:
+        'https://images.unsplash.com/photo-1589156191108-c762ff28338c?w=200&h=200&fit=crop&crop=faces&q=80',
+      imageAlt: 'Portrait of Priya, hotel owner in Pokhara',
       rating: 5,
     },
   ];
@@ -1166,10 +1334,10 @@ const Testimonials = () => {
             <div className="space-y-8">
               {stats.map((stat, index) => (
                 <div key={index}>
-                  <div className="text-3xl md:text-4xl font-extrabold text-teal-600 mb-1">
+                  <div className="mb-1 text-3xl font-extrabold text-gray-900 md:text-4xl">
                     {stat.value}
                   </div>
-                  <div className="text-gray-600 text-base">{stat.label}</div>
+                  <div className="text-base text-gray-600">{stat.label}</div>
                 </div>
               ))}
             </div>
@@ -1179,9 +1347,9 @@ const Testimonials = () => {
             {testimonials.map((testimonial, index) => (
               <div
                 key={index}
-                className="testimonial-card bg-white rounded-[28px] p-10 shadow-xl"
+                className="testimonial-card rounded-[28px] bg-white p-8 md:p-10"
               >
-                <Quote className="w-10 h-10 text-teal-600/20 mb-4" />
+                <Quote className="mb-4 h-10 w-10 text-gray-200" aria-hidden />
                 <div className="flex gap-1 mb-4">
                   {[...Array(testimonial.rating)].map((_, i) => (
                     <Star
@@ -1194,9 +1362,14 @@ const Testimonials = () => {
                   "{testimonial.quote}"
                 </p>
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-teal-500 to-teal-700 flex items-center justify-center text-white font-bold">
-                    {testimonial.avatar}
-                  </div>
+                  <img
+                    src={testimonial.image}
+                    alt={testimonial.imageAlt}
+                    className="h-12 w-12 shrink-0 rounded-full object-cover ring-1 ring-gray-100"
+                    width={48}
+                    height={48}
+                    loading="lazy"
+                  />
                   <div>
                     <div className="font-bold text-gray-900">
                       {testimonial.author}
@@ -1398,22 +1571,32 @@ const FinalCTA = ({ navigate }) => {
   return (
     <section
       ref={sectionRef}
-      className="relative bg-gray-50 z-20 py-20 md:py-28 overflow-hidden"
+      className="relative bg-gray-50 z-20 py-12 md:py-20 overflow-hidden"
     >
-      {/* Subtle background decoration */}
-      <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle, #0d9488 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-teal-100/40 rounded-full blur-3xl -translate-y-1/2" />
+      {/* Subtle background decoration (neutral, no teal wash) */}
+      <div
+        className="absolute inset-0 opacity-[0.04]"
+        style={{
+          backgroundImage: 'radial-gradient(circle, #94a3b8 1px, transparent 1px)',
+          backgroundSize: '32px 32px',
+        }}
+      />
 
       <div ref={contentRef} className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 xl:px-[6vw]">
-        {/* Stats row */}
-        <div className="cta-button grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 max-w-3xl mx-auto mb-10 md:mb-14">
+        {/* Stats row — no teal bar; light cards on section background only */}
+        <div className="cta-button mx-auto mb-10 grid max-w-3xl grid-cols-2 gap-3 md:mb-14 md:grid-cols-4 md:gap-5">
           {stats.map((stat, i) => (
-            <div key={i} className="bg-white rounded-2xl p-4 md:p-5 text-center shadow-sm border border-gray-100 hover:shadow-md hover:border-teal-100 transition-all duration-300">
-              <div className="text-2xl md:text-3xl font-extrabold text-gray-900 flex items-center justify-center gap-1">
+            <div
+              key={i}
+              className="rounded-2xl bg-white p-3 text-center shadow-sm border border-gray-100 transition-all duration-300 hover:shadow-md md:p-4"
+            >
+              <div className="flex items-center justify-center gap-1 text-2xl font-extrabold text-gray-900 md:text-3xl">
                 {stat.value}
-                {stat.isStar && <Star className="w-5 h-5 text-amber-400 fill-amber-400" />}
+                {stat.isStar && <Star className="h-5 w-5 fill-amber-400 text-amber-400" />}
               </div>
-              <div className="text-[10px] md:text-xs text-gray-600 mt-1 font-semibold tracking-wider uppercase">{stat.label}</div>
+              <div className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-gray-600 md:text-xs">
+                {stat.label}
+              </div>
             </div>
           ))}
         </div>

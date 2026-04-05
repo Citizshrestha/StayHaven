@@ -51,42 +51,56 @@ const Footer = () => {
     <footer className="relative">
       {/* Newsletter section — Enhanced with gradient and better spacing */}
       <div className="bg-gradient-to-br from-teal-50 via-emerald-50 to-cyan-50 border-t border-teal-100">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 xl:px-[6vw] py-16">
-          <div className="bg-white rounded-3xl shadow-2xl border border-teal-100 p-10 md:p-12 relative overflow-hidden">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 xl:px-[6vw] py-16 pb-20">
+          <div className="relative mb-8 overflow-hidden rounded-3xl border border-teal-100 bg-white p-10 shadow-2xl md:mb-10 md:p-12">
             {/* Decorative background elements */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-teal-100/30 to-emerald-100/30 rounded-full blur-3xl -z-0"></div>
             <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-cyan-100/30 to-teal-100/30 rounded-full blur-3xl -z-0"></div>
             
-            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
-              <div className="flex items-start gap-5 flex-1">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-500 via-emerald-500 to-cyan-500 flex items-center justify-center flex-shrink-0 shadow-xl">
-                  <Mail className="w-7 h-7 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-gray-900 font-bold text-2xl mb-2">Stay in the Loop!</h3>
-                  <p className="text-gray-600 text-base leading-relaxed max-w-md">
-                    Get exclusive hotel deals, travel tips, and special offers delivered straight to your inbox. 
-                    <span className="text-teal-600 font-semibold"> Join 10,000+ travelers!</span>
+            <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex min-w-0 flex-1 items-start gap-4 sm:gap-5">
+                <Mail
+                  className="mt-0.5 size-9 shrink-0 text-[#0ea5a0] sm:size-10"
+                  strokeWidth={1.75}
+                  aria-hidden
+                />
+                <div className="min-w-0">
+                  <h3 className="mb-2 text-2xl font-bold text-gray-900">Stay in the Loop!</h3>
+                  <p className="max-w-xl text-base leading-relaxed text-gray-600">
+                    Get exclusive hotel deals, travel tips, and special offers delivered straight to your inbox.
+                    <span className="font-semibold text-[#0d9488]"> Join 10,000+ travelers!</span>
                   </p>
                 </div>
               </div>
-              
-              <form onSubmit={handleSubscribe} className="flex w-full md:w-auto gap-3">
-                <div className="relative flex-1 md:w-80">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+
+              <form
+                onSubmit={handleSubscribe}
+                className="flex w-full flex-col gap-3 sm:flex-row sm:items-stretch lg:w-auto lg:min-w-[min(100%,28rem)]"
+              >
+                <label htmlFor="footer-newsletter-email" className="sr-only">
+                  Email address
+                </label>
+                <div className="flex min-h-[48px] min-w-0 flex-1 items-center gap-3 rounded-xl bg-gray-50 px-4 py-2.5 transition-colors focus-within:bg-white focus-within:ring-2 focus-within:ring-[#0ea5a0]/25 focus-within:ring-offset-0 sm:min-w-[240px] md:w-80 md:flex-none">
+                  <Mail
+                    className="size-5 shrink-0 text-gray-400"
+                    strokeWidth={2}
+                    aria-hidden
+                  />
                   <input
+                    id="footer-newsletter-email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Enter your email address"
                     required
-                    className="w-full pl-12 pr-4 py-4 rounded-xl bg-gray-50 border-2 border-gray-200 text-gray-900 text-base placeholder-gray-400 focus:outline-none focus:border-teal-500 focus:ring-4 focus:ring-teal-500/20 transition-all"
+                    autoComplete="email"
+                    className="min-w-0 flex-1 border-0 bg-transparent py-0.5 text-base text-gray-900 shadow-none ring-0 placeholder:text-gray-400 focus:outline-none focus:ring-0 focus-visible:ring-0"
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={isSubscribing}
-                  className="px-8 py-4 bg-gradient-to-r from-teal-500 via-emerald-500 to-cyan-500 hover:from-teal-600 hover:via-emerald-600 hover:to-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-base rounded-xl transition-all shadow-lg hover:shadow-xl hover:scale-105 whitespace-nowrap flex items-center gap-2"
+                  className="inline-flex min-h-[48px] items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-[#0ea5a0] px-7 text-base font-bold text-white shadow-md transition-all hover:bg-[#0d9489] disabled:cursor-not-allowed disabled:opacity-50 sm:px-8"
                 >
                   {isSubscribing ? 'Subscribing...' : (
                     <>
@@ -102,20 +116,22 @@ const Footer = () => {
 
       {/* Main footer — Enhanced dark theme */}
       <div className="bg-gradient-to-b from-gray-900 via-gray-900 to-black">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 xl:px-[6vw] py-16">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-12 lg:gap-10">
+        <div className="container mx-auto max-w-full px-4 sm:px-6 lg:px-8 xl:px-[6vw] py-16">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-10 lg:grid-cols-12 lg:gap-x-8 lg:gap-y-10">
 
-            {/* Brand column — Enhanced */}
-            <div className="lg:col-span-4">
+            {/* Brand column — Enhanced (full width on mobile 2-col grid) */}
+            <div className="col-span-2 min-w-0 lg:col-span-3">
               <div className="flex items-center gap-3 mb-5">
-                <div className="w-11 h-11 bg-gradient-to-br from-teal-400 via-emerald-400 to-cyan-400 rounded-xl flex items-center justify-center shadow-lg">
-                  <Building2 className="w-5 h-5 text-white" />
-                </div>
+                <img
+                  src="/logo.png"
+                  alt="StayHaven Logo"
+                  className="w-12 h-12 object-contain"
+                />
                 <span className="text-white text-2xl font-bold" style={{ fontFamily: 'Nunito' }}>
                   Stay<span className="text-teal-400">Haven</span>
                 </span>
               </div>
-              <p className="text-gray-400 text-base leading-relaxed mb-6 max-w-sm">
+              <p className="text-gray-400 text-base leading-relaxed mb-6 max-w-none sm:max-w-sm">
                 Nepal's most trusted hotel booking platform. Handpicked stays from luxury resorts to boutique guesthouses.
               </p>
 
@@ -160,17 +176,18 @@ const Footer = () => {
             </div>
 
             {/* Quick Links */}
-            <div className="lg:col-span-2 lg:ml-auto">
-              <h4 className="text-white font-bold text-sm uppercase tracking-wider mb-5 flex items-center gap-2">
+            <div className="col-span-1 min-w-0 lg:col-span-3 lg:mt-8">
+              <h4 className="text-white font-bold text-sm uppercase tracking-wider mb-4 flex items-center gap-2">
                 <div className="w-1 h-5 bg-gradient-to-b from-teal-400 to-emerald-400 rounded-full"></div>
                 Quick Links
               </h4>
-              <ul className="space-y-3">
+              <ul className="space-y-2.5">
                 {quickLinks.map((link) => (
                   <li key={link.label}>
                     <button
+                      type="button"
                       onClick={() => navigate(link.path)}
-                      className="text-sm text-gray-400 hover:text-teal-400 hover:translate-x-1 transition-all flex items-center gap-2 group"
+                      className="w-full text-left text-sm text-gray-400 hover:text-teal-400 hover:translate-x-0.5 transition-all flex items-center gap-2 group"
                     >
                       <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                       {link.label}
@@ -181,17 +198,18 @@ const Footer = () => {
             </div>
 
             {/* Explore */}
-            <div className="lg:col-span-2">
-              <h4 className="text-white font-bold text-sm uppercase tracking-wider mb-5 flex items-center gap-2">
+            <div className="col-span-1 min-w-0 lg:col-span-3 lg:mt-8">
+              <h4 className="text-white font-bold text-sm uppercase tracking-wider mb-4 flex items-center gap-2">
                 <div className="w-1 h-5 bg-gradient-to-b from-teal-400 to-emerald-400 rounded-full"></div>
                 Explore
               </h4>
-              <ul className="space-y-3">
+              <ul className="space-y-2.5">
                 {exploreLinks.map((link) => (
                   <li key={link.label}>
                     <button
+                      type="button"
                       onClick={() => navigate(link.path)}
-                      className="text-sm text-gray-400 hover:text-teal-400 hover:translate-x-1 transition-all flex items-center gap-2 group"
+                      className="w-full text-left text-sm text-gray-400 hover:text-teal-400 hover:translate-x-0.5 transition-all flex items-center gap-2 group"
                     >
                       <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                       {link.label}
@@ -202,17 +220,18 @@ const Footer = () => {
             </div>
 
             {/* Support + Trust */}
-            <div className="lg:col-span-2">
-              <h4 className="text-white font-bold text-sm uppercase tracking-wider mb-5 flex items-center gap-2">
+            <div className="col-span-2 min-w-0 lg:col-span-3 lg:mt-8">
+              <h4 className="text-white font-bold text-sm uppercase tracking-wider mb-4 flex items-center gap-2">
                 <div className="w-1 h-5 bg-gradient-to-b from-teal-400 to-emerald-400 rounded-full"></div>
                 Support
               </h4>
-              <ul className="space-y-3">
+              <ul className="grid grid-cols-2 gap-x-6 gap-y-2.5 sm:grid-cols-2 lg:grid-cols-1 lg:gap-y-2.5">
                 {supportLinks.map((link) => (
-                  <li key={link.label}>
+                  <li key={link.label} className="min-w-0">
                     <button
+                      type="button"
                       onClick={() => navigate(link.path)}
-                      className="text-sm text-gray-400 hover:text-teal-400 hover:translate-x-1 transition-all flex items-center gap-2 group"
+                      className="w-full text-left text-sm text-gray-400 hover:text-teal-400 hover:translate-x-0.5 transition-all flex items-center gap-2 group"
                     >
                       <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                       {link.label}
@@ -222,20 +241,20 @@ const Footer = () => {
               </ul>
               
               {/* Trust badges */}
-              <div className="mt-6 space-y-3">
-                <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-800/50 px-3 py-2 rounded-lg">
-                  <Shield className="w-4 h-4 text-teal-500" /> 
-                  <span>SSL Secure Payment</span>
+              <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-800/50 px-3 py-2.5 rounded-lg">
+                  <Shield className="w-4 h-4 shrink-0 text-teal-500" />
+                  <span className="leading-snug">SSL Secure Payment</span>
                 </div>
-                <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-800/50 px-3 py-2 rounded-lg">
-                  <Clock className="w-4 h-4 text-emerald-500" /> 
-                  <span>24/7 Customer Support</span>
+                <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-800/50 px-3 py-2.5 rounded-lg">
+                  <Clock className="w-4 h-4 shrink-0 text-emerald-500" />
+                  <span className="leading-snug">24/7 Customer Support</span>
                 </div>
               </div>
             </div>
 
             {/* Bottom section with payment methods and staff login */}
-            <div className="lg:col-span-12">
+            <div className="col-span-2 lg:col-span-12">
               <div className="border-t border-gray-800 mt-4 pt-8">
                 {/* Payment methods */}
                 <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-6">
