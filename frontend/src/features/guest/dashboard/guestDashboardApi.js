@@ -1,0 +1,95 @@
+/**
+ * guestDashboardApi.js
+ *
+ * Frontend API client for the authenticated guest dashboard.
+ * Uses the standard axiosClient which attaches the user's Bearer token.
+ *
+ * Base path: /api/guest/portal
+ */
+
+import axiosClient from "../../../core/api/client";
+
+const BASE = "/api/guest/portal";
+
+/** Resolve the user's active hotelId from activeProperty or query */
+const getActiveHotelId = () => {
+  try {
+    const raw = localStorage.getItem("activeProperty");
+    if (!raw) return null;
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    return parsed?._id || parsed || null;
+  } catch {
+    return null;
+  }
+};
+
+/* ════════════════════════════════════════════
+   DASHBOARD
+   ════════════════════════════════════════════ */
+
+export const getDashboardOverview = () =>
+  axiosClient.get(`${BASE}/dashboard`).then((r) => r.data);
+
+/* ════════════════════════════════════════════
+   BOOKINGS
+   ════════════════════════════════════════════ */
+
+export const getGuestBookings = (params = {}) =>
+  axiosClient.get(`${BASE}/bookings`, { params }).then((r) => r.data);
+
+/* ════════════════════════════════════════════
+   RESTAURANT / ROOM SERVICE
+   ════════════════════════════════════════════ */
+
+export const getGuestMenu = (params = {}) => {
+  const hotelId = getActiveHotelId();
+  const queryParams = hotelId ? { hotelId, ...params } : { ...params };
+  return axiosClient.get(`${BASE}/menu`, { params: queryParams }).then((r) => r.data);
+};
+
+export const placeOrder = (orderData) =>
+  axiosClient.post(`${BASE}/order`, orderData).then((r) => r.data);
+
+export const getGuestOrders = (params = {}) =>
+  axiosClient.get(`${BASE}/orders`, { params }).then((r) => r.data);
+
+/* ════════════════════════════════════════════
+   BILLING / INVOICES
+   ════════════════════════════════════════════ */
+
+export const getGuestInvoices = (params = {}) =>
+  axiosClient.get(`${BASE}/invoices`, { params }).then((r) => r.data);
+
+/**
+ * Pay an order/invoice via Stripe.
+ * @param {string} orderId  – the order or invoice ID
+ * @param {object} payData  – { amount?, currency?, paymentMethodId? }
+ */
+export const payOrder = (orderId, payData) =>
+  axiosClient.post(`${BASE}/orders/${orderId}/pay`, payData).then((r) => r.data);
+
+/** Confirm a Stripe payment after the frontend completes it */
+export const confirmPayment = (paymentIntentId, orderId) =>
+  axiosClient.post(`${BASE}/payments/confirm`, { paymentIntentId, orderId }).then((r) => r.data);
+
+/* ════════════════════════════════════════════
+   PROFILE
+   ════════════════════════════════════════════ */
+
+export const getUserProfile = () =>
+  axiosClient.get(`${BASE}/profile`).then((r) => r.data);
+
+export const updateUserProfile = (profileData) =>
+  axiosClient.put(`${BASE}/profile`, profileData).then((r) => r.data);
+
+/* ════════════════════════════════════════════
+   GUEST REQUESTS
+   ════════════════════════════════════════════ */
+
+export const getGuestRequests = (params = {}) =>
+  axiosClient.get(`${BASE}/requests`, { params }).then((r) => r.data);
+
+export const submitRequest = (requestData) => {
+  const hotelId = getActiveHotelId();
+  return axiosClient.post(`${BASE}/request`, { hotelId, ...requestData }).then((r) => r.data);
+};
