@@ -890,18 +890,21 @@ const HowItWorks = () => {
       title: 'Search & compare',
       description:
         'Filter by price, amenities, and guest reviews to find your perfect stay.',
+      bgColor: '#6366F1', // Indigo for search/discovery
     },
     {
       icon: CalendarX2,
       title: 'Book instantly',
       description:
         'Secure your room with flexible cancellation options and instant confirmation.',
+      bgColor: '#10B981', // Emerald for booking/success
     },
     {
       icon: ConciergeBell,
       title: 'Manage your stay',
       description:
         'Modify dates, request services, and message the front desk anytime.',
+      bgColor: '#F59E0B', // Amber for service/support
     },
   ];
 
@@ -972,7 +975,10 @@ const HowItWorks = () => {
               key={index}
               className="step-card bg-white rounded-[28px] p-10 shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-1"
             >
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-r from-teal-500 to-teal-700 flex items-center justify-center mb-6">
+              <div 
+                className="w-14 h-14 rounded-2xl flex items-center justify-center mb-6"
+                style={{ backgroundColor: step.bgColor }}
+              >
                 <step.icon className="w-7 h-7 text-white" />
               </div>
               <div className="text-teal-600 font-bold text-sm mb-3">
@@ -1138,31 +1144,37 @@ const WhyChoose = () => {
       icon: BadgeDollarSign,
       title: 'No hidden fees',
       description: 'Transparent pricing with no surprises at checkout.',
+      bgColor: '#10B981', // Emerald green for money/pricing
     },
     {
       icon: CalendarX2,
       title: 'Flexible cancellation',
       description: 'Free cancellation on most bookings up to 24 hours before.',
+      bgColor: '#3B82F6', // Blue for calendar/trust
     },
     {
       icon: BadgeCheck,
       title: 'Verified reviews',
       description: 'Only guests who stayed can leave reviews.',
+      bgColor: '#8B5CF6', // Purple for verified/authentic
     },
     {
       icon: HeadphonesIcon,
       title: '24/7 support',
       description: 'Our team is here to help anytime, anywhere.',
+      bgColor: '#F59E0B', // Amber/orange for support/warmth
     },
     {
       icon: TrendingDown,
       title: 'Price match promise',
       description: 'Find a lower price? We will match it.',
+      bgColor: '#EF4444', // Red for price/offers
     },
     {
       icon: Leaf,
       title: 'Eco-friendly stays',
       description: 'Support sustainable properties worldwide.',
+      bgColor: '#22C55E', // Green for eco/nature
     },
   ];
 
@@ -1229,7 +1241,10 @@ const WhyChoose = () => {
               key={index}
               className="benefit-card bg-white rounded-[28px] p-10 shadow-xl hover:shadow-2xl transition-all duration-500"
             >
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-teal-500 to-teal-700 flex items-center justify-center mb-5">
+              <div 
+                className="w-12 h-12 rounded-xl flex items-center justify-center mb-5"
+                style={{ backgroundColor: benefit.bgColor }}
+              >
                 <benefit.icon className="w-6 h-6 text-white" />
               </div>
               <h3 className="font-bold text-lg text-gray-900 mb-3">
@@ -1253,9 +1268,10 @@ const Testimonials = () => {
   const cardsRef = useRef(null);
 
   const stats = [
-    { value: '50K+', label: 'Guests hosted' },
-    { value: '500+', label: 'Properties in Nepal' },
-    { value: '4.8', label: 'Average rating' },
+    { value: '500+', label: 'Properties', icon: 'building' },
+    { value: '50K+', label: 'Happy Guests', icon: 'users' },
+    { value: '25+', label: 'Cities', icon: 'map' },
+    { value: '4.9', label: 'Avg Rating', isStar: true },
   ];
 
   const testimonials = [
@@ -1275,7 +1291,7 @@ const Testimonials = () => {
       author: 'Priya T.',
       role: 'Hotel owner, Pokhara',
       image:
-        'https://images.unsplash.com/photo-1589156191108-c762ff28338c?w=200&h=200&fit=crop&crop=faces&q=80',
+        'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200&h=200&fit=crop&crop=faces&q=80',
       imageAlt: 'Portrait of Priya, hotel owner in Pokhara',
       rating: 5,
     },
@@ -1324,64 +1340,99 @@ const Testimonials = () => {
   }, []);
 
   return (
-    <section ref={sectionRef} className="py-24 md:py-32 lg:py-36 bg-gray-50 relative z-20">
+    <section ref={sectionRef} className="py-24 md:py-32 lg:py-40 relative z-20">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 xl:px-[6vw]">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16">
-          <div ref={statsRef} className="lg:col-span-4">
-            <h2 className="text-[clamp(28px,3.2vw,44px)] font-bold text-gray-900 mb-8">
-              Trusted by millions
-            </h2>
-            <div className="space-y-8">
-              {stats.map((stat, index) => (
-                <div key={index}>
-                  <div className="mb-1 text-3xl font-extrabold text-gray-900 md:text-4xl">
-                    {stat.value}
-                  </div>
-                  <div className="text-base text-gray-600">{stat.label}</div>
-                </div>
-              ))}
-            </div>
-          </div>
+        {/* Section Header */}
+        <div className="text-center mb-16 md:mb-20">
+          <h2 className="text-[clamp(32px,4vw,56px)] font-bold text-gray-900 mb-4 tracking-tight">
+            Trusted by thousands
+          </h2>
+          <p className="text-gray-500 text-lg md:text-xl max-w-2xl mx-auto">
+            See what our guests and hotel partners say about their StayHaven experience
+          </p>
+        </div>
 
-          <div ref={cardsRef} className="lg:col-span-8 space-y-8">
-            {testimonials.map((testimonial, index) => (
-              <div
-                key={index}
-                className="testimonial-card rounded-[28px] bg-white p-8 md:p-10"
-              >
-                <Quote className="mb-4 h-10 w-10 text-gray-200" aria-hidden />
-                <div className="flex gap-1 mb-4">
-                  {[...Array(testimonial.rating)].map((_, i) => (
-                    <Star
-                      key={i}
-                      className="w-5 h-5 fill-yellow-400 text-yellow-400"
-                    />
-                  ))}
+        {/* Stats Row */}
+        <div ref={statsRef} className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-16 md:mb-24 max-w-5xl mx-auto">
+          {stats.map((stat, index) => (
+            <div 
+              key={index} 
+              className="group relative bg-white rounded-2xl p-6 md:p-8 text-center transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border border-gray-100/50"
+            >
+              {/* Subtle gradient border on hover */}
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-amber-100 via-transparent to-emerald-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+              
+              <div className="relative z-10">
+                <div className="flex items-center justify-center gap-1.5 text-3xl md:text-4xl font-bold text-gray-900 mb-2">
+                  {stat.value}
+                  {stat.isStar && (
+                    <Star className="w-6 h-6 fill-amber-400 text-amber-400" />
+                  )}
                 </div>
-                <p className="text-gray-900 text-base leading-relaxed mb-6">
-                  "{testimonial.quote}"
-                </p>
-                <div className="flex items-center gap-4">
+                <div className="text-sm md:text-base font-medium text-gray-500">
+                  {stat.label}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Testimonials Grid */}
+        <div ref={cardsRef} className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 max-w-6xl mx-auto">
+          {testimonials.map((testimonial, index) => (
+            <div
+              key={index}
+              className="group relative bg-white rounded-3xl p-8 md:p-10 transition-all duration-300 hover:shadow-2xl border border-gray-100/80 hover:border-gray-200"
+            >
+              {/* Quote Icon */}
+              <Quote className="mb-6 h-12 w-12 text-gray-100 group-hover:text-amber-100 transition-colors duration-300" aria-hidden />
+              
+              {/* Rating Stars */}
+              <div className="flex gap-1 mb-5">
+                {[...Array(testimonial.rating)].map((_, i) => (
+                  <Star
+                    key={i}
+                    className="w-5 h-5 fill-amber-400 text-amber-400"
+                  />
+                ))}
+              </div>
+              
+              {/* Quote Text */}
+              <p className="text-gray-700 text-lg leading-relaxed mb-8 font-medium">
+                "{testimonial.quote}"
+              </p>
+              
+              {/* Author */}
+              <div className="flex items-center gap-4">
+                <div className="relative">
                   <img
                     src={testimonial.image}
                     alt={testimonial.imageAlt}
-                    className="h-12 w-12 shrink-0 rounded-full object-cover ring-1 ring-gray-100"
-                    width={48}
-                    height={48}
+                    className="h-14 w-14 rounded-full object-cover ring-2 ring-gray-100 group-hover:ring-amber-200 transition-all duration-300"
+                    width={56}
+                    height={56}
                     loading="lazy"
+                    onError={(e) => {
+                      e.target.src = 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop&crop=faces&q=80';
+                    }}
                   />
-                  <div>
-                    <div className="font-bold text-gray-900">
-                      {testimonial.author}
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      {testimonial.role}
-                    </div>
+                  <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center">
+                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                </div>
+                <div>
+                  <div className="font-bold text-gray-900 text-lg">
+                    {testimonial.author}
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    {testimonial.role}
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
       </div>
     </section>
@@ -1571,7 +1622,7 @@ const FinalCTA = ({ navigate }) => {
   return (
     <section
       ref={sectionRef}
-      className="relative bg-gray-50 z-20 py-12 md:py-20 overflow-hidden"
+      className="relative bg-gray-50 z-20 py-8 md:py-12 overflow-hidden"
     >
       {/* Subtle background decoration (neutral, no teal wash) */}
       <div
@@ -1583,24 +1634,6 @@ const FinalCTA = ({ navigate }) => {
       />
 
       <div ref={contentRef} className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 xl:px-[6vw]">
-        {/* Stats row — no teal bar; light cards on section background only */}
-        <div className="cta-button mx-auto mb-10 grid max-w-3xl grid-cols-2 gap-3 md:mb-14 md:grid-cols-4 md:gap-5">
-          {stats.map((stat, i) => (
-            <div
-              key={i}
-              className="rounded-2xl bg-white p-3 text-center shadow-sm border border-gray-100 transition-all duration-300 hover:shadow-md md:p-4"
-            >
-              <div className="flex items-center justify-center gap-1 text-2xl font-extrabold text-gray-900 md:text-3xl">
-                {stat.value}
-                {stat.isStar && <Star className="h-5 w-5 fill-amber-400 text-amber-400" />}
-              </div>
-              <div className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-gray-600 md:text-xs">
-                {stat.label}
-              </div>
-            </div>
-          ))}
-        </div>
-
         {/* Main CTA card */}
         <div className="max-w-3xl mx-auto">
           <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-6 md:p-10 lg:p-14 text-center">
