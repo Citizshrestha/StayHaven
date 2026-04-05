@@ -75,12 +75,12 @@ const Footer = () => {
 
               <form
                 onSubmit={handleSubscribe}
-                className="flex w-full flex-col gap-3 sm:flex-row sm:items-stretch lg:w-auto lg:min-w-[min(100%,28rem)]"
+                className="flex w-full flex-col gap-3 sm:flex-row sm:items-center lg:w-auto lg:min-w-[min(100%,28rem)]"
               >
                 <label htmlFor="footer-newsletter-email" className="sr-only">
                   Email address
                 </label>
-                <div className="flex min-h-[48px] min-w-0 flex-1 items-center gap-3 rounded-xl bg-gray-50 px-4 py-2.5 transition-colors focus-within:bg-white focus-within:ring-2 focus-within:ring-[#0ea5a0]/25 focus-within:ring-offset-0 sm:min-w-[240px] md:w-80 md:flex-none">
+                <div className="flex min-h-[48px] min-w-0 flex-1 items-center gap-3 rounded-xl bg-gray-50 px-4 py-2 transition-all focus-within:bg-white focus-within:shadow-lg sm:min-w-[240px] md:w-80 md:flex-none">
                   <Mail
                     className="size-5 shrink-0 text-gray-400"
                     strokeWidth={2}
@@ -94,13 +94,13 @@ const Footer = () => {
                     placeholder="Enter your email address"
                     required
                     autoComplete="email"
-                    className="min-w-0 flex-1 border-0 bg-transparent py-0.5 text-base text-gray-900 shadow-none ring-0 placeholder:text-gray-400 focus:outline-none focus:ring-0 focus-visible:ring-0"
+                    className="min-w-0 flex-1 bg-transparent py-0.5 text-base text-gray-900 placeholder:text-gray-400 focus:outline-none"
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={isSubscribing}
-                  className="inline-flex min-h-[48px] items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-[#0ea5a0] px-7 text-base font-bold text-white shadow-md transition-all hover:bg-[#0d9489] disabled:cursor-not-allowed disabled:opacity-50 sm:px-8"
+                  className="inline-flex h-[44px] items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-[#0ea5a0] px-5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#0d9489] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isSubscribing ? 'Subscribing...' : (
                     <>
