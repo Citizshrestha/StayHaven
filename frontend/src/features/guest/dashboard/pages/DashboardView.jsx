@@ -6,7 +6,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getDashboardOverview } from "../guestDashboardApi";
-import { useSocket } from '../../../core/context/SocketContext';
+import { useSocket } from '../../../../core/context/SocketContext';
 import { toast } from 'react-toastify';
 import {
   CalendarDays,

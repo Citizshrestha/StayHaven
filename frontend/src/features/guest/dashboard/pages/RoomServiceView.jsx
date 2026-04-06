@@ -6,7 +6,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getGuestMenu, placeOrder, getGuestOrders } from "../guestDashboardApi";
-import { useSocket } from '../../../core/context/SocketContext';
+import { useSocket } from '../../../../core/context/SocketContext';
 import { toast } from 'react-toastify';
 import {
   ShoppingCart,

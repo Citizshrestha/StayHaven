@@ -16,6 +16,18 @@ import { NotificationProvider } from "../core/context/NotificationContext";
 // CORE - Routes (Guards & Protection)
 // ============================================
 import ProtectedStaffRoute from "../core/routes/ProtectedStaffRoute";
+import ProtectedGuestRoute from "../core/routes/ProtectedGuestRoute";
+
+// ============================================
+// FEATURES - Guest Dashboard
+// ============================================
+import GuestDashboardLayout from "../features/guest/dashboard/layout/GuestDashboardLayout";
+import DashboardView from "../features/guest/dashboard/pages/DashboardView";
+import RoomServiceView from "../features/guest/dashboard/pages/RoomServiceView";
+import BookingsView from "../features/guest/dashboard/pages/BookingsView";
+import BillingView from "../features/guest/dashboard/pages/BillingView";
+import ProfileView from "../features/guest/dashboard/pages/ProfileView";
+import RequestsView from "../features/guest/dashboard/pages/RequestsView";
 
 // ============================================
 // SHARED - Layout Components
@@ -30,6 +42,7 @@ import Login from "../features/public/auth/guest/Login";
 import Register from "../features/public/auth/guest/Register";
 import ForgotPassword from "../features/public/auth/guest/ForgotPassword";
 import ResetPassword from "../features/public/auth/guest/ResetPassword";
+import GuestDashboardLogin from "../features/public/auth/guest/GuestDashboardLogin";
 
 // ============================================
 // FEATURES - Public Auth (Staff)
@@ -107,6 +120,7 @@ const Layout = ({ children }) => {
     '/register',
     '/forgot-password',
     '/reset-password',
+    '/guest/login',
     '/staff/login',
     '/staff/forgot-password',
     '/staff/reset-password',
@@ -121,7 +135,8 @@ const Layout = ({ children }) => {
     '/roommanagement',
     '/restaurantmanagement',
     '/guest/table',
-    '/guest/room'
+    '/guest/room',
+    '/guest-dashboard',
   ];
 
   const isHome = location.pathname === '/';
@@ -164,6 +179,9 @@ const App = () => {
                       <Route path="/register" element={<Register />} />
                       <Route path="/forgot-password" element={<ForgotPassword />} />
                       <Route path="/reset-password" element={<ResetPassword />} />
+                      
+                      {/* Guest Dashboard Login - Separate from public login */}
+                      <Route path="/guest/login" element={<GuestDashboardLogin />} />
 
                       {/* Auth - Staff */}
                       <Route path="/staff/login" element={<StaffLogin />} />
@@ -237,6 +255,25 @@ const App = () => {
                       {/* ================================ */}
                       <Route path="/guest/table/:token" element={<GuestTableView />} />
                       <Route path="/guest/room/:token" element={<GuestRoomView />} />
+
+                      {/* ================================ */}
+                      {/* GUEST DASHBOARD - Auth Required  */}
+                      {/* ================================ */}
+                      <Route
+                        path="/guest-dashboard/*"
+                        element={
+                          <ProtectedGuestRoute>
+                            <GuestDashboardLayout />
+                          </ProtectedGuestRoute>
+                        }
+                      >
+                        <Route index element={<DashboardView />} />
+                        <Route path="room-service" element={<RoomServiceView />} />
+                        <Route path="bookings" element={<BookingsView />} />
+                        <Route path="billing" element={<BillingView />} />
+                        <Route path="requests" element={<RequestsView />} />
+                        <Route path="profile" element={<ProfileView />} />
+                      </Route>
                     </Routes>
                   </Layout>
                 </div>
