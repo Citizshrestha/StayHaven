@@ -174,8 +174,6 @@ bookingSchema.pre("save", async function (next) {
 // Core lookups
 bookingSchema.index({ user: 1, status: 1 }, { sparse: true });
 bookingSchema.index({ guest: 1, status: 1 });
-bookingSchema.index({ bookingId: 1 });
-bookingSchema.index({ confirmationCode: 1 }, { sparse: true });
 
 // Room availability checks (critical for conflict prevention)
 bookingSchema.index({ room: 1, checkIn: 1, checkOut: 1 });

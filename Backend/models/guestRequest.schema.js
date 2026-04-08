@@ -9,6 +9,12 @@ const guestRequestSchema = new mongoose.Schema(
     roomNumber: { type: String, required: true },
     guest: { type: mongoose.Schema.Types.ObjectId, ref: "Guest" },
     guestName: { type: String },
+    // For authenticated guest portal: link request to registered user
+    guestInfo: {
+      userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      email: { type: String },
+      phone: { type: String },
+    },
     description: { type: String, required: true, maxlength: 500 },
     category: {
       type: String,

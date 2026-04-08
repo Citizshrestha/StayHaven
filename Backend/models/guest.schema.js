@@ -62,9 +62,6 @@ guestSchema.index({ company: 1, totalSpent: -1 }); // For loyalty reporting
 // Text search
 guestSchema.index({ fullName: "text", email: "text", phone: "text" });
 
-// Unique lookup
-guestSchema.index({ guestId: 1 });
-
 // Dashboard quick lookup
 guestSchema.index({ currentBooking: 1 }, { sparse: true });
 guestSchema.index({ company: 1, blacklisted: 1 });
