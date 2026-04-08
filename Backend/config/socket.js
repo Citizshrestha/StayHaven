@@ -55,49 +55,54 @@ export const initSocket = (httpServer) => {
       }
     });
 
-    // When a staff member joins, also add them to their role-specific room
+    // When a user joins, add them to role/hotel rooms (when provided)
+    // and always join their personal room for direct notifications.
     socket.on("join-role", ({ hotelId, role, userId, fullname }) => {
-      if (hotelId && role) {
+      if (!role || !userId) {
+        return;
+      }
+
+      // Always join personal room for direct events (e.g. guest order status)
+      socket.join(`user-${userId}`);
+      socket.userId = userId;
+      socket.userRole = role;
+      socket.fullname = fullname;
+
+      if (hotelId) {
         // Join role-specific room (e.g., "hotel-123-waiters")
         socket.join(`hotel-${hotelId}-${role}s`);
-        // Also join personal room for direct messages
-        if (userId) {
-          socket.join(`user-${userId}`);
-          // Store userId on the socket for WebRTC signaling and presence
-          socket.userId = userId;
-          socket.userRole = role;
-          socket.hotelId = hotelId;
-          socket.fullname = fullname;
+        socket.hotelId = hotelId;
 
-          // Add to online users
-          onlineUsers.set(userId, {
-            socketId: socket.id,
-            hotelId,
-            role,
-            fullname: fullname || 'Unknown',
-          });
+        // Add to online users only when hotel context exists
+        onlineUsers.set(userId, {
+          socketId: socket.id,
+          hotelId,
+          role,
+          fullname: fullname || 'Unknown',
+        });
 
-          // Notify all users in the hotel that this user is online
-          io.to(`hotel-${hotelId}`).emit("user-online", {
+        // Notify all users in the hotel that this user is online
+        io.to(`hotel-${hotelId}`).emit("user-online", {
+          userId,
+          fullname: fullname || 'Unknown',
+          role,
+        });
+
+        // Send list of currently online users to the newly connected user
+        const onlineUsersInHotel = Array.from(onlineUsers.entries())
+          .filter(([_, userData]) => userData.hotelId === hotelId)
+          .map(([userId, userData]) => ({
             userId,
-            fullname: fullname || 'Unknown',
-            role,
-          });
+            fullname: userData.fullname,
+            role: userData.role,
+          }));
 
-          // Send list of currently online users to the newly connected user
-          const onlineUsersInHotel = Array.from(onlineUsers.entries())
-            .filter(([_, userData]) => userData.hotelId === hotelId)
-            .map(([userId, userData]) => ({
-              userId,
-              fullname: userData.fullname,
-              role: userData.role,
-            }));
+        socket.emit("online-users", onlineUsersInHotel);
 
-          socket.emit("online-users", onlineUsersInHotel);
-
-          console.log(`👤 Socket ${socket.id} joined as ${role} in hotel-${hotelId}, userId: ${userId}`);
-          console.log(`📊 Online users in hotel ${hotelId}:`, onlineUsersInHotel.length);
-        }
+        console.log(`👤 Socket ${socket.id} joined as ${role} in hotel-${hotelId}, userId: ${userId}`);
+        console.log(`📊 Online users in hotel ${hotelId}:`, onlineUsersInHotel.length);
+      } else {
+        console.log(`👤 Socket ${socket.id} joined personal room user-${userId} as ${role}`);
       }
     });
 
