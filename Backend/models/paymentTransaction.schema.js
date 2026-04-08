@@ -12,7 +12,8 @@ const paymentTransactionSchema = new mongoose.Schema(
   {
     hotel: { type: mongoose.Schema.Types.ObjectId, ref: "Hotel", required: true },
     company: { type: mongoose.Schema.Types.ObjectId, ref: "Company", required: true },
-    booking: { type: mongoose.Schema.Types.ObjectId, ref: "Booking", required: true },
+    booking: { type: mongoose.Schema.Types.ObjectId, ref: "Booking", required: false },
+    order: { type: mongoose.Schema.Types.ObjectId, ref: "Order" },
     invoice: { type: mongoose.Schema.Types.ObjectId, ref: "Invoice" },
     guest: { type: mongoose.Schema.Types.ObjectId, ref: "Guest" },
 

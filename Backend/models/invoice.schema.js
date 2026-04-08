@@ -47,7 +47,6 @@ const invoiceSchema = new mongoose.Schema(
 // ═════════════════════════════════════════════════════════════════════════════
 
 // Core lookups
-invoiceSchema.index({ invoiceId: 1 });
 invoiceSchema.index({ booking: 1 });
 invoiceSchema.index({ bookingRef: 1 });
 
