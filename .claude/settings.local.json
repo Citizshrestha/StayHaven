@@ -2,7 +2,16 @@
   "permissions": {
     "allow": [
       "Bash(tasklist)",
-      "Bash(findstr \"node.exe\")"
+      "Bash(findstr \"node.exe\")",
+      "Bash(claude:*)",
+      "Bash(git ls-files:*)",
+      "Bash(npm install:*)",
+      "Bash(ls -la frontend/src/features/guest/dashboard/*.js)",
+      "Bash(node --check controllers/guestDashboardController.js)",
+      "Bash(node:*)",
+      "Bash(ls:*)",
+      "Bash(npm start:*)",
+      "Bash(touch /tmp/check_mongo.txt)"
     ]
   }
 }

@@ -70,7 +70,7 @@ const GuestDashboardLogin = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-emerald-50 to-cyan-50 flex items-center justify-center p-4">
+    <div className="relative min-h-screen bg-linear-to-br from-teal-50 via-emerald-50 to-cyan-50 dark:from-gray-950 dark:via-slate-900 dark:to-gray-950 flex items-center justify-center p-4">
       {/* Background Pattern */}
       <div className="absolute inset-0 opacity-5">
         <div className="absolute inset-0" style={{
@@ -83,20 +83,20 @@ const GuestDashboardLogin = () => {
         <div className="hidden md:block space-y-8">
           <div>
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-16 h-16 bg-gradient-to-br from-teal-500 via-emerald-500 to-cyan-500 rounded-2xl flex items-center justify-center shadow-xl">
+              <div className="w-16 h-16 bg-linear-to-br from-teal-500 via-emerald-500 to-cyan-500 rounded-2xl flex items-center justify-center shadow-xl">
                 <Hotel className="w-8 h-8 text-white" />
               </div>
               <div>
-                <h1 className="text-4xl font-bold text-gray-900">
+                <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100">
                   Stay<span className="text-teal-600">Haven</span>
                 </h1>
-                <p className="text-sm text-gray-600">Guest Portal</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Guest Portal</p>
               </div>
             </div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4">
               Welcome Back to Your Stay
             </h2>
-            <p className="text-lg text-gray-600 leading-relaxed">
+            <p className="text-lg text-gray-600 dark:text-gray-400 leading-relaxed">
               Access your personalized dashboard to manage bookings, order room service, and enjoy a seamless hotel experience.
             </p>
           </div>
@@ -108,13 +108,13 @@ const GuestDashboardLogin = () => {
               { icon: Clock, title: '24/7 Service', desc: 'Order room service and request assistance anytime' },
               { icon: Star, title: 'Premium Experience', desc: 'Manage your stay with our intuitive dashboard' },
             ].map((feature, idx) => (
-              <div key={idx} className="flex items-start gap-4 p-4 bg-white/60 backdrop-blur-sm rounded-xl border border-teal-100">
-                <div className="w-12 h-12 bg-gradient-to-br from-teal-100 to-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <div key={idx} className="flex items-start gap-4 p-4 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm rounded-xl border border-teal-100 dark:border-slate-700">
+                <div className="w-12 h-12 bg-linear-to-br from-teal-100 to-emerald-100 dark:from-slate-800 dark:to-slate-700 rounded-lg flex items-center justify-center shrink-0">
                   <feature.icon className="w-6 h-6 text-teal-600" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900 mb-1">{feature.title}</h3>
-                  <p className="text-sm text-gray-600">{feature.desc}</p>
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-1">{feature.title}</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{feature.desc}</p>
                 </div>
               </div>
             ))}
@@ -122,37 +122,37 @@ const GuestDashboardLogin = () => {
         </div>
 
         {/* Right Side - Login Form */}
-        <div className="bg-white rounded-3xl shadow-2xl p-8 md:p-10 border border-gray-100">
+        <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl p-8 md:p-10 border border-gray-100 dark:border-gray-800">
           {/* Mobile Logo */}
           <div className="md:hidden flex items-center justify-center gap-3 mb-8">
-            <div className="w-12 h-12 bg-gradient-to-br from-teal-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg">
+            <div className="w-12 h-12 bg-linear-to-br from-teal-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg">
               <Hotel className="w-6 h-6 text-white" />
             </div>
-            <span className="text-2xl font-bold text-gray-900">
+            <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">
               Stay<span className="text-teal-600">Haven</span>
             </span>
           </div>
 
           <div className="text-center mb-8">
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">Guest Dashboard Login</h3>
-            <p className="text-gray-600">Enter your credentials to access your dashboard</p>
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Guest Dashboard Login</h3>
+            <p className="text-gray-600 dark:text-gray-400">Enter your credentials to access your dashboard</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Email Field */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Email Address
               </label>
               <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Mail className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 z-10" />
                 <input
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
                   placeholder="Enter your email"
-                  className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all text-gray-900 placeholder-gray-400"
+                  className="w-full pl-12 pr-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 text-sm md:text-base leading-6"
                   required
                 />
               </div>
@@ -160,24 +160,24 @@ const GuestDashboardLogin = () => {
 
             {/* Password Field */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Lock className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 z-10" />
                 <input
                   type={showPassword ? "text" : "password"}
                   name="password"
                   value={formData.password}
                   onChange={handleInputChange}
                   placeholder="Enter your password"
-                  className="w-full pl-12 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all text-gray-900 placeholder-gray-400"
+                  className="w-full pl-12 pr-14 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 text-sm md:text-base leading-6"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
@@ -199,7 +199,7 @@ const GuestDashboardLogin = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-gradient-to-r from-teal-500 via-emerald-500 to-cyan-500 hover:from-teal-600 hover:via-emerald-600 hover:to-cyan-600 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
+              className="w-full py-3 bg-linear-to-r from-teal-500 via-emerald-500 to-cyan-500 hover:from-teal-600 hover:via-emerald-600 hover:to-cyan-600 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>
@@ -218,10 +218,10 @@ const GuestDashboardLogin = () => {
           {/* Divider */}
           <div className="relative my-8">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200"></div>
+              <div className="w-full border-t border-gray-200 dark:border-gray-700"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-white text-gray-500">Need to book a room?</span>
+              <span className="px-4 bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400">Need to book a room?</span>
             </div>
           </div>
 
@@ -238,8 +238,8 @@ const GuestDashboardLogin = () => {
           </div>
 
           {/* Help Text */}
-          <div className="mt-8 p-4 bg-teal-50 rounded-xl border border-teal-100">
-            <p className="text-sm text-gray-700 text-center">
+          <div className="mt-8 p-4 bg-teal-50 dark:bg-teal-900/20 rounded-xl border border-teal-100 dark:border-teal-900/40">
+            <p className="text-sm text-gray-700 dark:text-gray-300 text-center">
               <strong>Note:</strong> This login is for guests with confirmed bookings. 
               Check your email for login credentials sent by the hotel staff.
             </p>

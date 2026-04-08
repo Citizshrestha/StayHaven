@@ -555,27 +555,27 @@ const Destinations = () => {
   const destinations = [
     {
       name: 'Kathmandu Valley',
-      image: 'https://images.unsplash.com/photo-1558799401-1dcba79834c2?q=80&w=2070&auto=format&fit=crop',
+      image: 'https://upload.wikimedia.org/wikipedia/commons/f/fd/Basantapurpalace.JPG',
       properties: '180+ stays',
     },
     {
       name: 'Pokhara, Kaski',
-      image: 'https://images.unsplash.com/photo-1605640840605-14ac1855827b?q=80&w=2070&auto=format&fit=crop',
+      image: 'https://upload.wikimedia.org/wikipedia/commons/8/8b/Fewa_lake%2CPokhara.jpg',
       properties: '120+ stays',
     },
     {
       name: 'Chitwan, Narayani',
-      image: 'https://images.unsplash.com/photo-1574755393849-623942496936?q=80&w=2070&auto=format&fit=crop',
+      image: 'https://upload.wikimedia.org/wikipedia/commons/0/02/Tiger_in_chitwan.jpg',
       properties: '60+ stays',
     },
     {
       name: 'Nagarkot, Bhaktapur',
-      image: 'https://images.unsplash.com/photo-1544735716-392fe2489ffa?q=80&w=2070&auto=format&fit=crop',
+      image: 'https://upload.wikimedia.org/wikipedia/commons/c/c7/Sunrise_at_Nagarkot%2C_Nepal_2.jpg',
       properties: '45+ stays',
     },
     {
       name: 'Lumbini, Rupandehi',
-      image: 'https://images.unsplash.com/photo-1603959395883-4066c8b05e64?q=80&w=2070&auto=format&fit=crop',
+      image: 'https://upload.wikimedia.org/wikipedia/commons/2/24/Lumbini_Buddhist_pilgrimage_IMG_0678_18.jpg',
       properties: '35+ stays',
     },
   ];

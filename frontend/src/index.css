@@ -178,10 +178,15 @@ select {
 
 .Toastify__toast-container {
   pointer-events: auto;
+  padding: 16px; /* Add padding around the container */
 }
 
 .Toastify__toast {
   pointer-events: auto;
+  margin-bottom: 12px; /* Space between toasts */
+  border-radius: 8px; /* Rounded corners */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); /* Better shadow */
+  font-family: 'Nunito', sans-serif; /* Consistent font */
 }
 
 /* Ensure Toastify doesn't add height to document */
@@ -191,6 +196,34 @@ section.Toastify {
   bottom: auto;
   height: 0 !important;
   overflow: visible !important;
+}
+
+/* Toast type specific styling */
+.Toastify__toast--success {
+  background: #10b981; /* Teal green */
+}
+
+.Toastify__toast--error {
+  background: #ef4444; /* Red */
+}
+
+.Toastify__toast--warning {
+  background: #f59e0b; /* Amber */
+}
+
+.Toastify__toast--info {
+  background: #3b82f6; /* Blue */
+}
+
+/* Toast close button */
+.Toastify__close-button {
+  color: white;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.Toastify__close-button:hover {
+  opacity: 1;
 }
 
 /* Spin animation for refresh button */

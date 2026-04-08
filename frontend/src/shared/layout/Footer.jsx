@@ -115,7 +115,7 @@ const Footer = () => {
       </div>
 
       {/* Main footer — Enhanced dark theme */}
-      <div className="bg-gradient-to-b from-gray-900 via-gray-900 to-black">
+      <div className="bg-gradient-to-b from-gray-900 via-gray-900 to-gray-900">
         <div className="container mx-auto max-w-full px-4 sm:px-6 lg:px-8 xl:px-[6vw] py-16">
           <div className="grid grid-cols-2 gap-x-6 gap-y-10 lg:grid-cols-12 lg:gap-x-8 lg:gap-y-10">
 
@@ -288,12 +288,19 @@ const Footer = () => {
 
                 {/* Copyright */}
                 <div className="text-center">
-                  <p className="text-xs text-gray-600 flex items-center justify-center gap-2 flex-wrap">
-                    &copy; {new Date().getFullYear()} StayHaven. All rights reserved. 
-                    <span className="flex items-center gap-1">
-                      Made with <Heart className="w-3 h-3 text-red-500 fill-red-500 animate-pulse" /> in Nepal
-                    </span>
-                  </p>
+                  <div className="mx-auto inline-flex w-full max-w-3xl flex-col items-center justify-center rounded-2xl px-4 py-3 shadow-lg backdrop-blur-sm sm:px-6 sm:py-4">
+                    <p className="text-sm font-semibold tracking-wide text-gray-200 sm:text-base md:text-lg">
+                      &copy; {new Date().getFullYear()} StayHaven. All rights reserved.
+                    </p>
+                    <p className="mt-1.5 flex items-center justify-center gap-1.5 text-sm font-medium text-teal-300 sm:text-base">
+                      <MapPin className="h-4 w-4 text-teal-400" />
+                      <span className="inline-flex items-center gap-1.5">
+                        Made with
+                        <Heart className="h-4 w-4 animate-pulse fill-rose-500 text-rose-500" />
+                        in Nepal
+                      </span>
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>

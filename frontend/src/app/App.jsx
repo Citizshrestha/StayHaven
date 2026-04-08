@@ -285,15 +285,22 @@ const App = () => {
         {/* Toast Container */}
         <ToastContainer
           position="top-right"
-          autoClose={5000}
-          hideProgressBar={false}
-          newestOnTop={false}
+          autoClose={4000}
+          hideProgressBar={true}
+          newestOnTop={true}
           closeOnClick
           rtl={false}
           pauseOnFocusLoss
           draggable
           pauseOnHover
-          theme="light"
+          theme="colored"
+          style={{
+            zIndex: 9999,
+            top: '80px' // Add top offset to the container instead of margin to each toast
+          }}
+          toastStyle={{
+            maxWidth: '400px',
+          }}
         />
       </Router>
     </GoogleOAuthProvider>
