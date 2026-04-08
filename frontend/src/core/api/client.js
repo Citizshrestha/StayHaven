@@ -67,7 +67,7 @@ axiosClient.interceptors.response.use(
 
         // Determine if user is logged in (staff or normal user)
         const hasStaffSession = !!(sessionStorage.getItem('staffAccessToken') || localStorage.getItem('staffAccessToken'));
-        const hasUserSession = !!localStorage.getItem('userId');
+        const hasUserSession = !!(localStorage.getItem('accessToken') || localStorage.getItem('userId'));
 
         // Only attempt refresh if:
         // 1. It's a 401 error

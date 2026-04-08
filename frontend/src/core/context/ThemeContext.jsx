@@ -13,8 +13,12 @@ export const ThemeProvider = ({ children }) => {
     useEffect(() => {
         // Remove both classes first
         document.documentElement.classList.remove('light-theme', 'dark-theme');
+        document.documentElement.classList.remove('dark');
         // Add the current theme class
         document.documentElement.classList.add(`${theme}-theme`);
+        if (theme === 'dark') {
+            document.documentElement.classList.add('dark');
+        }
         // Save to localStorage
         localStorage.setItem('theme', theme);
     }, [theme]);

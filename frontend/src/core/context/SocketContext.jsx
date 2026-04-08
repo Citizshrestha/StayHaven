@@ -29,7 +29,9 @@ const SOCKET_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
 /**
  * SocketProvider Component
- * Wraps the app and provides socket connection to all children
+ * Wraps the app and provides socket connection to all children.
+ * Connects for both staff users (with activeProperty) and guest users
+ * (with guest accessToken and userId in localStorage).
  */
 export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
@@ -39,49 +41,73 @@ export const SocketProvider = ({ children }) => {
   // Refs to store callbacks that will be called when events arrive
   const eventListeners = useRef(new Map());
 
-  // Initialize socket connection
+  // Initialize socket connection for staff OR guest users
   useEffect(() => {
     const staffUser = getCurrentStaffUser();
     const activeProperty = getActiveProperty();
 
-    // Only connect if user is logged in
-    if (!staffUser || !activeProperty) {
+    // Guest user detection: non-staff users with guest accessToken
+    const guestToken = localStorage.getItem("accessToken");
+    const guestUserId = localStorage.getItem("userId");
+    const guestRole = localStorage.getItem("role");
+    const isStaffUser = !!(staffUser && activeProperty);
+    const isGuestUser = !!(guestToken && guestUserId && guestRole === "guest");
+
+    // Only connect if a valid user session exists
+    if (!isStaffUser && !isGuestUser) {
       return;
     }
 
+    // Build auth payload based on user type
+    const authPayload = isStaffUser
+      ? {
+          userId: staffUser._id,
+          role: staffUser.role,
+          hotelId: activeProperty._id,
+        }
+      : {
+          userId: guestUserId,
+          role: "guest",
+          hotelId: localStorage.getItem("activeHotelId") || null,
+        };
+
     // Create socket connection
     const socketInstance = io(SOCKET_URL, {
-      // Send auth info with connection
-      auth: {
-        userId: staffUser._id,
-        role: staffUser.role,
-        hotelId: activeProperty._id,
-      },
-      // Reconnection settings
+      auth: authPayload,
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
-      // Timeout settings
       timeout: 20000,
     });
 
     // Connection established
     socketInstance.on("connect", () => {
-      console.log("🔌 Socket connected:", socketInstance.id);
-      console.log(`👤 Socket joining as role: ${staffUser.role} for hotel: ${activeProperty._id}`);
+      console.log("Socket connected:", socketInstance.id);
       setIsConnected(true);
 
       // Join hotel room to receive hotel-specific updates
-      socketInstance.emit("join-hotel", activeProperty._id);
+      if (activeProperty?._id) {
+        console.log(`Joining as staff role: ${staffUser.role} for hotel: ${activeProperty._id}`);
+        socketInstance.emit("join-hotel", activeProperty._id);
 
-      // Join role-specific room
-      socketInstance.emit("join-role", {
-        hotelId: activeProperty._id,
-        role: staffUser.role,
-        userId: staffUser._id,
-        fullname: staffUser.fullname || staffUser.name || 'Unknown',
-      });
+        // Join role-specific room
+        socketInstance.emit("join-role", {
+          hotelId: activeProperty._id,
+          role: staffUser.role,
+          userId: staffUser._id,
+          fullname: staffUser.fullname || staffUser.name || "Unknown",
+        });
+      } else if (isGuestUser) {
+        console.log(`Joining as guest user: ${guestUserId}`);
+        // Join personal room for direct order status updates
+        socketInstance.emit("join-role", {
+          hotelId: authPayload.hotelId,
+          role: "guest",
+          userId: guestUserId,
+          fullname: localStorage.getItem("username") || "Guest",
+        });
+      }
     });
 
     // Connection lost
