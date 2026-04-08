@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import express from "express";
+import net from "net";
 import { createServer } from "http";
 import connectDB from "./config/db.js";
 import cors from "cors";
@@ -18,6 +19,7 @@ import staffRoutes from "./routes/staffRoutes.js";
 import tableRoutes from "./routes/tableRoutes.js";
 import roomRoutes from "./routes/roomRoutes.js";
 import guestRoutes from "./routes/guestRoutes.js";
+import guestDashboardRoutes from "./routes/guestDashboardRoutes.js";
 import bookingRoutes from "./routes/bookingRoutes.js";
 import seedRoutes from "./routes/seedRoutes.js";
 import receptionRoutes from "./routes/receptionRoutes.js";
@@ -151,7 +153,28 @@ app.use((err, req, res, next) => {
   next(err);
 });
 
-const PORT = process.env.PORT || 3000;
+const DEFAULT_PORT = 3000;
+const PORT_FROM_ENV = process.env.PORT ? Number(process.env.PORT) : null;
+
+const findAvailablePort = (preferredPort) =>
+  new Promise((resolve, reject) => {
+    const tester = net.createServer();
+
+    tester.once("error", (err) => {
+      if (err.code === "EADDRINUSE") {
+        resolve(findAvailablePort(preferredPort + 1));
+        return;
+      }
+      reject(err);
+    });
+
+    tester.once("listening", () => {
+      const { port } = tester.address();
+      tester.close(() => resolve(port));
+    });
+
+    tester.listen(preferredPort, "::");
+  });
 
 // routes
 app.get("/", (req, res) => {
@@ -167,6 +190,7 @@ app.use("/api/rooms", roomRoutes);        // Room QR management (authenticated)
 app.use("/api/bookings", bookingRoutes);  // Booking management (authenticated)
 app.use("/api/seed", seedRoutes);         // Seed test data (admin only)
 app.use("/api/guest", guestRoutes);       // Guest QR scanning (public)
+app.use("/api/guest/portal", guestDashboardRoutes); // Guest dashboard (authenticated)
 app.use("/api/reception", receptionRoutes); // Reception dashboard APIs (authenticated)
 
 // ═══════════════════════════════════════════
@@ -183,7 +207,25 @@ app.use(notFound);
 app.use(errorHandler);
 
 // start server - use httpServer instead of app for Socket.io support
-httpServer.listen(PORT, () => {
-  console.log(`🚀 Server is running on port ${PORT}`);
-  console.log(`🔌 WebSocket server ready for connections`);
+const startServer = async () => {
+  let portToUse = PORT_FROM_ENV ?? DEFAULT_PORT;
+
+  if (!PORT_FROM_ENV) {
+    portToUse = await findAvailablePort(DEFAULT_PORT);
+    if (portToUse !== DEFAULT_PORT) {
+      console.warn(
+        `⚠️ Port ${DEFAULT_PORT} is in use. Starting backend on available port ${portToUse} instead.`
+      );
+    }
+  }
+
+  httpServer.listen(portToUse, () => {
+    console.log(`🚀 Server is running on port ${portToUse}`);
+    console.log(`🔌 WebSocket server ready for connections`);
+  });
+};
+
+startServer().catch((err) => {
+  console.error("❌ Failed to start server:", err);
+  process.exit(1);
 });

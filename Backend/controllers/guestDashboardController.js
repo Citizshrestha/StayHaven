@@ -162,11 +162,25 @@ export const getAuthenticatedMenu = asyncHandler(async (req, res) => {
   }
 
   // Verify hotel is active
-  const hotel = await Hotel.findById(targetHotelId).select("name");
-  if (!hotel || !hotel.isActive) {
+  const hotel = await Hotel.findById(targetHotelId).select("name status isActive");
+  if (!hotel) {
     return res.status(404).json({
       success: false,
-      message: "Hotel not available",
+      message: "Hotel not found",
+    });
+  }
+  
+  if (!hotel.isActive) {
+    return res.status(404).json({
+      success: false,
+      message: "Hotel is currently inactive",
+    });
+  }
+  
+  if (hotel.status !== "approved") {
+    return res.status(404).json({
+      success: false,
+      message: `Hotel is not available (status: ${hotel.status})`,
     });
   }
 
@@ -462,30 +476,69 @@ export const getUserInvoices = asyncHandler(async (req, res) => {
 // POST /api/guest/portal/orders/:id/pay
 // ──────────────────────────────────────────────────────────────────────
 export const payOrder = asyncHandler(async (req, res) => {
-  const { id: orderId } = req.params;
+  const { id: targetId } = req.params;
   const { amount, currency = "usd" } = req.body;
 
-  // Verify this order belongs to the authenticated user
+  // Try order payment first
   const order = await Order.findOne({
-    _id: orderId,
+    _id: targetId,
     customerId: req.user._id,
   });
 
-  if (!order) {
-    return res.status(404).json({
-      success: false,
-      message: "Order not found or access denied",
-    });
-  }
+  let targetType = "order";
+  let paymentAmount = amount || order?.totalPrice;
+  let paymentMetadata = {};
 
-  if (order.status === "cancelled") {
-    return res.status(400).json({
-      success: false,
-      message: "Cannot pay for a cancelled order",
-    });
-  }
+  if (order) {
+    if (order.status === "cancelled") {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot pay for a cancelled order",
+      });
+    }
 
-  const paymentAmount = amount || order.totalPrice;
+    paymentMetadata = {
+      orderId: order._id.toString(),
+      orderNumber: order.orderNumber?.toString() || "",
+      customerId: req.user._id.toString(),
+      customerEmail: req.user.email || "",
+      targetType: "order",
+    };
+  } else {
+    // Fallback: support invoice payment from billing page
+    const userBookings = await Booking.find({ user: req.user._id }).select("_id").lean();
+    const bookingIds = userBookings.map((b) => b._id);
+
+    const invoice = await Invoice.findOne({
+      _id: targetId,
+      booking: { $in: bookingIds },
+    }).populate("booking", "bookingId");
+
+    if (!invoice) {
+      return res.status(404).json({
+        success: false,
+        message: "Order/Invoice not found or access denied",
+      });
+    }
+
+    if (invoice.status === "paid") {
+      return res.status(400).json({
+        success: false,
+        message: "Invoice is already paid",
+      });
+    }
+
+    targetType = "invoice";
+    paymentAmount = amount || invoice.balance;
+    paymentMetadata = {
+      invoiceId: invoice._id.toString(),
+      invoiceNumber: invoice.invoiceId?.toString() || "",
+      bookingId: invoice.booking?._id?.toString?.() || "",
+      customerId: req.user._id.toString(),
+      customerEmail: req.user.email || "",
+      targetType: "invoice",
+    };
+  }
 
   if (!paymentAmount || paymentAmount <= 0) {
     return res.status(400).json({
@@ -503,7 +556,8 @@ export const payOrder = asyncHandler(async (req, res) => {
         clientSecret: "simulated_secret_" + Date.now(),
         amount: paymentAmount,
         currency,
-        orderId: order._id,
+        targetId,
+        targetType,
         simulated: true,
       },
     });
@@ -512,12 +566,7 @@ export const payOrder = asyncHandler(async (req, res) => {
   const paymentIntent = await stripe.paymentIntents.create({
     amount: Math.round(paymentAmount * 100),
     currency,
-    metadata: {
-      orderId: order._id.toString(),
-      orderNumber: order.orderNumber?.toString() || "",
-      customerId: req.user._id.toString(),
-      customerEmail: req.user.email || "",
-    },
+    metadata: paymentMetadata,
     automatic_payment_methods: { enabled: true },
   });
 
@@ -528,7 +577,8 @@ export const payOrder = asyncHandler(async (req, res) => {
       paymentIntentId: paymentIntent.id,
       amount: paymentAmount,
       currency,
-      orderId: order._id,
+      targetId,
+      targetType,
     },
   });
 });
@@ -539,19 +589,27 @@ export const payOrder = asyncHandler(async (req, res) => {
 // ──────────────────────────────────────────────────────────────────────
 export const confirmOrderPayment = asyncHandler(async (req, res) => {
   const { paymentIntentId, orderId } = req.body;
+  const targetId = orderId;
 
-  if (!paymentIntentId || !orderId) {
+  if (!paymentIntentId || !targetId) {
     return res.status(400).json({
       success: false,
       message: "paymentIntentId and orderId are required",
     });
   }
 
-  const order = await Order.findOne({ _id: orderId, customerId: req.user._id });
-  if (!order) {
+  const order = await Order.findOne({ _id: targetId, customerId: req.user._id });
+
+  const userBookings = await Booking.find({ user: req.user._id }).select("_id").lean();
+  const bookingIds = userBookings.map((b) => b._id);
+  const invoice = order
+    ? null
+    : await Invoice.findOne({ _id: targetId, booking: { $in: bookingIds } }).populate("booking", "_id");
+
+  if (!order && !invoice) {
     return res.status(404).json({
       success: false,
-      message: "Order not found or access denied",
+      message: "Order/Invoice not found or access denied",
     });
   }
 
@@ -565,43 +623,100 @@ export const confirmOrderPayment = asyncHandler(async (req, res) => {
     }
   }
 
-  // Resolve hotel to get company for payment transaction
-  const hotelDoc = await Hotel.findById(order.hotel).select("company");
+  if (order) {
+    // Resolve hotel to get company for payment transaction
+    const hotelDoc = await Hotel.findById(order.hotel).select("company");
+    if (!hotelDoc) {
+      return res.status(404).json({ success: false, message: "Hotel not found" });
+    }
+
+    // Record payment transaction (use dummy ObjectId for booking; order is not booking-linked)
+    const dummyBookingId = new mongoose.Types.ObjectId("000000000000000000000001");
+    const txn = await PaymentTransaction.create({
+      hotel: order.hotel,
+      company: hotelDoc.company || dummyBookingId,
+      booking: dummyBookingId,
+      order: order._id,
+      guest: null,
+      type: "capture",
+      amount: order.totalPrice,
+      method: "credit-card",
+      reference: paymentIntentId,
+      status: "captured",
+      processedBy: req.user._id,
+      processedByName: req.user.fullname,
+      notes: `Payment for order #${order.orderNumber}`,
+    });
+
+    emitToUser(req.user._id.toString(), "payment-confirmed", {
+      orderId: order._id,
+      amount: order.totalPrice,
+      transactionId: txn.transactionId,
+    });
+
+    return res.json({
+      success: true,
+      message: "Payment confirmed",
+      data: {
+        transaction: txn,
+        order: { _id: order._id, orderNumber: order.orderNumber },
+      },
+    });
+  }
+
+  // Invoice payment path
+  const hotelDoc = await Hotel.findById(invoice.hotel).select("company");
   if (!hotelDoc) {
     return res.status(404).json({ success: false, message: "Hotel not found" });
   }
 
-  // Record payment transaction (use dummy ObjectId for booking; order is not booking-linked)
-  const dummyBookingId = new mongoose.Types.ObjectId("000000000000000000000001");
+  const payableAmount = Number(invoice.balance) || 0;
+  if (payableAmount <= 0) {
+    return res.status(400).json({ success: false, message: "Invoice has no outstanding balance" });
+  }
+
   const txn = await PaymentTransaction.create({
-    hotel: order.hotel,
-    company: hotelDoc.company || dummyBookingId,
-    booking: dummyBookingId, // Schema requires booking; store reference to order instead
-    order: order._id,
-    guest: null,
+    hotel: invoice.hotel,
+    company: hotelDoc.company,
+    booking: invoice.booking,
+    invoice: invoice._id,
+    guest: invoice.guest || null,
     type: "capture",
-    amount: order.totalPrice,
+    amount: payableAmount,
     method: "credit-card",
     reference: paymentIntentId,
     status: "captured",
     processedBy: req.user._id,
     processedByName: req.user.fullname,
-    notes: `Payment for order #${order.orderNumber}`,
+    notes: `Payment for invoice #${invoice.invoiceId}`,
   });
 
-  // Emit confirmation to the user
+  invoice.paid = (Number(invoice.paid) || 0) + payableAmount;
+  invoice.balance = Math.max(0, (Number(invoice.balance) || 0) - payableAmount);
+  invoice.status = invoice.balance <= 0 ? "paid" : "partial";
+  if (invoice.status === "paid") {
+    invoice.paidAt = new Date();
+  }
+  await invoice.save();
+
   emitToUser(req.user._id.toString(), "payment-confirmed", {
-    orderId: order._id,
-    amount: order.totalPrice,
+    invoiceId: invoice._id,
+    amount: payableAmount,
     transactionId: txn.transactionId,
   });
 
-  res.json({
+  return res.json({
     success: true,
-    message: "Payment confirmed",
+    message: "Invoice payment confirmed",
     data: {
       transaction: txn,
-      order: { _id: order._id, orderNumber: order.orderNumber },
+      invoice: {
+        _id: invoice._id,
+        invoiceId: invoice.invoiceId,
+        status: invoice.status,
+        paid: invoice.paid,
+        balance: invoice.balance,
+      },
     },
   });
 });
@@ -619,12 +734,18 @@ export const getProfile = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: "User not found" });
   }
 
-  // Get booking stats
+  // Get booking stats - only count paid bookings for totalSpent
   const [activeBookingCount, totalBookings, totalSpent] = await Promise.all([
     Booking.countDocuments({ user: req.user._id, status: { $in: ["Confirmed", "Checked-In"] } }),
     Booking.countDocuments({ user: req.user._id }),
     Booking.aggregate([
-      { $match: { user: req.user._id, status: { $in: ["Checked-Out", "Checked-In"] } } },
+      { 
+        $match: { 
+          user: req.user._id, 
+          status: "Checked-Out",
+          paymentStatus: "paid"
+        } 
+      },
       { $group: { _id: null, total: { $sum: "$totalAmount" } } },
     ]),
   ]);
