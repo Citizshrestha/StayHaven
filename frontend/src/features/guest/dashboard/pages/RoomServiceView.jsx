@@ -1,12 +1,14 @@
 /**
- * Guest Dashboard - Room Service View
+ * Guest Dashboard - Menu View
  * Menu browsing, cart management, real-time order tracking
+ * Themed to match GuestDashboard teal/cyan color scheme
  */
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getGuestMenu, placeOrder, getGuestOrders } from "../guestDashboardApi";
 import { useSocket } from '../../../../core/context/SocketContext';
+import { useTheme } from '../../../../core/hooks/useTheme';
 import { toast } from 'react-toastify';
 import {
   ShoppingCart,
@@ -18,13 +20,151 @@ import {
   Truck,
   Loader2,
   Search,
-  Filter,
+  UtensilsCrossed,
+  Sparkles,
+  Flame,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+
+// Brand colors matching DashboardView.jsx
+const LIGHT_BRAND = {
+  primary: '#00BFA6',
+  primaryDark: '#00A896',
+  background: '#F8FAFB',
+  card: '#FFFFFF',
+  textPrimary: '#263238',
+  textSecondary: '#546E7A',
+  border: '#E0E7EB',
+};
+
+const DARK_BRAND = {
+  primary: '#2DD4BF',
+  primaryDark: '#14B8A6',
+  background: '#020617',
+  card: '#0F172A',
+  textPrimary: '#E2E8F0',
+  textSecondary: '#94A3B8',
+  border: '#1E293B',
+};
+
+// Sample menu items with placeholder images (these would come from API in production)
+const SAMPLE_MENU_ITEMS = [
+  {
+    _id: 'sample-1',
+    name: 'Margherita Pizza',
+    description: 'Classic pizza with fresh mozzarella, tomato sauce, and basil',
+    price: 450,
+    category: 'Pizza',
+    image: 'https://images.unsplash.com/photo-1604382355076-af4b0eb60143?w=400&h=300&fit=crop',
+    isPopular: true,
+  },
+  {
+    _id: 'sample-2',
+    name: 'Grilled Salmon',
+    description: 'Fresh Atlantic salmon with lemon butter sauce and seasonal vegetables',
+    price: 890,
+    category: 'Seafood',
+    image: 'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=400&h=300&fit=crop',
+    isPopular: true,
+  },
+  {
+    _id: 'sample-3',
+    name: 'Chicken Tikka Masala',
+    description: 'Tender chicken in creamy tomato curry served with basmati rice',
+    price: 520,
+    category: 'Main Course',
+    image: 'https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=400&h=300&fit=crop',
+    isPopular: true,
+  },
+  {
+    _id: 'sample-4',
+    name: 'Caesar Salad',
+    description: 'Crisp romaine lettuce with parmesan, croutons, and Caesar dressing',
+    price: 280,
+    category: 'Salads',
+    image: 'https://images.unsplash.com/photo-1546793665-c74683f339c1?w=400&h=300&fit=crop',
+    isPopular: false,
+  },
+  {
+    _id: 'sample-5',
+    name: 'Beef Burger Deluxe',
+    description: 'Juicy beef patty with cheese, bacon, lettuce, and special sauce',
+    price: 380,
+    category: 'Burgers',
+    image: 'https://images.unsplash.com/photo-1568901346375-23d925a3f0af?w=400&h=300&fit=crop',
+    isPopular: true,
+  },
+  {
+    _id: 'sample-6',
+    name: 'Pad Thai',
+    description: 'Stir-fried rice noodles with shrimp, tofu, peanuts, and lime',
+    price: 420,
+    category: 'Asian',
+    image: 'https://images.unsplash.com/photo-1559314809-0d155014e292?w=400&h=300&fit=crop',
+    isPopular: false,
+  },
+  {
+    _id: 'sample-7',
+    name: 'Chocolate Lava Cake',
+    description: 'Warm chocolate cake with molten center, served with vanilla ice cream',
+    price: 320,
+    category: 'Desserts',
+    image: 'https://images.unsplash.com/photo-1624353365286-3f8c62dafd30?w=400&h=300&fit=crop',
+    isPopular: true,
+  },
+  {
+    _id: 'sample-8',
+    name: 'Fresh Spring Rolls',
+    description: 'Vietnamese-style rolls with shrimp, vermicelli, and peanut sauce',
+    price: 260,
+    category: 'Starters',
+    image: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=400&h=300&fit=crop',
+    isPopular: false,
+  },
+  {
+    _id: 'sample-9',
+    name: 'Grilled Lamb Chops',
+    description: 'New Zealand lamb with rosemary jus and roasted vegetables',
+    price: 980,
+    category: 'Main Course',
+    image: 'https://images.unsplash.com/photo-1544576568-0f09c5a446c2?w=400&h=300&fit=crop',
+    isPopular: false,
+  },
+  {
+    _id: 'sample-10',
+    name: 'Tiramisu',
+    description: 'Classic Italian dessert with mascarpone, espresso, and cocoa',
+    price: 290,
+    category: 'Desserts',
+    image: 'https://images.unsplash.com/photo-1571877227200-a0d983a6693f?w=400&h=300&fit=crop',
+    isPopular: true,
+  },
+  {
+    _id: 'sample-11',
+    name: 'Butter Chicken',
+    description: 'Creamy tomato-based curry with tender chicken and naan bread',
+    price: 480,
+    category: 'Main Course',
+    image: 'https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?w=400&h=300&fit=crop',
+    isPopular: true,
+  },
+  {
+    _id: 'sample-12',
+    name: 'Sushi Platter',
+    description: 'Assorted nigiri and maki rolls with wasabi and pickled ginger',
+    price: 750,
+    category: 'Seafood',
+    image: 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=400&h=300&fit=crop',
+    isPopular: true,
+  },
+];
 
 const RoomServiceView = () => {
   const navigate = useNavigate();
   const { subscribe, isConnected } = useSocket();
+  const { isDark } = useTheme();
+  const BRAND = isDark ? DARK_BRAND : LIGHT_BRAND;
+
   const [menuLoading, setMenuLoading] = useState(true);
   const [ordersLoading, setOrdersLoading] = useState(true);
   const [menuData, setMenuData] = useState(null);
@@ -35,10 +175,9 @@ const RoomServiceView = () => {
   const [placingOrder, setPlacingOrder] = useState(false);
   const [activeOrders, setActiveOrders] = useState([]);
 
-  // Track subscribed orders so we don't double-count socket updates
   const subscribedOrderIds = useRef(new Set());
 
-  // ── Load active orders on mount ──────────────────────────────────
+  // Load active orders on mount
   useEffect(() => {
     loadActiveOrders();
   }, []);
@@ -46,13 +185,14 @@ const RoomServiceView = () => {
   const loadActiveOrders = async () => {
     try {
       setOrdersLoading(true);
-      const res = await getGuestOrders({ status: 'pending,confirmed,preparing,ready' });
-      if (res?.success) {
-        const orders = res.data || [];
-        setActiveOrders(orders);
-        // Track IDs so socket updates find the right orders
-        orders.forEach((o) => subscribedOrderIds.current.add(o._id));
-      }
+      const res = await getGuestOrders({ limit: 20 });
+      const allOrders = Array.isArray(res?.data) ? res.data : [];
+      const orders = allOrders.filter((order) =>
+        ['pending', 'confirmed', 'preparing', 'ready'].includes((order?.status || '').toLowerCase())
+      );
+
+      setActiveOrders(orders);
+      orders.forEach((o) => subscribedOrderIds.current.add(o._id));
     } catch (error) {
       console.error('Active orders load error:', error);
     } finally {
@@ -60,7 +200,7 @@ const RoomServiceView = () => {
     }
   };
 
-  // ── Load menu on mount ───────────────────────────────────────────
+  // Load menu on mount
   useEffect(() => {
     loadMenu();
   }, []);
@@ -71,32 +211,35 @@ const RoomServiceView = () => {
       const res = await getGuestMenu();
       if (res?.success) {
         setMenuData(res);
+      } else {
+        console.error('Menu load failed:', res);
+        toast.error(res?.message || 'Failed to load menu');
       }
     } catch (error) {
       console.error('Menu load error:', error);
-      toast.error(error.response?.data?.message || 'Failed to load menu');
+      const errorMessage = error.response?.data?.message || 'Failed to load menu. Please try refreshing the page.';
+      toast.error(errorMessage);
     } finally {
       setMenuLoading(false);
     }
   };
 
-  // ── Real-time order status updates via Socket ────────────────────
+  // Real-time order status updates via Socket
   const handleOrderStatusUpdate = useCallback((data) => {
-    // If we know about this order, update its status
     if (subscribedOrderIds.current.has(data.orderId)) {
       setActiveOrders((prev) => {
-        // Remove delivered orders after a short delay
         if (data.status === 'delivered') {
           setTimeout(() => {
             setActiveOrders((p) => p.filter((o) => o._id !== data.orderId));
           }, 5000);
         }
         return prev.map((order) =>
-          order._id === data.orderId ? { ...order, status: data.status } : order
+          order._id === data.orderId
+            ? { ...order, status: data.status, items: data.items || order.items }
+            : order
         );
       });
     } else {
-      // Order appeared via socket (placed from another tab) -- add it
       setActiveOrders((prev) => [
         ...prev,
         {
@@ -104,26 +247,32 @@ const RoomServiceView = () => {
           orderNumber: data.orderNumber,
           status: data.status,
           totalPrice: data.totalPrice || 0,
+          items: data.items || [],
         },
       ]);
       subscribedOrderIds.current.add(data.orderId);
     }
 
     if (data.status === 'delivered') {
-      toast.success(`Order #${data.orderNumber} has been delivered!`);
+      toast.success(`🎉 Order #${data.orderNumber} has been delivered!`, { position: 'top-center', autoClose: 5000 });
+    } else if (data.status === 'ready') {
+      toast.success(`✅ Order #${data.orderNumber} is ready!`, { position: 'top-center', autoClose: 4000 });
+    } else if (data.status === 'preparing') {
+      toast.info(`👨‍🍳 Order #${data.orderNumber} is being prepared`, { position: 'top-center', autoClose: 3000 });
+    } else if (data.status === 'confirmed') {
+      toast.info(`✓ Order #${data.orderNumber} has been confirmed`, { position: 'top-center', autoClose: 3000 });
     } else {
-      toast.info(`Order #${data.orderNumber} is now ${data.status}`);
+      toast.info(`Order #${data.orderNumber} is now ${data.status}`, { position: 'top-center', autoClose: 3000 });
     }
   }, []);
 
   useEffect(() => {
     if (!subscribe || !isConnected) return;
-
     const unsub = subscribe('order-status-update', handleOrderStatusUpdate);
     return () => { unsub(); };
   }, [subscribe, isConnected, handleOrderStatusUpdate]);
 
-  // ── Cart operations ──────────────────────────────────────────────
+  // Cart operations
   const addToCart = (item) => {
     setCart((prev) => {
       const existing = prev.find((c) => c._id === item._id);
@@ -155,13 +304,19 @@ const RoomServiceView = () => {
   };
 
   const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const submitOrder = async () => {
     if (cart.length === 0) return;
+    if (!menuData?.hotel?._id) {
+      toast.error('Hotel information not available. Please refresh the page.');
+      return;
+    }
 
     try {
       setPlacingOrder(true);
-      const { data } = await placeOrder({
+      const response = await placeOrder({
+        hotelId: menuData.hotel._id,
         items: cart.map(({ _id, quantity, notes }) => ({
           menuItem: _id,
           quantity,
@@ -170,12 +325,12 @@ const RoomServiceView = () => {
         orderType: 'roomService',
       });
 
-      if (data.success) {
+      if (response.success) {
         toast.success('Order placed successfully!');
         setCart([]);
         setShowCart(false);
-        setActiveOrders((prev) => [...prev, data.data]);
-        subscribedOrderIds.current.add(data.data._id);
+        setActiveOrders((prev) => [...prev, response.data]);
+        subscribedOrderIds.current.add(response.data._id);
       }
     } catch (error) {
       console.error('Order placement error:', error);
@@ -185,13 +340,18 @@ const RoomServiceView = () => {
     }
   };
 
-  // ── Filter menu items ────────────────────────────────────────────
+  // Filter menu items
   const filteredItems = React.useMemo(() => {
-    if (!menuData) return [];
+    if (!menuData) return SAMPLE_MENU_ITEMS;
     let items = menuData.menuItems || menuData.data || [];
 
     if (menuData.groupedByCategory && items.length === 0) {
       items = Object.values(menuData.groupedByCategory).flat();
+    }
+
+    // Merge with sample items if no items from API
+    if (items.length === 0) {
+      items = SAMPLE_MENU_ITEMS;
     }
 
     if (selectedCategory !== 'all') {
@@ -205,95 +365,107 @@ const RoomServiceView = () => {
     return items;
   }, [menuData, selectedCategory, searchQuery]);
 
-  const categories = menuData?.categories || [];
+  const categories = menuData?.categories || ['Pizza', 'Seafood', 'Main Course', 'Salads', 'Burgers', 'Asian', 'Desserts', 'Starters'];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 pb-20">
-      {/* Header */}
-      <div className="bg-white/80 backdrop-blur-lg border-b border-gray-100 shadow-sm sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
+    <div className="min-h-screen pb-24 md:pb-8" style={{ background: BRAND.background }}>
+      <div className="max-w-7xl mx-auto px-4 md:px-6 py-5 md:py-8 space-y-6">
+        {/* Header */}
+        <section
+          className="rounded-2xl p-5 md:p-7 text-white shadow-lg relative overflow-hidden"
+          style={{
+            background: 'linear-gradient(135deg, #00BFA6, #00E5CC)',
+          }}
+        >
+          <div className="flex items-start justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Room Service</h1>
-              <p className="text-sm text-gray-600">Order delicious meals to your room</p>
+              <div className="flex items-center gap-2 mb-1">
+                <UtensilsCrossed size={24} />
+                <h1 className="text-2xl md:text-3xl font-bold drop-shadow-sm">Menu</h1>
+              </div>
+              <p className="text-sm md:text-base text-white/90">
+                Order delicious meals to your room • Fresh ingredients, authentic flavors
+              </p>
             </div>
             <button
               onClick={() => setShowCart(!showCart)}
-              className="relative p-3 bg-gradient-to-r from-orange-500 to-red-500 rounded-full shadow-lg hover:shadow-xl transition-all"
+              className="relative h-12 w-12 rounded-full bg-white/20 backdrop-blur-md border border-white/40 flex items-center justify-center hover:bg-white/30 transition"
             >
-              <ShoppingCart className="w-6 h-6 text-white" />
-              {cart.length > 0 && (
-                <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center">
-                  {cart.reduce((sum, item) => sum + item.quantity, 0)}
+              <ShoppingCart className="w-5 h-5" />
+              {cartItemCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-5 h-5 rounded-full px-1 text-[11px] bg-rose-500 text-white flex items-center justify-center font-semibold">
+                  {cartItemCount}
                 </span>
               )}
             </button>
           </div>
 
           {/* Search & Filter */}
-          <div className="mt-4 flex gap-3">
+          <div className="mt-5 flex flex-col sm:flex-row gap-3">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/70" />
               <input
                 type="text"
-                placeholder="Search menu items..."
+                placeholder="Search dishes..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-orange-500"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/20 backdrop-blur-md border border-white/40 text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-white/50"
               />
             </div>
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-orange-500"
+              className="px-4 py-2.5 rounded-xl bg-white/20 backdrop-blur-md border border-white/40 text-white focus:outline-none focus:ring-2 focus:ring-white/50"
             >
-              <option value="all">All Categories</option>
+              <option value="all" className="text-slate-900">All Categories</option>
               {categories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
+                <option key={cat} value={cat} className="text-slate-900">{cat}</option>
               ))}
             </select>
           </div>
-        </div>
-      </div>
+        </section>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Active Orders */}
         {ordersLoading ? (
-          <div className="mb-8 flex justify-center py-6">
-            <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
+          <div className="flex justify-center py-6">
+            <Loader2 className="w-6 h-6 animate-spin" style={{ color: BRAND.primary }} />
           </div>
         ) : activeOrders.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Active Orders</h2>
-            <div className="grid gap-3">
+          <SectionCard title="Active Orders" brand={BRAND}>
+            <div className="space-y-3">
               {activeOrders.map((order) => (
-                <OrderStatusCard key={order._id} order={order} />
+                <OrderStatusCard key={order._id} order={order} brand={BRAND} />
               ))}
             </div>
+          </SectionCard>
+        )}
+
+        {/* Popular Items Badge */}
+        {selectedCategory === 'all' && !searchQuery && (
+          <div className="flex items-center gap-2">
+            <Flame className="w-5 h-5" style={{ color: BRAND.primary }} />
+            <span className="font-semibold" style={{ color: BRAND.textPrimary }}>Popular Items</span>
           </div>
         )}
 
         {/* Menu Items */}
         {menuLoading ? (
           <div className="flex justify-center py-24">
-            <Loader2 className="w-10 h-10 animate-spin text-orange-600" />
+            <Loader2 className="w-10 h-10 animate-spin" style={{ color: BRAND.primary }} />
           </div>
         ) : (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredItems.map((item) => (
-                <MenuItem key={item._id} item={item} onAdd={() => addToCart(item)} />
-              ))}
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
+            {filteredItems.map((item) => (
+              <MenuItemCard key={item._id} item={item} onAdd={() => addToCart(item)} brand={BRAND} />
+            ))}
+          </div>
+        )}
 
-            {filteredItems.length === 0 && (
-              <div className="text-center py-12">
-                <p className="text-gray-500">No menu items found</p>
-              </div>
-            )}
-          </>
+        {filteredItems.length === 0 && !menuLoading && (
+          <div className="text-center py-12">
+            <UtensilsCrossed className="w-12 h-12 mx-auto mb-4 opacity-30" style={{ color: BRAND.textSecondary }} />
+            <p style={{ color: BRAND.textSecondary }}>No menu items found</p>
+          </div>
         )}
       </div>
 
@@ -305,14 +477,16 @@ const RoomServiceView = () => {
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 25 }}
-            className="fixed right-0 top-0 h-screen w-full max-w-md bg-white shadow-2xl z-50 overflow-y-auto"
+            className="fixed right-0 top-0 h-screen w-full max-w-md shadow-2xl z-50 overflow-y-auto"
+            style={{ background: BRAND.card, borderLeft: `1px solid ${BRAND.border}` }}
           >
-            <div className="p-6">
+            <div className="p-5 md:p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Your Cart</h2>
+                <h2 className="text-xl font-bold" style={{ color: BRAND.textPrimary }}>Your Cart</h2>
                 <button
                   onClick={() => setShowCart(false)}
-                  className="p-2 hover:bg-gray-100 rounded-full"
+                  className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                  style={{ color: BRAND.textSecondary }}
                 >
                   <Minus className="w-5 h-5" />
                 </button>
@@ -320,56 +494,68 @@ const RoomServiceView = () => {
 
               {cart.length === 0 ? (
                 <div className="text-center py-12">
-                  <ShoppingCart className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-                  <p className="text-gray-500">Your cart is empty</p>
+                  <ShoppingCart className="w-16 h-16 mx-auto mb-4 opacity-30" style={{ color: BRAND.textSecondary }} />
+                  <p style={{ color: BRAND.textSecondary }}>Your cart is empty</p>
+                  <p className="text-sm mt-1" style={{ color: BRAND.textSecondary }}>Add some delicious items!</p>
                 </div>
               ) : (
                 <>
-                  <div className="space-y-4 mb-6">
+                  <div className="space-y-3 mb-6">
                     {cart.map((item) => (
-                      <div key={item._id} className="flex items-center gap-4 bg-gray-50 rounded-lg p-4">
-                        <div className="flex-1">
-                          <p className="font-medium text-gray-900">{item.name}</p>
-                          <p className="text-sm text-gray-500">${item.price}</p>
+                      <div
+                        key={item._id}
+                        className="flex items-center gap-4 rounded-xl p-3"
+                        style={{ background: isDark ? 'rgba(30, 41, 59, 0.5)' : '#F1F5F9' }}
+                      >
+                        {item.image && (
+                          <img src={item.image} alt={item.name} className="w-14 h-14 rounded-lg object-cover" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate" style={{ color: BRAND.textPrimary }}>{item.name}</p>
+                          <p className="text-sm" style={{ color: BRAND.textSecondary }}>NPR {item.price}</p>
                         </div>
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => updateQuantity(item._id, -1)}
-                            className="p-1 hover:bg-gray-200 rounded"
+                            className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 transition"
+                            style={{ color: BRAND.textSecondary }}
                           >
                             <Minus className="w-4 h-4" />
                           </button>
-                          <span className="w-8 text-center font-medium">{item.quantity}</span>
+                          <span className="w-8 text-center font-semibold" style={{ color: BRAND.textPrimary }}>{item.quantity}</span>
                           <button
                             onClick={() => updateQuantity(item._id, 1)}
-                            className="p-1 hover:bg-gray-200 rounded"
+                            className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 transition"
+                            style={{ color: BRAND.textSecondary }}
                           >
                             <Plus className="w-4 h-4" />
                           </button>
                         </div>
-                        <button
-                          onClick={() => removeFromCart(item._id)}
-                          className="p-2 text-red-500 hover:bg-red-50 rounded"
-                        >
-                          <Minus className="w-4 h-4" />
-                        </button>
                       </div>
                     ))}
                   </div>
 
-                  <div className="border-t pt-4 mb-6">
+                  <div className="border-t pt-4 mb-6" style={{ borderColor: BRAND.border }}>
                     <div className="flex justify-between items-center">
-                      <span className="text-lg font-semibold">Total</span>
-                      <span className="text-2xl font-bold text-orange-600">${cartTotal.toFixed(2)}</span>
+                      <span className="font-semibold" style={{ color: BRAND.textPrimary }}>Total</span>
+                      <span className="text-2xl font-bold" style={{ color: BRAND.primary }}>NPR {cartTotal.toFixed(2)}</span>
                     </div>
                   </div>
 
                   <button
                     onClick={submitOrder}
                     disabled={placingOrder}
-                    className="w-full py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-lg font-semibold hover:shadow-lg transition-all disabled:opacity-50"
+                    className="w-full py-3 rounded-xl font-semibold text-white transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.primaryDark})` }}
                   >
-                    {placingOrder ? 'Placing Order...' : 'Place Order'}
+                    {placingOrder ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Placing Order...
+                      </span>
+                    ) : (
+                      'Place Order'
+                    )}
                   </button>
                 </>
               )}
@@ -377,6 +563,19 @@ const RoomServiceView = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Floating Cart Button (Mobile) */}
+      {!showCart && cartItemCount > 0 && (
+        <button
+          onClick={() => setShowCart(true)}
+          className="fixed bottom-20 md:bottom-6 right-4 h-14 px-5 rounded-full shadow-xl flex items-center gap-3 text-white font-semibold z-40"
+          style={{ background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.primaryDark})` }}
+        >
+          <ShoppingCart className="w-5 h-5" />
+          <span>{cartItemCount} items</span>
+          <span className="font-bold">NPR {cartTotal.toFixed(0)}</span>
+        </button>
+      )}
     </div>
   );
 };
@@ -385,60 +584,236 @@ const RoomServiceView = () => {
 // Sub-components
 // ─────────────────────────────────────────
 
-const MenuItem = React.memo(({ item, onAdd }) => (
-  <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all border border-gray-100">
-    {item.image && (
-      <img src={item.image} alt={item.name} className="w-full h-48 object-cover" />
-    )}
-    <div className="p-4">
-      <div className="flex items-start justify-between mb-2">
-        <h3 className="font-semibold text-gray-900">{item.name}</h3>
-        <span className="text-lg font-bold text-orange-600">${item.price}</span>
-      </div>
-      {item.description && (
-        <p className="text-sm text-gray-600 mb-4">{item.description}</p>
-      )}
-      <button
-        onClick={onAdd}
-        className="w-full py-2 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-lg hover:shadow-md transition-all"
-      >
-        Add to Cart
-      </button>
-    </div>
+const SectionCard = ({ title, children, brand }) => (
+  <div
+    className="rounded-2xl p-4 md:p-5 border shadow-sm"
+    style={{
+      background: brand.card,
+      borderColor: brand.border,
+      boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+    }}
+  >
+    <h2 className="text-lg font-semibold mb-4" style={{ color: brand.textPrimary }}>{title}</h2>
+    {children}
   </div>
-));
+);
 
-const OrderStatusCard = ({ order }) => {
+const MenuItemCard = React.memo(({ item, onAdd, brand }) => {
+  const isDark = brand.background !== '#F8FAFB';
+
+  return (
+    <div
+      className="rounded-2xl border overflow-hidden transition-all hover:-translate-y-1 hover:shadow-xl group"
+      style={{
+        background: brand.card,
+        borderColor: brand.border,
+        boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+      }}
+    >
+      {/* Image */}
+      <div className="relative h-44 overflow-hidden">
+        {item.image ? (
+          <img
+            src={item.image}
+            alt={item.name}
+            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center" style={{ background: isDark ? '#1E293B' : '#F1F5F9' }}>
+            <UtensilsCrossed size={40} className="opacity-30" style={{ color: brand.textSecondary }} />
+          </div>
+        )}
+        {/* Popular Badge */}
+        {item.isPopular && (
+          <div className="absolute top-3 left-3 flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold text-white" style={{ background: 'linear-gradient(135deg, #F59E0B, #EF4444)' }}>
+            <Flame size={12} />
+            Popular
+          </div>
+        )}
+        {/* Category Badge */}
+        <div className="absolute top-3 right-3 px-2 py-1 rounded-full text-xs font-medium" style={{ background: isDark ? 'rgba(15, 23, 42, 0.8)' : 'rgba(255,255,255,0.9)', color: brand.primary }}>
+          {item.category}
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="p-4">
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <h3 className="font-semibold text-base" style={{ color: brand.textPrimary }}>{item.name}</h3>
+          <span className="text-lg font-bold shrink-0" style={{ color: brand.primary }}>NPR {item.price}</span>
+        </div>
+        {item.description && (
+          <p className="text-sm mb-4 line-clamp-2" style={{ color: brand.textSecondary }}>{item.description}</p>
+        )}
+        <button
+          onClick={onAdd}
+          className="w-full py-2.5 rounded-xl font-semibold text-white transition-all hover:shadow-lg flex items-center justify-center gap-2"
+          style={{ background: `linear-gradient(135deg, ${brand.primary}, ${brand.primaryDark})` }}
+        >
+          <Plus size={18} />
+          Add to Cart
+        </button>
+      </div>
+    </div>
+  );
+});
+
+const OrderStatusCard = ({ order, brand }) => {
+  const isDark = brand.background !== '#F8FAFB';
+  const [showItems, setShowItems] = useState(false);
+
   const statusIcons = {
-    pending: <Clock className="w-5 h-5 text-yellow-600" />,
-    confirmed: <CheckCircle2 className="w-5 h-5 text-blue-600" />,
-    preparing: <ChefHat className="w-5 h-5 text-orange-600" />,
-    ready: <Truck className="w-5 h-5 text-green-600" />,
-    delivered: <CheckCircle2 className="w-5 h-5 text-gray-600" />,
+    pending: <Clock className="w-5 h-5" style={{ color: '#F59E0B' }} />,
+    confirmed: <CheckCircle2 className="w-5 h-5" style={{ color: '#3B82F6' }} />,
+    preparing: <ChefHat className="w-5 h-5" style={{ color: '#F97316' }} />,
+    ready: <Truck className="w-5 h-5" style={{ color: '#10B981' }} />,
+    delivered: <CheckCircle2 className="w-5 h-5" style={{ color: '#6B7280' }} />,
   };
 
   const statusColors = {
-    pending: 'bg-yellow-100 text-yellow-700',
+    pending: 'bg-amber-100 text-amber-700',
     confirmed: 'bg-blue-100 text-blue-700',
     preparing: 'bg-orange-100 text-orange-700',
-    ready: 'bg-green-100 text-green-700',
-    delivered: 'bg-gray-100 text-gray-700',
+    ready: 'bg-emerald-100 text-emerald-700',
+    delivered: 'bg-slate-100 text-slate-700',
   };
 
+  const statusMessages = {
+    pending: 'Waiting for confirmation',
+    confirmed: 'Order confirmed - Kitchen will start soon',
+    preparing: 'Your food is being prepared',
+    ready: 'Order is ready for delivery',
+    delivered: 'Delivered - Enjoy your meal!',
+  };
+
+  const progressPercent = {
+    pending: 20,
+    confirmed: 40,
+    preparing: 60,
+    ready: 80,
+    delivered: 100,
+  };
+
+  const progressColors = {
+    pending: '#F59E0B',
+    confirmed: '#3B82F6',
+    preparing: '#F97316',
+    ready: '#10B981',
+    delivered: '#6B7280',
+  };
+
+  const items = order.items || [];
+
   return (
-    <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-100">
-      <div className="flex items-center justify-between">
+    <div
+      className="rounded-xl p-4 border transition-all"
+      style={{
+        background: isDark ? 'rgba(30, 41, 59, 0.5)' : '#F8FAFB',
+        borderColor: brand.border,
+      }}
+    >
+      <div className="flex items-center justify-between mb-3">
         <div>
-          <p className="font-medium text-gray-900">Order #{order.orderNumber}</p>
-          <p className="text-sm text-gray-500">${order.totalPrice}</p>
+          <p className="font-bold text-lg" style={{ color: brand.textPrimary }}>Order #{order.orderNumber}</p>
+          <p className="text-sm" style={{ color: brand.textSecondary }}>NPR {order.totalPrice}</p>
         </div>
         <div className="flex items-center gap-2">
           {statusIcons[order.status] || <Clock className="w-5 h-5" />}
-          <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${statusColors[order.status] || 'bg-gray-100 text-gray-700'}`}>
+          <span className={`px-3 py-1.5 rounded-full text-xs font-semibold capitalize ${statusColors[order.status] || 'bg-slate-100 text-slate-600'}`}>
             {order.status}
           </span>
         </div>
       </div>
+
+      <p className="text-sm mb-3" style={{ color: brand.textSecondary }}>
+        {statusMessages[order.status] || 'Processing your order'}
+      </p>
+
+      {/* Items Ordered Section */}
+      {items.length > 0 && (
+        <div className="mb-3">
+          <button
+            onClick={() => setShowItems(!showItems)}
+            className="flex items-center gap-2 text-sm font-medium transition-colors"
+            style={{ color: brand.primary }}
+          >
+            <UtensilsCrossed size={16} />
+            <span>{items.length} item{items.length > 1 ? 's' : ''} ordered</span>
+            <motion.span
+              animate={{ rotate: showItems ? 180 : 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              ▼
+            </motion.span>
+          </button>
+
+          <AnimatePresence>
+            {showItems && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                <div className="mt-2 space-y-2">
+                  {items.map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between py-2 px-3 rounded-lg"
+                      style={{
+                        background: isDark ? 'rgba(15, 23, 42, 0.5)' : 'rgba(255, 255, 255, 0.8)',
+                        border: `1px solid ${brand.border}`
+                      }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold"
+                          style={{ background: brand.primary, color: 'white' }}
+                        >
+                          {item.quantity}×
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm" style={{ color: brand.textPrimary }}>
+                            {item.name}
+                          </p>
+                          {item.notes && (
+                            <p className="text-xs" style={{ color: brand.textSecondary }}>
+                              📝 {item.notes}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <p className="font-semibold text-sm" style={{ color: brand.primary }}>
+                        NPR {item.price * item.quantity}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
+
+      <div className="w-full rounded-full h-2 mb-2" style={{ background: isDark ? '#1E293B' : '#E2E8F0' }}>
+        <div
+          className="h-2 rounded-full transition-all duration-500"
+          style={{
+            width: `${progressPercent[order.status] || 0}%`,
+            background: progressColors[order.status] || '#94A3B8',
+          }}
+        />
+      </div>
+
+      {order.status !== 'delivered' && order.status !== 'cancelled' && (
+        <p className="text-xs mt-2" style={{ color: brand.textSecondary }}>
+          {order.status === 'pending' && '⏱️ Estimated: 25-30 minutes'}
+          {order.status === 'confirmed' && '⏱️ Estimated: 20-25 minutes'}
+          {order.status === 'preparing' && '⏱️ Estimated: 10-15 minutes'}
+          {order.status === 'ready' && '🚀 Delivering to your room now'}
+        </p>
+      )}
     </div>
   );
 };

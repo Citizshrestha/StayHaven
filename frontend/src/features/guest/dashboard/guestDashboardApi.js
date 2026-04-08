@@ -42,9 +42,9 @@ export const getGuestBookings = (params = {}) =>
    ════════════════════════════════════════════ */
 
 export const getGuestMenu = (params = {}) => {
-  const hotelId = getActiveHotelId();
-  const queryParams = hotelId ? { hotelId, ...params } : { ...params };
-  return axiosClient.get(`${BASE}/menu`, { params: queryParams }).then((r) => r.data);
+  // Menu endpoint auto-resolves hotelId from user's active booking
+  // No need to pass hotelId explicitly
+  return axiosClient.get(`${BASE}/menu`, { params }).then((r) => r.data);
 };
 
 export const placeOrder = (orderData) =>
@@ -90,6 +90,7 @@ export const getGuestRequests = (params = {}) =>
   axiosClient.get(`${BASE}/requests`, { params }).then((r) => r.data);
 
 export const submitRequest = (requestData) => {
-  const hotelId = getActiveHotelId();
-  return axiosClient.post(`${BASE}/request`, { hotelId, ...requestData }).then((r) => r.data);
+  // Request endpoint auto-resolves hotelId from user's active booking
+  // No need to pass hotelId explicitly
+  return axiosClient.post(`${BASE}/request`, requestData).then((r) => r.data);
 };

@@ -1,0 +1,136 @@
+/**
+ * GuestDashboardLayout.jsx
+ *
+ * Layout shell for the authenticated guest dashboard.
+ * Provides a sidebar navigation with links to all sub-views,
+ * and renders child routes via <Outlet />.
+ *
+ * Protected by ProtectedGuestRoute (requires guest role JWT).
+ */
+
+import React from 'react';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import {
+  LayoutDashboard,
+  UtensilsCrossed,
+  CalendarDays,
+  FileText,
+  MessageSquare,
+  User,
+  LogOut,
+  HelpCircle,
+  Languages,
+  Moon,
+} from 'lucide-react';
+import { logout } from '../../../../core/api/services/auth.service';
+import { toast } from 'react-toastify';
+import { useTheme } from '../../../../core/hooks/useTheme';
+
+const navItems = [
+  { path: '/guest-dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { path: '/guest-dashboard/room-service', icon: UtensilsCrossed, label: 'Room Service' },
+  { path: '/guest-dashboard/bookings', icon: CalendarDays, label: 'My Bookings' },
+  { path: '/guest-dashboard/billing', icon: FileText, label: 'Billing' },
+  { path: '/guest-dashboard/requests', icon: MessageSquare, label: 'Requests' },
+  { path: '/guest-dashboard/profile', icon: User, label: 'Profile' },
+];
+
+const GuestDashboardLayout = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { isDark, toggleTheme } = useTheme();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      toast.success('Logged out successfully');
+    } catch {
+      toast.error('Logout failed');
+    } finally {
+      // Clear all auth state regardless of API result
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('userId');
+      localStorage.removeItem('email');
+      localStorage.removeItem('username');
+      localStorage.removeItem('role');
+      localStorage.removeItem('guestToken');
+      navigate('/guest/login');
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      {/* Sidebar Navigation — hidden on mobile, shown on lg+ */}
+      <aside className="hidden lg:flex flex-col fixed left-0 top-0 h-screen w-64 bg-white dark:bg-gray-900 shadow-lg z-20 overflow-y-auto border-r border-gray-200 dark:border-gray-800">
+        <div className="p-6 shrink-0">
+          <h2 className="text-2xl font-bold">
+            Stay<span className="bg-gradient-to-r from-teal-500 to-emerald-500 bg-clip-text text-transparent">Haven</span>
+          </h2>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Guest Portal</p>
+        </div>
+
+        <nav className="flex-1 px-3">
+          {navItems.map((item) => {
+            const isActive = location.pathname === item.path;
+            return (
+              <button
+                key={item.path}
+                onClick={() => navigate(item.path)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg mb-1 transition-all text-sm ${
+                  isActive
+                    ? 'font-semibold text-teal-700 dark:text-teal-300 border-l-4 border-teal-500 bg-gradient-to-r from-teal-50 to-transparent dark:from-teal-900/30 dark:to-transparent'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                }`}
+              >
+                <item.icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-teal-600 dark:text-teal-300' : 'text-gray-400 dark:text-gray-500'}`} />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+        <div className="p-3 shrink-0 border-t border-gray-200 dark:border-gray-800 space-y-1.5">
+          <button
+            onClick={() => navigate('/guest-dashboard/requests')}
+            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all text-sm"
+          >
+            <HelpCircle className="w-5 h-5 text-sky-500" />
+            <span>Help & Support</span>
+          </button>
+
+          <button
+            type="button"
+            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all text-sm"
+          >
+            <Languages className="w-5 h-5 text-violet-500" />
+            <span>Language: EN</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all text-sm"
+          >
+            <Moon className="w-5 h-5 text-amber-500" />
+            <span>{isDark ? 'Light Mode' : 'Dark Mode'}</span>
+          </button>
+        </div>
+        <div className="p-3 shrink-0 border-t border-gray-200 dark:border-gray-800">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all text-sm"
+          >
+            <LogOut className="w-5 h-5 shrink-0" />
+            <span className="font-medium">Sign Out</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="lg:ml-64">
+        <Outlet />
+      </main>
+    </div>
+  );
+};
+
+export default GuestDashboardLayout;
