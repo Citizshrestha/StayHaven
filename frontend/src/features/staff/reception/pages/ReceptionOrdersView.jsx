@@ -33,6 +33,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useSocket } from '../../../../core/context/SocketContext';
+import BillPreviewModal from '../../../../shared/components/BillPreviewModal';
+import { useStaffAuth } from '../../../../context/StaffAuthContext';
 
 const EMPTY_ITEM = { name: '', quantity: 1, price: 0 };
 
@@ -826,13 +828,17 @@ const ReceptionOrdersView = () => {
   const [newArrivalIds, setNewArrivalIds] = useState(new Set());
   const [secondsAgo, setSecondsAgo] = useState(0);
   const [deleteConfirm, setDeleteConfirm] = useState(null); // { orderId, orderNumber }
-  const [billModal, setBillModal] = useState(null); // { order, method, email, phone }
+  const [showBillModal, setShowBillModal] = useState(false);
+  const [selectedBillOrder, setSelectedBillOrder] = useState(null);
 
   const debounceRef    = useRef(null);
   const prevIdsRef     = useRef(new Set());
 
   /* ── Socket.io for real-time updates ── */
   const { subscribe } = useSocket();
+
+  /* ── Staff auth for hotel info ── */
+  const { staffUser } = useStaffAuth();
 
   /* ── Existing memos / callbacks (unchanged) ── */
   const hotelId = useMemo(() => {
@@ -964,10 +970,29 @@ const ReceptionOrdersView = () => {
       }
     });
 
+    // Refresh orders when bill is sent
+    const unsubscribeBill = subscribe('bill-sent', (data) => {
+      console.log('📡 Bill sent:', data);
+      silentRefresh();
+      
+      if (data.orderNumber) {
+        toast.success(`📄 Bill sent for Order #${data.orderNumber}. Guest will make payment.`, {
+          position: 'top-right',
+          autoClose: 3000,
+          style: { 
+            background: 'linear-gradient(135deg, #3B82F6, #2563EB)', 
+            color: '#fff', 
+            fontWeight: 600 
+          },
+        });
+      }
+    });
+
     return () => {
       unsubscribeStatusUpdate();
       unsubscribeNewOrder();
       unsubscribeOrderUpdate();
+      unsubscribeBill();
     };
   }, [subscribe, hotelId, statusFilter, typeFilter, search]);
 
@@ -1136,56 +1161,20 @@ const ReceptionOrdersView = () => {
   };
 
   const handleSendBillClick = (order) => {
-    setBillModal({
-      order,
-      method: 'email',
-      email: order.customerEmail || '',
-      phone: order.customerPhone || '',
-    });
+    setSelectedBillOrder(order);
+    setShowBillModal(true);
   };
 
-  const handleSendBillConfirm = async () => {
-    if (!billModal) return;
-    const { order, method, email, phone } = billModal;
-
-    if (method === 'email' && !email.trim()) {
-      toast.error('Please enter customer email address.', {
-        position: 'top-right',
-        autoClose: 4000,
-        style: { background: 'linear-gradient(135deg, #d97706, #f59e0b)', color: '#fff', fontWeight: 600 },
-      });
-      return;
-    }
-    if ((method === 'sms' || method === 'whatsapp') && !phone.trim()) {
-      toast.error('Please enter customer phone number.', {
-        position: 'top-right',
-        autoClose: 4000,
-        style: { background: 'linear-gradient(135deg, #d97706, #f59e0b)', color: '#fff', fontWeight: 600 },
-      });
-      return;
-    }
-
+  const handleSendBill = async (orderId, billData) => {
     try {
-      await sendOrderBill(order._id, {
-        method,
-        email: method === 'email' ? email : undefined,
-        phone: method !== 'email' ? phone : undefined,
-      });
-      setBillModal(null);
-      await loadOrders();
-      toast.success(`Bill sent via ${method} successfully!`, {
-        position: 'top-right',
-        autoClose: 3000,
-        style: { background: 'linear-gradient(135deg, #059669, #10b981)', color: '#fff', fontWeight: 600 },
-      });
-    } catch (err) {
-      const msg = err?.response?.data?.message || 'Failed to send bill.';
-      setError(msg);
-      toast.error(msg, {
-        position: 'top-right',
-        autoClose: 4000,
-        style: { background: 'linear-gradient(135deg, #dc2626, #ef4444)', color: '#fff', fontWeight: 600 },
-      });
+      const response = await sendOrderBill(orderId, billData);
+      if (response.success) {
+        await loadOrders();
+        return response;
+      }
+    } catch (error) {
+      console.error('Send bill error:', error);
+      throw error;
     }
   };
 
@@ -1650,93 +1639,22 @@ const ReceptionOrdersView = () => {
           </div>
         )}
 
-        {/* ── Send Bill Modal ── */}
-        {billModal && (
-          <div className="ro-modal-overlay" onClick={() => setBillModal(null)}>
-            <div className="ro-bill-modal" onClick={(e) => e.stopPropagation()}>
-              <div className="ro-modal-hd">
-                <h3 className="ro-modal-title">Send Bill - Order #{billModal.order.orderNumber}</h3>
-                <button onClick={() => setBillModal(null)} className="ro-btn ro-btn--icon-only">
-                  <XCircle size={18} />
-                </button>
-              </div>
-
-              <div className="ro-form-label" style={{ marginBottom:8 }}>Select Method</div>
-              <div className="ro-bill-methods">
-                <button
-                  className={`ro-method-btn${billModal.method === 'email' ? ' ro-method-btn--selected' : ''}`}
-                  onClick={() => setBillModal(prev => ({ ...prev, method: 'email' }))}
-                >
-                  <div className="ro-method-icon"><Mail size={18} /></div>
-                  <div className="ro-method-info">
-                    <span className="ro-method-label">Email</span>
-                    <span className="ro-method-desc">Send bill via email</span>
-                  </div>
-                </button>
-                <button
-                  className={`ro-method-btn${billModal.method === 'sms' ? ' ro-method-btn--selected' : ''}`}
-                  onClick={() => setBillModal(prev => ({ ...prev, method: 'sms' }))}
-                >
-                  <div className="ro-method-icon"><MessageSquare size={18} /></div>
-                  <div className="ro-method-info">
-                    <span className="ro-method-label">SMS</span>
-                    <span className="ro-method-desc">Send bill via text message</span>
-                  </div>
-                </button>
-                <button
-                  className={`ro-method-btn${billModal.method === 'whatsapp' ? ' ro-method-btn--selected' : ''}`}
-                  onClick={() => setBillModal(prev => ({ ...prev, method: 'whatsapp' }))}
-                >
-                  <div className="ro-method-icon"><Phone size={18} /></div>
-                  <div className="ro-method-info">
-                    <span className="ro-method-label">WhatsApp</span>
-                    <span className="ro-method-desc">Send bill via WhatsApp</span>
-                  </div>
-                </button>
-              </div>
-
-              {billModal.method === 'email' ? (
-                <>
-                  <div className="ro-form-label">Customer Email</div>
-                  <input
-                    type="email"
-                    className="ro-input"
-                    placeholder="customer@example.com"
-                    value={billModal.email}
-                    onChange={(e) => setBillModal(prev => ({ ...prev, email: e.target.value }))}
-                    autoFocus
-                  />
-                </>
-              ) : (
-                <>
-                  <div className="ro-form-label">Customer Phone</div>
-                  <input
-                    type="tel"
-                    className="ro-input"
-                    placeholder="+977 9812345678"
-                    value={billModal.phone}
-                    onChange={(e) => setBillModal(prev => ({ ...prev, phone: e.target.value }))}
-                    autoFocus
-                  />
-                </>
-              )}
-
-              <div className="ro-modal-footer" style={{ marginTop:16 }}>
-                <button
-                  onClick={() => setBillModal(null)}
-                  className="ro-btn ro-btn--secondary"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSendBillConfirm}
-                  className="ro-btn ro-btn--primary"
-                >
-                  <Send size={14} /> Send Bill
-                </button>
-              </div>
-            </div>
-          </div>
+        {/* ── Bill Preview Modal ── */}
+        {showBillModal && selectedBillOrder && (
+          <BillPreviewModal
+            order={selectedBillOrder}
+            hotel={{
+              name: staffUser?.activeProperty?.name || 'Hotel',
+              location: { address: staffUser?.activeProperty?.address || '' },
+              contact: { phone: staffUser?.activeProperty?.phone || '' },
+            }}
+            onClose={() => {
+              setShowBillModal(false);
+              setSelectedBillOrder(null);
+            }}
+            onSendBill={handleSendBill}
+            isOpen={showBillModal}
+          />
         )}
 
       </div>

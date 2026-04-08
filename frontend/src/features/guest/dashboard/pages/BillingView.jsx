@@ -3,8 +3,9 @@
  * Invoice list, payment history, Stripe integration
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { getGuestInvoices, payOrder, confirmPayment } from "../guestDashboardApi";
+import { useSocket } from '../../../../core/context/SocketContext';
 import { useTheme } from '../../../../core/hooks/useTheme';
 import { toast } from 'react-toastify';
 import {
@@ -18,6 +19,7 @@ import {
 
 const BillingView = () => {
   const { isDark } = useTheme();
+  const { subscribe, isConnected } = useSocket();
   const [loading, setLoading] = useState(true);
   const [invoices, setInvoices] = useState([]);
   const [outstandingBalance, setOutstandingBalance] = useState(0);
@@ -42,6 +44,25 @@ const BillingView = () => {
       setLoading(false);
     }
   };
+
+  // Handle real-time bill received notification
+  const handleBillReceived = useCallback((payload) => {
+    console.log('📄 Bill received:', payload);
+    toast.info(`📄 New bill received for Order #${payload?.orderNumber || '--'}`, {
+      autoClose: 5000,
+    });
+    // Refresh invoices to show the new bill
+    loadInvoices();
+  }, []);
+
+  // Subscribe to bill-received events
+  useEffect(() => {
+    if (!subscribe || !isConnected) return;
+    const unsubBill = subscribe('bill-received', handleBillReceived);
+    return () => {
+      unsubBill();
+    };
+  }, [subscribe, isConnected, handleBillReceived]);
 
   const handlePayNow = async (invoice) => {
     if (processingPayment) return;

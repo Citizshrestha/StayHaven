@@ -26,7 +26,9 @@ import {
   updateOrder,
   getOrderById,
   deleteOrder,
+  confirmPayment,
   sendBillToCustomer,
+  retryBillSending,
 } from "../controllers/orderController.js";
 import {
   createWaiterCall,
@@ -127,12 +129,28 @@ router.put(
   updateOrder
 );
 
-// Send bill to customer - waiter, manager can send
+// Confirm payment - waiter, receptionist, manager can confirm
+router.post(
+  "/orders/:orderId/confirm-payment",
+  protect,
+  authorize("waiter", "receptionist", "manager"),
+  confirmPayment
+);
+
+// Send bill to customer - waiter, manager can send (ONLY after payment confirmed)
 router.post(
   "/orders/:orderId/send-bill",
   protect,
   authorize("waiter", "receptionist", "manager"),
   sendBillToCustomer
+);
+
+// Retry sending bill if failed
+router.post(
+  "/orders/:orderId/retry-bill",
+  protect,
+  authorize("waiter", "receptionist", "manager"),
+  retryBillSending
 );
 
 // MANAGER/ADMIN/OWNER ONLY ROUTES

@@ -1,13 +1,15 @@
 import { useState, useEffect, useMemo } from "react";
 import { X, Clock, MapPin, User, Trash2, MoreVertical, Edit, Copy, AlertTriangle, Printer, Send } from "lucide-react";
 import ItemCarousel from "../../../../../components/shared/ItemCarousel";
-import BillPreview from "../../../../../components/shared/BillPreview";
+import BillPreviewModal from "../../../../../shared/components/BillPreviewModal";
+import axiosClient from "../../../../../core/api/client";
 import { deleteOrder } from "../../../../../api/staff";
 import { toast } from "react-toastify";
 import useClickOutside from "../../../../../hooks/useClickOutSide";
 import useRelativeTime from "../../../../../hooks/useRelativeTime";
 import EditOrderModal from "./EditOrderModal";
 import { useStaffAuth } from "../../../../../context/StaffAuthContext";
+import { useSocket } from "../../../../../core/context/SocketContext";
 
 
 const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
@@ -23,6 +25,9 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
 
   // Get staff auth context for hotel info
   const { staffUser } = useStaffAuth();
+
+  // Socket for real-time updates
+  const { subscribe } = useSocket();
 
   // use custom hook for handling click outside
   const menuRef = useClickOutside(() => setShowMenu(false));
@@ -99,6 +104,24 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
     window.addEventListener('resize', checkScreenSize);
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
+
+  // Subscribe to real-time payment and bill events
+  useEffect(() => {
+    if (!subscribe || !order?._id) return;
+
+    const unsubscribeBill = subscribe('bill-sent', (data) => {
+      if (data.orderId === order._id) {
+        // Refresh order data
+        if (onUpdate) {
+          onUpdate({ ...order, billSent: true, ...data });
+        }
+      }
+    });
+
+    return () => {
+      unsubscribeBill();
+    };
+  }, [subscribe, order?._id, onUpdate, order]);
 
 
 
@@ -418,6 +441,33 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
       await onUpdate(updatedOrder);
     }
     setShowEditModal(false);
+  };
+
+  // Handle send bill
+  const handleSendBill = async (orderId, billData) => {
+    try {
+      const response = await axiosClient.post(`/api/staff/orders/${orderId}/send-bill`, billData);
+      
+      if (response.data.success) {
+        // Update local order state
+        if (onUpdate) {
+          await onUpdate({
+            ...order,
+            billSent: true,
+            billSentAt: new Date(),
+            billSentTo: {
+              email: billData.email,
+              phone: billData.phone,
+              method: billData.method,
+            },
+          });
+        }
+        return response.data;
+      }
+    } catch (error) {
+      console.error('Send bill error:', error);
+      throw error;
+    }
   };
 
   return (
@@ -1429,11 +1479,12 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
 
       {/* Bill Preview Modal */}
       {showBillPreview && (
-        <BillPreview
+        <BillPreviewModal
           order={order}
+          hotel={hotelInfo}
           onClose={() => setShowBillPreview(false)}
-          isDarkMode={false}
-          hotelInfo={hotelInfo}
+          onSendBill={handleSendBill}
+          isOpen={showBillPreview}
         />
       )}
     </div>

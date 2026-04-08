@@ -115,6 +115,26 @@ const orderSchema = new mongoose.Schema({
     type: Date,
   },
   
+  // Payment tracking
+  paymentStatus: {
+    type: String,
+    enum: ['pending', 'paid', 'failed', 'refunded'],
+    default: 'pending',
+  },
+  paymentMethod: {
+    type: String,
+    enum: ['cash', 'card', 'upi', 'online', 'room-charge'],
+  },
+  paidAt: {
+    type: Date,
+  },
+  paidAmount: {
+    type: Number,
+  },
+  paymentReference: {
+    type: String, // Transaction ID, receipt number, etc.
+  },
+  
   // Bill tracking
   billSent: {
     type: Boolean,
@@ -128,8 +148,20 @@ const orderSchema = new mongoose.Schema({
     phone: String,
     method: {
       type: String,
-      enum: ['email', 'sms', 'whatsapp'],
+      enum: ['email', 'sms', 'whatsapp', 'app'],
     },
+  },
+  billSentStatus: {
+    type: String,
+    enum: ['pending', 'sent', 'failed'],
+    default: 'pending',
+  },
+  billSentRetries: {
+    type: Number,
+    default: 0,
+  },
+  notes: {
+    type: String,
   },
 }, { timestamps: true });
 

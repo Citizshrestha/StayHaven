@@ -319,19 +319,38 @@ const DashboardView = () => {
     refreshDashboard();
   }, [pushRealtimeNotification, refreshDashboard]);
 
+  const onRealtimeBillReceived = useCallback((payload) => {
+    const orderNum = payload?.orderNumber || '--';
+    const total = payload?.billData?.total || 0;
+    toast.info(`📄 Bill received for Order #${orderNum}`, {
+      autoClose: 5000,
+    });
+    pushRealtimeNotification({
+      id: `rt-bill-${payload?.orderId || Date.now()}`,
+      title: `Bill Ready - Order #${orderNum}`,
+      subtitle: `Total: Rs. ${total.toLocaleString()} • Please make payment`,
+      time: new Date().toISOString(),
+      category: 'billing',
+      unread: true,
+    });
+    refreshDashboard();
+  }, [pushRealtimeNotification, refreshDashboard]);
+
   useEffect(() => {
     if (!subscribe || !isConnected) return;
     const unsubPlaced = subscribe('order-placed', onRealtimeOrderPlaced);
     const unsubStatus = subscribe('order-status-update', onRealtimeOrderStatus);
     const unsubStatusLegacy = subscribe('order-status-updated', onRealtimeOrderStatus);
     const unsubPayment = subscribe('payment-confirmed', onRealtimePayment);
+    const unsubBill = subscribe('bill-received', onRealtimeBillReceived);
     return () => {
       unsubPlaced();
       unsubStatus();
       unsubStatusLegacy();
       unsubPayment();
+      unsubBill();
     };
-  }, [subscribe, isConnected, onRealtimeOrderPlaced, onRealtimeOrderStatus, onRealtimePayment]);
+  }, [subscribe, isConnected, onRealtimeOrderPlaced, onRealtimeOrderStatus, onRealtimePayment, onRealtimeBillReceived]);
 
   useEffect(() => {
     if (!showNotifications) return;

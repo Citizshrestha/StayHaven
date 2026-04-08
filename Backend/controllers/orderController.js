@@ -4,6 +4,7 @@ import { Room } from "../models/room.schema.js";
 import { Hotel } from "../models/hotel.schema.js";
 import { MenuItem } from "../models/menuItem.schema.js";
 import { emitToHotel, emitToWaiters, emitToKitchen, emitToUser } from "../config/socket.js";
+import { sendEmail, sendSMS, sendWhatsApp, generateBillEmailHTML, generateBillTextMessage } from "../services/notificationService.js";
 
 const getUserRole = (req) => req.user?.role?.name || req.user?.companyRole;
 
@@ -587,11 +588,104 @@ export const deleteOrder = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Confirm Payment for Order
+ * 
+ * Marks order as paid and updates payment details
+ * 
+ * @route POST /api/staff/orders/:orderId/confirm-payment
+ * @access Private (Staff)
+ */
+export const confirmPayment = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+  const { paymentMethod, paidAmount, paymentReference, notes } = req.body;
+
+  // Validate payment method
+  const validMethods = ['cash', 'card', 'upi', 'online', 'room-charge'];
+  if (!paymentMethod || !validMethods.includes(paymentMethod)) {
+    return res.status(400).json({
+      success: false,
+      message: `Invalid payment method. Use: ${validMethods.join(', ')}`,
+    });
+  }
+
+  // Find the order
+  const order = await Order.findById(orderId).populate('hotel', 'name');
+  if (!order) {
+    return res.status(404).json({
+      success: false,
+      message: "Order not found",
+    });
+  }
+
+  await assertHotelAccess(req, order.hotel?._id || order.hotel);
+
+  // Check if already paid
+  if (order.paymentStatus === 'paid') {
+    return res.status(400).json({
+      success: false,
+      message: "Order is already marked as paid",
+    });
+  }
+
+  // Update payment details
+  order.paymentStatus = 'paid';
+  order.paymentMethod = paymentMethod;
+  order.paidAt = new Date();
+  order.paidAmount = paidAmount || order.totalPrice;
+  order.paymentReference = paymentReference || `PAY-${Date.now()}`;
+  if (notes) order.notes = notes;
+
+  // If order is not yet delivered, mark as delivered
+  if (order.status !== 'delivered') {
+    order.status = 'delivered';
+    order.deliveredAt = new Date();
+  }
+
+  await order.save();
+
+  // Emit real-time event for payment confirmation
+  const eventData = {
+    orderId: order._id,
+    orderNumber: order.orderNumber,
+    paymentStatus: 'paid',
+    paymentMethod,
+    paidAmount: order.paidAmount,
+    paidAt: order.paidAt,
+    status: order.status,
+  };
+
+  // Notify all staff in the hotel
+  emitToHotel(order.hotel._id.toString(), "payment-confirmed", {
+    ...eventData,
+    message: `💰 Payment confirmed for Order #${order.orderNumber}`,
+  });
+
+  // Notify the guest if this is a guest order
+  if (order.customerId) {
+    emitToUser(order.customerId.toString(), "payment-confirmed", eventData);
+  }
+
+  return res.status(200).json({
+    success: true,
+    message: "Payment confirmed successfully",
+    data: {
+      orderId: order._id,
+      orderNumber: order.orderNumber,
+      paymentStatus: order.paymentStatus,
+      paymentMethod: order.paymentMethod,
+      paidAmount: order.paidAmount,
+      paidAt: order.paidAt,
+    },
+  });
+});
+
+/**
  * Send Bill to Customer
  * 
  * Sends the order bill to the customer via email or SMS
+ * Guest will make payment after receiving the bill
  * 
- * @route POST /api/orders/:orderId/send-bill
+ * @route POST /api/staff/orders/:orderId/send-bill
  * @access Private (Staff)
  */
 export const sendBillToCustomer = asyncHandler(async (req, res) => {
@@ -599,15 +693,15 @@ export const sendBillToCustomer = asyncHandler(async (req, res) => {
   const { method, email, phone } = req.body;
 
   // Validate method
-  if (!method || !['email', 'sms', 'whatsapp'].includes(method)) {
+  if (!method || !['email', 'sms', 'whatsapp', 'app'].includes(method)) {
     return res.status(400).json({
       success: false,
-      message: "Invalid send method. Use 'email', 'sms', or 'whatsapp'",
+      message: "Invalid send method. Use 'email', 'sms', 'whatsapp', or 'app'",
     });
   }
 
   // Find the order
-  const order = await Order.findById(orderId).populate('hotel', 'name address phone');
+  const order = await Order.findById(orderId).populate('hotel', 'name location contact');
   if (!order) {
     return res.status(404).json({
       success: false,
@@ -632,13 +726,21 @@ export const sendBillToCustomer = asyncHandler(async (req, res) => {
     });
   }
 
+  // For 'app' method, we need the customer ID to send notification
+  if (method === 'app' && !order.customerId) {
+    return res.status(400).json({
+      success: false,
+      message: "Cannot send app notification. Guest is not registered in the system.",
+    });
+  }
+
   try {
-    // Generate bill content
+    // Generate bill data
     const billData = {
       orderNumber: order.orderNumber,
       hotelName: order.hotel?.name || 'Hotel Restaurant',
-      hotelAddress: order.hotel?.address || '',
-      hotelPhone: order.hotel?.phone || '',
+      hotelAddress: order.hotel?.location?.address || '',
+      hotelPhone: order.hotel?.contact?.phone || '',
       location: order.tableNumber ? `Table ${order.tableNumber}` : `Room ${order.roomNumber}`,
       customerName: order.customerName || 'Guest',
       items: order.items.map(item => ({
@@ -648,52 +750,167 @@ export const sendBillToCustomer = asyncHandler(async (req, res) => {
         total: item.price * item.quantity,
       })),
       subtotal: order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0),
-      tax: order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0) * 0.10,
-      serviceCharge: order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0) * 0.05,
+      tax: order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0) * 0.13, // 13% VAT in Nepal
+      serviceCharge: 0, // Can be configured
       total: order.totalPrice,
       date: order.createdAt,
     };
 
-    // For now, log the bill sending (integrate with actual email/SMS service later)
-    console.log(`📧 Sending bill via ${method}:`, {
-      to: method === 'email' ? email : phone,
-      orderNumber: order.orderNumber,
-      total: order.totalPrice,
-    });
+    // Handle different delivery methods
+    if (method === 'app') {
+      // Send in-app notification to guest dashboard
+      console.log(`🔔 Sending app notification to guest ${order.customerId}:`, {
+        orderNumber: order.orderNumber,
+        total: order.totalPrice,
+      });
+      
+      // Emit to guest's dashboard immediately
+      if (order.customerId) {
+        emitToUser(order.customerId.toString(), "bill-received", {
+          orderId: order._id,
+          orderNumber: order.orderNumber,
+          billSent: true,
+          billSentAt: new Date(),
+          method: 'app',
+          billData,
+          message: `Your bill for Order #${order.orderNumber} is ready. Total: Rs. ${order.totalPrice}`,
+        });
+      }
+    } else if (method === 'email') {
+      // Send email with HTML bill
+      const emailHTML = generateBillEmailHTML(billData);
+      const emailText = generateBillTextMessage(billData);
+      
+      await sendEmail({
+        to: email,
+        subject: `Bill for Order #${order.orderNumber} - ${order.hotel?.name || 'Hotel'}`,
+        html: emailHTML,
+        text: emailText,
+      });
+      
+      console.log(`📧 Email sent successfully to ${email}`);
+    } else if (method === 'sms') {
+      // Send SMS with plain text bill
+      const smsMessage = generateBillTextMessage(billData);
+      
+      await sendSMS({
+        to: phone,
+        message: smsMessage,
+      });
+      
+      console.log(`💬 SMS sent successfully to ${phone}`);
+    } else if (method === 'whatsapp') {
+      // Send WhatsApp message with plain text bill
+      const whatsappMessage = generateBillTextMessage(billData);
+      
+      await sendWhatsApp({
+        to: phone,
+        message: whatsappMessage,
+      });
+      
+      console.log(`📱 WhatsApp message sent successfully to ${phone}`);
+    }
 
     // Update order with bill sent info
     order.billSent = true;
     order.billSentAt = new Date();
     order.billSentTo = {
       email: method === 'email' ? email : undefined,
-      phone: method !== 'email' ? phone : undefined,
+      phone: (method === 'sms' || method === 'whatsapp') ? phone : undefined,
       method,
     };
+    order.billSentStatus = 'sent'; // Assume success for now
     await order.save();
 
-    // TODO: Integrate with actual email/SMS service
-    // For email: Use nodemailer (already configured in config/nodemailer.js)
-    // For SMS: Integrate Twilio or similar service
-    // For WhatsApp: Use WhatsApp Business API
+    // Emit real-time event for bill sent
+    const eventData = {
+      orderId: order._id,
+      orderNumber: order.orderNumber,
+      billSent: true,
+      billSentAt: order.billSentAt,
+      billSentTo: method === 'email' ? email : method === 'app' ? 'Guest Dashboard' : phone,
+      method,
+    };
+
+    // Notify all staff in the hotel
+    const methodLabel = method === 'app' ? 'guest dashboard notification' : method;
+    emitToHotel(order.hotel._id.toString(), "bill-sent", {
+      ...eventData,
+      message: `📄 Bill sent for Order #${order.orderNumber} via ${methodLabel}. Guest will make payment.`,
+    });
 
     return res.status(200).json({
       success: true,
-      message: `Bill sent successfully via ${method}`,
+      message: `Bill sent successfully via ${methodLabel}. Guest will make payment.`,
       data: {
         orderId: order._id,
         orderNumber: order.orderNumber,
-        sentTo: method === 'email' ? email : phone,
+        sentTo: method === 'email' ? email : method === 'app' ? 'Guest Dashboard' : phone,
         method,
         sentAt: order.billSentAt,
+        billData, // Return bill data for preview
       },
     });
   } catch (error) {
     console.error('Send bill error:', error);
+    
+    // Update bill sent status to failed
+    order.billSentStatus = 'failed';
+    order.billSentRetries = (order.billSentRetries || 0) + 1;
+    await order.save();
+    
     return res.status(500).json({
       success: false,
       message: "Failed to send bill. Please try again.",
+      error: error.message,
     });
   }
+});
+
+/**
+ * Retry Sending Bill
+ * 
+ * Retry sending bill if previous attempt failed
+ * 
+ * @route POST /api/staff/orders/:orderId/retry-bill
+ * @access Private (Staff)
+ */
+export const retryBillSending = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+
+  const order = await Order.findById(orderId).populate('hotel', 'name');
+  if (!order) {
+    return res.status(404).json({
+      success: false,
+      message: "Order not found",
+    });
+  }
+
+  await assertHotelAccess(req, order.hotel?._id || order.hotel);
+
+  // Check if bill sending failed
+  if (order.billSentStatus !== 'failed') {
+    return res.status(400).json({
+      success: false,
+      message: "Bill sending did not fail. No retry needed.",
+      currentStatus: order.billSentStatus,
+    });
+  }
+
+  // Check retry limit
+  if (order.billSentRetries >= 3) {
+    return res.status(400).json({
+      success: false,
+      message: "Maximum retry attempts reached. Please contact support.",
+    });
+  }
+
+  // Retry sending with same details
+  const { email, phone, method } = order.billSentTo || {};
+  
+  // Call sendBillToCustomer logic again
+  req.body = { method, email, phone };
+  return sendBillToCustomer(req, res);
 });
 
 // Order history endpoint removed
