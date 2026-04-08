@@ -39,10 +39,16 @@ export const protect = asyncHandler(async (req, res, next) => {
     }
   } catch (error) {
     if (error.name === 'JsonWebTokenError') {
-      throw Object.assign(new Error('Not authorized, token failed'), { status: 401 });
+      return res.status(401).json({
+        success: false,
+        message: 'Not authorized, token failed',
+      });
     }
     if (error.name === 'TokenExpiredError') {
-      throw Object.assign(new Error('Not authorized, token expired'), { status: 401 });
+      return res.status(401).json({
+        success: false,
+        message: 'Not authorized, token expired',
+      });
     }
     // If it's the "User not found" error thrown above, rethrow it
     if (error.status === 401) {

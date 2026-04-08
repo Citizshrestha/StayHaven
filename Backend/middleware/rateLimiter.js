@@ -147,3 +147,15 @@ export const exportLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// Guest dashboard limiter — authenticated guest portal (read-heavy + occasional writes)
+export const guestLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: isDev ? 5000 : 3000, // dev: 5000 | prod: 3000 requests per 15 min (~3.3 req/sec)
+  message: {
+    success: false,
+    message: "Too many requests from your guest session. Please slow down.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
