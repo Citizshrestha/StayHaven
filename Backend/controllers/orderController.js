@@ -3,7 +3,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { Room } from "../models/room.schema.js";
 import { Hotel } from "../models/hotel.schema.js";
 import { MenuItem } from "../models/menuItem.schema.js";
-import { emitToHotel, emitToWaiters, emitToKitchen } from "../config/socket.js";
+import { emitToHotel, emitToWaiters, emitToKitchen, emitToUser } from "../config/socket.js";
 
 const getUserRole = (req) => req.user?.role?.name || req.user?.companyRole;
 
@@ -349,6 +349,18 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
   // Fallback for other roles - broadcast to hotel
   else {
     emitToHotel(order.hotel.toString(), "order-status-updated", eventData);
+  }
+
+  // Always notify the guest who placed the order (if this is a guest order)
+  if (order.customerId) {
+    emitToUser(order.customerId.toString(), "order-status-update", {
+      orderId: order._id,
+      orderNumber: order.orderNumber,
+      status: order.status,
+      totalPrice: order.totalPrice,
+      items: order.items,
+      updatedAt: new Date(),
+    });
   }
 
   return res.status(200).json({

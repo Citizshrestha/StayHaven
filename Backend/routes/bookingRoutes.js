@@ -2,6 +2,7 @@ import express from 'express';
 import { protect, authorize } from '../middleware/authMiddleware.js';
 import {
   createNewBooking,
+  batchCreateBookings,
   checkInWalkInGuest,
   expressCheckOut,
   changeGuestRoom,
@@ -21,6 +22,9 @@ router.use(protect);
 
 // Create a new booking
 router.post('/new', authorize('receptionist', 'owner', 'admin', 'manager'), createNewBooking);
+
+// Batch create multiple bookings atomically with conflict detection
+router.post('/batch', authorize('receptionist', 'owner', 'admin', 'manager'), batchCreateBookings);
 
 // Check in walk-in guest
 router.post('/walk-in/check-in', authorize('receptionist', 'owner', 'admin', 'manager'), checkInWalkInGuest);

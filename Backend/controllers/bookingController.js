@@ -599,7 +599,347 @@ export const getHotelBookings = asyncHandler(async (req, res) => {
 });
 
 // ============================================
-// 7. GET AVAILABLE ROOMS
+// 7. BATCH ROOM BOOKING WITH CONFLICT DETECTION
+// ============================================
+// Accepts an array of room bookings, validates each, detects date conflicts
+// (both against existing bookings and within the batch), and creates all
+// bookings atomically inside a MongoDB transaction.
+export const batchCreateBookings = asyncHandler(async (req, res) => {
+  const { bookings } = req.body;
+
+  // --- Input validation --------------------------------------------------------
+  if (!Array.isArray(bookings) || bookings.length === 0) {
+    throw Object.assign(
+      new Error('"bookings" must be a non-empty array'),
+      { status: 400 }
+    );
+  }
+
+  // Maximum batch size to prevent unbounded writes
+  const MAX_BATCH_SIZE = 50;
+  if (bookings.length > MAX_BATCH_SIZE) {
+    throw Object.assign(
+      new Error(`Batch size exceeds maximum of ${MAX_BATCH_SIZE}`),
+      { status: 400 }
+    );
+  }
+
+  // --- Per-item validation (fail fast before touching the DB) ------------------
+  for (let i = 0; i < bookings.length; i++) {
+    const b = bookings[i];
+    const idx = i; // capture for error context
+    const missing = [];
+
+    if (!b.guestName || b.guestName.trim().length < 2) missing.push('guestName (min 2 chars)');
+    if (!b.guestPhone) missing.push('guestPhone');
+    if (!b.checkIn) missing.push('checkIn');
+    if (!b.checkOut) missing.push('checkOut');
+    if (!b.roomId) missing.push('roomId');
+    if (!b.hotelId) missing.push('hotelId');
+
+    if (missing.length > 0) {
+      res.status(400).json({
+        success: false,
+        message: `Invalid input at index ${idx}`,
+        errors: { index: idx, missingFields: missing },
+      });
+      return;
+    }
+
+    // Phone format
+    const cleanPhone = b.guestPhone.replace(/\D/g, '');
+    if (!/^\d{10,}$/.test(cleanPhone)) {
+      res.status(400).json({
+        success: false,
+        message: `Invalid phone format at index ${idx}`,
+        errors: { index: idx, field: 'guestPhone', detail: 'minimum 10 digits required' },
+      });
+      return;
+    }
+
+    // Email if provided
+    if (b.guestEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(b.guestEmail)) {
+      res.status(400).json({
+        success: false,
+        message: `Invalid email format at index ${idx}`,
+        errors: { index: idx, field: 'guestEmail' },
+      });
+      return;
+    }
+
+    // Dates
+    try {
+      validateDates(b.checkIn, b.checkOut);
+    } catch (err) {
+      res.status(400).json({
+        success: false,
+        message: `Date validation failed at index ${idx}: ${err.message}`,
+        errors: { index: idx, field: 'checkIn/checkOut', detail: err.message },
+      });
+      return;
+    }
+
+    // Guests
+    if (b.numGuests && (isNaN(b.numGuests) || b.numGuests < 1 || b.numGuests > 10)) {
+      res.status(400).json({
+        success: false,
+        message: `Invalid numGuests at index ${idx} (must be 1-10)`,
+        errors: { index: idx, field: 'numGuests' },
+      });
+      return;
+    }
+  }
+
+  // --- Collect unique hotels and rooms -----------------------------------------
+  const hotelIdSet = new Set(bookings.map((b) => b.hotelId));
+  // Multi-hotel batch: validate access to every hotel
+  const hotels = await Hotel.find({ _id: { $in: [...hotelIdSet] } }).select('company');
+  if (hotels.length !== hotelIdSet.size) {
+    throw Object.assign(new Error('One or more hotels not found'), { status: 404 });
+  }
+  for (const hotel of hotels) {
+    await assertHotelAccess(req, hotel._id);
+  }
+
+  const allRoomIds = [...new Set(bookings.map((b) => b.roomId))];
+  const rooms = await Room.find({ _id: { $in: allRoomIds } });
+  if (rooms.length !== allRoomIds.length) {
+    throw Object.assign(new Error('One or more rooms not found'), { status: 404 });
+  }
+
+  // Verify each room belongs to the hotel stated in its booking item
+  const roomMap = new Map(rooms.map((r) => [r._id.toString(), r]));
+  for (let i = 0; i < bookings.length; i++) {
+    const b = bookings[i];
+    const room = roomMap.get(b.roomId);
+    if (!room) {
+      throw Object.assign(new Error(`Room at index ${i} not found`), { status: 404 });
+    }
+    if (room.hotel.toString() !== b.hotelId.toString()) {
+      throw Object.assign(
+        new Error(`Room at index ${i} does not belong to the specified hotel`),
+        { status: 400 }
+      );
+    }
+    if (room.status !== 'available' && room.status !== 'reserved') {
+      throw Object.assign(
+        new Error(`Room at index ${i} is not bookable (status: ${room.status})`),
+        { status: 400 }
+      );
+    }
+  }
+
+  // --- Conflict detection: existing active bookings with overlapping dates -----
+  const checkInDates = bookings.map((b) => new Date(b.checkIn));
+  const checkOutDates = bookings.map((b) => new Date(b.checkOut));
+  const roomIdsForQuery = [...new Set(bookings.map((b) => b.roomId))];
+
+  const existingConflicts = await Booking.find({
+    room: { $in: roomIdsForQuery },
+    status: { $in: ['Confirmed', 'Checked-In'] },
+    $or: roomIdsForQuery.map((rid) => ({
+      room: rid,
+      checkIn: { $lt: new Date(
+        Math.max(...checkOutDates.filter((_, k) => bookings[k].roomId === rid))
+      ) },
+      checkOut: { $gt: new Date(
+        Math.min(...checkInDates.filter((_, k) => bookings[k].roomId === rid))
+      ) },
+    })),
+  }).select('room checkIn checkOut status bookingId');
+
+  if (existingConflicts.length > 0) {
+    const conflictDetails = existingConflicts.map((c) => ({
+      room: c.room.toString(),
+      existingBookingId: c.bookingId,
+      existingCheckIn: c.checkIn,
+      existingCheckOut: c.checkOut,
+      status: c.status,
+    }));
+    throw Object.assign(
+      new Error('One or more rooms have existing booking conflicts'),
+      { status: 409, conflicts: conflictDetails }
+    );
+  }
+
+  // Simpler overlap check: for each unique room, find the union of requested dates
+  // then query existing bookings that overlap with ANY of those ranges
+  for (const rid of roomIdsForQuery) {
+    const relatedBookings = bookings.filter((b) => b.roomId === rid);
+    const hasOverlap = await Promise.all(
+      relatedBookings.map((rb) => checkRoomAvailability(rb.roomId, rb.checkIn, rb.checkOut))
+    );
+    if (hasOverlap.some((available) => !available)) {
+      const conflicts = await Booking.find({
+        room: rid,
+        status: { $in: ['Confirmed', 'Checked-In'] },
+        $or: relatedBookings.map((rb) => ({
+          checkIn: { $lt: new Date(rb.checkOut) },
+          checkOut: { $gt: new Date(rb.checkIn) },
+        })),
+      }).select('room checkIn checkOut status bookingId');
+
+      throw Object.assign(
+        new Error('Room has existing booking conflicts for requested dates'),
+        {
+          status: 409,
+          conflicts: conflicts.map((c) => ({
+            room: c.room.toString(),
+            existingBookingId: c.bookingId,
+            existingCheckIn: c.checkIn,
+            existingCheckOut: c.checkOut,
+            status: c.status,
+          })),
+        }
+      );
+    }
+  }
+
+  // --- Intra-batch conflict: same room booked twice with overlapping dates -----
+  for (let i = 0; i < bookings.length; i++) {
+    for (let j = i + 1; j < bookings.length; j++) {
+      const a = bookings[i];
+      const b = bookings[j];
+      if (a.roomId === b.roomId) {
+        const aIn = new Date(a.checkIn);
+        const aOut = new Date(a.checkOut);
+        const bIn = new Date(b.checkIn);
+        const bOut = new Date(b.checkOut);
+        if (aIn < bOut && bIn < aOut) {
+          throw Object.assign(
+            new Error(
+              `Duplicate room booking within batch: room ${a.roomId} has overlapping dates at indices ${i} and ${j}`
+            ),
+            { status: 400, conflicts: [{ indices: [i, j], roomId: a.roomId }] }
+          );
+        }
+      }
+    }
+  }
+
+  // --- Generate guest users (best-effort, outside transaction) -----------------
+  const guestUserMap = new Map();
+  for (const b of bookings) {
+    if (b.guestEmail && !guestUserMap.has(b.guestEmail)) {
+      try {
+        let guestUser = await User.findOne({ email: b.guestEmail }).select('_id');
+        if (!guestUser) {
+          const guestRole = await getOrCreateGuestRole();
+          guestUser = await User.create({
+            fullname: b.guestName,
+            username: `guest_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+            email: b.guestEmail,
+            password: crypto.randomBytes(16).toString('hex'),
+            role: guestRole._id,
+          });
+        }
+        guestUserMap.set(b.guestEmail, guestUser._id);
+      } catch (err) {
+        console.warn('Guest user lookup/creation skipped:', err.message);
+      }
+    }
+  }
+
+  // --- Atomic transaction: create all bookings + update rooms -------------------
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    const hotelMap = new Map(hotels.map((h) => [h._id.toString(), h]));
+    const createdBookings = [];
+    const updatedRoomIds = new Set();
+
+    for (const b of bookings) {
+      const hotel = hotelMap.get(b.hotelId);
+      const room = roomMap.get(b.roomId);
+      const checkInDate = new Date(b.checkIn);
+      const checkOutDate = new Date(b.checkOut);
+      const nights = Math.max(1, Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24)));
+      const totalAmount = room.price * nights;
+
+      const bookingData = {
+        user: b.guestEmail ? (guestUserMap.get(b.guestEmail) || null) : null,
+        hotel: b.hotelId,
+        company: hotel.company,
+        room: b.roomId,
+        checkIn: checkInDate,
+        checkOut: checkOutDate,
+        guests: {
+          adults: b.numGuests || 1,
+          children: b.children || 0,
+        },
+        totalAmount,
+        currency: b.currency || 'NPR',
+        status: 'Confirmed',
+        paymentStatus: 'unpaid',
+        confirmationCode: generateConfirmationCode(),
+        specialRequests: b.specialRequests || '',
+        bookingSource: 'admin',
+      };
+
+      // Store guest identity inline
+      if (b.guestPhone) {
+        bookingData.guestInfo = {
+          name: b.guestName,
+          phone: b.guestPhone.replace(/\D/g, ''),
+          email: b.guestEmail || null,
+          idType: b.idType || null,
+          idNumber: b.idNumber || null,
+        };
+      }
+
+      const booking = await Booking.create([bookingData], { session });
+      createdBookings.push(booking[0]);
+      updatedRoomIds.add(b.roomId);
+    }
+
+    // Mark all affected rooms as reserved
+    await Room.updateMany(
+      { _id: { $in: [...updatedRoomIds] } },
+      { $set: { status: 'reserved' } },
+      { session }
+    );
+
+    // Commit
+    await session.commitTransaction();
+
+    // Populate after commit (populate does not work reliably inside transactions)
+    const populated = await Booking.find({
+      _id: { $in: createdBookings.map((b) => b._id) },
+    }).populate(['user', 'hotel', 'room']);
+
+    res.status(201).json({
+      success: true,
+      message: `${createdBookings.length} booking(s) created successfully`,
+      count: createdBookings.length,
+      bookings: populated.map((b) => ({
+        _id: b._id,
+        bookingId: b.bookingId,
+        confirmationCode: b.confirmationCode,
+        room: b.room,
+        guestInfo: b.guestInfo,
+        checkIn: b.checkIn,
+        checkOut: b.checkOut,
+        nights: b.durationNights,
+        totalAmount: b.totalAmount,
+        currency: b.currency,
+        status: b.status,
+        createdAt: b.createdAt,
+      })),
+    });
+  } catch (err) {
+    // Rollback on any failure -- nothing is persisted
+    await session.abortTransaction();
+    throw Object.assign(
+      new Error(`Batch booking failed: ${err.message}`),
+      { status: err.status || 500 }
+    );
+  } finally {
+    session.endSession();
+  }
+});
+
+// ============================================
+// 8. GET AVAILABLE ROOMS
 // ============================================
 export const getAvailableRooms = asyncHandler(async (req, res) => {
   // Get hotelId from URL params
