@@ -415,6 +415,7 @@ export const getUserOrders = asyncHandler(async (req, res) => {
 
 // ──────────────────────────────────────────────────────────────────────
 // GET /api/guest/portal/invoices
+// Returns both booking invoices AND unpaid orders with bills sent
 // ──────────────────────────────────────────────────────────────────────
 export const getUserInvoices = asyncHandler(async (req, res) => {
   const userId = req.user._id;
@@ -424,51 +425,98 @@ export const getUserInvoices = asyncHandler(async (req, res) => {
   const bookingIds = userBookings.map((b) => b._id);
 
   const { status, page = 1, limit = 20 } = req.query;
-  const query = { booking: { $in: bookingIds } };
+  const invoiceQuery = { booking: { $in: bookingIds } };
   if (status && status !== "all") {
-    query.status = status.trim();
+    invoiceQuery.status = status.trim();
   }
 
   const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10);
 
-  const [invoices, total] = await Promise.all([
-    Invoice.find(query)
+  // Fetch booking invoices
+  const [invoices, invoiceTotal] = await Promise.all([
+    Invoice.find(invoiceQuery)
       .populate("hotel", "name")
       .populate("booking", "bookingId status")
       .sort({ issuedAt: -1 })
       .skip(skip)
       .limit(parseInt(limit, 10))
       .lean(),
-    Invoice.countDocuments(query),
+    Invoice.countDocuments(invoiceQuery),
   ]);
 
-  // Total outstanding balance
-  const outstandingBalance = invoices.reduce(
-    (sum, inv) => sum + (inv.balance || 0),
-    0
-  );
+  // Fetch unpaid orders with bills sent (food/service orders)
+  const orderQuery = {
+    customerId: userId,
+    billSent: true,
+    paymentStatus: { $ne: 'paid' },
+  };
+  
+  const unpaidOrders = await Order.find(orderQuery)
+    .populate("hotel", "name")
+    .sort({ billSentAt: -1 })
+    .lean();
+
+  // Calculate outstanding balance from both invoices and unpaid orders
+  const invoiceBalance = invoices.reduce((sum, inv) => sum + (inv.balance || 0), 0);
+  const orderBalance = unpaidOrders.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
+  const outstandingBalance = invoiceBalance + orderBalance;
+
+  // Transform unpaid orders to match invoice format for frontend
+  const orderInvoices = unpaidOrders.map((order) => {
+    // Calculate tax (13% VAT in Nepal)
+    const subtotal = order.totalPrice / 1.13; // Reverse calculate subtotal
+    const tax = order.totalPrice - subtotal;
+    
+    return {
+      _id: order._id,
+      invoiceId: `ORD-${order.orderNumber}`,
+      hotel: order.hotel,
+      bookingRef: order.roomNumber ? `Room ${order.roomNumber}` : order.tableNumber ? `Table ${order.tableNumber}` : 'Takeaway',
+      guestName: order.customerName,
+      charges: {
+        room: 0,
+        extras: subtotal,
+        taxRate: 13,
+        tax: tax,
+        total: order.totalPrice,
+      },
+      paid: 0,
+      balance: order.totalPrice,
+      status: 'pending',
+      issuedAt: order.billSentAt || order.createdAt,
+      dueDate: null,
+      paidAt: null,
+      orderType: 'food-service', // Flag to identify this is an order, not a booking invoice
+      orderNumber: order.orderNumber,
+      orderId: order._id,
+    };
+  });
+
+  // Combine invoices and order invoices
+  const allInvoices = [...invoices.map(inv => ({
+    _id: inv._id,
+    invoiceId: inv.invoiceId,
+    hotel: inv.hotel,
+    bookingRef: inv.bookingRef,
+    guestName: inv.guestName,
+    charges: inv.charges,
+    paid: inv.paid,
+    balance: inv.balance,
+    status: inv.status,
+    issuedAt: inv.issuedAt,
+    dueDate: inv.dueDate,
+    paidAt: inv.paidAt,
+    orderType: 'booking', // Flag to identify this is a booking invoice
+  })), ...orderInvoices].sort((a, b) => new Date(b.issuedAt) - new Date(a.issuedAt));
 
   res.status(200).json({
     success: true,
-    count: invoices.length,
-    total,
-    totalPages: Math.ceil(total / parseInt(limit, 10)),
+    count: allInvoices.length,
+    total: invoiceTotal + unpaidOrders.length,
+    totalPages: Math.ceil((invoiceTotal + unpaidOrders.length) / parseInt(limit, 10)),
     currentPage: parseInt(page, 10),
     outstandingBalance,
-    data: invoices.map((inv) => ({
-      _id: inv._id,
-      invoiceId: inv.invoiceId,
-      hotel: inv.hotel,
-      bookingRef: inv.bookingRef,
-      guestName: inv.guestName,
-      charges: inv.charges,
-      paid: inv.paid,
-      balance: inv.balance,
-      status: inv.status,
-      issuedAt: inv.issuedAt,
-      dueDate: inv.dueDate,
-      paidAt: inv.paidAt,
-    })),
+    data: allInvoices,
   });
 });
 
