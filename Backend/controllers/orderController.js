@@ -736,6 +736,11 @@ export const sendBillToCustomer = asyncHandler(async (req, res) => {
 
   try {
     // Generate bill data
+    const subtotal = order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const tax = subtotal * 0.13; // 13% VAT in Nepal
+    const serviceCharge = 0; // Can be configured
+    const grandTotal = subtotal + tax + serviceCharge;
+    
     const billData = {
       orderNumber: order.orderNumber,
       hotelName: order.hotel?.name || 'Hotel Restaurant',
@@ -749,10 +754,10 @@ export const sendBillToCustomer = asyncHandler(async (req, res) => {
         price: item.price,
         total: item.price * item.quantity,
       })),
-      subtotal: order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0),
-      tax: order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0) * 0.13, // 13% VAT in Nepal
-      serviceCharge: 0, // Can be configured
-      total: order.totalPrice,
+      subtotal,
+      tax,
+      serviceCharge,
+      total: grandTotal,
       date: order.createdAt,
     };
 
