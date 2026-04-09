@@ -86,7 +86,24 @@ const BillPreviewModal = ({
 
     try {
       setSending(true);
-      await onSendBill(order._id, {
+      const orderId = order._id || order.id;
+      
+      console.log('🔍 Send Bill Debug:', {
+        order,
+        orderId,
+        hasId: !!order.id,
+        has_id: !!order._id,
+        orderKeys: Object.keys(order),
+      });
+      
+      if (!orderId) {
+        console.error('❌ Order ID not found. Order object:', order);
+        toast.error('Order ID not found');
+        setSending(false);
+        return;
+      }
+      
+      await onSendBill(orderId, {
         method: sendMethod,
         email: sendMethod === 'email' ? email : undefined,
         phone: sendMethod !== 'email' && sendMethod !== 'app' ? phone : undefined,

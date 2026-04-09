@@ -23,8 +23,14 @@ export const sendEmail = async ({ to, subject, html, text }) => {
       },
     });
 
-    // Verify transporter configuration
-    await transporter.verify();
+    // Skip verification in development to avoid delays
+    if (process.env.NODE_ENV === 'production') {
+      try {
+        await transporter.verify();
+      } catch (verifyError) {
+        console.warn('⚠️ SMTP verification failed, but will try to send anyway:', verifyError.message);
+      }
+    }
 
     // Send email
     const info = await transporter.sendMail({

@@ -1,0 +1,1 @@
+- [SocketContext guest support](socket_guest_support.md) — Socket must connect for guest users, not just staff; event name is `order-status-update`

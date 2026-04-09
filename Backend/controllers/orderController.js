@@ -857,17 +857,24 @@ export const sendBillToCustomer = asyncHandler(async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Send bill error:', error);
+    console.error('❌ Send bill error:', error);
+    console.error('Error stack:', error.stack);
     
-    // Update bill sent status to failed
-    order.billSentStatus = 'failed';
-    order.billSentRetries = (order.billSentRetries || 0) + 1;
-    await order.save();
+    // Try to update bill sent status to failed (if order exists)
+    try {
+      if (order) {
+        order.billSentStatus = 'failed';
+        order.billSentRetries = (order.billSentRetries || 0) + 1;
+        await order.save();
+      }
+    } catch (saveError) {
+      console.error('Failed to update order status:', saveError);
+    }
     
     return res.status(500).json({
       success: false,
-      message: "Failed to send bill. Please try again.",
-      error: error.message,
+      message: error.message || "Failed to send bill. Please try again.",
+      error: process.env.NODE_ENV === 'development' ? error.stack : error.message,
     });
   }
 });

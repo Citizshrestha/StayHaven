@@ -71,6 +71,7 @@ export const OrderProvider = ({ children }) => {
 
       // transform backendOrders to match frontend format
       const transformedOrders = allOrders.map((order) => ({
+        _id: order._id, // Preserve MongoDB _id
         id: order._id,
         orderNumber: order.orderNumber, // Human-readable order number
         status: order.status === "pending" ? "new" : order.status,
@@ -81,13 +82,23 @@ export const OrderProvider = ({ children }) => {
             ? "Takeaway"
             : `Table ${order.tableNumber}`,
         customerName: order.customerName || "Walk-in Guest",
+        customerEmail: order.customerEmail,
+        customerPhone: order.customerPhone,
+        roomNumber: order.roomNumber,
+        tableNumber: order.tableNumber,
         time: getTimeAgo(order.createdAt),
         placedAt: order.createdAt,
+        createdAt: order.createdAt,
         updatedAt: order.updatedAt,
         deliveredAt: order.deliveredAt,
         totalPrice: order.totalPrice,
         priority: order.priority,
         orderType: order.orderType,
+        paymentStatus: order.paymentStatus,
+        billSent: order.billSent,
+        billSentAt: order.billSentAt,
+        billSentTo: order.billSentTo,
+        paidAt: order.paidAt,
         items: order.items.map((item) => ({
           id: item._id || item.menuItem,
           name: item.name,
