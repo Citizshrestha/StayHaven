@@ -449,19 +449,8 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
       const response = await axiosClient.post(`/api/staff/orders/${orderId}/send-bill`, billData);
       
       if (response.data.success) {
-        // Update local order state
-        if (onUpdate) {
-          await onUpdate({
-            ...order,
-            billSent: true,
-            billSentAt: new Date(),
-            billSentTo: {
-              email: billData.email,
-              phone: billData.phone,
-              method: billData.method,
-            },
-          });
-        }
+        // Just return success - the socket event will update the UI
+        // No need to call onUpdate which triggers the edit API
         return response.data;
       }
     } catch (error) {
