@@ -123,7 +123,7 @@ const orderSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    enum: ['cash', 'card', 'upi', 'online', 'room-charge'],
+    enum: ['cash', 'card', 'upi', 'online', 'room-charge', 'esewa', 'khalti', 'bank'],
   },
   paidAt: {
     type: Date,
