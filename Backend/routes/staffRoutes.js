@@ -121,27 +121,27 @@ router.put(
   updateOrderStatus
 );
 
-// Update order details - waiter, manager can update
+// Update order details - waiter, chief, manager, receptionist can update
 router.put(
   "/orders/:orderId",
   protect,
-  authorize("waiter", "manager", "receptionist"),
+  authorize("waiter", "chief", "manager", "receptionist"),
   updateOrder
 );
 
-// Confirm payment - waiter, receptionist, manager can confirm
+// Confirm payment - waiter, chief, receptionist, manager can confirm
 router.post(
   "/orders/:orderId/confirm-payment",
   protect,
-  authorize("waiter", "receptionist", "manager"),
+  authorize("waiter", "chief", "receptionist", "manager"),
   confirmPayment
 );
 
-// Send bill to customer - waiter, manager can send (ONLY after payment confirmed)
+// Send bill to customer - waiter, chief, receptionist, manager can send
 router.post(
   "/orders/:orderId/send-bill",
   protect,
-  authorize("waiter", "receptionist", "manager"),
+  authorize("waiter", "chief", "receptionist", "manager"),
   sendBillToCustomer
 );
 
@@ -149,7 +149,7 @@ router.post(
 router.post(
   "/orders/:orderId/retry-bill",
   protect,
-  authorize("waiter", "receptionist", "manager"),
+  authorize("waiter", "chief", "receptionist", "manager"),
   retryBillSending
 );
 
