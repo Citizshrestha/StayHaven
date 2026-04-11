@@ -26,6 +26,7 @@ import {
   getGuestRequests,
 } from '../guestDashboardApi';
 import ExtendStayModal from '../../../../shared/components/ExtendStayModal';
+import CancelOrderModal from '../../../../shared/components/CancelOrderModal';
 
 const LIGHT_BRAND = {
   primary: '#00BFA6',
@@ -170,6 +171,8 @@ const DashboardView = () => {
   const [billingExpanded, setBillingExpanded] = useState(true);
   const notificationsPanelRef = useRef(null);
   const [showExtendModal, setShowExtendModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null);
   const [dashboardData, setDashboardData] = useState({
     overview: null,
     orders: [],
@@ -709,8 +712,17 @@ const DashboardView = () => {
                           >
                             Track Order
                           </button>
-                          {status !== 'delivered' && status !== 'cancelled' && (
-                            <span className="text-rose-600 font-semibold">Cancel (soon)</span>
+                          {(status === 'pending' || status === 'confirmed') && (
+                            <button
+                              type="button"
+                              className="text-rose-600 font-semibold hover:underline"
+                              onClick={() => {
+                                setSelectedOrder(order);
+                                setShowCancelModal(true);
+                              }}
+                            >
+                              Cancel Order
+                            </button>
                           )}
                         </div>
                       </div>
@@ -845,6 +857,20 @@ const DashboardView = () => {
         booking={activeBooking}
         onExtendSuccess={(data) => {
           toast.success('Stay extended successfully!');
+          refreshDashboard();
+        }}
+      />
+
+      {/* Cancel Order Modal */}
+      <CancelOrderModal
+        isOpen={showCancelModal}
+        onClose={() => {
+          setShowCancelModal(false);
+          setSelectedOrder(null);
+        }}
+        order={selectedOrder}
+        onCancelSuccess={(data) => {
+          toast.success('Order cancelled successfully!');
           refreshDashboard();
         }}
       />

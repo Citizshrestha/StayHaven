@@ -30,6 +30,10 @@ import {
   extendBooking,
   checkExtensionAvailability,
 } from "../controllers/extendBookingHandler.js";
+import {
+  cancelOrder,
+  checkCancellable,
+} from "../controllers/cancelOrderHandler.js";
 
 const router = Router();
 
@@ -62,6 +66,8 @@ router.post("/bookings/:id/extend", extendBooking);
 router.get("/menu", getAuthenticatedMenu);
 router.post("/order", placeOrder);
 router.get("/orders", getUserOrders);
+router.get("/orders/:id/can-cancel", checkCancellable);
+router.post("/orders/:id/cancel", cancelOrder);
 
 // ═════════════════════════════════════════════════════════
 // BILLING / PAYMENTS

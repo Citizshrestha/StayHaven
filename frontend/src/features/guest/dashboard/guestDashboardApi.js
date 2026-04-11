@@ -69,6 +69,21 @@ export const placeOrder = (orderData) =>
 export const getGuestOrders = (params = {}) =>
   axiosClient.get(`${BASE}/orders`, { params }).then((r) => r.data);
 
+/**
+ * Check if an order can be cancelled
+ * @param {string} orderId - The order ID
+ */
+export const checkOrderCancellable = (orderId) =>
+  axiosClient.get(`${BASE}/orders/${orderId}/can-cancel`).then((r) => r.data);
+
+/**
+ * Cancel an order
+ * @param {string} orderId - The order ID
+ * @param {string} reason - Cancellation reason (optional)
+ */
+export const cancelOrder = (orderId, reason = '') =>
+  axiosClient.post(`${BASE}/orders/${orderId}/cancel`, { reason }).then((r) => r.data);
+
 /* ════════════════════════════════════════════
    BILLING / INVOICES
    ════════════════════════════════════════════ */
