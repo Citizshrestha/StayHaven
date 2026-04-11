@@ -25,6 +25,7 @@ import {
   getGuestOrders,
   getGuestRequests,
 } from '../guestDashboardApi';
+import ExtendStayModal from '../../../../shared/components/ExtendStayModal';
 
 const LIGHT_BRAND = {
   primary: '#00BFA6',
@@ -168,6 +169,7 @@ const DashboardView = () => {
   const [realtimeNotifications, setRealtimeNotifications] = useState([]);
   const [billingExpanded, setBillingExpanded] = useState(true);
   const notificationsPanelRef = useRef(null);
+  const [showExtendModal, setShowExtendModal] = useState(false);
   const [dashboardData, setDashboardData] = useState({
     overview: null,
     orders: [],
@@ -561,7 +563,7 @@ const DashboardView = () => {
             <GlassInfo title="Nights" value={String(activeBooking?.nightsLeft || 0)} />
             <button
               type="button"
-              onClick={() => navigate('/guest-dashboard/bookings')}
+              onClick={() => setShowExtendModal(true)}
               className="rounded-xl bg-white text-teal-700 font-semibold text-sm h-21 hover:bg-teal-50 transition border border-white/50"
             >
               Extend Stay
@@ -835,6 +837,17 @@ const DashboardView = () => {
           </button>
         </div>
       </div>
+
+      {/* Extend Stay Modal */}
+      <ExtendStayModal
+        isOpen={showExtendModal}
+        onClose={() => setShowExtendModal(false)}
+        booking={activeBooking}
+        onExtendSuccess={(data) => {
+          toast.success('Stay extended successfully!');
+          refreshDashboard();
+        }}
+      />
     </div>
   );
 };

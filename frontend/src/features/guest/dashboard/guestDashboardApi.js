@@ -37,6 +37,22 @@ export const getDashboardOverview = () =>
 export const getGuestBookings = (params = {}) =>
   axiosClient.get(`${BASE}/bookings`, { params }).then((r) => r.data);
 
+/**
+ * Check availability for extending a booking
+ * @param {string} bookingId - The booking ID
+ * @param {number} nights - Number of nights to check
+ */
+export const checkExtensionAvailability = (bookingId, nights = 7) =>
+  axiosClient.get(`${BASE}/bookings/${bookingId}/extend/availability`, { params: { nights } }).then((r) => r.data);
+
+/**
+ * Extend a booking
+ * @param {string} bookingId - The booking ID
+ * @param {number} additionalNights - Number of additional nights
+ */
+export const extendBooking = (bookingId, additionalNights) =>
+  axiosClient.post(`${BASE}/bookings/${bookingId}/extend`, { additionalNights }).then((r) => r.data);
+
 /* ════════════════════════════════════════════
    RESTAURANT / ROOM SERVICE
    ════════════════════════════════════════════ */

@@ -26,6 +26,10 @@ import {
   submitRequest,
   getGuestRequests,
 } from "../controllers/guestDashboardController.js";
+import {
+  extendBooking,
+  checkExtensionAvailability,
+} from "../controllers/extendBookingHandler.js";
 
 const router = Router();
 
@@ -48,6 +52,8 @@ router.get("/dashboard", getDashboardOverview);
 // ═════════════════════════════════════════════════════════
 
 router.get("/bookings", getUserBookings);
+router.get("/bookings/:id/extend/availability", checkExtensionAvailability);
+router.post("/bookings/:id/extend", extendBooking);
 
 // ═════════════════════════════════════════════════════════
 // RESTAURANT / ROOM SERVICE
