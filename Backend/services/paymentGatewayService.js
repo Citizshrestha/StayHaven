@@ -73,7 +73,13 @@ const getStripe = () => {
  */
 export async function initiateKhaltiPayment({ amount, orderId, orderName, customer }) {
   const secretKey = CONFIG.khalti.secretKey();
-  if (!secretKey) throw new Error("Khalti secret key is not configured");
+  
+  // Check if using placeholder/invalid key
+  if (!secretKey || secretKey.includes("YOUR_ACTUAL") || secretKey.length < 20) {
+    throw new Error(
+      "Khalti is not properly configured. Please get your test API keys from https://test-admin.khalti.com and update KHALTI_SECRET_KEY in Backend/.env"
+    );
+  }
 
   const amountInPaisa = Math.round(amount * 100);
   const baseUrl = CONFIG.khalti.baseUrl();
@@ -97,6 +103,7 @@ export async function initiateKhaltiPayment({ amount, orderId, orderName, custom
     amount: amountInPaisa,
     orderId,
     returnUrl,
+    customerInfo: payload.customer_info,
   });
 
   const response = await fetch(`${baseUrl}/epayment/initiate/`, {
@@ -116,7 +123,15 @@ export async function initiateKhaltiPayment({ amount, orderId, orderName, custom
       statusText: response.statusText,
       data,
       payload,
+      secretKeyPrefix: secretKey.substring(0, 15) + "...",
     });
+    
+    // Provide helpful error messages
+    if (response.status === 400) {
+      const errorDetail = data?.detail || data?.message || JSON.stringify(data);
+      throw new Error(`Khalti API rejected the request: ${errorDetail}. Please check your API keys and ensure you're using valid test credentials from https://test-admin.khalti.com`);
+    }
+    
     throw new Error(data?.detail || data?.message || `Khalti API error: ${response.status}`);
   }
 

@@ -577,7 +577,9 @@ export const payOrder = asyncHandler(async (req, res) => {
       orderId: order._id.toString(),
       orderNumber: order.orderNumber?.toString() || "",
       customerId: req.user._id.toString(),
-      customerEmail: req.user.email || "",
+      customerName: req.user.fullname || req.user.name || "Guest",
+      customerEmail: req.user.email || "guest@example.com",
+      customerPhone: req.user.phone || req.user.phoneNumber || "9800000000",
       targetType: "order",
       paymentMethod,
     };
@@ -612,7 +614,9 @@ export const payOrder = asyncHandler(async (req, res) => {
       invoiceNumber: invoice.invoiceId?.toString() || "",
       bookingId: invoice.booking?._id?.toString?.() || "",
       customerId: req.user._id.toString(),
-      customerEmail: req.user.email || "",
+      customerName: req.user.fullname || req.user.name || "Guest",
+      customerEmail: req.user.email || "guest@example.com",
+      customerPhone: req.user.phone || req.user.phoneNumber || "9800000000",
       targetType: "invoice",
       paymentMethod,
     };
@@ -643,10 +647,15 @@ export const payOrder = asyncHandler(async (req, res) => {
       }
       paymentResult = await processCardPayment(paymentAmount, cardDetails, paymentMetadata);
     } else if (paymentMethod === 'bank') {
-      return res.status(400).json({
-        success: false,
-        message: "Bank transfer is not yet available. Please use another payment method.",
-      });
+      // Validate bank transfer details
+      const bankDetails = req.body.bankTransferDetails;
+      if (!bankDetails || !bankDetails.accountName || !bankDetails.accountNumber || !bankDetails.bankName || !bankDetails.transactionId) {
+        return res.status(400).json({
+          success: false,
+          message: "Complete bank transfer details are required",
+        });
+      }
+      paymentResult = await processBankTransferPayment(paymentAmount, bankDetails, paymentMetadata);
     }
 
     // Guard: if paymentResult wasn't set, reject
@@ -695,6 +704,109 @@ export const payOrder = asyncHandler(async (req, res) => {
         last4: paymentResult.last4,
         message: paymentResult.message,
       });
+    }
+
+    // For bank transfer payments that require manual verification
+    if (paymentResult.requiresVerification) {
+      // Create pending payment transaction
+      if (order) {
+        const hotelDoc = await Hotel.findById(order.hotel).select("company");
+        const dummyBookingId = new mongoose.Types.ObjectId("000000000000000000000001");
+        
+        const txn = await PaymentTransaction.create({
+          hotel: order.hotel,
+          company: hotelDoc?.company || dummyBookingId,
+          booking: dummyBookingId,
+          order: order._id,
+          guest: null,
+          type: "capture",
+          amount: paymentAmount,
+          method: "bank",
+          reference: paymentResult.transactionId,
+          status: "pending", // Pending verification
+          processedBy: req.user._id,
+          processedByName: req.user.fullname,
+          notes: `Bank transfer from ${paymentResult.bankDetails.bankName} - Account: ${paymentResult.bankDetails.accountNumber} - Ref: ${paymentResult.bankDetails.transactionId}`,
+        });
+
+        // Update order with pending payment
+        order.paymentStatus = "pending";
+        order.paymentMethod = "bank";
+        order.paymentReference = paymentResult.transactionId;
+        await order.save();
+
+        // Notify hotel staff about pending bank transfer
+        emitToHotel(order.hotel.toString(), "bank-transfer-pending", {
+          orderId: order._id,
+          orderNumber: order.orderNumber,
+          amount: paymentAmount,
+          customerName: order.customerName,
+          bankDetails: paymentResult.bankDetails,
+          transactionId: txn.transactionId,
+        });
+
+        return res.json({
+          success: true,
+          requiresVerification: true,
+          message: paymentResult.message,
+          data: {
+            transaction: txn,
+            order: { _id: order._id, orderNumber: order.orderNumber },
+            paymentMethod: "bank",
+            transactionId: paymentResult.transactionId,
+          },
+        });
+      } else {
+        // Invoice payment
+        const invoice = await Invoice.findById(targetId);
+        const hotelDoc = await Hotel.findById(invoice.hotel).select("company");
+
+        const txn = await PaymentTransaction.create({
+          hotel: invoice.hotel,
+          company: hotelDoc.company,
+          booking: invoice.booking,
+          invoice: invoice._id,
+          guest: invoice.guest || null,
+          type: "capture",
+          amount: paymentAmount,
+          method: "bank",
+          reference: paymentResult.transactionId,
+          status: "pending", // Pending verification
+          processedBy: req.user._id,
+          processedByName: req.user.fullname,
+          notes: `Bank transfer from ${paymentResult.bankDetails.bankName} - Account: ${paymentResult.bankDetails.accountNumber} - Ref: ${paymentResult.bankDetails.transactionId}`,
+        });
+
+        // Update invoice with pending payment
+        invoice.status = "partial";
+        await invoice.save();
+
+        // Notify hotel staff
+        emitToHotel(invoice.hotel.toString(), "bank-transfer-pending", {
+          invoiceId: invoice._id,
+          invoiceNumber: invoice.invoiceId,
+          amount: paymentAmount,
+          customerName: req.user.fullname,
+          bankDetails: paymentResult.bankDetails,
+          transactionId: txn.transactionId,
+        });
+
+        return res.json({
+          success: true,
+          requiresVerification: true,
+          message: paymentResult.message,
+          data: {
+            transaction: txn,
+            invoice: {
+              _id: invoice._id,
+              invoiceId: invoice.invoiceId,
+              status: invoice.status,
+            },
+            paymentMethod: "bank",
+            transactionId: paymentResult.transactionId,
+          },
+        });
+      }
     }
 
     if (paymentResult.success) {
@@ -866,17 +978,33 @@ async function processEsewaPayment(amount, metadata) {
  */
 async function processKhaltiPayment(amount, metadata) {
   try {
+    console.log("Processing Khalti payment with metadata:", {
+      amount,
+      orderId: metadata.orderId || metadata.invoiceId,
+      orderNumber: metadata.orderNumber,
+      customerName: metadata.customerName,
+      customerEmail: metadata.customerEmail,
+      customerPhone: metadata.customerPhone,
+    });
+
     const result = await initiateKhaltiPayment({
       amount,
       orderId: metadata.orderId || metadata.invoiceId || `order-${Date.now()}`,
       orderName: metadata.orderNumber
         ? `Order #${metadata.orderNumber}`
-        : `Invoice Payment`,
+        : metadata.invoiceNumber
+        ? `Invoice #${metadata.invoiceNumber}`
+        : `Payment`,
       customer: {
         name: metadata.customerName || "Guest",
-        email: metadata.customerEmail || "",
-        phone: metadata.customerPhone || "",
+        email: metadata.customerEmail || "guest@example.com",
+        phone: metadata.customerPhone || "9800000000",
       },
+    });
+
+    console.log("Khalti payment initiated successfully:", {
+      pidx: result.pidx,
+      paymentUrl: result.paymentUrl,
     });
 
     return {
@@ -892,6 +1020,10 @@ async function processKhaltiPayment(amount, metadata) {
     };
   } catch (error) {
     console.error("Khalti payment initiation error:", error);
+    console.error("Error details:", {
+      message: error.message,
+      stack: error.stack,
+    });
     return {
       success: false,
       message: error.message || "Khalti payment initiation failed",
@@ -911,6 +1043,22 @@ async function processCardPayment(amount, cardDetails, metadata) {
       return { success: false, message: "Invalid card number" };
     }
 
+    // Check if it's a test card number - if so, simulate payment in dev mode
+    const testCardNumbers = ['4242424242424242', '4000056655665556', '5555555555554444', '2223003122003222'];
+    const isTestCard = testCardNumbers.includes(cardNumber);
+
+    // If test card in development, simulate immediate success
+    if (isTestCard && process.env.NODE_ENV === 'development') {
+      console.log('Test card detected in development mode - simulating payment');
+      return {
+        success: true,
+        transactionId: `CARD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        message: "Card payment processed (test mode)",
+        method: "card",
+        last4: cardNumber.slice(-4),
+      };
+    }
+
     const result = await createStripePaymentIntent({
       amount,
       currency: "usd",
@@ -919,6 +1067,94 @@ async function processCardPayment(amount, cardDetails, metadata) {
         invoiceId: metadata.invoiceId || "",
         customerEmail: metadata.customerEmail || "",
         paymentMethod: "card",
+      },
+    });
+
+    if (result.simulated) {
+      // Development mode — auto-complete
+      return {
+        success: true,
+        transactionId: `CARD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        message: "Card payment processed (dev mode)",
+        method: "card",
+        last4: cardNumber.slice(-4),
+      };
+    }
+
+    // For real Stripe: return clientSecret so frontend confirms with Stripe.js
+    return {
+      success: true,
+      requiresClientConfirmation: true,
+      clientSecret: result.clientSecret,
+      paymentIntentId: result.paymentIntentId,
+      transactionId: result.paymentIntentId,
+      message: "Card payment intent created",
+      method: "card",
+      last4: cardNumber.slice(-4),
+    };
+  } catch (error) {
+    console.error("Card payment error:", error);
+    return {
+      success: false,
+      message: error.message || "Card payment processing failed",
+    };
+  }
+}
+
+/**
+ * Process bank transfer payment.
+ * Creates a pending payment transaction that requires manual verification.
+ */
+async function processBankTransferPayment(amount, bankDetails, metadata) {
+  try {
+    console.log("Processing bank transfer payment:", {
+      amount,
+      accountName: bankDetails.accountName,
+      accountNumber: bankDetails.accountNumber,
+      bankName: bankDetails.bankName,
+      transactionId: bankDetails.transactionId,
+    });
+
+    // Validate bank transfer details
+    if (!bankDetails.accountName || bankDetails.accountName.length < 3) {
+      return { success: false, message: "Valid account name is required" };
+    }
+    if (!bankDetails.accountNumber || bankDetails.accountNumber.length < 5) {
+      return { success: false, message: "Valid account number is required" };
+    }
+    if (!bankDetails.bankName || bankDetails.bankName.length < 3) {
+      return { success: false, message: "Valid bank name is required" };
+    }
+    if (!bankDetails.transactionId || bankDetails.transactionId.length < 5) {
+      return { success: false, message: "Valid transaction ID is required" };
+    }
+
+    // Generate unique transaction reference
+    const transactionRef = `BANK-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+
+    // Return success with pending status
+    // The actual payment transaction will be created with "pending" status
+    return {
+      success: true,
+      requiresVerification: true,
+      transactionId: transactionRef,
+      message: "Bank transfer details submitted. Payment will be verified within 24 hours.",
+      method: "bank",
+      bankDetails: {
+        accountName: bankDetails.accountName,
+        accountNumber: bankDetails.accountNumber,
+        bankName: bankDetails.bankName,
+        transactionId: bankDetails.transactionId,
+      },
+    };
+  } catch (error) {
+    console.error("Bank transfer processing error:", error);
+    return {
+      success: false,
+      message: error.message || "Bank transfer processing failed",
+    };
+  }
+}
       },
     });
 

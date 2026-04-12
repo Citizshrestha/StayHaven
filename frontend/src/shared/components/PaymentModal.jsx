@@ -32,6 +32,13 @@ const PaymentModal = ({
     expiry: '',
     cvv: ''
   });
+  const [bankTransferDetails, setBankTransferDetails] = useState({
+    accountName: '',
+    accountNumber: '',
+    bankName: '',
+    transactionId: '',
+    receiptFile: null
+  });
   const esewaFormRef = useRef(null);
 
   // Reset state when modal opens/closes
@@ -41,6 +48,7 @@ const PaymentModal = ({
       setErrorMessage('');
       setProcessing(false);
       setCardDetails({ number: '', name: '', expiry: '', cvv: '' });
+      setBankTransferDetails({ accountName: '', accountNumber: '', bankName: '', transactionId: '', receiptFile: null });
     }
   }, [isOpen]);
 
@@ -67,7 +75,7 @@ const PaymentModal = ({
       color: 'from-purple-500 to-purple-600',
       description: 'Pay with Khalti wallet',
       available: true,
-      badge: null
+      badge: 'Secure'
     },
     {
       id: 'card',
@@ -84,7 +92,8 @@ const PaymentModal = ({
       icon: '🏦',
       color: 'from-gray-500 to-gray-600',
       description: 'Direct bank transfer',
-      available: false // Coming soon
+      available: true,
+      badge: null
     }
   ];
 
@@ -136,6 +145,27 @@ const PaymentModal = ({
     return true;
   };
 
+  // Validate bank transfer details
+  const validateBankTransferDetails = () => {
+    if (!bankTransferDetails.accountName || bankTransferDetails.accountName.length < 3) {
+      toast.error('Please enter account holder name');
+      return false;
+    }
+    if (!bankTransferDetails.accountNumber || bankTransferDetails.accountNumber.length < 5) {
+      toast.error('Please enter valid account number');
+      return false;
+    }
+    if (!bankTransferDetails.bankName || bankTransferDetails.bankName.length < 3) {
+      toast.error('Please enter bank name');
+      return false;
+    }
+    if (!bankTransferDetails.transactionId || bankTransferDetails.transactionId.length < 5) {
+      toast.error('Please enter transaction/reference ID');
+      return false;
+    }
+    return true;
+  };
+
   /**
    * Handle redirect-based payments (Khalti URL redirect, eSewa form POST)
    */
@@ -180,6 +210,10 @@ const PaymentModal = ({
       return;
     }
 
+    if (selectedMethod === 'bank' && !validateBankTransferDetails()) {
+      return;
+    }
+
     setProcessing(true);
     setErrorMessage('');
     let isRedirecting = false;
@@ -214,6 +248,18 @@ const PaymentModal = ({
             cvv: cardDetails.cvv
           }
         });
+      } else if (selectedMethod === 'bank') {
+        paymentResult = await payOrder(invoice._id, {
+          amount,
+          currency,
+          paymentMethod: 'bank',
+          bankTransferDetails: {
+            accountName: bankTransferDetails.accountName,
+            accountNumber: bankTransferDetails.accountNumber,
+            bankName: bankTransferDetails.bankName,
+            transactionId: bankTransferDetails.transactionId
+          }
+        });
       }
 
       // Guard against undefined result
@@ -225,6 +271,19 @@ const PaymentModal = ({
       if (paymentResult.requiresRedirect) {
         isRedirecting = true;
         handleRedirectPayment(paymentResult);
+        return;
+      }
+
+      // Handle bank transfer (requires manual verification)
+      if (paymentResult.requiresVerification) {
+        setPaymentStatus('success');
+        toast.success('Bank transfer details submitted successfully!');
+        toast.info('Your payment will be verified within 24 hours', { autoClose: 5000 });
+        
+        setTimeout(() => {
+          onPaymentSuccess(paymentResult);
+          onClose();
+        }, 2000);
         return;
       }
 
@@ -503,6 +562,109 @@ const PaymentModal = ({
                           />
                         </div>
                       </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Bank Transfer Form */}
+              {selectedMethod === 'bank' && (
+                <div className="space-y-4 animate-slideDown">
+                  <div className="bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-800 dark:to-blue-900/20 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Shield className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                      <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                        Bank Transfer Details
+                      </span>
+                    </div>
+
+                    {/* Hotel Bank Account Info */}
+                    <div className="bg-white dark:bg-gray-900 rounded-lg p-4 mb-4 border border-blue-200 dark:border-blue-800">
+                      <h4 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-3">Transfer to:</h4>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600 dark:text-gray-400">Account Name:</span>
+                          <span className="font-semibold text-gray-900 dark:text-gray-100">StayHaven Hotels Pvt. Ltd.</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600 dark:text-gray-400">Bank:</span>
+                          <span className="font-semibold text-gray-900 dark:text-gray-100">Nabil Bank Limited</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600 dark:text-gray-400">Account Number:</span>
+                          <span className="font-mono font-bold text-blue-600 dark:text-blue-400">0123456789012345</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600 dark:text-gray-400">Amount:</span>
+                          <span className="font-bold text-lg text-teal-600 dark:text-teal-400">Rs. {amount.toLocaleString()}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Transfer Proof Form */}
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Your Account Name <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={bankTransferDetails.accountName}
+                          onChange={(e) => setBankTransferDetails({ ...bankTransferDetails, accountName: e.target.value })}
+                          placeholder="John Doe"
+                          className="w-full px-4 py-3 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-gray-900 dark:text-gray-100"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Your Account Number <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={bankTransferDetails.accountNumber}
+                          onChange={(e) => setBankTransferDetails({ ...bankTransferDetails, accountNumber: e.target.value.replace(/\D/g, '') })}
+                          placeholder="1234567890"
+                          className="w-full px-4 py-3 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-gray-900 dark:text-gray-100"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Your Bank Name <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={bankTransferDetails.bankName}
+                          onChange={(e) => setBankTransferDetails({ ...bankTransferDetails, bankName: e.target.value })}
+                          placeholder="e.g., Nabil Bank, NIC Asia Bank"
+                          className="w-full px-4 py-3 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-gray-900 dark:text-gray-100"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Transaction/Reference ID <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={bankTransferDetails.transactionId}
+                          onChange={(e) => setBankTransferDetails({ ...bankTransferDetails, transactionId: e.target.value.toUpperCase() })}
+                          placeholder="TXN123456789"
+                          className="w-full px-4 py-3 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-gray-900 dark:text-gray-100 font-mono"
+                        />
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          Enter the transaction ID from your bank transfer receipt
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Important Notice */}
+                    <div className="mt-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                      <p className="text-xs text-amber-800 dark:text-amber-200">
+                        <strong>Important:</strong> Your payment will be verified manually within 24 hours. 
+                        You will receive a confirmation email once verified.
+                      </p>
                     </div>
                   </div>
                 </div>
