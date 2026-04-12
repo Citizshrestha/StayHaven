@@ -1,6 +1,6 @@
 /**
  * Guest Dashboard - Billing View
- * Invoice list, payment history, integrated payment modal
+ * Invoice list, payment history, integrated with PaymentModal
  */
 
 import React, { useEffect, useState, useCallback } from 'react';
@@ -24,8 +24,8 @@ const BillingView = () => {
   const [loading, setLoading] = useState(true);
   const [invoices, setInvoices] = useState([]);
   const [outstandingBalance, setOutstandingBalance] = useState(0);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   useEffect(() => {
     loadInvoices();
@@ -59,11 +59,11 @@ const BillingView = () => {
 
   // Handle real-time payment confirmation
   const handlePaymentConfirmed = useCallback((payload) => {
-    console.log('💰 Payment confirmed:', payload);
-    toast.success(`Payment confirmed! Transaction ID: ${payload?.transactionId || '--'}`, {
+    console.log('✅ Payment confirmed:', payload);
+    toast.success(`✅ Payment confirmed! Transaction ID: ${payload?.transactionId || '--'}`, {
       autoClose: 5000,
     });
-    // Refresh invoices to update status
+    // Refresh invoices to show updated payment status
     loadInvoices();
   }, []);
 
@@ -83,17 +83,18 @@ const BillingView = () => {
     setShowPaymentModal(true);
   };
 
-  const handlePaymentSuccess = async (paymentData) => {
-    console.log('Payment successful:', paymentData);
-    // Refresh invoices to show updated status
-    await loadInvoices();
+  const handlePaymentSuccess = (paymentResult) => {
+    console.log('Payment successful:', paymentResult);
+    toast.success('Payment completed successfully!');
     setShowPaymentModal(false);
     setSelectedInvoice(null);
+    // Refresh invoices to show updated status
+    loadInvoices();
   };
 
   const handlePaymentError = (error) => {
     console.error('Payment error:', error);
-    // Modal will handle error display
+    // Error toast is already shown by PaymentModal
   };
 
   const statusColors = {
