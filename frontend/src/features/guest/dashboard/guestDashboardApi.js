@@ -92,9 +92,9 @@ export const getGuestInvoices = (params = {}) =>
   axiosClient.get(`${BASE}/invoices`, { params }).then((r) => r.data);
 
 /**
- * Pay an order/invoice via Stripe.
+ * Pay an order/invoice via payment gateway.
  * @param {string} orderId  – the order or invoice ID
- * @param {object} payData  – { amount?, currency?, paymentMethodId? }
+ * @param {object} payData  – { amount?, currency?, paymentMethod, cardDetails? }
  */
 export const payOrder = (orderId, payData) =>
   axiosClient.post(`${BASE}/orders/${orderId}/pay`, payData).then((r) => r.data);
@@ -102,6 +102,18 @@ export const payOrder = (orderId, payData) =>
 /** Confirm a Stripe payment after the frontend completes it */
 export const confirmPayment = (paymentIntentId, orderId) =>
   axiosClient.post(`${BASE}/payments/confirm`, { paymentIntentId, orderId }).then((r) => r.data);
+
+/** Verify Khalti payment after redirect back from Khalti portal */
+export const verifyKhaltiPayment = (pidx, orderId) =>
+  axiosClient.post(`${BASE}/payments/verify-khalti`, { pidx, orderId }).then((r) => r.data);
+
+/** Verify eSewa payment after redirect back from eSewa */
+export const verifyEsewaPayment = (encodedData, orderId) =>
+  axiosClient.post(`${BASE}/payments/verify-esewa`, { encodedData, orderId }).then((r) => r.data);
+
+/** Get available payment gateway configuration */
+export const getPaymentGatewayConfig = () =>
+  axiosClient.get(`${BASE}/payments/config`).then((r) => r.data);
 
 /* ════════════════════════════════════════════
    PROFILE

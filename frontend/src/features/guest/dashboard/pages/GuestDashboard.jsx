@@ -18,8 +18,32 @@ import BillingView from "./BillingView.jsx";
 import ProfileView from "./ProfileView.jsx";
 import RequestsView from "./RequestsView.jsx";
 
+// Read initial view from URL params (for payment gateway redirects)
+function getInitialView() {
+  try {
+    const fullUrl = window.location.href;
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab');
+    let paymentStatus = params.get('payment_status');
+    
+    // Fallback: eSewa creates a double-? URL, so payment_status might not parse
+    if (!paymentStatus && fullUrl.includes('payment_status=')) {
+      const match = fullUrl.match(/[?&]payment_status=([^&?]+)/);
+      if (match) paymentStatus = match[1];
+    }
+    
+    // If there's a payment callback, always go to billing
+    if (paymentStatus) return 'billing';
+    // If tab is explicitly requested
+    if (tab && ['dashboard', 'bookings', 'room-service', 'billing', 'profile', 'requests'].includes(tab)) {
+      return tab;
+    }
+  } catch (e) { /* ignore */ }
+  return 'dashboard';
+}
+
 const initialState = {
-  activeView: "dashboard",
+  activeView: getInitialView(),
   sidebarCollapsed: false,
   isMobile: false,
 };

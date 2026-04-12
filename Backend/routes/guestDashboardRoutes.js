@@ -21,6 +21,9 @@ import {
   getUserInvoices,
   payOrder,
   confirmOrderPayment,
+  verifyKhaltiCallback,
+  verifyEsewaPaymentCallback,
+  getPaymentConfig,
   getProfile,
   updateProfile,
   submitRequest,
@@ -76,6 +79,9 @@ router.post("/orders/:id/cancel", cancelOrder);
 router.get("/invoices", getUserInvoices);
 router.post("/orders/:id/pay", payOrder);
 router.post("/payments/confirm", confirmOrderPayment);
+router.post("/payments/verify-khalti", verifyKhaltiCallback);
+router.post("/payments/verify-esewa", verifyEsewaPaymentCallback);
+router.get("/payments/config", getPaymentConfig);
 
 // ═════════════════════════════════════════════════════════
 // PROFILE

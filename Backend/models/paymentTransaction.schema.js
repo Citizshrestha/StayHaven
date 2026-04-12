@@ -27,7 +27,7 @@ const paymentTransactionSchema = new mongoose.Schema(
     currency: { type: String, default: "USD", enum: ["USD", "EUR", "GBP", "INR", "NPR"] },
     method: {
       type: String,
-      enum: ["cash", "credit-card", "debit-card", "bank-transfer", "upi", "online"],
+      enum: ["cash", "credit-card", "debit-card", "bank-transfer", "upi", "online", "khalti", "esewa", "card"],
       default: "cash",
     },
     reference: { type: String, trim: true }, // external ref / receipt number

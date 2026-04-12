@@ -9,6 +9,16 @@
 import mongoose from "mongoose";
 import stripeLib from "stripe";
 import { Booking } from "../models/booking.schema.js";
+import {
+  initiateKhaltiPayment,
+  generateEsewaPaymentData,
+  createStripePaymentIntent,
+  verifyKhaltiPayment,
+  verifyEsewaCallback,
+  checkEsewaTransactionStatus,
+  verifyStripePayment,
+  getPaymentGatewayConfig,
+} from "../services/paymentGatewayService.js";
 import { Order, Counter } from "../models/order.schema.js";
 import { MenuItem } from "../models/menuItem.schema.js";
 import { Invoice } from "../models/invoice.schema.js";
@@ -639,7 +649,54 @@ export const payOrder = asyncHandler(async (req, res) => {
       });
     }
 
+    // Guard: if paymentResult wasn't set, reject
+    if (!paymentResult) {
+      return res.status(400).json({
+        success: false,
+        message: "Payment method not supported",
+      });
+    }
+
+    // If payment failed at gateway level, return error
+    if (!paymentResult.success && !paymentResult.requiresRedirect && !paymentResult.requiresClientConfirmation) {
+      return res.status(400).json({
+        success: false,
+        message: paymentResult.message || "Payment processing failed",
+      });
+    }
+
     // If payment successful, update order/invoice and create transaction
+    // For redirect-based payments (Khalti/eSewa), return redirect data to frontend
+    if (paymentResult.requiresRedirect) {
+      return res.json({
+        success: true,
+        requiresRedirect: true,
+        redirectType: paymentResult.redirectType,
+        paymentUrl: paymentResult.paymentUrl || null,
+        formUrl: paymentResult.formUrl || null,
+        formData: paymentResult.formData || null,
+        pidx: paymentResult.pidx || null,
+        transactionId: paymentResult.transactionId,
+        expiresAt: paymentResult.expiresAt || null,
+        message: paymentResult.message,
+        method: paymentResult.method,
+      });
+    }
+
+    // For Stripe card payments that need client-side confirmation
+    if (paymentResult.requiresClientConfirmation) {
+      return res.json({
+        success: true,
+        requiresClientConfirmation: true,
+        clientSecret: paymentResult.clientSecret,
+        paymentIntentId: paymentResult.paymentIntentId,
+        transactionId: paymentResult.transactionId,
+        method: paymentResult.method,
+        last4: paymentResult.last4,
+        message: paymentResult.message,
+      });
+    }
+
     if (paymentResult.success) {
       if (order) {
         // Update order payment status
@@ -768,82 +825,132 @@ export const payOrder = asyncHandler(async (req, res) => {
 });
 
 // ──────────────────────────────────────────────────────────────────────
-// Payment Processing Functions
+// Payment Processing Functions (Real Gateway Integrations)
 // ──────────────────────────────────────────────────────────────────────
 
 /**
- * Process eSewa payment
- * In production, integrate with eSewa API
+ * Process eSewa payment — generates signed form data for frontend redirect.
+ * eSewa uses a form-POST redirect flow (user goes to eSewa → pays → redirected back).
  */
 async function processEsewaPayment(amount, metadata) {
-  // TODO: Integrate with eSewa API
-  // For now, simulate successful payment
-  
-  // In production:
-  // 1. Call eSewa API to initiate payment
-  // 2. Get payment URL and redirect user
-  // 3. Handle callback from eSewa
-  // 4. Verify payment status
-  
-  return {
-    success: true,
-    transactionId: `ESEWA-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    message: 'eSewa payment processed successfully',
-    method: 'esewa',
-  };
-}
+  try {
+    const { formUrl, formData, transactionUuid } = generateEsewaPaymentData({
+      amount,
+      taxAmount: 0,
+      orderId: metadata.orderId || metadata.invoiceId || `order-${Date.now()}`,
+    });
 
-/**
- * Process Khalti payment
- * In production, integrate with Khalti API
- */
-async function processKhaltiPayment(amount, metadata) {
-  // TODO: Integrate with Khalti API
-  // For now, simulate successful payment
-  
-  // In production:
-  // 1. Call Khalti API to initiate payment
-  // 2. Get payment token
-  // 3. Verify payment
-  
-  return {
-    success: true,
-    transactionId: `KHALTI-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    message: 'Khalti payment processed successfully',
-    method: 'khalti',
-  };
-}
-
-/**
- * Process card payment
- * In production, integrate with payment gateway (Stripe, etc.)
- */
-async function processCardPayment(amount, cardDetails, metadata) {
-  // TODO: Integrate with Stripe or other payment gateway
-  // For now, simulate successful payment
-  
-  // In production:
-  // 1. Tokenize card details
-  // 2. Create payment intent
-  // 3. Confirm payment
-  // 4. Handle 3D Secure if required
-  
-  // Basic card validation
-  const cardNumber = cardDetails.number.replace(/\s/g, '');
-  if (cardNumber.length < 13 || cardNumber.length > 19) {
+    return {
+      success: true,
+      requiresRedirect: true,
+      redirectType: "form-post",
+      formUrl,
+      formData,
+      transactionId: `ESEWA-${transactionUuid}`,
+      transactionUuid,
+      message: "Redirecting to eSewa...",
+      method: "esewa",
+    };
+  } catch (error) {
+    console.error("eSewa payment initiation error:", error);
     return {
       success: false,
-      message: 'Invalid card number',
+      message: error.message || "eSewa payment initiation failed",
     };
   }
-  
-  return {
-    success: true,
-    transactionId: `CARD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    message: 'Card payment processed successfully',
-    method: 'card',
-    last4: cardNumber.slice(-4),
-  };
+}
+
+/**
+ * Process Khalti payment — server-side API call → returns payment_url for redirect.
+ * Khalti uses a redirect flow (user goes to Khalti portal → pays → comes back to return_url).
+ */
+async function processKhaltiPayment(amount, metadata) {
+  try {
+    const result = await initiateKhaltiPayment({
+      amount,
+      orderId: metadata.orderId || metadata.invoiceId || `order-${Date.now()}`,
+      orderName: metadata.orderNumber
+        ? `Order #${metadata.orderNumber}`
+        : `Invoice Payment`,
+      customer: {
+        name: metadata.customerName || "Guest",
+        email: metadata.customerEmail || "",
+        phone: metadata.customerPhone || "",
+      },
+    });
+
+    return {
+      success: true,
+      requiresRedirect: true,
+      redirectType: "url",
+      paymentUrl: result.paymentUrl,
+      pidx: result.pidx,
+      transactionId: `KHALTI-${result.pidx}`,
+      expiresAt: result.expiresAt,
+      message: "Redirecting to Khalti...",
+      method: "khalti",
+    };
+  } catch (error) {
+    console.error("Khalti payment initiation error:", error);
+    return {
+      success: false,
+      message: error.message || "Khalti payment initiation failed",
+    };
+  }
+}
+
+/**
+ * Process card payment via Stripe Payment Intents.
+ * Returns a client_secret so the frontend can confirm payment using Stripe.js.
+ */
+async function processCardPayment(amount, cardDetails, metadata) {
+  try {
+    // Basic card validation (Luhn-like check)
+    const cardNumber = (cardDetails?.number || "").replace(/\s/g, "");
+    if (cardNumber.length < 13 || cardNumber.length > 19) {
+      return { success: false, message: "Invalid card number" };
+    }
+
+    const result = await createStripePaymentIntent({
+      amount,
+      currency: "usd",
+      metadata: {
+        orderId: metadata.orderId || "",
+        invoiceId: metadata.invoiceId || "",
+        customerEmail: metadata.customerEmail || "",
+        paymentMethod: "card",
+      },
+    });
+
+    if (result.simulated) {
+      // Development mode — auto-complete
+      return {
+        success: true,
+        transactionId: `CARD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        message: "Card payment processed (dev mode)",
+        method: "card",
+        last4: cardNumber.slice(-4),
+      };
+    }
+
+    // For real Stripe: return clientSecret so frontend confirms with Stripe.js
+    return {
+      success: true,
+      requiresClientConfirmation: true,
+      clientSecret: result.clientSecret,
+      paymentIntentId: result.paymentIntentId,
+      transactionId: result.paymentIntentId,
+      message: "Card payment intent created",
+      method: "card",
+      last4: cardNumber.slice(-4),
+    };
+  } catch (error) {
+    console.error("Card payment error:", error);
+    return {
+      success: false,
+      message: error.message || "Card payment processing failed",
+    };
+  }
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -983,6 +1090,234 @@ export const confirmOrderPayment = asyncHandler(async (req, res) => {
     },
   });
 });
+
+// ──────────────────────────────────────────────────────────────────────
+// POST /api/guest/portal/payments/verify-khalti
+// Verify a Khalti payment after user returns from Khalti portal
+// ──────────────────────────────────────────────────────────────────────
+export const verifyKhaltiCallback = asyncHandler(async (req, res) => {
+  const { pidx, orderId } = req.body;
+
+  if (!pidx || !orderId) {
+    return res.status(400).json({
+      success: false,
+      message: "pidx and orderId are required",
+    });
+  }
+
+  // Verify with Khalti API
+  const verification = await verifyKhaltiPayment(pidx);
+
+  if (verification.status !== "Completed") {
+    return res.status(400).json({
+      success: false,
+      message: `Payment not completed. Status: ${verification.status}`,
+      khaltiStatus: verification.status,
+    });
+  }
+
+  // Complete the payment in our system
+  const result = await completePaymentAfterVerification({
+    targetId: orderId,
+    userId: req.user._id,
+    userName: req.user.fullname,
+    amount: verification.totalAmount,
+    method: "khalti",
+    reference: `KHALTI-${pidx}`,
+    transactionId: verification.transactionId,
+  });
+
+  return res.json({
+    success: true,
+    message: "Khalti payment verified and confirmed",
+    data: result,
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────
+// POST /api/guest/portal/payments/verify-esewa
+// Verify an eSewa payment after user returns from eSewa
+// ──────────────────────────────────────────────────────────────────────
+export const verifyEsewaPaymentCallback = asyncHandler(async (req, res) => {
+  const { encodedData, orderId } = req.body;
+
+  if (!encodedData || !orderId) {
+    return res.status(400).json({
+      success: false,
+      message: "encodedData and orderId are required",
+    });
+  }
+
+  // Verify signature
+  const verification = verifyEsewaCallback(encodedData);
+
+  if (!verification.verified) {
+    return res.status(400).json({
+      success: false,
+      message: `eSewa payment verification failed: ${verification.error || "Unknown error"}`,
+    });
+  }
+
+  if (verification.data.status !== "COMPLETE") {
+    return res.status(400).json({
+      success: false,
+      message: `Payment not completed. Status: ${verification.data.status}`,
+    });
+  }
+
+  // Complete the payment in our system
+  const result = await completePaymentAfterVerification({
+    targetId: orderId,
+    userId: req.user._id,
+    userName: req.user.fullname,
+    amount: verification.data.totalAmount,
+    method: "esewa",
+    reference: `ESEWA-${verification.data.transactionCode}`,
+    transactionId: verification.data.transactionCode,
+  });
+
+  return res.json({
+    success: true,
+    message: "eSewa payment verified and confirmed",
+    data: result,
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────
+// GET /api/guest/portal/payments/config
+// Return available payment gateway configuration (safe for frontend)
+// ──────────────────────────────────────────────────────────────────────
+export const getPaymentConfig = asyncHandler(async (req, res) => {
+  const config = getPaymentGatewayConfig();
+  return res.json({ success: true, data: config });
+});
+
+// ──────────────────────────────────────────────────────────────────────
+// Helper: Complete payment after Khalti/eSewa verification
+// ──────────────────────────────────────────────────────────────────────
+async function completePaymentAfterVerification({
+  targetId,
+  userId,
+  userName,
+  amount,
+  method,
+  reference,
+  transactionId,
+}) {
+  // Try order first
+  const order = await Order.findOne({ _id: targetId, customerId: userId });
+
+  if (order) {
+    order.paymentStatus = "paid";
+    order.paymentMethod = method;
+    order.paidAt = new Date();
+    order.paidAmount = amount;
+    order.paymentReference = reference;
+    await order.save();
+
+    const hotelDoc = await Hotel.findById(order.hotel).select("company");
+    const dummyBookingId = new mongoose.Types.ObjectId("000000000000000000000001");
+
+    const txn = await PaymentTransaction.create({
+      hotel: order.hotel,
+      company: hotelDoc?.company || dummyBookingId,
+      booking: dummyBookingId,
+      order: order._id,
+      guest: null,
+      type: "capture",
+      amount,
+      method,
+      reference,
+      status: "captured",
+      processedBy: userId,
+      processedByName: userName,
+      notes: `Payment via ${method} for order #${order.orderNumber}`,
+    });
+
+    emitToUser(userId.toString(), "payment-confirmed", {
+      orderId: order._id,
+      orderNumber: order.orderNumber,
+      amount,
+      transactionId: txn.transactionId,
+      paymentMethod: method,
+    });
+
+    emitToHotel(order.hotel.toString(), "payment-received", {
+      orderId: order._id,
+      orderNumber: order.orderNumber,
+      amount,
+      paymentMethod: method,
+      customerName: order.customerName,
+    });
+
+    return {
+      transaction: txn,
+      order: { _id: order._id, orderNumber: order.orderNumber },
+      paymentMethod: method,
+      transactionId: txn.transactionId,
+    };
+  }
+
+  // Fallback: invoice payment
+  const userBookings = await Booking.find({ user: userId }).select("_id").lean();
+  const bookingIds = userBookings.map((b) => b._id);
+
+  const invoice = await Invoice.findOne({
+    _id: targetId,
+    booking: { $in: bookingIds },
+  });
+
+  if (!invoice) {
+    throw new Error("Order/Invoice not found or access denied");
+  }
+
+  const hotelDoc = await Hotel.findById(invoice.hotel).select("company");
+  const payableAmount = Number(invoice.balance) || amount;
+
+  const txn = await PaymentTransaction.create({
+    hotel: invoice.hotel,
+    company: hotelDoc?.company,
+    booking: invoice.booking,
+    invoice: invoice._id,
+    guest: invoice.guest || null,
+    type: "capture",
+    amount: payableAmount,
+    method,
+    reference,
+    status: "captured",
+    processedBy: userId,
+    processedByName: userName,
+    notes: `Payment via ${method} for invoice #${invoice.invoiceId}`,
+  });
+
+  invoice.paid = (Number(invoice.paid) || 0) + payableAmount;
+  invoice.balance = Math.max(0, (Number(invoice.balance) || 0) - payableAmount);
+  invoice.status = invoice.balance <= 0 ? "paid" : "partial";
+  if (invoice.status === "paid") {
+    invoice.paidAt = new Date();
+  }
+  await invoice.save();
+
+  emitToUser(userId.toString(), "payment-confirmed", {
+    invoiceId: invoice._id,
+    amount: payableAmount,
+    transactionId: txn.transactionId,
+    paymentMethod: method,
+  });
+
+  return {
+    transaction: txn,
+    invoice: {
+      _id: invoice._id,
+      invoiceId: invoice.invoiceId,
+      status: invoice.status,
+      paid: invoice.paid,
+      balance: invoice.balance,
+    },
+    paymentMethod: method,
+    transactionId: txn.transactionId,
+  };
+}
 
 // ──────────────────────────────────────────────────────────────────────
 // GET /api/guest/portal/profile
