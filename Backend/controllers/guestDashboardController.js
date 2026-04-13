@@ -1155,39 +1155,6 @@ async function processBankTransferPayment(amount, bankDetails, metadata) {
     };
   }
 }
-      },
-    });
-
-    if (result.simulated) {
-      // Development mode — auto-complete
-      return {
-        success: true,
-        transactionId: `CARD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        message: "Card payment processed (dev mode)",
-        method: "card",
-        last4: cardNumber.slice(-4),
-      };
-    }
-
-    // For real Stripe: return clientSecret so frontend confirms with Stripe.js
-    return {
-      success: true,
-      requiresClientConfirmation: true,
-      clientSecret: result.clientSecret,
-      paymentIntentId: result.paymentIntentId,
-      transactionId: result.paymentIntentId,
-      message: "Card payment intent created",
-      method: "card",
-      last4: cardNumber.slice(-4),
-    };
-  } catch (error) {
-    console.error("Card payment error:", error);
-    return {
-      success: false,
-      message: error.message || "Card payment processing failed",
-    };
-  }
-}
 
 // ──────────────────────────────────────────────────────────────────────
 // POST /api/guest/portal/payments/confirm
