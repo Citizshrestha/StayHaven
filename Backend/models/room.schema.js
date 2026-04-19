@@ -83,7 +83,6 @@ const roomSchema = new mongoose.Schema({
     // QR Code fields
     uniqueToken: {
         type: String,
-        unique: true,
         sparse: true, // Allows null values while maintaining uniqueness for non-null
     },
     qrCodeData: {
@@ -127,8 +126,6 @@ roomSchema.index({ roomName: "text", roomNumber: "text", type: "text" });
 
 // QR code lookups
 roomSchema.index({ uniqueToken: 1 }, { unique: true, sparse: true });
-
-// Note: uniqueToken index is already created by the unique: true field option (sparse)
 
 // Pre-save middleware to generate unique token if not exists
 roomSchema.pre('save', function(next) {

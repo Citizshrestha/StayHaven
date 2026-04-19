@@ -30,6 +30,9 @@ import { apiLimiter } from "./middleware/rateLimiter.js";
 import { auditMiddleware } from "./middleware/auditLogger.js";
 import { initSentry, sentryRequestHandler, sentryTracingHandler, sentryErrorHandler } from "./config/sentry.js";
 import { errorHandler, notFound } from "./middleware/errorHandler.js";
+import { createLogger } from "./utils/logger.js";
+
+const logger = createLogger('Server');
 
 // Initialize cloudinary with env vars
 initCloudinary();
@@ -57,7 +60,7 @@ const seedRoles = async () => {
     "staff",
     "guest",
     "owner",
-    "chief", 
+    "chief",
     "waiter",
     "manager",
     "receptionist",
@@ -68,12 +71,12 @@ const seedRoles = async () => {
     for (let roleName of roles) {
       if (!(await Role.findOne({ name: roleName }))) {
         await new Role({ name: roleName }).save();
-        console.log(`✅ Role '${roleName}' created`);
+        logger.debug(`Role '${roleName}' created`);
       }
     }
-    console.log("✅ All roles seeded successfully");
+    logger.info("All roles seeded successfully");
   } catch (err) {
-    console.error("❌ Error seeding roles:", err);
+    logger.error("Error seeding roles", { error: err.message });
   }
 };
 seedRoles();
@@ -213,19 +216,17 @@ const startServer = async () => {
   if (!PORT_FROM_ENV) {
     portToUse = await findAvailablePort(DEFAULT_PORT);
     if (portToUse !== DEFAULT_PORT) {
-      console.warn(
-        `⚠️ Port ${DEFAULT_PORT} is in use. Starting backend on available port ${portToUse} instead.`
-      );
+      logger.warn(`Port ${DEFAULT_PORT} is in use. Starting backend on available port ${portToUse} instead.`);
     }
   }
 
   httpServer.listen(portToUse, () => {
-    console.log(`🚀 Server is running on port ${portToUse}`);
-    console.log(`🔌 WebSocket server ready for connections`);
+    logger.info(`Server is running on port ${portToUse}`);
+    logger.info("WebSocket server ready for connections");
   });
 };
 
 startServer().catch((err) => {
-  console.error("❌ Failed to start server:", err);
+  logger.error("Failed to start server", { error: err.message, stack: err.stack });
   process.exit(1);
 });

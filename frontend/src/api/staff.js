@@ -1,4 +1,7 @@
 import axiosClient from "../axiosClient";
+import { createLogger } from "../core/utils/logger.js";
+
+const logger = createLogger('StaffAPI');
 
 // Staff Login
 export const staffLogin = async (email, password) => {
@@ -32,7 +35,7 @@ export const staffLogout = async () => {
   try {
     await axiosClient.post("/api/staff/logout");
   } catch (error) {
-    console.error("Logout error:", error);
+    logger.error("Logout error:", error);
   } finally {
     // Clear all staff data
     localStorage.removeItem("staffAccessToken");

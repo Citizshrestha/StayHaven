@@ -1193,7 +1193,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                           }}
                         />
 
-                        {/* TODO: Timeline content */}
+                        {/* Timeline content */}
                         <div style={{ flex: 1 }}>
                           <div
                             style={{

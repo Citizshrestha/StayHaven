@@ -1,14 +1,13 @@
 /**
  * Guest Dashboard - Billing View
- * Invoice list, payment history, integrated with PaymentModal
+ * Invoice list, payment history, Stripe integration
  */
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { getGuestInvoices } from "../guestDashboardApi";
+import { getGuestInvoices, payOrder, confirmPayment } from "../guestDashboardApi";
 import { useSocket } from '../../../../core/context/SocketContext';
 import { useTheme } from '../../../../core/hooks/useTheme';
 import { toast } from 'react-toastify';
-import PaymentModal from '../../../../shared/components/PaymentModal';
 import {
   CreditCard,
   DollarSign,
@@ -24,8 +23,7 @@ const BillingView = () => {
   const [loading, setLoading] = useState(true);
   const [invoices, setInvoices] = useState([]);
   const [outstandingBalance, setOutstandingBalance] = useState(0);
-  const [selectedInvoice, setSelectedInvoice] = useState(null);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [processingPayment, setProcessingPayment] = useState(null);
 
   useEffect(() => {
     loadInvoices();
@@ -57,44 +55,68 @@ const BillingView = () => {
     loadInvoices();
   }, []);
 
-  // Handle real-time payment confirmation
-  const handlePaymentConfirmed = useCallback((payload) => {
-    console.log('✅ Payment confirmed:', payload);
-    toast.success(`✅ Payment confirmed! Transaction ID: ${payload?.transactionId || '--'}`, {
-      autoClose: 5000,
-    });
-    // Refresh invoices to show updated payment status
-    loadInvoices();
-  }, []);
-
-  // Subscribe to bill-received and payment-confirmed events
+  // Subscribe to bill-received events
   useEffect(() => {
     if (!subscribe || !isConnected) return;
     const unsubBill = subscribe('bill-received', handleBillReceived);
-    const unsubPayment = subscribe('payment-confirmed', handlePaymentConfirmed);
     return () => {
       unsubBill();
-      unsubPayment();
     };
-  }, [subscribe, isConnected, handleBillReceived, handlePaymentConfirmed]);
+  }, [subscribe, isConnected, handleBillReceived]);
 
-  const handlePayNow = (invoice) => {
-    setSelectedInvoice(invoice);
-    setShowPaymentModal(true);
-  };
+  const handlePayNow = async (invoice) => {
+    if (processingPayment) return;
 
-  const handlePaymentSuccess = (paymentResult) => {
-    console.log('Payment successful:', paymentResult);
-    toast.success('Payment completed successfully!');
-    setShowPaymentModal(false);
-    setSelectedInvoice(null);
-    // Refresh invoices to show updated status
-    loadInvoices();
-  };
+    try {
+      setProcessingPayment(invoice._id);
 
-  const handlePaymentError = (error) => {
-    console.error('Payment error:', error);
-    // Error toast is already shown by PaymentModal
+      // If dev mode (no Stripe key configured), simulate payment
+      const stripeKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
+      if (!stripeKey) {
+        // Simulate payment — call confirmPayment which handles dev-mode recording
+        const res = await confirmPayment(`simulated_pi_${Date.now()}`, invoice._id);
+        if (res?.success) {
+          toast.success('Payment successful (simulated)');
+          loadInvoices();
+          return;
+        }
+        throw new Error(res?.message || 'Payment recording failed');
+      }
+
+      // Real Stripe payment
+      const res = await payOrder(invoice._id, {
+        amount: invoice.balance,
+        currency: 'usd',
+      });
+
+      if (!res?.success) {
+        throw new Error(res?.message || 'Payment initiation failed');
+      }
+
+      if (res.data?.simulated) {
+        toast.success('Payment successful (simulated)');
+        loadInvoices();
+        return;
+      }
+
+      // Client-secret-based Stripe flow
+      const stripe = await import('@stripe/stripe-js').then(m => m.loadStripe(stripeKey));
+      const { error } = await stripe.confirmPayment({
+        clientSecret: res.data.clientSecret,
+        confirmParams: {
+          return_url: `${window.location.origin}/guest-dashboard/billing?payment=success`,
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+    } catch (error) {
+      console.error('Payment error:', error);
+      toast.error(error.message || 'Payment failed');
+    } finally {
+      setProcessingPayment(null);
+    }
   };
 
   const statusColors = {
@@ -125,7 +147,7 @@ const BillingView = () => {
             {outstandingBalance > 0 && (
               <div className="bg-linear-to-r from-red-500 to-pink-500 text-white px-6 py-3 rounded-xl shadow-lg">
                 <p className="text-sm">Outstanding Balance</p>
-                <p className="text-2xl font-bold">Rs. {outstandingBalance.toLocaleString()}</p>
+                <p className="text-2xl font-bold">${outstandingBalance.toFixed(2)}</p>
               </div>
             )}
           </div>
@@ -145,23 +167,12 @@ const BillingView = () => {
                 key={invoice._id}
                 invoice={invoice}
                 onPay={() => handlePayNow(invoice)}
+                processing={processingPayment === invoice._id}
               />
             ))}
           </div>
         )}
       </div>
-
-      {/* Payment Modal */}
-      <PaymentModal
-        isOpen={showPaymentModal}
-        onClose={() => {
-          setShowPaymentModal(false);
-          setSelectedInvoice(null);
-        }}
-        invoice={selectedInvoice}
-        onPaymentSuccess={handlePaymentSuccess}
-        onPaymentError={handlePaymentError}
-      />
     </div>
   );
 };
@@ -170,7 +181,7 @@ const BillingView = () => {
 // Sub-components
 // ─────────────────────────────────────────
 
-const InvoiceCard = ({ invoice, onPay }) => {
+const InvoiceCard = ({ invoice, onPay, processing }) => {
   const statusColors = {
     paid: 'bg-green-100 text-green-700',
     pending: 'bg-yellow-100 text-yellow-700',
@@ -199,11 +210,11 @@ const InvoiceCard = ({ invoice, onPay }) => {
         </div>
         <div>
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Amount</p>
-          <p className="font-bold text-lg text-gray-900 dark:text-gray-100">Rs. {totalCharges.toLocaleString()}</p>
+          <p className="font-bold text-lg text-gray-900 dark:text-gray-100">${totalCharges.toFixed(2)}</p>
         </div>
         <div>
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Balance</p>
-          <p className="font-bold text-lg text-red-600">Rs. {(invoice.balance ?? 0).toLocaleString()}</p>
+          <p className="font-bold text-lg text-red-600">${(invoice.balance ?? 0).toFixed(2)}</p>
         </div>
         <div className="flex items-center justify-end">
           <span
@@ -229,10 +240,20 @@ const InvoiceCard = ({ invoice, onPay }) => {
         {invoice.status !== 'paid' && invoice.status !== 'refunded' && (invoice.balance ?? 0) > 0 && (
           <button
             onClick={onPay}
-            className="px-6 py-2 bg-linear-to-r from-green-500 to-emerald-500 text-white rounded-lg font-semibold hover:shadow-md transition-all flex items-center gap-2"
+            disabled={processing}
+            className="px-6 py-2 bg-linear-to-r from-green-500 to-emerald-500 text-white rounded-lg font-semibold hover:shadow-md transition-all disabled:opacity-50 flex items-center gap-2"
           >
-            <CreditCard className="w-4 h-4" />
-            Pay Now
+            {processing ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              <>
+                <CreditCard className="w-4 h-4" />
+                Pay Now
+              </>
+            )}
           </button>
         )}
       </div>

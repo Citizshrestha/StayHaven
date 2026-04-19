@@ -4,7 +4,10 @@ import { Menu, X, Heart, ShoppingCart, Building2, Search } from 'lucide-react';
 import axiosClient from "../../core/api/client";
 import { getWishlist, getCart } from "../../core/api/services/user.service";
 import { Button } from "../ui/button";
+import { createLogger } from "../../core/utils/logger.js";
 import './Navbar.css';
+
+const logger = createLogger('Navbar');
 
 const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);

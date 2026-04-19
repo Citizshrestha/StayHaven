@@ -6,14 +6,11 @@
  * 2. Sign up at https://sentry.io and get your DSN
  * 3. Add SENTRY_DSN to your .env file
  * 4. Uncomment the code at the bottom of this file
- * 
- * Note: Profiling is optional and requires Python. Skip it if you don't need profiling.
  */
 
-// Stub implementation - Sentry is disabled
-export const initSentry = (app) => {
-  console.log('⚠️  Sentry is disabled. Install @sentry/node to enable error monitoring.');
-  console.log('   Run: npm install @sentry/node --omit=optional');
+// Stub implementation - Sentry is disabled (silently)
+export const initSentry = () => {
+  // Silently skip - no warning needed in development
 };
 
 // Stub middleware - does nothing

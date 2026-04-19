@@ -1,5 +1,8 @@
 import axiosClient from "../axiosClient";
 import axios from "axios";
+import { createLogger } from "../core/utils/logger.js";
+
+const logger = createLogger('AuthAPI');
 
 export const login = async (email, password) => {
   try {

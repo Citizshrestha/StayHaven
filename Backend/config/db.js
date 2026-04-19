@@ -1,5 +1,8 @@
 import mongoose from "mongoose";
 import dns from "dns";
+import { createLogger } from "../utils/logger.js";
+
+const logger = createLogger('Database');
 
 // Override DNS to use Google's public DNS (8.8.8.8) to fix querySrv ECONNREFUSED
 // caused by local DNS servers blocking MongoDB Atlas SRV record lookups
@@ -10,27 +13,26 @@ const connectDB = async () => {
 
     try {
         if (!process.env.MONGODB_URI) {
-            console.error("MONGODB-URI is not defined in the .env file, please check again");
+            logger.error("MONGODB_URI is not defined in the .env file");
             if (isProduction) {
                 throw new Error("MONGODB_URI is required in production");
             }
 
-            console.warn("⚠️ Starting backend without MongoDB connection (development mode)");
+            logger.warn("Starting backend without MongoDB connection (development mode)");
             return false;
         }
 
         await mongoose.connect(process.env.MONGODB_URI);
-        console.log("MongoDB Connected Successfully");
+        logger.info("MongoDB Connected Successfully");
         return true;
     } catch (error) {
-        console.error("MongoDB Connection Failed:", error.message);
-        console.error("Full error:", error);
+        logger.error("MongoDB Connection Failed", { message: error.message, stack: error.stack });
 
         if (isProduction) {
             throw error;
         }
 
-        console.warn("⚠️ Continuing without MongoDB (development mode)");
+        logger.warn("Continuing without MongoDB (development mode)");
         return false;
     }
 }

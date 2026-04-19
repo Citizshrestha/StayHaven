@@ -1,4 +1,7 @@
 import axiosClient from '../axiosClient';
+import { createLogger } from '../core/utils/logger.js';
+
+const logger = createLogger('HotelAPI');
 
 // Get all hotels (public - with filters)
 export const getAllHotels = async (filters = {}) => {
@@ -7,7 +10,7 @@ export const getAllHotels = async (filters = {}) => {
     const response = await axiosClient.get(`/hotels${queryParams ? `?${queryParams}` : ''}`);
     return response.data;
   } catch (error) {
-    console.error('Error fetching hotels:', error);
+    logger.error('Error fetching hotels:', error);
     throw error.response?.data || error;
   }
 };
@@ -18,7 +21,7 @@ export const getHotelById = async (hotelId) => {
     const response = await axiosClient.get(`/hotels/${hotelId}`);
     return response.data;
   } catch (error) {
-    console.error('Error fetching hotel:', error);
+    logger.error('Error fetching hotel:', error);
     throw error.response?.data || error;
   }
 };
@@ -32,7 +35,7 @@ export const getMyHotels = async () => {
     });
     return response.data;
   } catch (error) {
-    console.error('Error fetching my hotels:', error);
+    logger.error('Error fetching my hotels:', error);
     throw error.response?.data || error;
   }
 };
@@ -46,7 +49,7 @@ export const createHotel = async (hotelData) => {
     });
     return response.data;
   } catch (error) {
-    console.error('Error creating hotel:', error);
+    logger.error('Error creating hotel:', error);
     throw error.response?.data || error;
   }
 };
@@ -60,7 +63,7 @@ export const updateHotel = async (hotelId, hotelData) => {
     });
     return response.data;
   } catch (error) {
-    console.error('Error updating hotel:', error);
+    logger.error('Error updating hotel:', error);
     throw error.response?.data || error;
   }
 };
@@ -74,7 +77,7 @@ export const deleteHotel = async (hotelId) => {
     });
     return response.data;
   } catch (error) {
-    console.error('Error deleting hotel:', error);
+    logger.error('Error deleting hotel:', error);
     throw error.response?.data || error;
   }
 };

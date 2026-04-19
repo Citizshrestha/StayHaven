@@ -17,7 +17,7 @@ const paymentTransactionSchema = new mongoose.Schema(
     invoice: { type: mongoose.Schema.Types.ObjectId, ref: "Invoice" },
     guest: { type: mongoose.Schema.Types.ObjectId, ref: "Guest" },
 
-    transactionId: { type: String, unique: true }, // TXN-XXXXXXX
+    transactionId: { type: String }, // TXN-XXXXXXX
     type: {
       type: String,
       enum: ["capture", "refund", "adjustment", "dispute"],
@@ -90,9 +90,6 @@ paymentTransactionSchema.index({ hotel: 1, status: 1, createdAt: -1 });
 // Refund workflow queries
 paymentTransactionSchema.index({ status: 1, type: 1 }); // For finding refund requests
 paymentTransactionSchema.index({ hotel: 1, status: 1, type: 1 });
-
-// Payment summary aggregation (sum by booking)
-paymentTransactionSchema.index({ booking: 1, type: 1, status: 1 });
 
 // Audit queries
 paymentTransactionSchema.index({ processedBy: 1, createdAt: -1 });

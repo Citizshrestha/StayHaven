@@ -42,7 +42,6 @@ const hotelTableSchema = new mongoose.Schema({
   // QR Code fields
   uniqueToken: {
     type: String,
-    unique: true,
     required: true,
   },
   qrCodeData: {
@@ -77,7 +76,8 @@ const hotelTableSchema = new mongoose.Schema({
 // Compound index for unique table numbers per hotel
 hotelTableSchema.index({ hotel: 1, tableNumber: 1 }, { unique: true });
 
-// Note: uniqueToken index is already created by the unique: true field option
+// QR code lookups
+hotelTableSchema.index({ uniqueToken: 1 }, { unique: true });
 
 // Pre-save middleware to generate unique token if not exists
 hotelTableSchema.pre('save', function(next) {

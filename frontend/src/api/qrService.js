@@ -1,4 +1,7 @@
 import axiosClient from '../axiosClient';
+import { createLogger } from '../core/utils/logger.js';
+
+const logger = createLogger('QRService');
 
 // =====================================================
 // GUEST PUBLIC API (No Authentication Required)

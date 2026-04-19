@@ -3,6 +3,10 @@ import { Room } from "../models/room.schema.js";
 import { User } from "../models/user.schema.js";
 import { Company } from "../models/company.schema.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { sendEmail } from "../config/nodemailer.js";
+import { createLogger } from "../utils/logger.js";
+
+const logger = createLogger('HotelController');
 
 // @desc    Create a new hotel
 // @route   POST /api/hotels
@@ -334,7 +338,61 @@ export const updateHotelStatus = asyncHandler(async (req, res) => {
   hotel.status = status;
   await hotel.save();
 
-  // TODO: Send email notification to hotel owner
+  // Send email notification to hotel owner
+  try {
+    const owner = hotel.owner;
+    const ownerEmail = owner.email || owner.contact?.email;
+    const ownerName = owner.fullname || owner.name || 'Hotel Owner';
+
+    if (ownerEmail) {
+      const statusText = status === 'approved' ? 'Approved' : 'Rejected';
+      const subject = `StayHaven - Your Hotel "${hotel.name}" Has Been ${statusText}`;
+
+      let emailBody = '';
+
+      if (status === 'approved') {
+        emailBody = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #10B981;">🎉 Congratulations, ${ownerName}!</h2>
+            <p>Your hotel <strong>"${hotel.name}"</strong> has been approved and is now live on StayHaven.</p>
+            <p>Guests can now discover and book your property. You can manage your hotel from your dashboard.</p>
+            <div style="margin: 20px 0; padding: 15px; background-color: #f3f4f6; border-radius: 8px;">
+              <p style="margin: 0;"><strong>Hotel:</strong> ${hotel.name}</p>
+              <p style="margin: 5px 0 0 0;"><strong>Location:</strong> ${hotel.location?.city || 'N/A'}, ${hotel.location?.country || 'N/A'}</p>
+            </div>
+            <p>Start adding rooms and managing your bookings today!</p>
+            <p>Best regards,<br>The StayHaven Team</p>
+          </div>
+        `;
+      } else {
+        emailBody = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #EF4444;">Hotel Status Update</h2>
+            <p>Dear ${ownerName},</p>
+            <p>We regret to inform you that your hotel <strong>"${hotel.name}"</strong> was not approved for listing on StayHaven.</p>
+            ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ''}
+            <p>If you believe this is an error or would like to reapply, please contact our support team.</p>
+            <p>Best regards,<br>The StayHaven Team</p>
+          </div>
+        `;
+      }
+
+      await sendEmail({
+        from: process.env.SENDER_EMAIL,
+        to: ownerEmail,
+        subject,
+        html: emailBody,
+      });
+
+      logger.info(`Hotel status notification sent to ${ownerEmail}`, { hotelId: hotel._id, status });
+    }
+  } catch (emailError) {
+    // Log error but don't fail the request
+    logger.error('Failed to send hotel status notification email', {
+      error: emailError.message,
+      hotelId: hotel._id
+    });
+  }
 
   res.status(200).json({
     success: true,

@@ -1,9 +1,9 @@
 /**
  * Socket.io Configuration
- * 
+ *
  * This file sets up WebSocket communication for real-time updates.
  * WebSockets allow instant bidirectional communication between server and clients.
- * 
+ *
  * USE CASES:
  * 1. When kitchen marks an order as "ready", waiter dashboard instantly updates
  * 2. When a guest presses "Call Waiter", waiter gets instant notification
@@ -11,7 +11,9 @@
  */
 
 import { Server } from "socket.io";
+import { createLogger } from "../utils/logger.js";
 
+const logger = createLogger('Socket');
 let io = null;
 // Track online users: Map<userId, { socketId, hotelId, role, fullname }>
 const onlineUsers = new Map();
@@ -40,7 +42,7 @@ export const initSocket = (httpServer) => {
 
   // Handle new connections
   io.on("connection", (socket) => {
-    console.log(`🔌 Client connected: ${socket.id}`);
+    logger.debug(`Client connected: ${socket.id}`);
 
     // Extract user info from auth
     const { userId, role, hotelId } = socket.handshake.auth || {};
@@ -51,7 +53,7 @@ export const initSocket = (httpServer) => {
       if (hotelId) {
         socket.join(`hotel-${hotelId}`);
         socket.hotelId = hotelId;
-        console.log(`👤 Socket ${socket.id} joined hotel room: hotel-${hotelId}`);
+        logger.debug(`Socket ${socket.id} joined hotel room: hotel-${hotelId}`);
       }
     });
 
@@ -99,10 +101,9 @@ export const initSocket = (httpServer) => {
 
         socket.emit("online-users", onlineUsersInHotel);
 
-        console.log(`👤 Socket ${socket.id} joined as ${role} in hotel-${hotelId}, userId: ${userId}`);
-        console.log(`📊 Online users in hotel ${hotelId}:`, onlineUsersInHotel.length);
+        logger.debug(`Socket ${socket.id} joined as ${role} in hotel-${hotelId}`, { userId, onlineCount: onlineUsersInHotel.length });
       } else {
-        console.log(`👤 Socket ${socket.id} joined personal room user-${userId} as ${role}`);
+        logger.debug(`Socket ${socket.id} joined personal room user-${userId} as ${role}`);
       }
     });
 
@@ -187,7 +188,7 @@ export const initSocket = (httpServer) => {
 
     // Handle disconnection
     socket.on("disconnect", (reason) => {
-      console.log(`🔌 Client disconnected: ${socket.id}, Reason: ${reason}`);
+      logger.debug(`Client disconnected: ${socket.id}`, { reason });
 
       // Remove from online users and notify others
       if (socket.userId && socket.hotelId) {
@@ -198,17 +199,17 @@ export const initSocket = (httpServer) => {
           userId: socket.userId,
         });
 
-        console.log(`👤 User ${socket.userId} went offline from hotel ${socket.hotelId}`);
+        logger.debug(`User ${socket.userId} went offline`, { hotelId: socket.hotelId });
       }
     });
 
     // Handle errors
     socket.on("error", (error) => {
-      console.error(`❌ Socket error for ${socket.id}:`, error);
+      logger.error(`Socket error for ${socket.id}`, { error });
     });
   });
 
-  console.log("✅ Socket.io initialized");
+  logger.info("Socket.io initialized");
   return io;
 };
 
@@ -218,7 +219,7 @@ export const initSocket = (httpServer) => {
  */
 export const getIO = () => {
   if (!io) {
-    console.warn("⚠️ Socket.io not initialized yet!");
+    logger.warn("Socket.io not initialized yet!");
   }
   return io;
 };
