@@ -162,7 +162,7 @@ userSchema.methods.matchPassword = async function (enteredPassword) {
 };
 
 // Brute force protection constants
-const MAX_LOGIN_ATTEMPTS = 5;
+const MAX_LOGIN_ATTEMPTS = 6; // Allow 6 failed attempts before locking
 const LOCK_TIME_MS = 30 * 60 * 1000; // 30 minutes
 
 /**
