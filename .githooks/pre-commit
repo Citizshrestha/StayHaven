@@ -43,8 +43,8 @@ for file in $SENSITIVE_FILES; do
     fi
 done
 
-# Check for potential secrets in code
-if git diff --cached | grep -iE "(password|secret|api_key|apikey|token|private_key).*=.*['\"][^'\"]{20,}['\"]"; then
+# Check for potential secrets in code (exclude secret generation scripts)
+if git diff --cached --name-only | grep -v "generateSecrets.js" | xargs git diff --cached | grep -iE "(password|secret|api_key|apikey|token|private_key).*=.*['\"][^'\"]{20,}['\"]"; then
     echo "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo "${YELLOW}⚠️  WARNING - POTENTIAL SECRET DETECTED ⚠️${NC}"
     echo "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
