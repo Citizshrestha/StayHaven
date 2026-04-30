@@ -1,10 +1,12 @@
 import axiosClient from '../client';
 
+const BASE = '/api/hotels';
+
 // Get all hotels (public - with filters)
 export const getAllHotels = async (filters = {}) => {
   try {
     const queryParams = new URLSearchParams(filters).toString();
-    const response = await axiosClient.get(`/hotels${queryParams ? `?${queryParams}` : ''}`);
+    const response = await axiosClient.get(`${BASE}${queryParams ? `?${queryParams}` : ''}`);
     return response.data;
   } catch (error) {
     console.error('Error fetching hotels:', error);
@@ -15,7 +17,7 @@ export const getAllHotels = async (filters = {}) => {
 // Get hotel by ID (public)
 export const getHotelById = async (hotelId) => {
   try {
-    const response = await axiosClient.get(`/hotels/${hotelId}`);
+    const response = await axiosClient.get(`${BASE}/${hotelId}`);
     return response.data;
   } catch (error) {
     console.error('Error fetching hotel:', error);
@@ -27,7 +29,7 @@ export const getHotelById = async (hotelId) => {
 export const getMyHotels = async () => {
   try {
     const token = localStorage.getItem('accessToken');
-    const response = await axiosClient.get('/hotels/owner/my-hotels', {
+    const response = await axiosClient.get(`${BASE}/owner/my-hotels`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     return response.data;
@@ -41,7 +43,7 @@ export const getMyHotels = async () => {
 export const createHotel = async (hotelData) => {
   try {
     const token = localStorage.getItem('accessToken');
-    const response = await axiosClient.post('/hotels', hotelData, {
+    const response = await axiosClient.post(BASE, hotelData, {
       headers: { Authorization: `Bearer ${token}` }
     });
     return response.data;
@@ -55,7 +57,7 @@ export const createHotel = async (hotelData) => {
 export const updateHotel = async (hotelId, hotelData) => {
   try {
     const token = localStorage.getItem('accessToken');
-    const response = await axiosClient.put(`/hotels/${hotelId}`, hotelData, {
+    const response = await axiosClient.put(`${BASE}/${hotelId}`, hotelData, {
       headers: { Authorization: `Bearer ${token}` }
     });
     return response.data;
@@ -69,7 +71,7 @@ export const updateHotel = async (hotelId, hotelData) => {
 export const deleteHotel = async (hotelId) => {
   try {
     const token = localStorage.getItem('accessToken');
-    const response = await axiosClient.delete(`/hotels/${hotelId}`, {
+    const response = await axiosClient.delete(`${BASE}/${hotelId}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     return response.data;
@@ -83,7 +85,7 @@ export const deleteHotel = async (hotelId) => {
 export const toggleHotelStatus = async (hotelId) => {
   try {
     const token = localStorage.getItem('accessToken');
-    const response = await axiosClient.patch(`/hotels/${hotelId}/toggle-status`, {}, {
+    const response = await axiosClient.patch(`${BASE}/${hotelId}/toggle-status`, {}, {
       headers: { Authorization: `Bearer ${token}` }
     });
     return response.data;
@@ -97,7 +99,7 @@ export const toggleHotelStatus = async (hotelId) => {
 export const getHotelStats = async (hotelId) => {
   try {
     const token = localStorage.getItem('accessToken');
-    const response = await axiosClient.get(`/hotels/${hotelId}/stats`, {
+    const response = await axiosClient.get(`${BASE}/${hotelId}/stats`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     return response.data;
@@ -110,7 +112,7 @@ export const getHotelStats = async (hotelId) => {
 // Search hotels (public)
 export const searchHotels = async (searchQuery) => {
   try {
-    const response = await axiosClient.get(`/hotels/search?q=${encodeURIComponent(searchQuery)}`);
+    const response = await axiosClient.get(`${BASE}/search?q=${encodeURIComponent(searchQuery)}`);
     return response.data;
   } catch (error) {
     console.error('Error searching hotels:', error);
@@ -121,7 +123,7 @@ export const searchHotels = async (searchQuery) => {
 // Get featured hotels (public)
 export const getFeaturedHotels = async () => {
   try {
-    const response = await axiosClient.get('/hotels/featured');
+    const response = await axiosClient.get(`${BASE}/featured`);
     return response.data;
   } catch (error) {
     console.error('Error fetching featured hotels:', error);

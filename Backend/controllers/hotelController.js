@@ -92,6 +92,7 @@ export const getAllHotels = asyncHandler(async (req, res) => {
     city,
     category,
     starRating,
+    minRating,
     minPrice,
     maxPrice,
     amenities,
@@ -116,10 +117,18 @@ export const getAllHotels = asyncHandler(async (req, res) => {
     query.starRating = parseInt(starRating);
   }
 
-  if (minPrice || maxPrice) {
-    query['priceRange.min'] = {};
-    if (minPrice) query['priceRange.min'].$gte = parseInt(minPrice);
-    if (maxPrice) query['priceRange.max'] = { $lte: parseInt(maxPrice) };
+  if (minRating) {
+    query.rating = { $gte: parseFloat(minRating) };
+  }
+
+  // Price filtering: match hotels whose price range overlaps the requested range.
+  // - minPrice means: hotel.priceRange.max >= minPrice
+  // - maxPrice means: hotel.priceRange.min <= maxPrice
+  if (minPrice) {
+    query['priceRange.max'] = { $gte: parseInt(minPrice) };
+  }
+  if (maxPrice) {
+    query['priceRange.min'] = { ...(query['priceRange.min'] || {}), $lte: parseInt(maxPrice) };
   }
 
   if (amenities) {
@@ -155,8 +164,11 @@ export const getAllHotels = asyncHandler(async (req, res) => {
 // @route   GET /api/hotels/:id
 // @access  Public
 export const getHotelById = asyncHandler(async (req, res) => {
-  const hotel = await Hotel.findById(req.params.id)
-    .populate('owner', 'fullname email contact');
+  const hotel = await Hotel.findOne({
+    _id: req.params.id,
+    status: 'approved',
+    isActive: true,
+  }).populate('owner', 'fullname email contact');
 
   if (!hotel) {
     return res.status(404).json({
