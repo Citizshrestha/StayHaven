@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Star, StarHalf, Heart, MapPin } from 'lucide-react';
+import { Star, StarHalf, Heart, MapPin, Share, Award } from 'lucide-react';
 import { formatReviewCount } from './utils';
 
-const HotelHeader = ({ name, location, rating, reviewCount }) => {
+const HotelHeader = ({ name, location, rating, reviewCount, highlights = [], badges = [] }) => {
   const [isFavorite, setIsFavorite] = useState(false);
   
   // Render star rating
@@ -13,13 +13,13 @@ const HotelHeader = ({ name, location, rating, reviewCount }) => {
     
     for (let i = 0; i < fullStars; i++) {
       stars.push(
-        <Star key={`full-${i}`} className="w-5 h-5 text-yellow-500 fill-yellow-500" />
+        <Star key={`full-${i}`} className="w-4 h-4 text-[#FFB84D] fill-[#FFB84D]" />
       );
     }
     
     if (hasHalfStar) {
       stars.push(
-        <StarHalf key="half" className="w-5 h-5 text-yellow-500 fill-yellow-500" />
+        <StarHalf key="half" className="w-4 h-4 text-[#FFB84D] fill-[#FFB84D]" />
       );
     }
     
@@ -27,33 +27,76 @@ const HotelHeader = ({ name, location, rating, reviewCount }) => {
   };
 
   return (
-    <div className="mb-8">
-      <div className="flex items-start justify-between mb-3">
-        <h2 className="text-4xl md:text-5xl font-black leading-tight text-gray-900">
-          {name}
-        </h2>
-        <button
-          onClick={() => setIsFavorite(!isFavorite)}
-          className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-          aria-label="Add to Favorites"
-        >
-          <Heart 
-            className={`w-6 h-6 ${isFavorite ? 'fill-red-500 text-red-500' : 'text-gray-600'}`}
-          />
-        </button>
-      </div>
+    <div className="bg-white rounded-[16px] pl-5 pr-6 py-6 mb-8 border-l-[4px] border-[#00BFA6] shadow-sm shadow-[#00BFA6]/5 relative overflow-hidden">
+      <div className="absolute top-0 right-0 w-32 h-32 bg-[#00BFA6]/5 rounded-bl-full -z-10 pattern-dots"></div>
       
-      <div className="flex items-center gap-2 mb-2">
-        <MapPin className="w-4 h-4 text-gray-600" />
-        <p className="text-gray-600 text-sm">{location}</p>
-      </div>
-      
-      <div className="flex items-center gap-2">
-        <div className="flex items-center gap-0.5">
-          {renderStars()}
+      <div className="flex flex-col md:flex-row items-center md:items-start justify-between mb-4 gap-4">
+        <div>
+          <h2 className="text-3xl md:text-4xl font-extrabold text-[#263238] tracking-tight mb-2">
+            {name}
+          </h2>
+          
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 mb-2">
+             <div className="flex items-center gap-1.5 text-[#546E7A]">
+                <MapPin className="w-4 h-4 text-[#00BFA6]" />
+                <span className="text-sm font-medium">{location}</span>
+             </div>
+             
+             {/* Rating Pill */}
+             <div className="flex items-center gap-2 bg-[#F8FAFB] px-3 py-1.5 rounded-full border border-[#00BFA6]/10">
+                <div className="flex items-center gap-0.5">
+                  {renderStars()}
+                </div>
+                <span className="font-bold text-[#263238]">{rating}</span>
+                <span className="text-[#00BFA6] text-xs font-semibold cursor-pointer hover:underline">
+                  ({formatReviewCount(reviewCount)} reviews)
+                </span>
+             </div>
+          </div>
         </div>
-        <span className="font-bold text-gray-900 text-lg">{rating}</span>
-        <span className="text-gray-600 text-sm">{formatReviewCount(reviewCount)}</span>
+
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsFavorite(!isFavorite)}
+            className="group flex flex-col items-center justify-center p-2.5 rounded-xl border border-[#00BFA6]/15 hover:bg-[#F0FDFB] hover:border-[#00BFA6] transition-all duration-300"
+            aria-label="Add to Favorites"
+          >
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform duration-300 ${isFavorite ? 'scale-110' : 'group-hover:scale-105'}`}>
+               <Heart 
+                 strokeWidth={2}
+                 className={`w-5 h-5 ${isFavorite ? 'fill-red-500 text-red-500' : 'text-[#546E7A] group-hover:text-[#00BFA6]'}`}
+               />
+            </div>
+            <span className="text-[10px] font-bold text-[#546E7A] group-hover:text-[#00BFA6]">Save</span>
+          </button>
+          <button
+            className="group flex flex-col items-center justify-center p-2.5 rounded-xl border border-transparent hover:border-[#00BFA6]/15 hover:bg-[#F8FAFB] transition-all duration-300"
+            aria-label="Share"
+          >
+            <div className="w-8 h-8 rounded-full flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
+               <Share className="w-5 h-5 text-[#546E7A] group-hover:text-[#263238]" />
+            </div>
+            <span className="text-[10px] font-bold text-[#546E7A] group-hover:text-[#263238]">Share</span>
+          </button>
+        </div>
+      </div>
+      
+      {/* Divider */}
+      <hr className="border-[#00BFA6]/10 mb-4" />
+
+      <div className="flex flex-wrap items-center gap-3">
+        {badges.map((badge) => (
+          <div key={badge} className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-[#00BFA6] to-[#00E5CC] rounded-lg shadow-sm">
+            <Award className="w-4 h-4 text-white" />
+            <span className="text-xs font-bold text-white tracking-wide">{badge}</span>
+          </div>
+        ))}
+        {highlights.map((item) => (
+          <span key={item} className="px-3 py-1.5 bg-[#00BFA6]/10 text-[#00A896] text-xs font-bold rounded-full">
+            {item}
+          </span>
+        ))}
       </div>
     </div>
   );
