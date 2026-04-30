@@ -65,7 +65,7 @@ import Feedback from "../features/public/landing/pages/Feedback";
 // ============================================
 // FEATURES - Public Hotels & Booking
 // ============================================
-import HotelDetailsPage from "../features/public/hotels/pages/HotelDetails";
+import HotelDetailPage from "../features/public/hotels/pages/HotelDetail/Index";
 import FilteredHotels from "../features/public/hotels/pages/FilteredHotels";
 import BookingConfirmed from "../features/public/hotels/pages/BookingConfirmed";
 
@@ -199,7 +199,7 @@ const App = () => {
                       <Route path="/contactus" element={<ContactUs />} />
 
                       {/* Hotels & Booking */}
-                      <Route path="/hotel/:id" element={<HotelDetailsPage />} />
+                      <Route path="/hotel/:id" element={<HotelDetailPage />} />
                       <Route path="/hotels" element={<FilteredHotels />} />
                       <Route path="/booking-confirmed" element={<BookingConfirmed />} />
 
