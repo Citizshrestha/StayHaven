@@ -161,13 +161,14 @@ form {
 }
 
 .checkmark {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   border: 2px solid #d1d5db;
   border-radius: 4px;
   margin-right: 10px;
   position: relative;
   transition: all 0.2s;
+  flex-shrink: 0;
 }
 
 .amenity-checkbox input:checked + .checkmark {
@@ -179,10 +180,12 @@ form {
   content: '✓';
   position: absolute;
   color: white;
-  font-size: 12px;
+  font-size: 16px;
+  font-weight: bold;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
+  line-height: 1;
 }
 
 .amenity-checkbox:hover .checkmark {
