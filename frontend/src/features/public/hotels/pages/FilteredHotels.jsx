@@ -1,21 +1,26 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { Heart, MapPin, Star, ChevronDown } from 'lucide-react';
-import { allProperties } from '../../../../core/utils/allProperties';
+import { getAllHotels } from '../../../../core/api/services/hotel.service';
 
 const FilteredHotels = () => {
   const navigate = useNavigate();
   const [selectedRating, setSelectedRating] = useState(null);
   const [priceRange, setPriceRange] = useState(45000);
+  const [selectedCity, setSelectedCity] = useState('Kathmandu');
   const [amenities, setAmenities] = useState({
     wifi: false,
-    pool: true,
+    pool: false,
     parking: false,
     gym: false,
   });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
+  const [hotels, setHotels] = useState([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const amenitiesList = [
     { id: 'wifi', label: 'Free Wi-Fi' },
@@ -27,6 +32,48 @@ const FilteredHotels = () => {
   const handleAmenityChange = (id) => {
     setAmenities((prev) => ({ ...prev, [id]: !prev[id] }));
   };
+
+  const selectedAmenityIds = useMemo(
+    () => Object.entries(amenities).filter(([, v]) => v).map(([k]) => k),
+    [amenities]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const filters = {
+          city: selectedCity,
+          limit: itemsPerPage,
+          page: currentPage,
+          sort: '-rating',
+          maxPrice: priceRange,
+        };
+        if (selectedRating) filters.minRating = selectedRating;
+        if (selectedAmenityIds.length) filters.amenities = selectedAmenityIds.join(',');
+
+        const data = await getAllHotels(filters);
+        if (cancelled) return;
+
+        setHotels(data?.hotels || []);
+        setTotalPages(data?.totalPages || 1);
+      } catch (e) {
+        if (cancelled) return;
+        setError(e?.message || 'Failed to load hotels');
+        setHotels([]);
+        setTotalPages(1);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedCity, selectedRating, priceRange, selectedAmenityIds, currentPage]);
 
   return (
     <div style={{ backgroundColor: '#F9FAFB', minHeight: '100vh' }}>
@@ -43,7 +90,14 @@ const FilteredHotels = () => {
                 <div style={{ marginBottom: '20px' }}>
                   <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#374151', marginBottom: '8px' }}>City</label>
                   <div style={{ position: 'relative' }}>
-                    <select style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: '8px', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', backgroundColor: '#ffffff', backgroundImage: 'none', color: '#374151', fontSize: '0.875rem', outline: 'none' }}>
+                    <select
+                      value={selectedCity}
+                      onChange={(e) => {
+                        setSelectedCity(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                      style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: '8px', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', backgroundColor: '#ffffff', backgroundImage: 'none', color: '#374151', fontSize: '0.875rem', outline: 'none' }}
+                    >
                       <option>Kathmandu</option>
                       <option>Pokhara</option>
                       <option>Lalitpur</option>
@@ -105,20 +159,19 @@ const FilteredHotels = () => {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     {amenitiesList.map((item) => (
                       <div key={item.id} style={{ display: 'flex', alignItems: 'center' }}>
-                        <div style={{ position: 'relative' }}>
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '16px', height: '16px' }}>
                           <input
                             type="checkbox"
                             id={item.id}
                             checked={amenities[item.id]}
                             onChange={() => handleAmenityChange(item.id)}
                             style={{
-                              width: '16px !important',
-                              height: '16px !important',
-                              minWidth: '16px',
-                              minHeight: '16px',
-                              maxWidth: '16px',
-                              maxHeight: '16px',
-                              borderRadius: '3px',
+                              width: '16px',
+                              height: '16px',
+                              margin: 0,
+                              padding: 0,
+                              boxSizing: 'border-box',
+                              borderRadius: '4px',
                               border: '2px solid #D1D5DB',
                               cursor: 'pointer',
                               appearance: 'none',
@@ -131,12 +184,12 @@ const FilteredHotels = () => {
                           />
                           {amenities[item.id] && (
                             <svg
-                              style={{ position: 'absolute', top: '1px', left: '1px', width: '12px', height: '12px', color: '#ffffff', pointerEvents: 'none' }}
+                              style={{ position: 'absolute', width: '12px', height: '12px', color: '#ffffff', pointerEvents: 'none' }}
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
                             >
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" />
                             </svg>
                           )}
                         </div>
@@ -154,7 +207,7 @@ const FilteredHotels = () => {
             <section style={{ flex: '1' }}>
               {/* Header with Title and Sort */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
-                <h1 style={{ fontSize: '1.875rem', fontWeight: '700', color: '#111827', fontFamily: 'Nunito, sans-serif' }}>Hotels in Kathmandu</h1>
+                <h1 style={{ fontSize: '1.875rem', fontWeight: '700', color: '#111827', fontFamily: 'Nunito, sans-serif' }}>Hotels in {selectedCity}</h1>
                 <div style={{ position: 'relative', width: '200px' }}>
                   <select style={{ width: '100%', padding: '10px 12px', paddingRight: '36px', border: '1px solid #D1D5DB', borderRadius: '8px', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', backgroundColor: '#ffffff', backgroundImage: 'none', color: '#374151', fontSize: '0.875rem', outline: 'none' }}>
                     <option>Sort by Price</option>
@@ -169,21 +222,24 @@ const FilteredHotels = () => {
 
               {/* Hotel Grid */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '24px', marginBottom: '32px' }}>
-                {(() => {
-                  // Filter hotels based on rating and price
-                  let filtered = allProperties.filter(hotel => {
-                    const matchesRating = !selectedRating || hotel.rating >= selectedRating;
-                    const matchesPrice = hotel.price <= priceRange;
-                    return matchesRating && matchesPrice;
-                  });
+                {isLoading && (
+                  <div style={{ gridColumn: '1 / -1', padding: '18px', color: '#6B7280' }}>
+                    Loading hotels…
+                  </div>
+                )}
+                {!isLoading && error && (
+                  <div style={{ gridColumn: '1 / -1', padding: '18px', color: '#B91C1C' }}>
+                    {error}
+                  </div>
+                )}
+                {!isLoading && !error && hotels.map((hotel) => {
+                  const heroImage = hotel?.images?.[0] || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1200&q=80';
+                  const id = hotel?._id || hotel?.id;
+                  const locationText = [hotel?.location?.address, hotel?.location?.city].filter(Boolean).join(', ');
+                  const price = hotel?.priceRange?.min ?? hotel?.pricePerNight ?? 0;
 
-                  // Pagination
-                  const startIndex = (currentPage - 1) * itemsPerPage;
-                  const endIndex = startIndex + itemsPerPage;
-                  const paginatedHotels = filtered.slice(startIndex, endIndex);
-
-                  return paginatedHotels.map((hotel) => (<div
-                    key={hotel.id}
+                  return (<div
+                    key={id}
                     style={{
                       backgroundColor: '#ffffff',
                       borderRadius: '16px',
@@ -198,7 +254,7 @@ const FilteredHotels = () => {
                     {/* Image Container */}
                     <div style={{ position: 'relative', height: '200px', overflow: 'hidden', backgroundColor: '#E5E7EB' }}>
                       <img
-                        src={hotel.image}
+                        src={heroImage}
                         alt={hotel.name}
                         style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s' }}
                         onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
@@ -224,17 +280,17 @@ const FilteredHotels = () => {
                       {/* Location */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#6B7280', fontSize: '0.875rem', marginBottom: '16px' }}>
                         <MapPin style={{ width: '14px', height: '14px', flexShrink: 0 }} />
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{hotel.location}</span>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{locationText || '-'}</span>
                       </div>
 
                       {/* Price and Button */}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-                          <span style={{ fontSize: '1.5rem', fontWeight: '700', color: '#111827' }}>Nrs {hotel.price}</span>
+                          <span style={{ fontSize: '1.5rem', fontWeight: '700', color: '#111827' }}>Nrs {price}</span>
                           <span style={{ fontSize: '0.875rem', color: '#6B7280' }}>/night</span>
                         </div>
                         <button
-                          onClick={() => navigate(`/hotel/${hotel.id}`)}
+                          onClick={() => navigate(`/hotel/${id}`)}
                           style={{
                             padding: '10px 20px',
                             backgroundColor: '#14B8A6',
@@ -254,60 +310,56 @@ const FilteredHotels = () => {
                         </button>
                       </div>
                     </div>
-                  </div>));
-                })()}
+                  </div>);
+                })}
+                {!isLoading && !error && hotels.length === 0 && (
+                  <div style={{ gridColumn: '1 / -1', padding: '18px', color: '#6B7280' }}>
+                    No hotels found for these filters. Try turning off amenities filters or switching city.
+                  </div>
+                )}
               </div>
 
               {/* Pagination */}
               <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <button style={{ padding: '10px 16px', border: '1px solid #D1D5DB', borderRadius: '8px', color: '#374151', backgroundColor: '#ffffff', cursor: 'pointer', fontSize: '0.875rem', fontWeight: '500', transition: 'background-color 0.2s' }}
+                <button
+                  type="button"
+                  disabled={currentPage <= 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  style={{ padding: '10px 16px', border: '1px solid #D1D5DB', borderRadius: '8px', color: '#374151', backgroundColor: '#ffffff', cursor: currentPage <= 1 ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontWeight: '500', transition: 'background-color 0.2s', opacity: currentPage <= 1 ? 0.6 : 1 }}
                   onMouseEnter={(e) => e.target.style.backgroundColor = '#F9FAFB'}
                   onMouseLeave={(e) => e.target.style.backgroundColor = '#ffffff'}
                 >
                   Previous
                 </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .slice(0, 10)
+                  .map((p) => (
+                    <button
+                      key={`page-${p}`}
+                      type="button"
+                      onClick={() => setCurrentPage(p)}
+                      style={{
+                        padding: '10px 16px',
+                        borderRadius: '8px',
+                        fontSize: '0.875rem',
+                        fontWeight: '500',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        backgroundColor: currentPage === p ? '#14B8A6' : '#ffffff',
+                        color: currentPage === p ? '#ffffff' : '#374151',
+                        border: currentPage === p ? 'none' : '1px solid #D1D5DB'
+                      }}
+                      onMouseEnter={(e) => { if (currentPage !== p) e.target.style.backgroundColor = '#F9FAFB' }}
+                      onMouseLeave={(e) => { if (currentPage !== p) e.target.style.backgroundColor = '#ffffff' }}
+                    >
+                      {p}
+                    </button>
+                  ))}
                 <button
-                  onClick={() => setCurrentPage(1)}
-                  style={{
-                    padding: '10px 16px',
-                    borderRadius: '8px',
-                    fontSize: '0.875rem',
-                    fontWeight: '500',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    backgroundColor: currentPage === 1 ? '#14B8A6' : '#ffffff',
-                    color: currentPage === 1 ? '#ffffff' : '#374151',
-                    border: currentPage === 1 ? 'none' : '1px solid #D1D5DB'
-                  }}
-                  onMouseEnter={(e) => { if (currentPage !== 1) e.target.style.backgroundColor = '#F9FAFB' }}
-                  onMouseLeave={(e) => { if (currentPage !== 1) e.target.style.backgroundColor = '#ffffff' }}
-                >
-                  1
-                </button>
-                <button
-                  onClick={() => setCurrentPage(2)}
-                  style={{ padding: '10px 16px', border: '1px solid #D1D5DB', borderRadius: '8px', color: '#374151', backgroundColor: '#ffffff', cursor: 'pointer', fontSize: '0.875rem', fontWeight: '500', transition: 'background-color 0.2s' }}
-                  onMouseEnter={(e) => e.target.style.backgroundColor = '#F9FAFB'}
-                  onMouseLeave={(e) => e.target.style.backgroundColor = '#ffffff'}
-                >
-                  2
-                </button>
-                <button
-                  onClick={() => setCurrentPage(3)}
-                  style={{ padding: '10px 16px', border: '1px solid #D1D5DB', borderRadius: '8px', color: '#374151', backgroundColor: '#ffffff', cursor: 'pointer', fontSize: '0.875rem', fontWeight: '500', transition: 'background-color 0.2s' }}
-                  onMouseEnter={(e) => e.target.style.backgroundColor = '#F9FAFB'}
-                  onMouseLeave={(e) => e.target.style.backgroundColor = '#ffffff'}
-                >
-                  3
-                </button>
-                <span style={{ padding: '0 8px', color: '#6B7280', fontSize: '0.875rem' }}>...</span>
-                <button style={{ padding: '10px 16px', border: '1px solid #D1D5DB', borderRadius: '8px', color: '#374151', backgroundColor: '#ffffff', cursor: 'pointer', fontSize: '0.875rem', fontWeight: '500', transition: 'background-color 0.2s' }}
-                  onMouseEnter={(e) => e.target.style.backgroundColor = '#F9FAFB'}
-                  onMouseLeave={(e) => e.target.style.backgroundColor = '#ffffff'}
-                >
-                  10
-                </button>
-                <button style={{ padding: '10px 16px', border: '1px solid #D1D5DB', borderRadius: '8px', color: '#374151', backgroundColor: '#ffffff', cursor: 'pointer', fontSize: '0.875rem', fontWeight: '500', transition: 'background-color 0.2s' }}
+                  type="button"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  style={{ padding: '10px 16px', border: '1px solid #D1D5DB', borderRadius: '8px', color: '#374151', backgroundColor: '#ffffff', cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontWeight: '500', transition: 'background-color 0.2s', opacity: currentPage >= totalPages ? 0.6 : 1 }}
                   onMouseEnter={(e) => e.target.style.backgroundColor = '#F9FAFB'}
                   onMouseLeave={(e) => e.target.style.backgroundColor = '#ffffff'}
                 >
