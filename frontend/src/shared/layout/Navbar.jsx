@@ -323,104 +323,177 @@ const Navbar = () => {
 
           {/* Mobile Menu Button */}
           <button
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            onClick={() => setIsMobileMenuOpen(true)}
             className="lg:hidden p-2 transition-colors text-gray-900"
+            aria-label="Open menu"
           >
-            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            <Menu className="w-6 h-6" />
           </button>
         </div>
       </div>
 
-      {/* Mobile Menu */}
+      {/* Mobile Drawer Overlay */}
       {isMobileMenuOpen && (
-        <div className="lg:hidden bg-white border-t shadow-lg">
-          <div className="container mx-auto px-4 sm:px-6 py-6 flex flex-col gap-4">
-            {/* Mobile Search */}
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-              <input
-                type="text"
-                placeholder="Search hotels..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleSearch();
-                    setIsMobileMenuOpen(false);
-                  }
-                }}
-                className="w-full pl-12 pr-14 py-3.5 rounded-2xl border border-gray-200 bg-gray-50/80 backdrop-blur-sm text-gray-800 text-sm font-medium focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:bg-white transition-all duration-200"
-              />
+        <div className="lg:hidden fixed inset-0 z-[100] flex justify-end">
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+          
+          {/* Sidebar Drawer */}
+          <div className="relative w-[85vw] max-w-sm bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-100">
+              <a href="#" onClick={(e) => { e.preventDefault(); navigate('/'); setIsMobileMenuOpen(false); }} className="flex items-center gap-2">
+                <img
+                  src="/logo.png"
+                  alt="StayHaven Logo"
+                  className="w-10 h-10 object-contain"
+                />
+                <span
+                  className="text-lg font-bold text-gray-900"
+                  style={{ fontFamily: "Nunito" }}
+                >
+                  Stay<span className="text-teal-500">Haven</span>
+                </span>
+              </a>
               <button
-                onClick={() => {
-                  handleSearch();
-                  setIsMobileMenuOpen(false);
-                }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 bg-teal-500 hover:bg-teal-600 text-white p-2.5 rounded-xl shadow-sm transition-colors duration-200"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="p-2 text-gray-500 hover:text-gray-900 transition-colors rounded-full hover:bg-gray-100"
+                aria-label="Close menu"
               >
-                <Search className="w-4 h-4" />
+                <X className="w-6 h-6" />
               </button>
             </div>
 
-            {navLinks.map((link) => (
-              <button
-                key={link.label}
-                onClick={() => {
-                  navigate(link.path);
-                  setIsMobileMenuOpen(false);
-                }}
-                className={`text-left font-medium py-2 ${location.pathname === link.path ? 'text-teal-600' : 'text-gray-900'
-                  }`}
-              >
-                {link.label}
-              </button>
-            ))}
-            <hr className="my-2" />
-            {user ? (
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center gap-4">
-                  <button className="flex items-center gap-2 text-gray-700">
-                    <Heart className="w-5 h-5" />
-                    <span>Wishlist ({wishlistCount})</span>
-                  </button>
-                  <button className="flex items-center gap-2 text-gray-700">
-                    <ShoppingCart className="w-5 h-5" />
-                    <span>Cart ({cartCount})</span>
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto w-full">
+              <div className="px-5 py-6 flex flex-col gap-6">
+                {/* Mobile Search */}
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search hotels..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleSearch();
+                        setIsMobileMenuOpen(false);
+                      }
+                    }}
+                    className="w-full pl-4 pr-12 py-3.5 rounded-xl border border-gray-200 bg-gray-50 text-gray-800 text-sm focus:outline-none focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-500/20 transition-all"
+                  />
+                  <button
+                    onClick={() => {
+                      handleSearch();
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="absolute right-1.5 top-1.5 bottom-1.5 bg-teal-500 hover:bg-teal-600 text-white rounded-lg px-3 transition-colors shadow-sm flex items-center justify-center"
+                  >
+                    <Search className="w-4 h-4" />
                   </button>
                 </div>
+
+                {/* Nav Links */}
+                <div className="flex flex-col gap-1 -mx-2">
+                  {navLinks.map((link) => (
+                    <button
+                      key={link.label}
+                      onClick={() => {
+                        navigate(link.path);
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className={`text-left font-semibold py-3.5 px-4 rounded-xl transition-all ${
+                        location.pathname === link.path 
+                          ? 'text-teal-600 bg-teal-50/80' 
+                          : 'text-gray-700 hover:bg-gray-50 hover:text-teal-600'
+                      }`}
+                    >
+                      {link.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Actions Fixed Footer */}
+            <div className="px-5 py-5 border-t border-gray-100 bg-gray-50/50 mt-auto flex-none flex flex-col gap-4">
+                {/* User Info & Actions */}
+                {user ? (
+                  <div className="flex flex-col gap-4">
+                    {/* User Profile Badge */}
+                    <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
+                      {user.profilePicture ? (
+                        <img
+                          src={user.profilePicture}
+                          alt={user.username}
+                          className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-teal-500 flex items-center justify-center text-white font-bold shadow-sm">
+                          {user.username?.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <div className="overflow-hidden">
+                        <p className="font-semibold text-gray-900 truncate">Hello, {user.username}</p>
+                        <p className="text-xs text-gray-500 truncate">Welcome back</p>
+                      </div>
+                    </div>
+
+                    <div className="flex bg-white border border-gray-100 shadow-sm rounded-xl p-1">
+                       <button className="flex-1 flex flex-col items-center justify-center gap-1.5 py-2.5 text-gray-600 hover:text-red-500 transition-colors rounded-lg hover:bg-red-50/50">
+                          <div className="relative">
+                            <Heart className="w-5 h-5" />
+                            {wishlistCount > 0 && <span className="absolute -top-1.5 -right-2.5 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{wishlistCount}</span>}
+                          </div>
+                          <span className="text-[11px] font-bold tracking-wide">Wishlist</span>
+                       </button>
+                       <div className="w-px bg-gray-100 mx-1 my-2"></div>
+                       <button className="flex-1 flex flex-col items-center justify-center gap-1.5 py-2.5 text-gray-600 hover:text-teal-600 transition-colors rounded-lg hover:bg-teal-50/50">
+                          <div className="relative">
+                            <ShoppingCart className="w-5 h-5" />
+                            {cartCount > 0 && <span className="absolute -top-1.5 -right-2.5 bg-teal-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{cartCount}</span>}
+                          </div>
+                          <span className="text-[11px] font-bold tracking-wide">Cart</span>
+                       </button>
+                    </div>
+
+                    <Button
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        handleLogout();
+                      }}
+                      variant="outline"
+                      className="w-full rounded-xl py-6 font-semibold border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-gray-900 bg-white"
+                    >
+                      Sign out
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      handleLogin();
+                    }}
+                    variant="outline"
+                    className="w-full rounded-xl py-6 border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 hover:text-gray-900 shadow-sm bg-white"
+                  >
+                    Sign in
+                  </Button>
+                )}
+
                 <Button
                   onClick={() => {
+                    navigate('/hotels');
                     setIsMobileMenuOpen(false);
-                    handleLogout();
                   }}
-                  variant="outline"
-                  className="w-full rounded-2xl"
+                  className="w-full rounded-xl py-6 text-white font-semibold text-base shadow-lg shadow-teal-500/25 bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 border-none"
                 >
-                  Logout
+                  Book your stay
                 </Button>
-              </div>
-            ) : (
-              <div className="flex gap-3 mt-2">
-                <Button
-                  onClick={() => {
-                    setIsMobileMenuOpen(false);
-                    handleLogin();
-                  }}
-                  variant="outline"
-                  className="flex-1 rounded-2xl"
-                >
-                  Sign in
-                </Button>
-              </div>
-            )}
-            <Button
-              onClick={() => {
-                navigate('/hotels');
-                setIsMobileMenuOpen(false);
-              }}
-              className="bg-gradient-to-r from-teal-500 to-teal-700 w-full rounded-2xl text-white">
-              Book now
-            </Button>
+            </div>
           </div>
         </div>
       )}
