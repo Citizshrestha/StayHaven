@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, Users, ShieldCheck, Check, ChevronDown, Lock } from 'lucide-react';
 import BookingPaymentModal from '../../components/BookingPaymentModal';
 import { toast } from 'react-toastify';
 
-const BookingSidebar = ({ pricePerNight, nights, taxesAndFees, guests, freeCancellationDate, hotelName, hotelAddress, hotelImage, hotelId, roomId }) => {
+const BookingSidebar = ({ pricePerNight, nights: initialNights, taxesAndFees: initialTaxesAndFees, guests, freeCancellationDate, hotelName, hotelAddress, hotelImage, hotelId, roomId }) => {
   const navigate = useNavigate();
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
@@ -17,8 +17,40 @@ const BookingSidebar = ({ pricePerNight, nights, taxesAndFees, guests, freeCance
   });
   const [showGuestForm, setShowGuestForm] = useState(false);
 
-  const subtotal = pricePerNight * nights;
-  const total = subtotal + taxesAndFees;
+  // Calculate nights, subtotal, taxes, and total in real-time based on selected dates
+  const { nights, subtotal, taxesAndFees, total } = useMemo(() => {
+    if (!checkIn || !checkOut) {
+      // Use initial values if dates not selected
+      const initialSubtotal = pricePerNight * initialNights;
+      return {
+        nights: initialNights,
+        subtotal: initialSubtotal,
+        taxesAndFees: initialTaxesAndFees,
+        total: initialSubtotal + initialTaxesAndFees
+      };
+    }
+
+    const checkInDate = new Date(checkIn);
+    const checkOutDate = new Date(checkOut);
+
+    // Calculate nights
+    const calculatedNights = Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
+
+    // Ensure at least 1 night
+    const validNights = calculatedNights > 0 ? calculatedNights : 1;
+
+    // Calculate costs
+    const calculatedSubtotal = pricePerNight * validNights;
+    const calculatedTaxes = Math.round(calculatedSubtotal * 0.12); // 12% tax
+    const calculatedTotal = calculatedSubtotal + calculatedTaxes;
+
+    return {
+      nights: validNights,
+      subtotal: calculatedSubtotal,
+      taxesAndFees: calculatedTaxes,
+      total: calculatedTotal
+    };
+  }, [checkIn, checkOut, pricePerNight, initialNights, initialTaxesAndFees]);
 
   // Handle booking button click - show guest form first
   const handleBookNowClick = () => {
