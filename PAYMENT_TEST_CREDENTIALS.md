@@ -25,6 +25,7 @@ Complete guide for testing all payment methods in the StayHaven hotel booking sy
 eSewa ID: 9806800001, 9806800002, 9806800003, 9806800004, 9806800005
 Password: Nepal@123
 MPIN: 1234
+OTP: Not required (click "Skip" or "Continue without OTP" if prompted)
 ```
 
 **How to Test:**

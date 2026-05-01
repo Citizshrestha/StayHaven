@@ -17,6 +17,7 @@ All 4 payment methods are fully integrated and ready for testing:
   - eSewa ID: `9806800001` to `9806800005`
   - Password: `Nepal@123`
   - MPIN: `1234`
+  - OTP: **Not required** (click "Skip" or "Continue without OTP" if prompted)
 - **Amount Support**: ✅ Any amount (no restrictions)
 - **Test URL**: https://rc-epay.esewa.com.np
 
@@ -93,7 +94,8 @@ totalAmount = subtotal + taxesAndFees
 7. Click "Pay via eSewa"
 8. Login with: `9806800001` / `Nepal@123`
 9. Enter MPIN: `1234`
-10. Confirm payment ✅
+10. **Skip OTP** if prompted (test accounts don't require OTP)
+11. Confirm payment ✅
 
 ### Test Card Payment (Works Immediately)
 1. Follow steps 1-5 above
