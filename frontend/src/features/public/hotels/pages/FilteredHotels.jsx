@@ -1,14 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { Heart, MapPin, Star, ChevronDown } from 'lucide-react';
 import { getAllHotels } from '../../../../core/api/services/hotel.service';
 
 const FilteredHotels = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [selectedRating, setSelectedRating] = useState(null);
   const [priceRange, setPriceRange] = useState(45000);
   const [selectedCity, setSelectedCity] = useState('Kathmandu');
+  const [sortBy, setSortBy] = useState('-rating');
   const [amenities, setAmenities] = useState({
     wifi: false,
     pool: false,
@@ -38,6 +40,23 @@ const FilteredHotels = () => {
     [amenities]
   );
 
+  // Scroll to top on mount
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  // Handle URL parameters from Destination Modal
+  useEffect(() => {
+    const destination = searchParams.get('destination');
+    const type = searchParams.get('type');
+    const province = searchParams.get('province');
+
+    if (destination) {
+      setSelectedCity(destination);
+    }
+    // type and province are captured but not used in current filter implementation
+  }, [searchParams]);
+
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
@@ -48,7 +67,7 @@ const FilteredHotels = () => {
           city: selectedCity,
           limit: itemsPerPage,
           page: currentPage,
-          sort: '-rating',
+          sort: sortBy,
           maxPrice: priceRange,
         };
         if (selectedRating) filters.minRating = selectedRating;
@@ -73,7 +92,7 @@ const FilteredHotels = () => {
     return () => {
       cancelled = true;
     };
-  }, [selectedCity, selectedRating, priceRange, selectedAmenityIds, currentPage]);
+  }, [selectedCity, selectedRating, priceRange, selectedAmenityIds, currentPage, sortBy]);
 
   return (
     <div style={{ backgroundColor: '#F9FAFB', minHeight: '100vh' }}>
@@ -90,20 +109,21 @@ const FilteredHotels = () => {
                 <div style={{ marginBottom: '20px' }}>
                   <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#374151', marginBottom: '8px' }}>City</label>
                   <div style={{ position: 'relative' }}>
-                    <select
+                    <input
+                      type="text"
                       value={selectedCity}
                       onChange={(e) => {
                         setSelectedCity(e.target.value);
                         setCurrentPage(1);
                       }}
-                      style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: '8px', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', backgroundColor: '#ffffff', backgroundImage: 'none', color: '#374151', fontSize: '0.875rem', outline: 'none' }}
-                    >
-                      <option>Kathmandu</option>
-                      <option>Pokhara</option>
-                      <option>Lalitpur</option>
-                      <option>Bhaktapur</option>
-                    </select>
-                    <ChevronDown style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', width: '16px', height: '16px', color: '#6B7280', pointerEvents: 'none' }} />
+                      placeholder="Search city..."
+                      style={{ width: '100%', padding: '10px 12px', paddingLeft: '36px', border: '1px solid #D1D5DB', borderRadius: '8px', backgroundColor: '#ffffff', color: '#374151', fontSize: '0.875rem', outline: 'none' }}
+                      onFocus={(e) => e.target.style.borderColor = '#14B8A6'}
+                      onBlur={(e) => e.target.style.borderColor = '#D1D5DB'}
+                    />
+                    <svg style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', width: '16px', height: '16px', color: '#6B7280', pointerEvents: 'none' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
                   </div>
                 </div>
 
@@ -209,10 +229,15 @@ const FilteredHotels = () => {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
                 <h1 style={{ fontSize: '1.875rem', fontWeight: '700', color: '#111827', fontFamily: 'Nunito, sans-serif' }}>Hotels in {selectedCity}</h1>
                 <div style={{ position: 'relative', width: '200px' }}>
-                  <select style={{ width: '100%', padding: '10px 12px', paddingRight: '36px', border: '1px solid #D1D5DB', borderRadius: '8px', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', backgroundColor: '#ffffff', backgroundImage: 'none', color: '#374151', fontSize: '0.875rem', outline: 'none' }}>
-                    <option>Sort by Price</option>
-                    <option>Sort by Rating</option>
-                    <option>Sort by Newest</option>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    style={{ width: '100%', padding: '10px 12px', paddingRight: '36px', border: '1px solid #D1D5DB', borderRadius: '8px', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', backgroundColor: '#ffffff', backgroundImage: 'none', color: '#374151', fontSize: '0.875rem', outline: 'none', cursor: 'pointer' }}
+                  >
+                    <option value="priceRange.min">Sort by Price (Low to High)</option>
+                    <option value="-priceRange.min">Sort by Price (High to Low)</option>
+                    <option value="-rating">Sort by Rating</option>
+                    <option value="-createdAt">Sort by Newest</option>
                   </select>
                   <div style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', gap: '4px', pointerEvents: 'none' }}>
                     <ChevronDown style={{ width: '16px', height: '16px', color: '#6B7280' }} />
@@ -235,7 +260,7 @@ const FilteredHotels = () => {
                 {!isLoading && !error && hotels.map((hotel) => {
                   const heroImage = hotel?.images?.[0] || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1200&q=80';
                   const id = hotel?._id || hotel?.id;
-                  const locationText = [hotel?.location?.address, hotel?.location?.city].filter(Boolean).join(', ');
+                  const locationText = hotel?.location?.address || hotel?.location?.city || '-';
                   const price = hotel?.priceRange?.min ?? hotel?.pricePerNight ?? 0;
 
                   return (<div

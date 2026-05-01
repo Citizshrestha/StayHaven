@@ -1,249 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getWishlist, toggleWishlist as toggleWishlistApi } from '../api/user';
+import { getAllHotels } from '../../../../api/hotel';
 import { toast } from 'react-toastify';
-
-// Property data organized by category
-const propertyData = {
-  Villa: [
-    {
-      id: 'villa-1',
-      name: 'Sunset Villa Paradise',
-      price: 450,
-      image: 'https://images.unsplash.com/photo-1613490493576-7fde63acd811?q=80&w=2071&auto=format&fit=crop',
-      badge: 'Most Popular',
-      badgeColor: '#2563EB',
-      rooms: 5,
-      bathrooms: 4,
-      area: '350',
-      rating: 4.9,
-      location: 'Bali, Indonesia'
-    },
-    {
-      id: 'villa-2',
-      name: 'Ocean View Villa',
-      price: 380,
-      image: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=2070&auto=format&fit=crop',
-      badge: 'New Launched',
-      badgeColor: '#DC2626',
-      rooms: 4,
-      bathrooms: 3,
-      area: '280',
-      rating: 4.8,
-      location: 'Maldives'
-    },
-    {
-      id: 'villa-3',
-      name: 'Mountain Retreat Villa',
-      price: 420,
-      image: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=2075&auto=format&fit=crop',
-      badge: 'Most Popular',
-      badgeColor: '#2563EB',
-      rooms: 6,
-      bathrooms: 5,
-      area: '400',
-      rating: 5.0,
-      location: 'Swiss Alps'
-    }
-  ],
-  Hotel: [
-    {
-      id: 'hotel-1',
-      name: 'The Grand Elysian',
-      price: 250,
-      image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?q=80&w=2070&auto=format&fit=crop',
-      badge: 'Most Popular',
-      badgeColor: '#2563EB',
-      rooms: 1,
-      bathrooms: 1,
-      area: '45',
-      rating: 4.8,
-      location: 'Thamel, Kathmandu'
-    },
-    {
-      id: 'hotel-2',
-      name: 'Himalayan Oasis',
-      price: 320,
-      image: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?q=80&w=2070&auto=format&fit=crop',
-      badge: 'New Launched',
-      badgeColor: '#DC2626',
-      rooms: 1,
-      bathrooms: 1,
-      area: '55',
-      rating: 4.9,
-      location: 'Lazimpat, Kathmandu'
-    },
-    {
-      id: 'hotel-3',
-      name: 'Boudha Boutique Hotel',
-      price: 180,
-      image: 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?q=80&w=2080&auto=format&fit=crop',
-      badge: 'Most Popular',
-      badgeColor: '#2563EB',
-      rooms: 1,
-      bathrooms: 1,
-      area: '40',
-      rating: 4.7,
-      location: 'Boudha, Kathmandu'
-    },
-    {
-      id: 'hotel-4',
-      name: 'Durbar Square Inn',
-      price: 150,
-      image: 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?q=80&w=2070&auto=format&fit=crop',
-      badge: 'New Launched',
-      badgeColor: '#DC2626',
-      rooms: 1,
-      bathrooms: 1,
-      area: '35',
-      rating: 4.5,
-      location: 'Basantapur, Kathmandu'
-    }
-  ],
-  Resort: [
-    {
-      id: 'resort-1',
-      name: 'Azure Haven Resort',
-      price: 520,
-      image: 'https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?q=80&w=2049&auto=format&fit=crop',
-      badge: 'Most Popular',
-      badgeColor: '#2563EB',
-      rooms: 2,
-      bathrooms: 2,
-      area: '120',
-      rating: 5.0,
-      location: 'Phuket, Thailand'
-    },
-    {
-      id: 'resort-2',
-      name: 'Tropical Paradise Resort',
-      price: 480,
-      image: 'https://images.unsplash.com/photo-1596436889106-be35e843f974?q=80&w=2070&auto=format&fit=crop',
-      badge: 'New Launched',
-      badgeColor: '#DC2626',
-      rooms: 2,
-      bathrooms: 2,
-      area: '110',
-      rating: 4.9,
-      location: 'Bali, Indonesia'
-    },
-    {
-      id: 'resort-3',
-      name: 'Seaside Luxury Resort',
-      price: 550,
-      image: 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?q=80&w=2070&auto=format&fit=crop',
-      badge: 'Most Popular',
-      badgeColor: '#2563EB',
-      rooms: 3,
-      bathrooms: 2,
-      area: '150',
-      rating: 4.8,
-      location: 'Maldives'
-    }
-  ],
-  Cottage: [
-    {
-      id: 'cottage-1',
-      name: 'Cozy Mountain Cottage',
-      price: 180,
-      image: 'https://images.unsplash.com/photo-1518780664697-55e3ad937233?q=80&w=2065&auto=format&fit=crop',
-      badge: 'Most Popular',
-      badgeColor: '#2563EB',
-      rooms: 2,
-      bathrooms: 1,
-      area: '75',
-      rating: 4.7,
-      location: 'Scottish Highlands'
-    },
-    {
-      id: 'cottage-2',
-      name: 'Lakeside Cottage',
-      price: 160,
-      image: 'https://images.unsplash.com/photo-1449158743715-0a90ebb6d2d8?q=80&w=2070&auto=format&fit=crop',
-      badge: 'New Launched',
-      badgeColor: '#DC2626',
-      rooms: 2,
-      bathrooms: 1,
-      area: '65',
-      rating: 4.6,
-      location: 'Lake District, UK'
-    }
-  ],
-  Bungalow: [
-    {
-      id: 'bungalow-1',
-      name: 'Beach Front Bungalow',
-      price: 220,
-      image: 'https://images.unsplash.com/photo-1602002418082-a4443e081dd1?q=80&w=2074&auto=format&fit=crop',
-      badge: 'Most Popular',
-      badgeColor: '#2563EB',
-      rooms: 2,
-      bathrooms: 1,
-      area: '80',
-      rating: 4.8,
-      location: 'Goa, India'
-    },
-    {
-      id: 'bungalow-2',
-      name: 'Garden Bungalow',
-      price: 200,
-      image: 'https://images.unsplash.com/photo-1439066615861-d1af74d74000?q=80&w=2073&auto=format&fit=crop',
-      badge: 'New Launched',
-      badgeColor: '#DC2626',
-      rooms: 2,
-      bathrooms: 1,
-      area: '70',
-      rating: 4.5,
-      location: 'Kerala, India'
-    }
-  ],
-  Duplex: [
-    {
-      id: 'duplex-1',
-      name: 'Modern Loft Duplex',
-      price: 350,
-      image: 'https://images.unsplash.com/photo-1484154218962-a197022b5858?q=80&w=2074&auto=format&fit=crop',
-      badge: 'Most Popular',
-      badgeColor: '#2563EB',
-      rooms: 3,
-      bathrooms: 2,
-      area: '180',
-      rating: 4.9,
-      location: 'Tokyo, Japan'
-    },
-    {
-      id: 'duplex-2',
-      name: 'Executive Duplex Suite',
-      price: 380,
-      image: 'https://images.unsplash.com/photo-1502672260066-6bc35f0a1f75?q=80&w=2080&auto=format&fit=crop',
-      badge: 'New Launched',
-      badgeColor: '#DC2626',
-      rooms: 4,
-      bathrooms: 3,
-      area: '200',
-      rating: 5.0,
-      location: 'Seoul, Korea'
-    },
-    {
-      id: 'duplex-3',
-      name: 'City Centre Duplex',
-      price: 320,
-      image: 'https://images.unsplash.com/photo-1556912172-45b7abe8b7e1?q=80&w=2070&auto=format&fit=crop',
-      badge: 'Most Popular',
-      badgeColor: '#2563EB',
-      rooms: 3,
-      bathrooms: 2,
-      area: '160',
-      rating: 4.7,
-      location: 'London, UK'
-    }
-  ]
-};
 
 const FeaturedHotels = () => {
   const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState('Hotel');
   const [wishlist, setWishlist] = useState([]);
+  const [hotels, setHotels] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const categories = [
     {
@@ -296,6 +63,25 @@ const FeaturedHotels = () => {
     }
   ];
 
+  // Load hotels from backend
+  useEffect(() => {
+    const fetchHotels = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await getAllHotels({ category: selectedCategory, limit: 20 });
+        setHotels(response.hotels || []);
+      } catch (err) {
+        console.error('Failed to load hotels:', err);
+        setError('Failed to load hotels. Please try again later.');
+        setHotels([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchHotels();
+  }, [selectedCategory]);
+
   // Load wishlist
   useEffect(() => {
     const init = async () => {
@@ -331,8 +117,20 @@ const FeaturedHotels = () => {
     }
   };
 
-  // Get displayed properties based on selected category
-  const displayedProperties = propertyData[selectedCategory] || [];
+  // Transform backend hotel data to match the component's expected format
+  const displayedProperties = hotels.map(hotel => ({
+    id: hotel._id,
+    name: hotel.name,
+    price: hotel.priceRange?.min || 0,
+    image: hotel.images?.[0] || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1200&q=80',
+    badge: hotel.featured ? 'Featured' : 'Available',
+    badgeColor: hotel.featured ? '#2563EB' : '#10B981',
+    rooms: hotel.totalRooms || 1,
+    bathrooms: 1,
+    area: '45',
+    rating: hotel.rating || 0,
+    location: `${hotel.location?.address || ''}, ${hotel.location?.city || ''}`.trim().replace(/^,\s*/, '')
+  }));
 
   return (
     <div style={{ backgroundColor: '#ffffff', paddingTop: '14px', paddingBottom: '16px' }}>
@@ -454,13 +252,61 @@ const FeaturedHotels = () => {
             </div>
           </div>
 
+          {/* Loading State */}
+          {loading && (
+            <div style={{ textAlign: 'center', padding: '60px 0', color: '#6B7280' }}>
+              <div style={{ fontSize: '1.125rem', marginBottom: '12px' }}>Loading hotels...</div>
+              <div style={{ fontSize: '0.875rem' }}>Please wait while we fetch the latest properties</div>
+            </div>
+          )}
+
+          {/* Error State */}
+          {error && !loading && (
+            <div style={{
+              textAlign: 'center',
+              padding: '60px 20px',
+              backgroundColor: '#FEF2F2',
+              borderRadius: '12px',
+              border: '1px solid #FCA5A5'
+            }}>
+              <div style={{ fontSize: '1.125rem', color: '#DC2626', marginBottom: '8px', fontWeight: '600' }}>
+                {error}
+              </div>
+              <button
+                onClick={() => window.location.reload()}
+                style={{
+                  marginTop: '16px',
+                  padding: '10px 24px',
+                  backgroundColor: '#DC2626',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: '600'
+                }}
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!loading && !error && displayedProperties.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '60px 0', color: '#6B7280' }}>
+              <div style={{ fontSize: '1.125rem', marginBottom: '8px' }}>No hotels found</div>
+              <div style={{ fontSize: '0.875rem' }}>Try selecting a different category</div>
+            </div>
+          )}
+
           {/* Properties Grid */}
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', 
-            gap: '24px' 
-          }}>
-            {displayedProperties.map((property) => (
+          {!loading && !error && displayedProperties.length > 0 && (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+              gap: '24px'
+            }}>
+              {displayedProperties.map((property) => (
               <div
                 key={property.id}
                 onClick={() => navigate(`/hotel/${property.id}`)}
@@ -629,8 +475,9 @@ const FeaturedHotels = () => {
                   </button>
                 </div>
               </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
