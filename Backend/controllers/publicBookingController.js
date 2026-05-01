@@ -443,11 +443,17 @@ export const createBookingWithPayment = asyncHandler(async (req, res) => {
       }
     } catch (paymentError) {
       console.error("Payment processing error:", paymentError);
-      await session.abortTransaction();
+      // Only abort if transaction is still active
+      if (session.inTransaction()) {
+        await session.abortTransaction();
+      }
       throw Object.assign(new Error(`Payment failed: ${paymentError.message}`), { status: 400 });
     }
   } catch (error) {
-    await session.abortTransaction();
+    // Only abort if transaction is still active
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+    }
     throw error;
   } finally {
     session.endSession();
