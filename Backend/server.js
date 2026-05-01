@@ -21,6 +21,7 @@ import roomRoutes from "./routes/roomRoutes.js";
 import guestRoutes from "./routes/guestRoutes.js";
 import guestDashboardRoutes from "./routes/guestDashboardRoutes.js";
 import bookingRoutes from "./routes/bookingRoutes.js";
+import publicBookingRoutes from "./routes/publicBookingRoutes.js";
 import seedRoutes from "./routes/seedRoutes.js";
 import receptionRoutes from "./routes/receptionRoutes.js";
 import cookieParser from "cookie-parser";
@@ -191,6 +192,7 @@ app.use("/api/staff", staffRoutes);
 app.use("/api/tables", tableRoutes);      // HotelTable management (authenticated)
 app.use("/api/rooms", roomRoutes);        // Room QR management (authenticated)
 app.use("/api/bookings", bookingRoutes);  // Booking management (authenticated)
+app.use("/api/public/bookings", publicBookingRoutes); // Public booking with payment (no auth)
 app.use("/api/seed", seedRoutes);         // Seed test data (admin only)
 app.use("/api/guest", guestRoutes);       // Guest QR scanning (public)
 app.use("/api/guest/portal", guestDashboardRoutes); // Guest dashboard (authenticated)
