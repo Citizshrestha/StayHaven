@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Star, Hotel, Filter, MapPin, Calendar, Thermometer, Bed, ChevronLeft, ChevronRight, X } from "lucide-react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import "./Destination.css";
 
 gsap.registerPlugin(ScrollTrigger);
@@ -124,11 +124,12 @@ const destinations = [
 ];
 
 const Destination = () => {
+  const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
   const [selectedDestination, setSelectedDestination] = useState(null);
   const [selectedFilter, setSelectedFilter] = useState("all");
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  
+
   const heroRef = useRef(null);
   const headerRef = useRef(null);
   const filterRef = useRef(null);
@@ -160,6 +161,18 @@ const Destination = () => {
         prevIndex === 0 ? selectedDestination.images.length - 1 : prevIndex - 1
       );
     }
+  };
+
+  const handleViewHotels = () => {
+    if (!selectedDestination) return;
+    const params = new URLSearchParams({
+      destination: selectedDestination.name,
+      province: selectedDestination.location,
+      type: selectedDestination.category,
+    });
+    navigate(`/hotels?${params.toString()}`);
+    closeModal();
+    window.scrollTo(0, 0);
   };
 
   // Filter destinations based on selected filter
@@ -508,13 +521,13 @@ const Destination = () => {
                 
                 {/* Action Buttons */}
                 <div className="flex gap-3">
-                  <Link
-                    to={selectedDestination.hotelsLink}
+                  <button
+                    onClick={handleViewHotels}
                     className="flex-1 bg-gradient-to-r from-teal-500 to-teal-700 hover:from-teal-600 hover:to-teal-800 text-white font-semibold py-3 px-6 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
                   >
                     <Hotel className="w-5 h-5" />
                     View & Book Hotels
-                  </Link>
+                  </button>
                   <button
                     className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-2xl transition-all"
                     onClick={closeModal}

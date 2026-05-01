@@ -389,8 +389,26 @@
 }
 
 .member-avatar {
-  font-size: 4rem;
-  margin-bottom: 20px;
+  width: 150px;
+  height: 150px;
+  margin: 0 auto 20px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 4px solid #00A797;
+  box-shadow: 0 8px 20px rgba(0, 167, 151, 0.2);
+  transition: all 0.3s ease;
+}
+
+.member-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.team-card:hover .member-avatar {
+  transform: scale(1.05);
+  box-shadow: 0 12px 30px rgba(0, 167, 151, 0.3);
 }
 
 .team-card h3 {

@@ -6,28 +6,28 @@ const AboutPage = () => {
     {
       name: "Rajesh Shrestha",
       position: "Founder & CEO",
-      image: "�‍💼",
+      image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&crop=faces",
       bio: "Hospitality veteran with 15+ years experience in Nepal's tourism industry. Founded StayHaven to showcase Nepal's finest accommodations.",
       expertise: "Hospitality Management, Business Strategy"
     },
     {
       name: "Anita Gurung",
       position: "Chief Operations Officer",
-      image: "�‍💼",
+      image: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&h=400&fit=crop&crop=faces",
       bio: "Operations expert ensuring seamless experiences across all partner properties. Passionate about quality service delivery.",
       expertise: "Operations, Quality Assurance"
     },
     {
       name: "Priya Thapa",
       position: "Head of Guest Experience",
-      image: "👩‍💼",
+      image: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=400&h=400&fit=crop&crop=faces",
       bio: "Dedicated to creating memorable stays for every guest. Leads our customer service and support teams.",
       expertise: "Customer Experience, Service Design"
     },
     {
       name: "Bikram Rai",
       position: "Partnerships Director",
-      image: "👨‍💼",
+      image: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=400&h=400&fit=crop&crop=faces",
       bio: "Builds relationships with hotels and resorts across Nepal. Curates our exclusive portfolio of properties.",
       expertise: "Partnerships, Business Development"
     }
@@ -189,7 +189,9 @@ const AboutPage = () => {
             <div className="team-grid">
               {teamMembers.map((member, index) => (
                 <div key={index} className="team-card">
-                  <div className="member-avatar">{member.image}</div>
+                  <div className="member-avatar">
+                    <img src={member.image} alt={member.name} />
+                  </div>
                   <h3>{member.name}</h3>
                   <p className="member-position">{member.position}</p>
                   <p className="member-bio">{member.bio}</p>
