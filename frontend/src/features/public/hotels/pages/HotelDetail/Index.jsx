@@ -29,6 +29,7 @@ const HotelDetail = () => {
   const [hotel, setHotel] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [visibleReviewsCount, setVisibleReviewsCount] = useState(3);
 
   const sectionOrder = useMemo(() => ['overview', 'rooms', 'amenities', 'reviews', 'location'], []);
 
@@ -95,6 +96,14 @@ const HotelDetail = () => {
 
   const reviewAverage = (hotel?.rating ?? 0).toFixed(1);
 
+  const handleLoadMoreReviews = () => {
+    setVisibleReviewsCount((prev) => prev + 3);
+  };
+
+  const visibleReviews = (hotel?.reviews || []).slice(0, visibleReviewsCount);
+  const hasMoreReviews = (hotel?.reviews || []).length > visibleReviewsCount;
+  const remainingReviewsCount = (hotel?.reviews || []).length - visibleReviewsCount;
+
   return (
     <div className="min-h-screen pt-24 pb-24 md:pb-12" style={{ background: '#F8FAFB' }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-5 animate-[fadeIn_0.5s_ease]">
@@ -144,6 +153,8 @@ const HotelDetail = () => {
                   hotel.featured ? 'Featured' : null,
                   hotel.starRating ? `${hotel.starRating}-Star` : null,
                 ].filter(Boolean)}
+                pricePerNight={booking.pricePerNight}
+                onBookNow={() => setMobileBookingOpen(true)}
               />
             </div>
 
@@ -154,14 +165,39 @@ const HotelDetail = () => {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
               <div className="flex flex-col lg:flex-row gap-8">
                 <div className="w-full lg:w-[66%] space-y-10">
+                  {/* Overview Section - Premium Mobile Design */}
                   <section
                     id="section-overview"
-                    className="rounded-2xl bg-white p-4 sm:p-6 md:p-8 border border-[rgba(0,191,166,0.15)] shadow-[0_4px_16px_rgba(0,0,0,0.06)] animate-[fadeInUp_0.7s_ease]"
+                    className="rounded-3xl bg-gradient-to-br from-white to-[#F0FDFB] p-6 sm:p-8 md:p-10 border-2 border-[#00BFA6]/20 shadow-[0_8px_32px_rgba(0,191,166,0.12)] animate-[fadeInUp_0.7s_ease] relative overflow-hidden"
                   >
-                    <h3 className="text-2xl font-bold mb-4 text-[#263238]">Overview</h3>
-                    <p className="text-[15px] leading-8 text-[#546E7A]">
+                    {/* Decorative Element */}
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#00BFA6]/10 to-transparent rounded-bl-full"></div>
+
+                    <div className="flex items-center gap-3 mb-5 relative z-10">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#00BFA6] to-[#00E5CC] flex items-center justify-center shadow-lg">
+                        <Home className="w-5 h-5 text-white" />
+                      </div>
+                      <h3 className="text-2xl md:text-3xl font-extrabold text-[#263238]">Overview</h3>
+                    </div>
+
+                    <p className="text-base md:text-lg leading-relaxed text-[#546E7A] relative z-10">
                       {hotel.description}
                     </p>
+
+                    {/* Highlight Box */}
+                    <div className="mt-6 p-4 bg-white/80 backdrop-blur-sm rounded-2xl border border-[#00BFA6]/20 relative z-10">
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-[#00BFA6]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <Check className="w-4 h-4 text-[#00BFA6]" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-[#263238] mb-1">Why choose this property?</p>
+                          <p className="text-sm text-[#546E7A] leading-relaxed">
+                            Highly rated for cleanliness, location, and exceptional service. Perfect for both leisure and business travelers.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </section>
 
               <section id="section-rooms" className="space-y-5 animate-[fadeInUp_0.8s_ease]">
@@ -212,97 +248,174 @@ const HotelDetail = () => {
                 })}
               </section>
 
-              <section id="section-amenities" className="rounded-2xl bg-white p-4 sm:p-6 md:p-8 border border-[rgba(0,191,166,0.15)] shadow-[0_4px_16px_rgba(0,0,0,0.06)] animate-[fadeInUp_0.9s_ease]">
-                <h3 className="text-2xl font-bold mb-6 text-[#263238]">Amenities</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {/* Amenities Section - Premium Mobile Design */}
+              <section id="section-amenities" className="rounded-3xl bg-gradient-to-br from-white to-[#F0FDFB] p-6 sm:p-8 md:p-10 border-2 border-[#00BFA6]/20 shadow-[0_8px_32px_rgba(0,191,166,0.12)] animate-[fadeInUp_0.9s_ease] relative overflow-hidden">
+                {/* Decorative Element */}
+                <div className="absolute bottom-0 left-0 w-40 h-40 bg-gradient-to-tr from-[#00BFA6]/10 to-transparent rounded-tr-full"></div>
+
+                <div className="flex items-center gap-3 mb-6 relative z-10">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#00BFA6] to-[#00E5CC] flex items-center justify-center shadow-lg">
+                    <Star className="w-5 h-5 text-white fill-white" />
+                  </div>
+                  <h3 className="text-2xl md:text-3xl font-extrabold text-[#263238]">Amenities</h3>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 relative z-10">
                   {(hotel.amenities || []).map((amenityKey) => (
                     <AmenityCard key={amenityKey} icon={amenityKey} label={AMENITY_LABELS[amenityKey] || amenityKey} />
                   ))}
                 </div>
+
+                {/* Premium Badge */}
+                <div className="mt-6 p-4 bg-gradient-to-r from-[#00BFA6]/10 to-[#00E5CC]/10 rounded-2xl border border-[#00BFA6]/20 relative z-10">
+                  <p className="text-sm font-semibold text-[#00A896] text-center">
+                    ✨ All amenities included in your stay
+                  </p>
+                </div>
               </section>
 
-              <section id="section-reviews" className="space-y-5 animate-[fadeInUp_1s_ease]">
-                <div className="rounded-2xl bg-white p-4 sm:p-6 md:p-8 border border-[rgba(0,191,166,0.15)] shadow-[0_4px_16px_rgba(0,0,0,0.06)] grid grid-cols-1 md:grid-cols-[260px_1fr] gap-6">
-                  <div>
-                    <p className="text-4xl font-extrabold text-[#263238]">{reviewAverage} <span className="text-[#FFB84D]">★</span></p>
-                    <p className="font-semibold text-[#263238] mt-2">{(hotel.reviewCount || 0).toLocaleString()} reviews</p>
-                    <p className="text-[#546E7A] mt-1">{hotel.rating >= 4.6 ? 'Excellent' : hotel.rating >= 4.0 ? 'Very good' : 'Good'}</p>
+              {/* Reviews Section - Premium Mobile Design */}
+              <section id="section-reviews" className="space-y-6 animate-[fadeInUp_1s_ease]">
+                {/* Rating Summary Card */}
+                <div className="rounded-3xl bg-gradient-to-br from-white to-[#FFF9E6] p-6 sm:p-8 border-2 border-[#FFB84D]/30 shadow-[0_8px_32px_rgba(255,184,77,0.15)] relative overflow-hidden">
+                  {/* Decorative Element */}
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-[#FFB84D]/20 to-transparent rounded-bl-full"></div>
+
+                  <div className="flex items-center gap-3 mb-6 relative z-10">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FFB84D] to-[#FFA726] flex items-center justify-center shadow-lg">
+                      <Star className="w-5 h-5 text-white fill-white" />
+                    </div>
+                    <h3 className="text-2xl md:text-3xl font-extrabold text-[#263238]">Guest Reviews</h3>
                   </div>
-                  <div className="space-y-2">
-                    {[
-                      { stars: 5, percent: 60 },
-                      { stars: 4, percent: 25 },
-                      { stars: 3, percent: 10 },
-                      { stars: 2, percent: 3 },
-                      { stars: 1, percent: 2 },
-                    ].map((row) => (
-                      <div key={row.stars} className="grid grid-cols-[38px_1fr_38px] items-center gap-3 text-sm">
-                        <span className="font-semibold text-[#546E7A]">{row.stars}★</span>
-                        <div className="h-2.5 rounded-full bg-[#E5F5F2] overflow-hidden">
-                          <div className="h-full rounded-full bg-linear-to-r from-[#00BFA6] to-[#00E5CC]" style={{ width: `${row.percent}%` }} />
-                        </div>
-                        <span className="text-[#546E7A]">{row.percent}%</span>
+
+                  <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-6 relative z-10">
+                    {/* Rating Score */}
+                    <div className="text-center md:text-left">
+                      <div className="inline-flex items-baseline gap-2 mb-2">
+                        <p className="text-5xl md:text-6xl font-extrabold text-[#263238]">{reviewAverage}</p>
+                        <span className="text-3xl text-[#FFB84D]">★</span>
                       </div>
-                    ))}
+                      <p className="font-bold text-[#263238] text-lg">{(hotel.reviewCount || 0).toLocaleString()} reviews</p>
+                      <div className="inline-block mt-2 px-4 py-1.5 bg-gradient-to-r from-[#00BFA6] to-[#00E5CC] text-white text-sm font-bold rounded-full">
+                        {hotel.rating >= 4.6 ? 'Excellent' : hotel.rating >= 4.0 ? 'Very Good' : 'Good'}
+                      </div>
+                    </div>
+
+                    {/* Rating Bars */}
+                    <div className="space-y-3">
+                      {[
+                        { stars: 5, percent: 60 },
+                        { stars: 4, percent: 25 },
+                        { stars: 3, percent: 10 },
+                        { stars: 2, percent: 3 },
+                        { stars: 1, percent: 2 },
+                      ].map((row) => (
+                        <div key={row.stars} className="grid grid-cols-[50px_1fr_50px] items-center gap-3">
+                          <span className="font-bold text-[#263238] text-sm">{row.stars} ★</span>
+                          <div className="h-3 rounded-full bg-[#F5F5F5] overflow-hidden shadow-inner">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-[#FFB84D] to-[#FFA726] transition-all duration-500"
+                              style={{ width: `${row.percent}%` }}
+                            />
+                          </div>
+                          <span className="text-[#546E7A] font-semibold text-sm text-right">{row.percent}%</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
+                {/* Individual Reviews */}
                 <div className="space-y-4">
-                  {(hotel.reviews || []).map((review) => {
+                  {visibleReviews.map((review) => {
                     const expanded = expandedReviews[review.id];
                     const visibleText = expanded ? review.text : `${review.text.slice(0, 150)}${review.text.length > 150 ? '...' : ''}`;
                     return (
-                      <article key={review.id} className="rounded-2xl bg-white p-5 border border-[rgba(0,191,166,0.15)] shadow-[0_4px_16px_rgba(0,0,0,0.06)]">
-                        <div className="flex items-center justify-between gap-3">
+                      <article key={review.id} className="rounded-2xl bg-white p-5 sm:p-6 border-2 border-[#00BFA6]/10 shadow-[0_4px_20px_rgba(0,0,0,0.08)] hover:shadow-[0_8px_32px_rgba(0,191,166,0.15)] transition-all duration-300">
+                        <div className="flex items-start justify-between gap-3 mb-4">
                           <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-full bg-linear-to-br from-[#00BFA6] to-[#00E5CC] text-white flex items-center justify-center font-bold">
+                            <div className="h-12 w-12 rounded-full bg-gradient-to-br from-[#00BFA6] to-[#00E5CC] text-white flex items-center justify-center font-bold text-lg shadow-lg">
                               {review.name.split(' ').map((n) => n[0]).join('').slice(0, 2)}
                             </div>
                             <div>
-                              <p className="font-semibold text-[#263238]">{review.name} {review.country}</p>
-                              <p className="text-xs text-[#546E7A]">{review.date}</p>
+                              <p className="font-bold text-[#263238]">{review.name}</p>
+                              <p className="text-xs text-[#546E7A] flex items-center gap-1.5">
+                                <MapPin className="w-3 h-3" />
+                                {review.country} • {review.date}
+                              </p>
                             </div>
                           </div>
-                          <div className="flex items-center gap-1 text-[#FFB84D]">
-                            {Array.from({ length: review.rating }).map((_, idx) => (
-                              <Star key={`${review.id}-star-${idx}`} className="w-4 h-4 fill-current" />
-                            ))}
+                          <div className="flex items-center gap-1 bg-[#FFF9E6] px-2.5 py-1 rounded-lg">
+                            <span className="font-bold text-[#263238] text-sm">{review.rating}</span>
+                            <Star className="w-4 h-4 text-[#FFB84D] fill-[#FFB84D]" />
                           </div>
                         </div>
-                        <p className="text-sm leading-7 text-[#546E7A] mt-3">{visibleText}</p>
+
+                        <p className="text-sm md:text-base leading-relaxed text-[#546E7A]">{visibleText}</p>
+
                         {review.text.length > 150 && (
                           <button
                             type="button"
-                            className="text-sm font-semibold text-[#00A896] mt-1 hover:underline"
+                            className="text-sm font-bold text-[#00BFA6] mt-2 hover:text-[#00A896] transition-colors"
                             onClick={() => setExpandedReviews((prev) => ({ ...prev, [review.id]: !expanded }))}
                           >
-                            {expanded ? 'Read less' : 'Read more'}
+                            {expanded ? '← Read less' : 'Read more →'}
                           </button>
                         )}
-                        <button className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-[#00A896]">
-                          <ThumbsUp className="w-3.5 h-3.5" /> Helpful?
-                        </button>
+
+                        <div className="flex items-center gap-3 mt-4 pt-4 border-t border-[#00BFA6]/10">
+                          <button className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#00A896] hover:text-[#00BFA6] transition-colors">
+                            <ThumbsUp className="w-3.5 h-3.5" /> Helpful
+                          </button>
+                        </div>
                       </article>
                     );
                   })}
-                  <button className="w-full py-3 rounded-xl border border-[#00BFA6] text-[#00A896] font-semibold hover:bg-[#00BFA6]/10 transition">
-                    Load more reviews
-                  </button>
+                  {hasMoreReviews && (
+                    <button
+                      onClick={handleLoadMoreReviews}
+                      className="w-full py-3 rounded-xl border border-[#00BFA6] text-[#00A896] font-semibold hover:bg-[#00BFA6]/10 transition"
+                    >
+                      Load more reviews ({remainingReviewsCount} remaining)
+                    </button>
+                  )}
                 </div>
               </section>
 
-              <section id="section-location" className="rounded-2xl bg-white p-4 sm:p-6 md:p-8 border border-[rgba(0,191,166,0.15)] shadow-[0_4px_16px_rgba(0,0,0,0.06)] animate-[fadeInUp_1.1s_ease]">
-                <h3 className="text-2xl font-bold text-[#263238] mb-5">Location</h3>
-                <div className="rounded-2xl overflow-hidden relative h-70">
+              {/* Location Section - Premium Mobile Design */}
+              <section id="section-location" className="rounded-3xl bg-gradient-to-br from-white to-[#F0FDFB] p-6 sm:p-8 md:p-10 border-2 border-[#00BFA6]/20 shadow-[0_8px_32px_rgba(0,191,166,0.12)] animate-[fadeInUp_1.1s_ease] relative overflow-hidden">
+                {/* Decorative Element */}
+                <div className="absolute top-0 left-0 w-40 h-40 bg-gradient-to-br from-[#00BFA6]/10 to-transparent rounded-br-full"></div>
+
+                <div className="flex items-center gap-3 mb-6 relative z-10">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#00BFA6] to-[#00E5CC] flex items-center justify-center shadow-lg">
+                    <MapPin className="w-5 h-5 text-white" />
+                  </div>
+                  <h3 className="text-2xl md:text-3xl font-extrabold text-[#263238]">Location</h3>
+                </div>
+
+                <div className="rounded-2xl overflow-hidden relative h-64 md:h-80 shadow-xl mb-5 relative z-10">
                   <img src={hotel.images?.[0]} alt={`${hotel.name} location`} className="w-full h-full object-cover" />
-                  <div className="absolute inset-x-0 top-0 h-20 bg-linear-to-b from-white/80 to-transparent" />
-                  <div className="absolute left-4 top-4 px-4 py-2 rounded-xl bg-white/55 backdrop-blur-[10px] text-sm font-semibold text-[#263238] inline-flex items-center gap-2">
+                  <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/40 to-transparent" />
+                  <div className="absolute left-4 top-4 px-4 py-2.5 rounded-xl bg-white/90 backdrop-blur-md text-sm font-bold text-[#263238] inline-flex items-center gap-2 shadow-lg">
                     <MapPin className="w-4 h-4 text-[#00BFA6]" /> {hotel.name}
                   </div>
                 </div>
-                <p className="text-sm text-[#546E7A] mt-4">
-                  {hotel?.location?.address || 'Address'}{hotel?.location?.city ? `, ${hotel.location.city}` : ''}
-                </p>
+
+                {/* Address Card */}
+                <div className="p-5 bg-white/80 backdrop-blur-sm rounded-2xl border-2 border-[#00BFA6]/20 relative z-10">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-[#00BFA6]/10 flex items-center justify-center flex-shrink-0">
+                      <MapPin className="w-5 h-5 text-[#00BFA6]" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-bold text-[#263238] mb-1">Address</p>
+                      <p className="text-sm md:text-base text-[#546E7A] leading-relaxed">
+                        {hotel.location?.address}, {hotel.location?.city}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </section>
                 </div>
 
@@ -316,6 +429,8 @@ const HotelDetail = () => {
                     hotelName={hotel.name}
                     hotelAddress={[hotel?.location?.address, hotel?.location?.city].filter(Boolean).join(', ')}
                     hotelImage={hotel.images?.[0]}
+                    hotelId={hotel._id}
+                    roomId={hotel.rooms?.[0]?._id || hotel.rooms?.[0]?.id}
                   />
                 </div>
               </div>
@@ -323,22 +438,6 @@ const HotelDetail = () => {
           </>
         )}
       </main>
-
-      {!isLoading && !error && hotel && (
-        <div className="lg:hidden fixed bottom-0 inset-x-0 z-120 bg-white border-t border-[rgba(0,191,166,0.18)] shadow-[0_-8px_24px_rgba(0,191,166,0.15)] p-3 flex items-center justify-between">
-        <div>
-          <p className="text-sm text-[#546E7A]">Starting from</p>
-          <p className="text-lg font-bold text-[#263238]">NPR {booking.pricePerNight}/night</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setMobileBookingOpen(true)}
-          className="px-5 py-3 rounded-xl text-white font-bold bg-linear-to-r from-[#00BFA6] to-[#00E5CC]"
-        >
-          Book Now →
-        </button>
-        </div>
-      )}
 
       {mobileBookingOpen && hotel && (
         <div className="lg:hidden fixed inset-0 z-130 bg-black/45 flex items-end">
@@ -360,6 +459,8 @@ const HotelDetail = () => {
               hotelName={hotel.name}
               hotelAddress={[hotel?.location?.address, hotel?.location?.city].filter(Boolean).join(', ')}
               hotelImage={hotel.images?.[0]}
+              hotelId={hotel._id}
+              roomId={hotel.rooms?.[0]?._id || hotel.rooms?.[0]?.id}
             />
           </div>
         </div>
