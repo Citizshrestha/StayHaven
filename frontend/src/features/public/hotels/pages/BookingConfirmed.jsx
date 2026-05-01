@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-
+import { CheckCircle, Download, Calendar, Users, Home, MapPin, CreditCard } from 'lucide-react';
 
 const BookingConfirmed = () => {
   const location = useLocation();
@@ -15,308 +15,172 @@ const BookingConfirmed = () => {
     checkOut = 'Mon, 19 Aug 2024',
     guests = '2 Adults',
     roomType = 'Deluxe Queen Room',
-    totalPaid = 450.00
+    totalPaid = 450.00,
+    paymentMethod = 'eSewa'
   } = bookingData;
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#fff6f6' }}>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #E5F5F2 0%, #B2EBF2 100%)' }}>
 
-      <div style={{ 
-        paddingTop: '120px', 
-        paddingBottom: '60px',
-        maxWidth: '800px',
-        margin: '0 auto',
-        padding: '120px 20px 60px'
-      }}>
-        {/* Success Icon */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-          marginBottom: '32px'
-        }}>
-          <div style={{
-            width: '80px',
-            height: '80px',
-            borderRadius: '50%',
-            backgroundColor: '#D1FAE5',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}>
-            <svg 
-              style={{ width: '40px', height: '40px', color: '#10B981' }}
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
-            >
-              <path 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                strokeWidth={3} 
-                d="M5 13l4 4L19 7"
-              />
-            </svg>
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8" style={{ paddingTop: '120px', paddingBottom: '60px' }}>
+        {/* Success Icon with Animation */}
+        <div className="flex justify-center mb-8 animate-[bounceIn_0.6s_ease]">
+          <div className="relative">
+            <div className="absolute inset-0 bg-[#00BFA6] rounded-full blur-2xl opacity-30 animate-pulse"></div>
+            <div className="relative w-24 h-24 rounded-full bg-gradient-to-br from-[#00BFA6] to-[#00E5CC] flex items-center justify-center shadow-2xl">
+              <CheckCircle className="w-14 h-14 text-white" strokeWidth={2.5} />
+            </div>
           </div>
         </div>
 
         {/* Heading */}
-        <h1 style={{
-          fontSize: '2.5rem',
-          fontWeight: '700',
-          textAlign: 'center',
-          color: '#111827',
-          marginBottom: '12px',
-          fontFamily: 'Nunito, sans-serif'
-        }}>
-          Booking Confirmed!
+        <h1 className="text-4xl md:text-5xl font-extrabold text-center text-[#263238] mb-4 animate-[fadeInUp_0.7s_ease]">
+          Booking Confirmed! 🎉
         </h1>
 
         {/* Subtext */}
-        <p style={{
-          textAlign: 'center',
-          color: '#6B7280',
-          fontSize: '1rem',
-          marginBottom: '48px'
-        }}>
+        <p className="text-center text-[#546E7A] text-lg mb-12 animate-[fadeInUp_0.8s_ease]">
           A confirmation email with all the details has been sent to your inbox.
         </p>
 
         {/* Booking Details Card */}
-        <div style={{
-          backgroundColor: '#ffffff',
-          borderRadius: '16px',
-          padding: '32px',
-          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)',
-          border: '1px solid #F3F4F6'
-        }}>
-          {/* Booking Reference */}
-          <div style={{ marginBottom: '16px' }}>
-            <p style={{
-              fontSize: '0.875rem',
-              color: '#6B7280',
-              marginBottom: '4px'
-            }}>
-              Booking Reference: <span style={{ color: '#111827', fontWeight: '600' }}>{bookingReference}</span>
-            </p>
+        <div className="bg-white rounded-3xl shadow-2xl border border-[rgba(0,191,166,0.2)] overflow-hidden animate-[fadeInUp_0.9s_ease]">
+          {/* Booking Reference Banner */}
+          <div className="bg-gradient-to-r from-[#00BFA6] to-[#00E5CC] px-6 py-4">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <p className="text-sm text-white/80 mb-1">Booking Reference</p>
+                <p className="text-2xl font-bold text-white tracking-wide">{bookingReference}</p>
+              </div>
+              <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full">
+                <CreditCard className="w-5 h-5 text-white" />
+                <span className="text-sm font-semibold text-white">Paid via {paymentMethod}</span>
+              </div>
+            </div>
           </div>
 
-          {/* Hotel Info Section */}
-          <div style={{
-            display: 'flex',
-            gap: '24px',
-            marginBottom: '32px',
-            flexWrap: 'wrap'
-          }}>
-            <div style={{ flex: '1', minWidth: '200px' }}>
-              <h2 style={{
-                fontSize: '1.5rem',
-                fontWeight: '700',
-                color: '#111827',
-                marginBottom: '8px',
-                fontFamily: 'Nunito, sans-serif'
-              }}>
-                {hotelName}
-              </h2>
-              <p style={{
-                fontSize: '0.875rem',
-                color: '#6B7280'
-              }}>
-                {hotelAddress}
-              </p>
+          <div className="p-6 md:p-8">
+            {/* Hotel Info Section */}
+            <div className="flex flex-col md:flex-row gap-6 mb-8">
+              {/* Hotel Image */}
+              <div className="w-full md:w-64 h-48 rounded-2xl overflow-hidden shadow-lg flex-shrink-0">
+                <img
+                  src={hotelImage}
+                  alt={hotelName}
+                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+                />
+              </div>
+
+              <div className="flex-1">
+                <div className="flex items-start gap-3 mb-3">
+                  <Home className="w-6 h-6 text-[#00BFA6] flex-shrink-0 mt-1" />
+                  <div>
+                    <h2 className="text-2xl md:text-3xl font-bold text-[#263238] mb-2">
+                      {hotelName}
+                    </h2>
+                    <div className="flex items-center gap-2 text-[#546E7A]">
+                      <MapPin className="w-4 h-4 text-[#00BFA6]" />
+                      <p className="text-sm">{hotelAddress}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {/* Hotel Image */}
-            <div style={{
-              width: '200px',
-              height: '150px',
-              borderRadius: '12px',
-              overflow: 'hidden',
-              flexShrink: 0
-            }}>
-              <img 
-                src={hotelImage}
-                alt={hotelName}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover'
+            {/* Divider */}
+            <div className="h-px bg-gradient-to-r from-transparent via-[rgba(0,191,166,0.3)] to-transparent mb-8" />
+
+            {/* Booking Details Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              {/* Check-in */}
+              <div className="bg-gradient-to-br from-[#E5F5F2] to-[#B2EBF2]/30 rounded-xl p-5 border border-[rgba(0,191,166,0.2)]">
+                <div className="flex items-center gap-2 mb-2">
+                  <Calendar className="w-5 h-5 text-[#00BFA6]" />
+                  <p className="text-xs font-bold text-[#546E7A] uppercase tracking-wider">Check-in</p>
+                </div>
+                <p className="text-lg font-bold text-[#263238]">{checkIn}</p>
+              </div>
+
+              {/* Check-out */}
+              <div className="bg-gradient-to-br from-[#E5F5F2] to-[#B2EBF2]/30 rounded-xl p-5 border border-[rgba(0,191,166,0.2)]">
+                <div className="flex items-center gap-2 mb-2">
+                  <Calendar className="w-5 h-5 text-[#00BFA6]" />
+                  <p className="text-xs font-bold text-[#546E7A] uppercase tracking-wider">Check-out</p>
+                </div>
+                <p className="text-lg font-bold text-[#263238]">{checkOut}</p>
+              </div>
+
+              {/* Guests */}
+              <div className="bg-gradient-to-br from-[#E5F5F2] to-[#B2EBF2]/30 rounded-xl p-5 border border-[rgba(0,191,166,0.2)]">
+                <div className="flex items-center gap-2 mb-2">
+                  <Users className="w-5 h-5 text-[#00BFA6]" />
+                  <p className="text-xs font-bold text-[#546E7A] uppercase tracking-wider">Guests</p>
+                </div>
+                <p className="text-lg font-bold text-[#263238]">{guests}</p>
+              </div>
+
+              {/* Room Type */}
+              <div className="bg-gradient-to-br from-[#E5F5F2] to-[#B2EBF2]/30 rounded-xl p-5 border border-[rgba(0,191,166,0.2)]">
+                <div className="flex items-center gap-2 mb-2">
+                  <Home className="w-5 h-5 text-[#00BFA6]" />
+                  <p className="text-xs font-bold text-[#546E7A] uppercase tracking-wider">Room Type</p>
+                </div>
+                <p className="text-lg font-bold text-[#263238]">{roomType}</p>
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div className="h-px bg-gradient-to-r from-transparent via-[rgba(0,191,166,0.3)] to-transparent mb-8" />
+
+            {/* Total Paid */}
+            <div className="bg-gradient-to-br from-[#00BFA6]/10 to-[#00E5CC]/10 rounded-2xl p-6 mb-8 border-2 border-[#00BFA6]/30">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-[#546E7A] mb-1">Total Amount Paid</p>
+                  <p className="text-4xl font-extrabold text-[#00BFA6]">
+                    NPR {totalPaid.toFixed(2)}
+                  </p>
+                </div>
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#00BFA6] to-[#00E5CC] flex items-center justify-center shadow-lg">
+                  <CheckCircle className="w-8 h-8 text-white" />
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4">
+              <button
+                onClick={() => navigate('/guest-dashboard/bookings')}
+                className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-[#00BFA6] to-[#00E5CC] text-white font-bold text-lg rounded-xl shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
+              >
+                <Home className="w-5 h-5" />
+                View My Bookings
+              </button>
+              <button
+                onClick={() => {
+                  console.log('Download Invoice');
                 }}
-              />
+                className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-white text-[#00BFA6] font-bold text-lg rounded-xl border-2 border-[#00BFA6] hover:bg-[#00BFA6] hover:text-white transition-all duration-300 shadow-md hover:shadow-lg"
+              >
+                <Download className="w-5 h-5" />
+                Download Invoice
+              </button>
             </div>
-          </div>
-
-          {/* Divider */}
-          <div style={{
-            borderTop: '1px solid #E5E7EB',
-            marginBottom: '24px'
-          }} />
-
-          {/* Check-in/Check-out and Guest Info */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: '24px',
-            marginBottom: '24px'
-          }}>
-            {/* Check-in */}
-            <div>
-              <p style={{
-                fontSize: '0.875rem',
-                color: '#6B7280',
-                marginBottom: '4px'
-              }}>
-                Check-in
-              </p>
-              <p style={{
-                fontSize: '1rem',
-                fontWeight: '600',
-                color: '#111827'
-              }}>
-                {checkIn}
-              </p>
-            </div>
-
-            {/* Check-out */}
-            <div>
-              <p style={{
-                fontSize: '0.875rem',
-                color: '#6B7280',
-                marginBottom: '4px'
-              }}>
-                Check-out
-              </p>
-              <p style={{
-                fontSize: '1rem',
-                fontWeight: '600',
-                color: '#111827'
-              }}>
-                {checkOut}
-              </p>
-            </div>
-
-            {/* Guests */}
-            <div>
-              <p style={{
-                fontSize: '0.875rem',
-                color: '#6B7280',
-                marginBottom: '4px'
-              }}>
-                Guests
-              </p>
-              <p style={{
-                fontSize: '1rem',
-                fontWeight: '600',
-                color: '#111827'
-              }}>
-                {guests}
-              </p>
-            </div>
-
-            {/* Room Type */}
-            <div>
-              <p style={{
-                fontSize: '0.875rem',
-                color: '#6B7280',
-                marginBottom: '4px'
-              }}>
-                Room Type
-              </p>
-              <p style={{
-                fontSize: '1rem',
-                fontWeight: '600',
-                color: '#111827'
-              }}>
-                {roomType}
-              </p>
-            </div>
-          </div>
-
-          {/* Divider */}
-          <div style={{
-            borderTop: '1px solid #E5E7EB',
-            marginBottom: '24px'
-          }} />
-
-          {/* Total Paid */}
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '32px'
-          }}>
-            <p style={{
-              fontSize: '1.125rem',
-              fontWeight: '700',
-              color: '#111827'
-            }}>
-              Total Paid
-            </p>
-            <p style={{
-              fontSize: '1.5rem',
-              fontWeight: '700',
-              color: '#111827'
-            }}>
-              Rs. {totalPaid.toFixed(2)}
-            </p>
-          </div>
-
-          {/* Action Buttons */}
-          <div style={{
-            display: 'flex',
-            gap: '16px',
-            justifyContent: 'center',
-            flexWrap: 'wrap'
-          }}>
-            <button
-              onClick={() => navigate('/my-bookings')}
-              style={{
-                padding: '12px 32px',
-                backgroundColor: '#14B8A6',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '1rem',
-                fontWeight: '600',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                fontFamily: 'Nunito, sans-serif'
-              }}
-              onMouseEnter={(e) => e.target.style.backgroundColor = '#0D9488'}
-              onMouseLeave={(e) => e.target.style.backgroundColor = '#14B8A6'}
-            >
-              View My Bookings
-            </button>
-            <button
-              onClick={() => {
-                // Handle download invoice
-                console.log('Download Invoice');
-              }}
-              style={{
-                padding: '12px 32px',
-                backgroundColor: '#ffffff',
-                color: '#111827',
-                border: '2px solid #E5E7EB',
-                borderRadius: '8px',
-                fontSize: '1rem',
-                fontWeight: '600',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                fontFamily: 'Nunito, sans-serif'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.borderColor = '#14B8A6';
-                e.target.style.color = '#14B8A6';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.borderColor = '#E5E7EB';
-                e.target.style.color = '#111827';
-              }}
-            >
-              Download Invoice
-            </button>
           </div>
         </div>
       </div>
+
+      <style>{`
+        @keyframes bounceIn {
+          0% { transform: scale(0); opacity: 0; }
+          50% { transform: scale(1.1); }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(30px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   );
 };
