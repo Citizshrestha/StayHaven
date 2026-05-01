@@ -1,15 +1,104 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, Users, ShieldCheck, Check, ChevronDown, Lock } from 'lucide-react';
+import BookingPaymentModal from '../../components/BookingPaymentModal';
+import { toast } from 'react-toastify';
 
-const BookingSidebar = ({ pricePerNight, nights, taxesAndFees, guests, freeCancellationDate, hotelName, hotelAddress, hotelImage }) => {
+const BookingSidebar = ({ pricePerNight, nights, taxesAndFees, guests, freeCancellationDate, hotelName, hotelAddress, hotelImage, hotelId, roomId }) => {
   const navigate = useNavigate();
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
   const [selectedGuests, setSelectedGuests] = useState(guests);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [guestInfo, setGuestInfo] = useState({
+    name: '',
+    email: '',
+    phone: '',
+  });
+  const [showGuestForm, setShowGuestForm] = useState(false);
 
   const subtotal = pricePerNight * nights;
   const total = subtotal + taxesAndFees;
+
+  // Handle booking button click - show guest form first
+  const handleBookNowClick = () => {
+    // Validate dates
+    if (!checkIn || !checkOut) {
+      toast.error('Please select check-in and check-out dates');
+      return;
+    }
+
+    const checkInDate = new Date(checkIn);
+    const checkOutDate = new Date(checkOut);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (checkInDate < today) {
+      toast.error('Check-in date cannot be in the past');
+      return;
+    }
+
+    if (checkOutDate <= checkInDate) {
+      toast.error('Check-out date must be after check-in date');
+      return;
+    }
+
+    setShowGuestForm(true);
+  };
+
+  // Handle guest form submission - show payment modal
+  const handleGuestFormSubmit = (e) => {
+    e.preventDefault();
+
+    // Validate guest info
+    if (!guestInfo.name || guestInfo.name.trim().length < 2) {
+      toast.error('Please enter your full name');
+      return;
+    }
+
+    if (!guestInfo.phone || guestInfo.phone.replace(/\D/g, '').length < 10) {
+      toast.error('Please enter a valid phone number');
+      return;
+    }
+
+    if (guestInfo.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestInfo.email)) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+
+    setShowGuestForm(false);
+    setShowPaymentModal(true);
+  };
+
+  // Handle payment success
+  const handlePaymentSuccess = async (paymentData) => {
+    try {
+      // Navigate to confirmation page with booking details
+      navigate('/booking-confirmed', {
+        state: {
+          bookingReference: paymentData.booking?.bookingId || paymentData.booking?.confirmationCode,
+          hotelName,
+          hotelAddress,
+          hotelImage,
+          checkIn: new Date(checkIn).toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }),
+          checkOut: new Date(checkOut).toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }),
+          guests: selectedGuests,
+          roomType: paymentData.booking?.roomType || 'Room',
+          totalPaid: total,
+          paymentMethod: paymentData.transaction?.method || 'Card',
+        },
+      });
+    } catch (error) {
+      console.error('Navigation error:', error);
+      toast.error('Booking confirmed but navigation failed. Please check your bookings.');
+    }
+  };
+
+  // Handle payment error
+  const handlePaymentError = (error) => {
+    console.error('Payment error:', error);
+    toast.error(error.message || 'Payment failed. Please try again.');
+  };
 
   return (
     <div style={{ position: 'sticky', top: '100px', width: '100%', maxWidth: '430px', zIndex: 40 }}>
@@ -124,16 +213,7 @@ const BookingSidebar = ({ pricePerNight, nights, taxesAndFees, guests, freeCance
         </div>
 
         <button
-          onClick={() => {
-            navigate('/booking-confirmed', {
-              state: {
-                bookingReference: '#SH837190',
-                hotelName: hotelName || 'The Grand Coastal Hotel',
-                hotelAddress: hotelAddress || '123 Ocean Drive, Sunnyville',
-                hotelImage: hotelImage || 'https://via.placeholder.com/200x150',
-              }
-            });
-          }}
+          onClick={handleBookNowClick}
           className="w-full text-white font-bold text-[1.1rem] py-4 rounded-[14px] shadow-lg shadow-[#00BFA6]/30 hover:-translate-y-1 hover:shadow-[#00BFA6]/40 transition-all duration-300"
           style={{
             background: 'linear-gradient(135deg, #00BFA6, #00E5CC)',
@@ -142,6 +222,98 @@ const BookingSidebar = ({ pricePerNight, nights, taxesAndFees, guests, freeCance
         >
           Book Now →
         </button>
+
+        {/* Guest Information Form Modal */}
+        {showGuestForm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-slideUp">
+              <h3 className="text-2xl font-bold text-[#263238] mb-4">Guest Information</h3>
+              <p className="text-sm text-[#546E7A] mb-6">Please provide your details to continue with the booking</p>
+
+              <form onSubmit={handleGuestFormSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-[#263238] mb-2">
+                    Full Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={guestInfo.name}
+                    onChange={(e) => setGuestInfo({ ...guestInfo, name: e.target.value })}
+                    placeholder="John Doe"
+                    className="w-full px-4 py-3 border-2 border-[rgba(0,191,166,0.3)] rounded-xl focus:border-[#00BFA6] focus:ring-2 focus:ring-[#00BFA6]/20 outline-none transition-all"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-[#263238] mb-2">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    value={guestInfo.email}
+                    onChange={(e) => setGuestInfo({ ...guestInfo, email: e.target.value })}
+                    placeholder="john@example.com"
+                    className="w-full px-4 py-3 border-2 border-[rgba(0,191,166,0.3)] rounded-xl focus:border-[#00BFA6] focus:ring-2 focus:ring-[#00BFA6]/20 outline-none transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-[#263238] mb-2">
+                    Phone Number <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    value={guestInfo.phone}
+                    onChange={(e) => setGuestInfo({ ...guestInfo, phone: e.target.value })}
+                    placeholder="+977 9800000000"
+                    className="w-full px-4 py-3 border-2 border-[rgba(0,191,166,0.3)] rounded-xl focus:border-[#00BFA6] focus:ring-2 focus:ring-[#00BFA6]/20 outline-none transition-all"
+                    required
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowGuestForm(false)}
+                    className="flex-1 px-6 py-3 border-2 border-[#00BFA6] text-[#00BFA6] font-semibold rounded-xl hover:bg-[#00BFA6]/10 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-[#00BFA6] to-[#00E5CC] text-white font-semibold rounded-xl hover:shadow-lg transition-all"
+                  >
+                    Continue to Payment
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Payment Modal */}
+        <BookingPaymentModal
+          isOpen={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          bookingData={{
+            hotelId,
+            roomId,
+            checkIn,
+            checkOut,
+            guests: {
+              adults: parseInt(selectedGuests.split(' ')[0]) || 2,
+              children: 0,
+            },
+            guestName: guestInfo.name,
+            guestEmail: guestInfo.email,
+            guestPhone: guestInfo.phone,
+            totalAmount: total,
+            hotelName,
+          }}
+          onPaymentSuccess={handlePaymentSuccess}
+          onPaymentError={handlePaymentError}
+        />
 
         <div className="mt-5 space-y-2 text-center">
           <div className="flex items-center justify-center gap-2 text-[#00A896]">
