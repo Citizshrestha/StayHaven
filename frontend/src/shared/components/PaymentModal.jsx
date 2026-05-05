@@ -252,7 +252,7 @@ const PaymentModal = ({
         paymentResult = await payOrder(invoice._id, {
           amount,
           currency,
-          paymentMethod: 'bank',
+          paymentMethod: 'bank-transfer',
           bankTransferDetails: {
             accountName: bankTransferDetails.accountName,
             accountNumber: bankTransferDetails.accountNumber,

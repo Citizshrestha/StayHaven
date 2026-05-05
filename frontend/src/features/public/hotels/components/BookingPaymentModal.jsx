@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { X, CreditCard, Loader2, CheckCircle2, AlertCircle, Shield, Lock, ExternalLink } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, CreditCard, Loader2, CheckCircle2, AlertCircle, Shield, Lock, ExternalLink, LogIn } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { createBookingWithPayment } from '../../../../api/publicBooking';
+import { useNavigate } from 'react-router-dom';
+import { createBookingWithPayment, isAuthenticated } from '../../../../api/publicBooking';
 import PropTypes from 'prop-types';
 
 const BookingPaymentModal = ({
@@ -11,10 +12,12 @@ const BookingPaymentModal = ({
   onPaymentSuccess,
   onPaymentError
 }) => {
+  const navigate = useNavigate();
   const [selectedMethod, setSelectedMethod] = useState('esewa');
   const [processing, setProcessing] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
+  const [isUserAuthenticated, setIsUserAuthenticated] = useState(false);
   const [cardDetails, setCardDetails] = useState({
     number: '',
     name: '',
@@ -28,9 +31,44 @@ const BookingPaymentModal = ({
     transactionId: ''
   });
 
+  useEffect(() => {
+    // Check authentication status when modal opens
+    if (isOpen) {
+      const authenticated = isAuthenticated();
+      setIsUserAuthenticated(authenticated);
+
+      if (!authenticated) {
+        toast.warning('Please login to continue with booking', {
+          position: 'top-center',
+          autoClose: 3000,
+        });
+      }
+    }
+  }, [isOpen]);
+
   if (!isOpen || !bookingData) return null;
 
   const amount = bookingData.totalAmount || 0;
+
+  const handleLoginRedirect = () => {
+    // Store the current booking data in sessionStorage to restore after login
+    sessionStorage.setItem('pendingBooking', JSON.stringify({
+      ...bookingData,
+      returnUrl: window.location.pathname
+    }));
+
+    toast.info('Redirecting to login...', { autoClose: 2000 });
+
+    setTimeout(() => {
+      onClose();
+      navigate('/login', {
+        state: {
+          from: window.location.pathname,
+          message: 'Please login to complete your booking'
+        }
+      });
+    }, 500);
+  };
 
   const paymentMethods = [
     {
@@ -135,7 +173,7 @@ const BookingPaymentModal = ({
     try {
       const payload = {
         ...bookingData,
-        paymentMethod: selectedMethod,
+        paymentMethod: selectedMethod === 'bank' ? 'bank-transfer' : selectedMethod,
         ...(selectedMethod === 'card' && {
           cardDetails: {
             number: cardDetails.number.replace(/\s/g, ''),
@@ -200,9 +238,25 @@ const BookingPaymentModal = ({
     } catch (error) {
       console.error('Payment error:', error);
       setPaymentStatus('error');
-      const errorMsg = error.response?.data?.message || error.message || 'Payment failed. Please try again.';
+
+      // Extract meaningful error message
+      let errorMsg = 'Payment failed. Please try again.';
+
+      if (error.response?.data?.message) {
+        errorMsg = error.response.data.message;
+      } else if (error.message) {
+        errorMsg = error.message;
+      }
+
       setErrorMessage(errorMsg);
-      toast.error(errorMsg);
+
+      // Show toast only once
+      toast.error(errorMsg, {
+        position: 'top-center',
+        autoClose: 5000,
+        toastId: 'payment-error', // Prevent duplicates
+      });
+
       if (onPaymentError) onPaymentError(error);
     } finally {
       if (!isRedirecting) setProcessing(false);
@@ -210,9 +264,10 @@ const BookingPaymentModal = ({
   };
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn"
-      style={{ 
+      onClick={onClose} // Close when clicking backdrop
+      style={{
         position: 'fixed',
         top: 0,
         left: 0,
@@ -223,7 +278,10 @@ const BookingPaymentModal = ({
         justifyContent: 'center'
       }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-[rgba(0,191,166,0.2)] animate-slideUp">
+      <div
+        className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-[rgba(0,191,166,0.2)] animate-slideUp"
+        onClick={(e) => e.stopPropagation()} // Prevent close when clicking inside modal
+      >
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-[rgba(0,191,166,0.2)] px-6 py-4 flex items-center justify-between z-10">
           <div className="flex items-center gap-3">
@@ -314,8 +372,32 @@ const BookingPaymentModal = ({
             </div>
           )}
 
+          {/* Authentication Required Message */}
+          {!isUserAuthenticated && (
+            <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-5 animate-slideDown">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                  <LogIn className="w-6 h-6 text-amber-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-amber-900 mb-2 text-lg">Login Required</h3>
+                  <p className="text-sm text-amber-800 mb-4">
+                    You need to be logged in to complete your booking. This helps us keep track of your reservations and provide you with better service.
+                  </p>
+                  <button
+                    onClick={handleLoginRedirect}
+                    className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold rounded-xl hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-2"
+                  >
+                    <LogIn className="w-5 h-5" />
+                    Login to Continue
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Payment Methods */}
-          {!paymentStatus && (
+          {!paymentStatus && isUserAuthenticated && (
             <>
               <div>
                 <h3 className="text-sm font-semibold text-[#263238] mb-3 flex items-center gap-2">
@@ -533,7 +615,7 @@ const BookingPaymentModal = ({
         </div>
 
         {/* Footer */}
-        {!paymentStatus && (
+        {!paymentStatus && isUserAuthenticated && (
           <div className="sticky bottom-0 bg-gray-50 border-t border-[rgba(0,191,166,0.2)] px-6 py-4 flex items-center justify-between gap-4">
             <button
               onClick={onClose}
