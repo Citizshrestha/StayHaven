@@ -42,7 +42,7 @@ const Home = () => {
   // GSAP: scroll parallax + hero exit (entrance handled by Framer Motion)
   useEffect(() => {
     const ctx = gsap.context(() => {
-      if (imageParallaxRef.current) {
+      if (imageParallaxRef.current && heroRef.current) {
         gsap.fromTo(
           imageParallaxRef.current,
           { yPercent: -5 },
@@ -59,52 +59,56 @@ const Home = () => {
         );
       }
 
-      const scrollTl = gsap.timeline({
-        scrollTrigger: {
-          trigger: heroRef.current,
-          start: 'top top',
-          end: '+=130%',
-          scrub: 0.6,
-          pin: false,
-        },
-      });
+      if (heroRef.current && headlineRef.current && subheadlineRef.current && searchCardRef.current) {
+        const scrollTl = gsap.timeline({
+          scrollTrigger: {
+            trigger: heroRef.current,
+            start: 'top top',
+            end: '+=130%',
+            scrub: 0.6,
+            pin: false,
+          },
+        });
 
-      scrollTl.fromTo(
-        headlineRef.current,
-        { y: 0, opacity: 1 },
-        { y: '-18vh', opacity: 0, ease: 'power2.in' },
-        0.7
-      );
-
-      scrollTl.fromTo(
-        subheadlineRef.current,
-        { y: 0, opacity: 1 },
-        { y: '-14vh', opacity: 0, ease: 'power2.in' },
-        0.72
-      );
-
-      scrollTl.fromTo(
-        searchCardRef.current,
-        { y: 0, opacity: 1 },
-        { y: '-10vh', opacity: 0, ease: 'power2.in' },
-        0.75
-      );
-
-      if (badgesRef.current) {
         scrollTl.fromTo(
-          badgesRef.current,
+          headlineRef.current,
           { y: 0, opacity: 1 },
-          { y: '-8vh', opacity: 0, ease: 'power2.in' },
-          0.74
+          { y: '-18vh', opacity: 0, ease: 'power2.in' },
+          0.7
         );
-      }
 
-      scrollTl.fromTo(
-        overlayRef.current,
-        { scale: 1, y: 0 },
-        { scale: 1.045, y: '-3vh' },
-        0.7
-      );
+        scrollTl.fromTo(
+          subheadlineRef.current,
+          { y: 0, opacity: 1 },
+          { y: '-14vh', opacity: 0, ease: 'power2.in' },
+          0.72
+        );
+
+        scrollTl.fromTo(
+          searchCardRef.current,
+          { y: 0, opacity: 1 },
+          { y: '-10vh', opacity: 0, ease: 'power2.in' },
+          0.75
+        );
+
+        if (badgesRef.current) {
+          scrollTl.fromTo(
+            badgesRef.current,
+            { y: 0, opacity: 1 },
+            { y: '-8vh', opacity: 0, ease: 'power2.in' },
+            0.74
+          );
+        }
+
+        if (overlayRef.current) {
+          scrollTl.fromTo(
+            overlayRef.current,
+            { scale: 1, y: 0 },
+            { scale: 1.045, y: '-3vh' },
+            0.7
+          );
+        }
+      }
     }, heroRef);
 
     return () => ctx.revert();
@@ -581,25 +585,29 @@ const Destinations = () => {
   ];
 
   useEffect(() => {
+    if (!sectionRef.current || !headerRef.current || !scrollContainerRef.current) return;
+
     const ctx = gsap.context(() => {
-      gsap.fromTo(
-        headerRef.current,
-        { y: 15, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.5,
-          ease: 'power1.out',
-          scrollTrigger: {
-            trigger: sectionRef.current,
-            start: 'top 80%',
-            toggleActions: 'play none none reverse',
-          },
-        }
-      );
+      if (headerRef.current) {
+        gsap.fromTo(
+          headerRef.current,
+          { y: 15, opacity: 0 },
+          {
+            y: 0,
+            opacity: 1,
+            duration: 0.5,
+            ease: 'power1.out',
+            scrollTrigger: {
+              trigger: sectionRef.current,
+              start: 'top 80%',
+              toggleActions: 'play none none reverse',
+            },
+          }
+        );
+      }
 
       const cards = scrollContainerRef.current?.querySelectorAll('.dest-card');
-      if (cards) {
+      if (cards && cards.length > 0) {
         gsap.fromTo(
           cards,
           { x: 30, opacity: 0 },
@@ -683,95 +691,84 @@ const Destinations = () => {
 
 // Featured Hotels Component
 const FeaturedHotelsSection = () => {
+  const navigate = useNavigate();
   const [activeFilter, setActiveFilter] = useState('All stays');
   const sectionRef = useRef(null);
   const headerRef = useRef(null);
   const gridRef = useRef(null);
+  const [hotels, setHotels] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const filters = ['All stays', 'Hotels', 'Resorts', 'Villas', 'Apartments'];
 
-  const hotels = [
-    {
-      name: 'Hotel Yak & Yeti',
-      location: 'Durbar Marg, Kathmandu',
-      price: 12500,
-      rating: 4.8,
-      reviews: 1284,
-      image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?q=80&w=2070&auto=format&fit=crop',
-      type: 'Hotels',
-    },
-    {
-      name: 'Temple Tree Resort & Spa',
-      location: 'Lakeside, Pokhara',
-      price: 9800,
-      rating: 4.9,
-      reviews: 512,
-      image: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?q=80&w=2070&auto=format&fit=crop',
-      type: 'Resorts',
-    },
-    {
-      name: 'Dwarika\'s Hotel',
-      location: 'Battisputali, Kathmandu',
-      price: 18500,
-      rating: 4.9,
-      reviews: 891,
-      image: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=800&q=80',
-      type: 'Hotels',
-    },
-    {
-      name: 'Pavilions Himalayas',
-      location: 'Sarangkot, Pokhara',
-      price: 22000,
-      rating: 4.7,
-      reviews: 267,
-      image: 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?q=80&w=2080&auto=format&fit=crop',
-      type: 'Villas',
-    },
-    {
-      name: 'Barahi Jungle Lodge',
-      location: 'Meghauli, Chitwan',
-      price: 15000,
-      rating: 4.8,
-      reviews: 156,
-      image: 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?q=80&w=2070&auto=format&fit=crop',
-      type: 'Resorts',
-    },
-    {
-      name: 'Hotel Shanker',
-      location: 'Lazimpat, Kathmandu',
-      price: 8500,
-      rating: 4.6,
-      reviews: 423,
-      image: 'https://images.unsplash.com/photo-1578683010236-d716f9a3f461?q=80&w=2070&auto=format&fit=crop',
-      type: 'Hotels',
-    },
-  ];
+  // Fetch hotels from API
+  useEffect(() => {
+    const fetchHotels = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'}/api/hotels`);
+        if (!response.ok) throw new Error('Failed to fetch hotels');
+        const data = await response.json();
+
+        // Transform API data to match component structure
+        const transformedHotels = (data.hotels || []).map(hotel => ({
+          _id: hotel._id,
+          name: hotel.name,
+          location: `${hotel.location?.address || hotel.location?.city || 'Nepal'}`,
+          price: hotel.priceRange?.min || 0,
+          rating: hotel.rating || 0,
+          reviews: hotel.reviewCount || 0,
+          image: hotel.images?.[0] || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80',
+          type: hotel.category || 'Hotels',
+        }));
+
+        setHotels(transformedHotels);
+      } catch (err) {
+        console.error('Error fetching hotels:', err);
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchHotels();
+  }, []);
 
   const filteredHotels =
     activeFilter === 'All stays'
       ? hotels
       : hotels.filter((h) => h.type === activeFilter);
 
+  const handleHotelClick = (hotelId) => {
+    navigate(`/hotels/${hotelId}`);
+  };
+
   useEffect(() => {
+    if (!sectionRef.current || !headerRef.current || !gridRef.current) return;
+
     const ctx = gsap.context(() => {
-      gsap.fromTo(
-        headerRef.current,
-        { y: 15, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.5,
-          ease: 'power1.out',
-          scrollTrigger: {
-            trigger: sectionRef.current,
-            start: 'top 75%',
-            toggleActions: 'play none none reverse',
-          },
-        }
-      );
+      if (headerRef.current) {
+        gsap.fromTo(
+          headerRef.current,
+          { y: 15, opacity: 0 },
+          {
+            y: 0,
+            opacity: 1,
+            duration: 0.5,
+            ease: 'power1.out',
+            scrollTrigger: {
+              trigger: sectionRef.current,
+              start: 'top 75%',
+              toggleActions: 'play none none reverse',
+            },
+          }
+        );
+      }
 
       const cards = gridRef.current?.querySelectorAll('.hotel-card');
-      if (cards) {
+      if (cards && cards.length > 0) {
         gsap.fromTo(
           cards,
           { y: 20, opacity: 0 },
@@ -830,48 +827,89 @@ const FeaturedHotelsSection = () => {
           ref={gridRef}
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10"
         >
-          {filteredHotels.map((hotel, index) => (
-            <div
-              key={index}
-              className="hotel-card bg-white rounded-[28px] overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 cursor-pointer"
-            >
-              <div className="relative h-[260px] overflow-hidden">
-                <img
-                  src={hotel.image}
-                  alt={hotel.name}
-                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
-                />
-              </div>
-              <div className="p-7">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="font-bold text-xl text-gray-900 mb-1">
-                      {hotel.name}
-                    </h3>
-                    <div className="flex items-center text-gray-600 text-sm">
-                      <MapPin className="w-4 h-4 mr-1" />
-                      {hotel.location}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                  <div className="flex items-center gap-1">
-                    <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
-                    <span className="font-bold text-gray-900">{hotel.rating}</span>
-                    <span className="text-sm text-gray-600">
-                      ({hotel.reviews} reviews)
-                    </span>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xl font-bold text-teal-600">
-                      NRs {hotel.price.toLocaleString()}
-                    </div>
-                    <div className="text-xs text-gray-600">per night</div>
+          {isLoading ? (
+            // Loading skeleton
+            Array.from({ length: 6 }).map((_, index) => (
+              <div
+                key={index}
+                className="hotel-card bg-white rounded-[28px] overflow-hidden shadow-xl animate-pulse"
+              >
+                <div className="relative h-[260px] bg-gray-200" />
+                <div className="p-7">
+                  <div className="h-6 bg-gray-200 rounded mb-2 w-3/4" />
+                  <div className="h-4 bg-gray-200 rounded mb-4 w-1/2" />
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                    <div className="h-4 bg-gray-200 rounded w-1/3" />
+                    <div className="h-6 bg-gray-200 rounded w-1/4" />
                   </div>
                 </div>
               </div>
+            ))
+          ) : error ? (
+            // Error state
+            <div className="col-span-full text-center py-12">
+              <p className="text-red-600 mb-4">Failed to load hotels: {error}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-6 py-2 bg-teal-600 text-white rounded-full hover:bg-teal-700 transition-colors"
+              >
+                Retry
+              </button>
             </div>
-          ))}
+          ) : filteredHotels.length === 0 ? (
+            // No hotels found
+            <div className="col-span-full text-center py-12">
+              <p className="text-gray-600">No hotels found for this category.</p>
+            </div>
+          ) : (
+            // Hotel cards
+            filteredHotels.map((hotel) => (
+              <div
+                key={hotel._id}
+                onClick={() => handleHotelClick(hotel._id)}
+                className="hotel-card bg-white rounded-[28px] overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 cursor-pointer"
+              >
+                <div className="relative h-[260px] overflow-hidden">
+                  <img
+                    src={hotel.image}
+                    alt={hotel.name}
+                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
+                    onError={(e) => {
+                      e.target.src = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80';
+                    }}
+                  />
+                </div>
+                <div className="p-7">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="font-bold text-xl text-gray-900 mb-1">
+                        {hotel.name}
+                      </h3>
+                      <div className="flex items-center text-gray-600 text-sm">
+                        <MapPin className="w-4 h-4 mr-1" />
+                        {hotel.location}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                    <div className="flex items-center gap-1">
+                      <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
+                      <span className="font-bold text-gray-900">{hotel.rating.toFixed(1)}</span>
+                      <span className="text-sm text-gray-600">
+                        ({hotel.reviews} reviews)
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xl font-bold text-teal-600">
+                        NRs {hotel.price.toLocaleString()}
+                      </div>
+                      <div className="text-xs text-gray-600">per night</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </section>
@@ -909,25 +947,29 @@ const HowItWorks = () => {
   ];
 
   useEffect(() => {
+    if (!sectionRef.current || !headerRef.current || !cardsRef.current) return;
+
     const ctx = gsap.context(() => {
-      gsap.fromTo(
-        headerRef.current,
-        { y: 15, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.5,
-          ease: 'power1.out',
-          scrollTrigger: {
-            trigger: sectionRef.current,
-            start: 'top 78%',
-            toggleActions: 'play none none reverse',
-          },
-        }
-      );
+      if (headerRef.current) {
+        gsap.fromTo(
+          headerRef.current,
+          { y: 15, opacity: 0 },
+          {
+            y: 0,
+            opacity: 1,
+            duration: 0.5,
+            ease: 'power1.out',
+            scrollTrigger: {
+              trigger: sectionRef.current,
+              start: 'top 78%',
+              toggleActions: 'play none none reverse',
+            },
+          }
+        );
+      }
 
       const cards = cardsRef.current?.querySelectorAll('.step-card');
-      if (cards) {
+      if (cards && cards.length > 0) {
         gsap.fromTo(
           cards,
           { y: 20, opacity: 0 },
@@ -1017,38 +1059,44 @@ const ForEveryone = () => {
   ];
 
   useEffect(() => {
-    const ctx = gsap.context(() => {
-      gsap.fromTo(
-        leftPanelRef.current,
-        { x: '-30px', opacity: 0 },
-        {
-          x: 0,
-          opacity: 1,
-          duration: 0.5,
-          ease: 'power1.out',
-          scrollTrigger: {
-            trigger: sectionRef.current,
-            start: 'top 70%',
-            toggleActions: 'play none none reverse',
-          },
-        }
-      );
+    if (!sectionRef.current || !leftPanelRef.current || !rightPanelRef.current) return;
 
-      gsap.fromTo(
-        rightPanelRef.current,
-        { x: '30px', opacity: 0 },
-        {
-          x: 0,
-          opacity: 1,
-          duration: 0.5,
-          ease: 'power1.out',
-          scrollTrigger: {
-            trigger: sectionRef.current,
-            start: 'top 70%',
-            toggleActions: 'play none none reverse',
-          },
-        }
-      );
+    const ctx = gsap.context(() => {
+      if (leftPanelRef.current) {
+        gsap.fromTo(
+          leftPanelRef.current,
+          { x: '-30px', opacity: 0 },
+          {
+            x: 0,
+            opacity: 1,
+            duration: 0.5,
+            ease: 'power1.out',
+            scrollTrigger: {
+              trigger: sectionRef.current,
+              start: 'top 70%',
+              toggleActions: 'play none none reverse',
+            },
+          }
+        );
+      }
+
+      if (rightPanelRef.current) {
+        gsap.fromTo(
+          rightPanelRef.current,
+          { x: '30px', opacity: 0 },
+          {
+            x: 0,
+            opacity: 1,
+            duration: 0.5,
+            ease: 'power1.out',
+            scrollTrigger: {
+              trigger: sectionRef.current,
+              start: 'top 70%',
+              toggleActions: 'play none none reverse',
+            },
+          }
+        );
+      }
     }, sectionRef);
 
     return () => ctx.revert();
@@ -1179,25 +1227,29 @@ const WhyChoose = () => {
   ];
 
   useEffect(() => {
+    if (!sectionRef.current || !headerRef.current || !gridRef.current) return;
+
     const ctx = gsap.context(() => {
-      gsap.fromTo(
-        headerRef.current,
-        { y: 15, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.5,
-          ease: 'power1.out',
-          scrollTrigger: {
-            trigger: sectionRef.current,
-            start: 'top 80%',
-            toggleActions: 'play none none reverse',
-          },
-        }
-      );
+      if (headerRef.current) {
+        gsap.fromTo(
+          headerRef.current,
+          { y: 15, opacity: 0 },
+          {
+            y: 0,
+            opacity: 1,
+            duration: 0.5,
+            ease: 'power1.out',
+            scrollTrigger: {
+              trigger: sectionRef.current,
+              start: 'top 80%',
+              toggleActions: 'play none none reverse',
+            },
+          }
+        );
+      }
 
       const cards = gridRef.current?.querySelectorAll('.benefit-card');
-      if (cards) {
+      if (cards && cards.length > 0) {
         gsap.fromTo(
           cards,
           { y: 20, opacity: 0 },
@@ -1298,25 +1350,29 @@ const Testimonials = () => {
   ];
 
   useEffect(() => {
+    if (!sectionRef.current || !statsRef.current || !cardsRef.current) return;
+
     const ctx = gsap.context(() => {
-      gsap.fromTo(
-        statsRef.current,
-        { x: '-30px', opacity: 0 },
-        {
-          x: 0,
-          opacity: 1,
-          duration: 0.5,
-          ease: 'power1.out',
-          scrollTrigger: {
-            trigger: sectionRef.current,
-            start: 'top 75%',
-            toggleActions: 'play none none reverse',
-          },
-        }
-      );
+      if (statsRef.current) {
+        gsap.fromTo(
+          statsRef.current,
+          { x: '-30px', opacity: 0 },
+          {
+            x: 0,
+            opacity: 1,
+            duration: 0.5,
+            ease: 'power1.out',
+            scrollTrigger: {
+              trigger: sectionRef.current,
+              start: 'top 75%',
+              toggleActions: 'play none none reverse',
+            },
+          }
+        );
+      }
 
       const cards = cardsRef.current?.querySelectorAll('.testimonial-card');
-      if (cards) {
+      if (cards && cards.length > 0) {
         gsap.fromTo(
           cards,
           { x: '30px', opacity: 0 },
@@ -1464,25 +1520,29 @@ const Inspiration = () => {
   ];
 
   useEffect(() => {
+    if (!sectionRef.current || !headerRef.current || !gridRef.current) return;
+
     const ctx = gsap.context(() => {
-      gsap.fromTo(
-        headerRef.current,
-        { y: 15, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.5,
-          ease: 'power1.out',
-          scrollTrigger: {
-            trigger: sectionRef.current,
-            start: 'top 80%',
-            toggleActions: 'play none none reverse',
-          },
-        }
-      );
+      if (headerRef.current) {
+        gsap.fromTo(
+          headerRef.current,
+          { y: 15, opacity: 0 },
+          {
+            y: 0,
+            opacity: 1,
+            duration: 0.5,
+            ease: 'power1.out',
+            scrollTrigger: {
+              trigger: sectionRef.current,
+              start: 'top 80%',
+              toggleActions: 'play none none reverse',
+            },
+          }
+        );
+      }
 
       const images = gridRef.current?.querySelectorAll('.insp-image');
-      if (images) {
+      if (images && images.length > 0) {
         gsap.fromTo(
           images,
           { y: 20, opacity: 0 },
@@ -1547,6 +1607,8 @@ const FinalCTA = ({ navigate }) => {
   const contentRef = useRef(null);
 
   useEffect(() => {
+    if (!sectionRef.current || !contentRef.current) return;
+
     const ctx = gsap.context(() => {
       const headline = contentRef.current?.querySelector('.cta-headline');
       const subheadline = contentRef.current?.querySelector('.cta-subheadline');
@@ -1589,7 +1651,7 @@ const FinalCTA = ({ navigate }) => {
         );
       }
 
-      if (buttons) {
+      if (buttons && buttons.length > 0) {
         gsap.fromTo(
           buttons,
           { y: 10, opacity: 0 },
