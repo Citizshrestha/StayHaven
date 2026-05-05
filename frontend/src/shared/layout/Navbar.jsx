@@ -254,19 +254,22 @@ const Navbar = () => {
                 <div className="relative" ref={dropdownRef}>
                   <button
                     onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-                    className="flex items-center gap-2 focus:outline-none"
+                    className="flex flex-col items-center gap-1.5 focus:outline-none group"
                   >
                     {user.profilePicture ? (
                       <img
                         src={user.profilePicture}
                         alt={user.username}
-                        className="w-9 h-9 rounded-full object-cover border-2 border-teal-500 cursor-pointer hover:border-teal-600 transition"
+                        className="w-10 h-10 rounded-full object-cover border-2 border-teal-500 cursor-pointer group-hover:border-teal-600 transition"
                       />
                     ) : (
-                      <div className="w-9 h-9 rounded-full bg-teal-500 flex items-center justify-center text-white font-semibold cursor-pointer hover:bg-teal-600 transition">
+                      <div className="w-10 h-10 rounded-full bg-teal-500 flex items-center justify-center text-white font-semibold cursor-pointer group-hover:bg-teal-600 transition">
                         {user.username?.charAt(0).toUpperCase()}
                       </div>
                     )}
+                    <span className="text-xs font-medium text-gray-700 group-hover:text-teal-600 transition">
+                      {user.username}
+                    </span>
                   </button>
 
                   {/* Dropdown Menu */}
