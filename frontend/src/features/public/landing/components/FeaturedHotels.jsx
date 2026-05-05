@@ -309,7 +309,7 @@ const FeaturedHotels = () => {
               {displayedProperties.map((property) => (
               <div
                 key={property.id}
-                onClick={() => navigate(`/hotel/${property.id}`)}
+                onClick={() => navigate(`/hotels/${property.id}`)}
                 style={{
                   backgroundColor: '#ffffff',
                   borderRadius: '16px',
@@ -454,7 +454,7 @@ const FeaturedHotels = () => {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      navigate(`/hotel/${property.id}`);
+                      navigate(`/hotels/${property.id}`);
                     }}
                     style={{
                       width: '100%',

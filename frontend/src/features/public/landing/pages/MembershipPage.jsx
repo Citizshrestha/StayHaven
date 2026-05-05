@@ -110,27 +110,31 @@ const MembershipPage = () => {
 
   // GSAP Animations
   useEffect(() => {
+    if (!heroRef.current || !headerRef.current || !gridRef.current) return;
+
     const ctx = gsap.context(() => {
       // Header animation
-      gsap.fromTo(
-        headerRef.current,
-        { y: 20, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.6,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: heroRef.current,
-            start: 'top 80%',
-            toggleActions: 'play none none reverse',
-          },
-        }
-      );
+      if (headerRef.current) {
+        gsap.fromTo(
+          headerRef.current,
+          { y: 20, opacity: 0 },
+          {
+            y: 0,
+            opacity: 1,
+            duration: 0.6,
+            ease: 'power2.out',
+            scrollTrigger: {
+              trigger: heroRef.current,
+              start: 'top 80%',
+              toggleActions: 'play none none reverse',
+            },
+          }
+        );
+      }
 
       // Cards animation
       const cards = gridRef.current?.querySelectorAll('.membership-card');
-      if (cards) {
+      if (cards && cards.length > 0) {
         gsap.fromTo(
           cards,
           { y: 30, opacity: 0 },

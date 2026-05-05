@@ -278,8 +278,12 @@ const BookingSidebar = ({ pricePerNight, nights: initialNights, taxesAndFees: in
         <div
           className="fixed inset-0 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn"
           style={{ zIndex: 9999 }}
+          onClick={() => setShowGuestForm(false)} // Close when clicking backdrop
         >
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-slideUp">
+          <div
+            className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-slideUp"
+            onClick={(e) => e.stopPropagation()} // Prevent close when clicking inside
+          >
             <h3 className="text-2xl font-bold text-[#263238] mb-4">Guest Information</h3>
             <p className="text-sm text-[#546E7A] mb-6">Please provide your details to continue with the booking</p>
 
