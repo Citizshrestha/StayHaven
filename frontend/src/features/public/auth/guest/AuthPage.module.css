@@ -1,0 +1,550 @@
+/* Import Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap');
+
+/* Root Variables */
+:root {
+  --brand-teal: #0ea5a0;
+  --brand-teal-dark: #0c8a86;
+  --brand-teal-light: rgba(14, 165, 160, 0.1);
+  --warm-white: #faf8f4;
+  --text-muted: #6b7280;
+  --border-color: rgba(0, 0, 0, 0.07);
+}
+
+/* Container */
+.authContainer {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  font-family: 'Nunito', sans-serif;
+}
+
+/* Left Panel - Hotel Image */
+.leftPanel {
+  flex: 1;
+  position: relative;
+  background-image: url('https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=1200&q=85');
+  background-size: cover;
+  background-position: center;
+  overflow: hidden;
+}
+
+.leftPanel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(160deg, rgba(10, 20, 30, 0.2), rgba(10, 20, 30, 0.75));
+  z-index: 1;
+}
+
+.leftPanelContent {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 48px;
+  color: white;
+}
+
+/* Logo */
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logoIcon {
+  width: 48px;
+  height: 48px;
+  background: white;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.logoIcon svg {
+  width: 24px;
+  height: 24px;
+  color: var(--brand-teal);
+}
+
+.logoText {
+  font-family: 'Nunito', sans-serif;
+  font-size: 24px;
+  font-weight: 300;
+  letter-spacing: 0.5px;
+  color: white;
+}
+
+.logoText span {
+  font-weight: 700;
+  color: var(--brand-teal);
+}
+
+/* Bottom Content */
+.bottomContent {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.quote {
+  font-family: 'Nunito', sans-serif;
+  font-size: 42px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: white;
+}
+
+.quote em {
+  font-style: italic;
+  color: var(--brand-teal);
+  font-weight: 700;
+}
+
+.subtitle {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-top: -8px;
+}
+
+.trustStats {
+  display: flex;
+  gap: 32px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.trustStats span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Right Panel - Form */
+.rightPanel {
+  width: 480px;
+  background: var(--warm-white);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.formContainer {
+  padding: 56px 48px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.welcomeText {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--brand-teal);
+  margin-bottom: 16px;
+}
+
+/* Tab Toggle */
+.tabToggle {
+  display: flex;
+  gap: 0;
+  background: white;
+  border: 1.5px solid var(--border-color);
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 32px;
+}
+
+.tab {
+  flex: 1;
+  padding: 12px 24px;
+  border: none;
+  background: transparent;
+  font-family: 'Nunito', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.25s ease;
+}
+
+.tab:hover {
+  color: #374151;
+}
+
+.tabActive {
+  background: var(--brand-teal);
+  color: white;
+  box-shadow: 0 4px 12px rgba(14, 165, 160, 0.25);
+}
+
+/* Form Content */
+.formContent {
+  animation: fadeUp 0.4s ease;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.formTitle {
+  font-family: 'Nunito', sans-serif;
+  font-size: 36px;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 8px;
+}
+
+.formSubtitle {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 32px;
+}
+
+/* Gemini Badge */
+.geminiBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: linear-gradient(135deg, rgba(66, 133, 244, 0.1), rgba(234, 67, 53, 0.1), rgba(251, 188, 5, 0.1), rgba(52, 168, 83, 0.1));
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  color: #4285f4;
+  margin-bottom: 12px;
+}
+
+.geminiBadge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  background: #4285f4;
+  border-radius: 50%;
+}
+
+/* Google Button */
+.googleButton {
+  width: 100%;
+  height: 48px;
+  background: white;
+  border: 1.5px solid var(--border-color);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 24px;
+}
+
+.googleButton:hover {
+  border-color: rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+.googleButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.googleIcon {
+  width: 20px;
+  height: 20px;
+}
+
+/* Divider */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 24px 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-color);
+}
+
+/* Form Fields */
+.formGroup {
+  margin-bottom: 18px;
+  animation: fadeUp 0.4s ease;
+}
+
+.formGroup:nth-child(1) { animation-delay: 0.05s; }
+.formGroup:nth-child(2) { animation-delay: 0.1s; }
+.formGroup:nth-child(3) { animation-delay: 0.15s; }
+.formGroup:nth-child(4) { animation-delay: 0.2s; }
+
+.nameGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.inputWrapper {
+  position: relative;
+}
+
+.input {
+  width: 100%;
+  height: 48px;
+  padding: 13px 16px;
+  background: white;
+  border: 1.5px solid var(--border-color);
+  border-radius: 10px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 14px;
+  color: #1f2937;
+  transition: all 0.2s ease;
+}
+
+.input::placeholder {
+  color: #9ca3af;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--brand-teal);
+  box-shadow: 0 0 0 3px var(--brand-teal-light);
+}
+
+.inputIcon {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9ca3af;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.inputIcon:hover {
+  color: #6b7280;
+}
+
+/* Password Strength Meter */
+.strengthMeter {
+  margin-top: 8px;
+}
+
+.strengthBars {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.strengthBar {
+  flex: 1;
+  height: 3px;
+  background: #e5e7eb;
+  border-radius: 2px;
+  transition: background 0.3s ease;
+}
+
+.strengthBar.active {
+  background: currentColor;
+}
+
+.strengthLabel {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.strengthWeak { color: #ef4444; }
+.strengthFair { color: #f59e0b; }
+.strengthGood { color: var(--brand-teal); }
+.strengthStrong { color: var(--brand-teal); }
+
+/* Checkbox Row */
+.checkboxRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.checkbox {
+  width: 16px;
+  height: 16px;
+  margin-top: 3px;
+  flex-shrink: 0;
+  accent-color: var(--brand-teal);
+  cursor: pointer;
+}
+
+.checkboxLabel {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #4b5563;
+  flex: 1;
+  margin: 0;
+}
+
+.checkboxLabel a {
+  color: var(--brand-teal);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.checkboxLabel a:hover {
+  text-decoration: underline;
+}
+
+/* Remember Me Row */
+.rememberRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 20px 0;
+}
+
+.rememberLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #4b5563;
+  cursor: pointer;
+}
+
+.forgotLink {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--brand-teal);
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+.forgotLink:hover {
+  opacity: 0.8;
+}
+
+/* Submit Button */
+.submitButton {
+  width: 100%;
+  height: 48px;
+  padding: 14px;
+  background: var(--brand-teal);
+  border: none;
+  border-radius: 10px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  margin-top: 8px;
+}
+
+.submitButton:hover {
+  background: var(--brand-teal-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(14, 165, 160, 0.3);
+}
+
+.submitButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Switch Link */
+.switchLink {
+  text-align: center;
+  margin-top: 24px;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.switchLink button {
+  background: none;
+  border: none;
+  color: var(--brand-teal);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+.switchLink button:hover {
+  opacity: 0.8;
+}
+
+/* Mobile Responsive */
+@media (max-width: 900px) {
+  .leftPanel {
+    display: none;
+  }
+
+  .rightPanel {
+    width: 100%;
+  }
+
+  .formContainer {
+    padding: 40px 24px;
+  }
+
+  .formTitle {
+    font-size: 32px;
+  }
+}
+
+@media (max-width: 480px) {
+  .formContainer {
+    padding: 32px 20px;
+  }
+
+  .nameGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .trustStats {
+    flex-direction: column;
+    gap: 12px;
+  }
+}

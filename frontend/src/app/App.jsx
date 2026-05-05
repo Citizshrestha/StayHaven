@@ -38,8 +38,7 @@ import Navbar from "../shared/layout/Navbar";
 // ============================================
 // FEATURES - Public Auth (Guest)
 // ============================================
-import Login from "../features/public/auth/guest/Login";
-import Register from "../features/public/auth/guest/Register";
+import AuthPage from "../features/public/auth/guest/AuthPage";
 import ForgotPassword from "../features/public/auth/guest/ForgotPassword";
 import ResetPassword from "../features/public/auth/guest/ResetPassword";
 import GuestDashboardLogin from "../features/public/auth/guest/GuestDashboardLogin";
@@ -68,6 +67,7 @@ import Feedback from "../features/public/landing/pages/Feedback";
 import HotelDetailPage from "../features/public/hotels/pages/HotelDetail/Index";
 import FilteredHotels from "../features/public/hotels/pages/FilteredHotels";
 import BookingConfirmed from "../features/public/hotels/pages/BookingConfirmed";
+import PaymentCallback from "../features/public/payment/PaymentCallback";
 
 // ============================================
 // FEATURES - Staff Dashboards (Waiter)
@@ -124,6 +124,7 @@ const Layout = ({ children }) => {
     '/staff/login',
     '/staff/forgot-password',
     '/staff/reset-password',
+    '/payment-callback',
     '/waiter-dashboard',
     '/kitchen-dashboard',
     '/reception-dashboard',
@@ -175,8 +176,8 @@ const App = () => {
                       {/* ================================ */}
 
                       {/* Auth - Guest */}
-                      <Route path="/login" element={<Login />} />
-                      <Route path="/register" element={<Register />} />
+                      <Route path="/login" element={<AuthPage />} />
+                      <Route path="/register" element={<AuthPage />} />
                       <Route path="/forgot-password" element={<ForgotPassword />} />
                       <Route path="/reset-password" element={<ResetPassword />} />
                       
@@ -199,9 +200,10 @@ const App = () => {
                       <Route path="/contactus" element={<ContactUs />} />
 
                       {/* Hotels & Booking */}
-                      <Route path="/hotel/:id" element={<HotelDetailPage />} />
+                      <Route path="/hotels/:id" element={<HotelDetailPage />} />
                       <Route path="/hotels" element={<FilteredHotels />} />
                       <Route path="/booking-confirmed" element={<BookingConfirmed />} />
+                      <Route path="/payment-callback" element={<PaymentCallback />} />
 
                       {/* ================================ */}
                       {/* STAFF ROUTES - Role Protected    */}
