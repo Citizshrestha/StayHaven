@@ -83,7 +83,7 @@ export async function initiateKhaltiPayment({ amount, orderId, orderName, custom
 
   const amountInPaisa = Math.round(amount * 100);
   const baseUrl = CONFIG.khalti.baseUrl();
-  const returnUrl = `${CONFIG.clientUrl()}/guest-dashboard/billing?payment_status=khalti&orderId=${orderId}`;
+  const returnUrl = `${CONFIG.clientUrl()}/payment-callback?status=success&method=khalti&orderId=${orderId}`;
 
   const payload = {
     return_url: returnUrl,
@@ -213,13 +213,28 @@ export function generateEsewaPaymentData({ amount, taxAmount = 0, orderId }) {
   // transaction_uuid must be alphanumeric + hyphen only
   const transactionUuid = `${orderId}-${Date.now()}`;
 
-  const successUrl = `${CONFIG.clientUrl()}/guest/dashboard?tab=billing&payment_status=esewa&orderId=${orderId}`;
-  const failureUrl = `${CONFIG.clientUrl()}/guest/dashboard?tab=billing&payment_status=esewa_failed&orderId=${orderId}`;
+  const successUrl = `${CONFIG.clientUrl()}/payment-callback?status=success&method=esewa&orderId=${orderId}`;
+  const failureUrl = `${CONFIG.clientUrl()}/payment-callback?status=failed&method=esewa&orderId=${orderId}`;
+
+  console.log('Generating eSewa payment data:', {
+    amount,
+    taxAmount,
+    totalAmount,
+    transactionUuid,
+    productCode,
+    successUrl,
+    failureUrl,
+  });
 
   // Generate signature
   const signedFieldNames = "total_amount,transaction_uuid,product_code";
   const signatureInput = `total_amount=${totalAmount},transaction_uuid=${transactionUuid},product_code=${productCode}`;
   const signature = generateEsewaSignature(signatureInput, secret);
+
+  console.log('eSewa signature generated:', {
+    signatureInput,
+    signature: signature.substring(0, 20) + '...',
+  });
 
   const formData = {
     amount: String(amount),
@@ -236,6 +251,9 @@ export function generateEsewaPaymentData({ amount, taxAmount = 0, orderId }) {
   };
 
   const formUrl = `${CONFIG.esewa.baseUrl()}/api/epay/main/v2/form`;
+
+  console.log('eSewa form URL:', formUrl);
+  console.log('eSewa form data keys:', Object.keys(formData));
 
   return { formUrl, formData, transactionUuid };
 }

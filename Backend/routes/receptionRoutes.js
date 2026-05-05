@@ -116,13 +116,23 @@ import { checkRoomAvailability, preventDoubleCheckIn } from "../middleware/confl
 const router = Router();
 
 // ═════════════════════════════════════════════════════════════════════════════
-// GLOBAL MIDDLEWARE
+// PUBLIC ROUTES (NO AUTHENTICATION REQUIRED)
 // ═════════════════════════════════════════════════════════════════════════════
 
-// All reception routes require authentication
+// Stripe webhook endpoint (public, signature verified internally)
+// MUST be before protect middleware and MUST NOT have body parsing middleware
+router.post("/payments/webhook", handleStripeWebhook);
+
+// ════════════════════════════════════════════════════════════════════════════
+// GLOBAL MIDDLEWARE FOR AUTHENTICATED ROUTES
+// ═════════════════════════════════════════════════════════════════════════════
+
+// All reception routes below require authentication
 router.use(protect);
+
 // Apply general reception rate limiting (read operations)
 router.use(receptionLimiter);
+
 // All reception routes enforce property-level access for non-managers
 router.use(enforcePropertyScope());
 
@@ -130,31 +140,60 @@ router.use(enforcePropertyScope());
 // DASHBOARD (Read-heavy, general rate limiting sufficient)
 // ═════════════════════════════════════════════════════════════════════════════
 
-router.get("/dashboard/summary", getDashboardSummary);
-router.get("/dashboard/room-status", getLiveRoomStatus);
-router.get("/dashboard/occupancy-weekly", getWeeklyOccupancy);
-router.get("/dashboard/revenue-split", getRevenueSplit);
+router.get(
+  "/dashboard/summary",
+  authorize("receptionist", "manager", "admin", "owner"),
+  getDashboardSummary
+);
+
+router.get(
+  "/dashboard/room-status",
+  authorize("receptionist", "manager", "admin", "owner"),
+  getLiveRoomStatus
+);
+
+router.get(
+  "/dashboard/occupancy-weekly",
+  authorize("receptionist", "manager", "admin", "owner"),
+  getWeeklyOccupancy
+);
+
+router.get(
+  "/dashboard/revenue-split",
+  authorize("manager", "admin", "owner"),
+  getRevenueSplit
+);
 
 // ═════════════════════════════════════════════════════════════════════════════
 // CHECK-IN / CHECK-OUT (Write operations - stricter rate limiting)
 // ═════════════════════════════════════════════════════════════════════════════
 
-router.get("/checkin/today-arrivals", getTodayArrivals);
-router.get("/checkin/today-departures", getTodayDepartures);
+router.get(
+  "/arrivals/today",
+  authorize("receptionist", "manager", "admin", "owner"),
+  getTodayArrivals
+);
+
+router.get(
+  "/departures/today",
+  authorize("receptionist", "manager", "admin", "owner"),
+  getTodayDepartures
+);
 
 // Check-in with idempotency guard and optimistic locking
 router.post(
-  "/checkin/:bookingId/checkin",
+  "/bookings/:bookingId/check-in",
   receptionWriteLimiter,
   authorize("receptionist", "manager", "admin", "owner"),
   idempotencyGuard,
+  bookingValidation.checkIn,
   preventDoubleCheckIn,
   performCheckIn
 );
 
 // Check-out with idempotency guard
 router.post(
-  "/checkin/:bookingId/checkout",
+  "/bookings/:bookingId/check-out",
   receptionWriteLimiter,
   authorize("receptionist", "manager", "admin", "owner"),
   idempotencyGuard,
@@ -167,7 +206,7 @@ router.post(
 
 // Bulk check-in
 router.post(
-  "/batch/checkin",
+  "/batch/check-in",
   batchLimiter,
   authorize("receptionist", "manager", "admin", "owner"),
   idempotencyGuard,
@@ -177,7 +216,7 @@ router.post(
 
 // Bulk check-out
 router.post(
-  "/batch/checkout",
+  "/batch/check-out",
   batchLimiter,
   authorize("receptionist", "manager", "admin", "owner"),
   idempotencyGuard,
@@ -215,7 +254,11 @@ router.post(
 );
 
 // Bulk operation status
-router.get("/batch/status", authorize("manager", "admin", "owner"), getBulkOperationStatus);
+router.get(
+  "/batch/status",
+  authorize("manager", "admin", "owner"),
+  getBulkOperationStatus
+);
 
 // ═════════════════════════════════════════════════════════════════════════════
 // GUEST COMMUNICATION TEMPLATES
@@ -226,6 +269,7 @@ router.get(
   authorize("receptionist", "manager", "admin", "owner"),
   getGuestCommunicationTemplates
 );
+
 router.post(
   "/communications/send",
   receptionWriteLimiter,
@@ -239,17 +283,27 @@ router.post(
 // RESERVATIONS (with pagination validation)
 // ═════════════════════════════════════════════════════════════════════════════
 
-router.get("/reservations", queryValidation.pagination, getReservations);
+router.get(
+  "/reservations",
+  authorize("receptionist", "manager", "admin", "owner"),
+  queryValidation.pagination,
+  getReservations
+);
 
 // ═════════════════════════════════════════════════════════════════════════════
 // ROOMS
 // ═════════════════════════════════════════════════════════════════════════════
 
-router.get("/rooms/list", getRoomsList);
+router.get(
+  "/rooms",
+  authorize("receptionist", "manager", "admin", "owner", "housekeeping"),
+  getRoomsList
+);
+
 router.patch(
   "/rooms/:id/status",
   receptionWriteLimiter,
-  authorize("receptionist", "manager", "admin", "owner"),
+  authorize("receptionist", "manager", "admin", "owner", "housekeeping"),
   idempotencyGuard,
   updateRoomStatus
 );
@@ -258,14 +312,26 @@ router.patch(
 // GUESTS
 // ═════════════════════════════════════════════════════════════════════════════
 
-router.get("/guests", queryValidation.pagination, getGuestsList);
-router.get("/guests/:id", getGuestById);
+router.get(
+  "/guests",
+  authorize("receptionist", "manager", "admin", "owner"),
+  queryValidation.pagination,
+  getGuestsList
+);
+
+router.get(
+  "/guests/:id",
+  authorize("receptionist", "manager", "admin", "owner"),
+  getGuestById
+);
+
 router.patch(
   "/guests/:id/status",
   receptionWriteLimiter,
   authorize("receptionist", "manager", "admin", "owner"),
   updateGuestStatus
 );
+
 router.patch(
   "/guests/:id/blacklist",
   receptionWriteLimiter,
@@ -277,7 +343,12 @@ router.patch(
 // HOUSEKEEPING
 // ═════════════════════════════════════════════════════════════════════════════
 
-router.get("/housekeeping", getHousekeepingTasks);
+router.get(
+  "/housekeeping",
+  authorize("receptionist", "manager", "admin", "owner", "housekeeping"),
+  getHousekeepingTasks
+);
+
 router.patch(
   "/housekeeping/:id",
   receptionWriteLimiter,
@@ -289,19 +360,26 @@ router.patch(
 // GUEST REQUESTS
 // ═════════════════════════════════════════════════════════════════════════════
 
-router.get("/guest-requests", getGuestRequests);
+router.get(
+  "/guest-requests",
+  authorize("receptionist", "manager", "admin", "owner"),
+  getGuestRequests
+);
+
 router.patch(
   "/guest-requests/:id/assign",
   receptionWriteLimiter,
   authorize("receptionist", "manager", "admin", "owner"),
   assignGuestRequest
 );
+
 router.patch(
   "/guest-requests/:id/ignore",
   receptionWriteLimiter,
   authorize("receptionist", "manager", "admin", "owner"),
   ignoreGuestRequest
 );
+
 router.patch(
   "/guest-requests/:id/resolve",
   receptionWriteLimiter,
@@ -313,24 +391,50 @@ router.patch(
 // BILLING / INVOICES
 // ═════════════════════════════════════════════════════════════════════════════
 
-router.get("/billing/invoices", queryValidation.pagination, getInvoices);
-router.get("/billing/summary", getBillingSummary);
+router.get(
+  "/billing/invoices",
+  authorize("receptionist", "manager", "admin", "owner"),
+  queryValidation.pagination,
+  getInvoices
+);
+
+router.get(
+  "/billing/summary",
+  authorize("manager", "admin", "owner"),
+  getBillingSummary
+);
 
 // ═════════════════════════════════════════════════════════════════════════════
 // MAINTENANCE SCHEDULE (Proactive PM tracking)
 // ═════════════════════════════════════════════════════════════════════════════
 
 // Get maintenance schedules with filters
-router.get("/maintenance", getMaintenanceSchedules);
+router.get(
+  "/maintenance",
+  authorize("receptionist", "manager", "admin", "owner", "maintenance"),
+  getMaintenanceSchedules
+);
 
 // Get maintenance calendar view
-router.get("/maintenance/calendar", getMaintenanceCalendar);
+router.get(
+  "/maintenance/calendar",
+  authorize("manager", "admin", "owner", "maintenance"),
+  getMaintenanceCalendar
+);
 
 // Get single maintenance schedule
-router.get("/maintenance/:id", getMaintenanceScheduleById);
+router.get(
+  "/maintenance/:id",
+  authorize("receptionist", "manager", "admin", "owner", "maintenance"),
+  getMaintenanceScheduleById
+);
 
 // Get room maintenance history
-router.get("/maintenance/room/:roomId/history", getRoomMaintenanceHistory);
+router.get(
+  "/maintenance/room/:roomId/history",
+  authorize("manager", "admin", "owner", "maintenance"),
+  getRoomMaintenanceHistory
+);
 
 // Create new maintenance schedule
 router.post(
@@ -409,10 +513,18 @@ router.post(
 );
 
 // Get payment summary for booking
-router.get("/payments/booking/:bookingId/summary", getPaymentSummary);
+router.get(
+  "/payments/booking/:bookingId/summary",
+  authorize("receptionist", "manager", "admin", "owner"),
+  getPaymentSummary
+);
 
 // Get all transactions for a booking
-router.get("/payments/booking/:bookingId", getBookingPayments);
+router.get(
+  "/payments/booking/:bookingId",
+  authorize("receptionist", "manager", "admin", "owner"),
+  getBookingPayments
+);
 
 // Request refund
 router.post(
@@ -435,7 +547,11 @@ router.post(
 );
 
 // Get pending refund requests
-router.get("/payments/refunds/pending", authorize("manager", "admin", "owner"), getPendingRefunds);
+router.get(
+  "/payments/refunds/pending",
+  authorize("manager", "admin", "owner"),
+  getPendingRefunds
+);
 
 // Flag payment as disputed
 router.post(
@@ -446,15 +562,16 @@ router.post(
   disputePayment
 );
 
-// Stripe webhook endpoint (public, signature verified internally)
-router.post("/payments/webhook", handleStripeWebhook);
-
 // ═════════════════════════════════════════════════════════════════════════════
 // EXPORT / REPORTING (Export limiter for resource-intensive operations)
 // ═════════════════════════════════════════════════════════════════════════════
 
 // Get available export options
-router.get("/exports/options", getExportOptions);
+router.get(
+  "/exports/options",
+  authorize("receptionist", "manager", "admin", "owner"),
+  getExportOptions
+);
 
 // Export bookings to CSV
 router.get(
@@ -528,13 +645,22 @@ router.post(
 );
 
 // List pending/failed operations for audit
-router.get("/operations/pending", getPendingOperations);
+router.get(
+  "/operations/pending",
+  authorize("receptionist", "manager", "admin", "owner"),
+  getPendingOperations
+);
 
 // ═════════════════════════════════════════════════════════════════════════════
 // STAFF
 // ═════════════════════════════════════════════════════════════════════════════
 
-router.get("/staff/list", getStaffList);
+router.get(
+  "/staff",
+  authorize("receptionist", "manager", "admin", "owner"),
+  getStaffList
+);
+
 router.post(
   "/staff/:staffId/notify-manager",
   receptionWriteLimiter,
@@ -546,8 +672,17 @@ router.post(
 // REPORTS & ACTIVITY LOG
 // ═════════════════════════════════════════════════════════════════════════════
 
-router.get("/reports/overview", getReportsOverview);
-router.get("/activity/live", getActivityLog);
+router.get(
+  "/reports/overview",
+  authorize("manager", "admin", "owner"),
+  getReportsOverview
+);
+
+router.get(
+  "/activity",
+  authorize("receptionist", "manager", "admin", "owner"),
+  getActivityLog
+);
 
 // ═════════════════════════════════════════════════════════════════════════════
 // SHIFT HANDOVER
@@ -563,13 +698,26 @@ router.post(
 );
 
 // Live summary of the current shift (auto-aggregated)
-router.get("/shifts/current", getCurrentShiftSummary);
+router.get(
+  "/shifts/current",
+  authorize("receptionist", "manager", "admin", "owner"),
+  getCurrentShiftSummary
+);
 
 // Paginated history of past shift reports
-router.get("/shifts/history", queryValidation.pagination, getShiftHistory);
+router.get(
+  "/shifts/history",
+  authorize("receptionist", "manager", "admin", "owner"),
+  queryValidation.pagination,
+  getShiftHistory
+);
 
 // Single shift report
-router.get("/shifts/:id", getShiftById);
+router.get(
+  "/shifts/:id",
+  authorize("receptionist", "manager", "admin", "owner"),
+  getShiftById
+);
 
 // Incoming receptionist acknowledges the handover
 router.patch(

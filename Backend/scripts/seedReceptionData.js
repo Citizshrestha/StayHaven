@@ -11,6 +11,9 @@ dns.setServers(["8.8.8.8", "8.8.4.4"]);
 import dotenv from "dotenv";
 dotenv.config();
 
+// Ensure process is available in environments where it's not injected globally
+import process from "process";
+
 import mongoose from "mongoose";
 import { Room } from "../models/room.schema.js";
 import { Booking } from "../models/booking.schema.js";

@@ -97,7 +97,7 @@ app.use(
 // CORS — must come before rate limiter so preflight OPTIONS requests are handled
 const CORS_ORIGINS = process.env.CLIENT_URL
   ? process.env.CLIENT_URL.split(",").map((s) => s.trim())
-  : ["http://localhost:5173", "http://localhost:5174"];
+  : ["http://localhost:5173", "http://localhost:5174", "http://localhost:5175"];
 
 app.use(
   cors({
@@ -232,3 +232,4 @@ startServer().catch((err) => {
   logger.error("Failed to start server", { error: err.message, stack: err.stack });
   process.exit(1);
 });
+// trigger restart
