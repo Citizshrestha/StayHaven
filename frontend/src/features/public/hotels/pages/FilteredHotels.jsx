@@ -315,7 +315,7 @@ const FilteredHotels = () => {
                           <span style={{ fontSize: '0.875rem', color: '#6B7280' }}>/night</span>
                         </div>
                         <button
-                          onClick={() => navigate(`/hotel/${id}`)}
+                          onClick={() => navigate(`/hotels/${id}`)}
                           style={{
                             padding: '10px 20px',
                             backgroundColor: '#14B8A6',
