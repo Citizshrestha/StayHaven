@@ -83,7 +83,8 @@ export async function initiateKhaltiPayment({ amount, orderId, orderName, custom
 
   const amountInPaisa = Math.round(amount * 100);
   const baseUrl = CONFIG.khalti.baseUrl();
-  const returnUrl = `${CONFIG.clientUrl()}/payment-callback?status=success&method=khalti&orderId=${orderId}`;
+  const serverUrl = process.env.SERVER_URL || 'http://localhost:3000';
+  const returnUrl = `${serverUrl}/api/webhooks/khalti/verify`;
 
   const payload = {
     return_url: returnUrl,
@@ -213,7 +214,8 @@ export function generateEsewaPaymentData({ amount, taxAmount = 0, orderId }) {
   // transaction_uuid must be alphanumeric + hyphen only
   const transactionUuid = `${orderId}-${Date.now()}`;
 
-  const successUrl = `${CONFIG.clientUrl()}/payment-callback?status=success&method=esewa&orderId=${orderId}`;
+  const serverUrl = process.env.SERVER_URL || 'http://localhost:3000';
+  const successUrl = `${serverUrl}/api/webhooks/esewa/verify`;
   const failureUrl = `${CONFIG.clientUrl()}/payment-callback?status=failed&method=esewa&orderId=${orderId}`;
 
   console.log('Generating eSewa payment data:', {

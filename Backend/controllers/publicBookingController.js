@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import crypto from "crypto";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
+import QRCode from "qrcode";
 import { Booking } from "../models/booking.schema.js";
 import { Room } from "../models/room.schema.js";
 import { Hotel } from "../models/hotel.schema.js";
@@ -53,12 +54,6 @@ const checkRoomAvailability = async (roomId, checkIn, checkOut) => {
   const newCheckOut = new Date(checkOut);
   newCheckOut.setHours(0, 0, 0, 0);
 
-  console.log('Checking availability for:', {
-    roomId,
-    newCheckIn: newCheckIn.toISOString(),
-    newCheckOut: newCheckOut.toISOString(),
-  });
-
   // Find conflicting bookings
   // A conflict exists if:
   // - Existing booking starts before new booking ends AND
@@ -70,8 +65,6 @@ const checkRoomAvailability = async (roomId, checkIn, checkOut) => {
     status: { $in: ["Confirmed", "Checked-In", "Pending"] },
   });
 
-  console.log(`Found ${conflicts.length} existing bookings for this room`);
-
   // Check each booking for actual overlap
   for (const booking of conflicts) {
     const existingCheckIn = new Date(booking.checkIn);
@@ -80,29 +73,16 @@ const checkRoomAvailability = async (roomId, checkIn, checkOut) => {
     const existingCheckOut = new Date(booking.checkOut);
     existingCheckOut.setHours(0, 0, 0, 0);
 
-    console.log('Comparing with existing booking:', {
-      bookingId: booking.bookingId,
-      existingCheckIn: existingCheckIn.toISOString(),
-      existingCheckOut: existingCheckOut.toISOString(),
-    });
-
     // Check for overlap
     // Overlap exists if: existingCheckIn < newCheckOut AND existingCheckOut > newCheckIn
     // BUT: Since checkout day means room is vacated, we use strict inequality
     const hasOverlap = existingCheckIn < newCheckOut && existingCheckOut > newCheckIn;
 
     if (hasOverlap) {
-      console.log('CONFLICT FOUND:', {
-        existingCheckIn: existingCheckIn.toISOString(),
-        existingCheckOut: existingCheckOut.toISOString(),
-        newCheckIn: newCheckIn.toISOString(),
-        newCheckOut: newCheckOut.toISOString(),
-      });
       return false; // Room not available
     }
   }
 
-  console.log('No conflicts found - room is available');
   return true; // Room is available
 };
 
@@ -125,9 +105,6 @@ export const createBookingWithPayment = asyncHandler(async (req, res) => {
   session.startTransaction();
 
   try {
-    console.log('=== AUTHENTICATED BOOKING REQUEST ===');
-    console.log('User:', req.user.email);
-    console.log('Request body:', JSON.stringify(req.body, null, 2));
 
     // Get authenticated user
     const authenticatedUser = req.user;
@@ -156,7 +133,6 @@ export const createBookingWithPayment = asyncHandler(async (req, res) => {
     // ============================================
     // 1. VALIDATE INPUT
     // ============================================
-    console.log('Validating input...');
 
     if (!hotelId || !roomId || !checkIn || !checkOut || !paymentMethod) {
       const missingFields = [];
@@ -208,21 +184,18 @@ export const createBookingWithPayment = asyncHandler(async (req, res) => {
     // ============================================
     // 2. VERIFY HOTEL AND ROOM
     // ============================================
-    console.log('Verifying hotel and room...');
 
     const hotel = await Hotel.findById(hotelId).session(session);
     if (!hotel) {
       console.error('Hotel not found:', hotelId);
       throw Object.assign(new Error("Hotel not found"), { status: 404 });
     }
-    console.log('Hotel found:', hotel.name);
 
     const room = await Room.findById(roomId).session(session);
     if (!room) {
       console.error('Room not found:', roomId);
       throw Object.assign(new Error("Room not found"), { status: 404 });
     }
-    console.log('Room found:', room.roomName || room.title);
 
     if (room.hotel.toString() !== hotelId.toString()) {
       throw Object.assign(new Error("Room does not belong to this hotel"), { status: 400 });
@@ -247,14 +220,6 @@ export const createBookingWithPayment = asyncHandler(async (req, res) => {
     const subtotal = room.price * nights;
     const taxesAndFees = Math.round(subtotal * 0.12); // 12% tax
     const totalAmount = subtotal + taxesAndFees;
-
-    console.log('Booking calculation:', {
-      nights,
-      roomPrice: room.price,
-      subtotal,
-      taxesAndFees,
-      totalAmount
-    });
 
     // ============================================
     // 4. CREATE BOOKING (PENDING STATUS)
@@ -330,18 +295,11 @@ export const createBookingWithPayment = asyncHandler(async (req, res) => {
         });
       } else if (paymentMethod === "esewa") {
         // eSewa form POST redirect
-        console.log('Processing eSewa payment...');
 
         paymentResult = generateEsewaPaymentData({
           amount: totalAmount,
           taxAmount: 0,
           orderId: booking._id.toString(),
-        });
-
-        console.log('eSewa payment data generated:', {
-          formUrl: paymentResult.formUrl,
-          transactionUuid: paymentResult.transactionUuid,
-          amount: totalAmount,
         });
 
         // Store payment reference
@@ -350,7 +308,6 @@ export const createBookingWithPayment = asyncHandler(async (req, res) => {
 
         await session.commitTransaction();
 
-        console.log('eSewa booking created successfully:', booking.bookingId);
 
         return res.status(200).json({
           success: true,
@@ -554,7 +511,6 @@ export const createBookingWithPayment = asyncHandler(async (req, res) => {
 export const getBookingDetails = asyncHandler(async (req, res) => {
   const { bookingId } = req.params;
 
-  console.log('Fetching booking details for:', bookingId);
 
   // Find booking by MongoDB _id
   const booking = await Booking.findById(bookingId)
@@ -598,7 +554,6 @@ export const getBookingDetails = asyncHandler(async (req, res) => {
 export const generateBookingConfirmationPDF = asyncHandler(async (req, res) => {
   const { bookingId } = req.params;
 
-  console.log('Generating PDF for booking:', bookingId);
 
   // Find booking by MongoDB _id
   const booking = await Booking.findById(bookingId)
@@ -610,6 +565,17 @@ export const generateBookingConfirmationPDF = asyncHandler(async (req, res) => {
     throw Object.assign(new Error("Booking not found"), { status: 404 });
   }
 
+  // Generate QR code for booking verification
+  const bookingUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/booking/${booking._id}`;
+  const qrCodeDataUrl = await QRCode.toDataURL(bookingUrl, {
+    width: 200,
+    margin: 1,
+    color: {
+      dark: '#0D9488',
+      light: '#FFFFFF'
+    }
+  });
+
   // Create PDF document
   const doc = new jsPDF();
 
@@ -620,24 +586,40 @@ export const generateBookingConfirmationPDF = asyncHandler(async (req, res) => {
 
   // Header with hotel name
   doc.setFillColor(...primaryColor);
-  doc.rect(0, 0, 210, 40, 'F');
+  doc.rect(0, 0, 210, 50, 'F');
 
+  // Add hotel logo if available
+  if (booking.hotel?.images?.[0]) {
+    try {
+      doc.addImage(booking.hotel.images[0], 'JPEG', 15, 10, 25, 25);
+    } catch (err) {
+      console.error('Failed to add hotel logo to PDF:', err);
+    }
+  }
+
+  // Hotel name and details
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(24);
+  doc.setFontSize(22);
   doc.setFont(undefined, 'bold');
-  doc.text(booking.hotel?.name || 'StayHaven', 20, 20);
+  doc.text(booking.hotel?.name || 'StayHaven', booking.hotel?.images?.[0] ? 45 : 20, 20);
 
-  doc.setFontSize(10);
+  doc.setFontSize(9);
   doc.setFont(undefined, 'normal');
-  doc.text(booking.hotel?.location?.address || '', 20, 28);
-  doc.text(`Phone: ${booking.hotel?.phone || 'N/A'} | Email: ${booking.hotel?.email || 'N/A'}`, 20, 34);
+  doc.text(booking.hotel?.location?.address || '', booking.hotel?.images?.[0] ? 45 : 20, 28);
+  doc.text(`Phone: ${booking.hotel?.phone || 'N/A'} | Email: ${booking.hotel?.email || 'N/A'}`, booking.hotel?.images?.[0] ? 45 : 20, 34);
+
+  // Add QR code (top right)
+  doc.addImage(qrCodeDataUrl, 'PNG', 165, 10, 30, 30);
+  doc.setFontSize(7);
+  doc.setTextColor(255, 255, 255);
+  doc.text('Scan to view', 180, 43, { align: 'center' });
 
   // Confirmation badge
   doc.setFillColor(...successColor);
-  doc.roundedRect(150, 10, 45, 20, 3, 3, 'F');
-  doc.setFontSize(12);
+  doc.roundedRect(150, 10, 12, 12, 2, 2, 'F');
+  doc.setFontSize(8);
   doc.setFont(undefined, 'bold');
-  doc.text('CONFIRMED', 157, 22);
+  doc.text('✓', 154, 18);
 
   // Reset text color
   doc.setTextColor(0, 0, 0);
@@ -645,25 +627,25 @@ export const generateBookingConfirmationPDF = asyncHandler(async (req, res) => {
   // Booking confirmation section
   doc.setFontSize(18);
   doc.setFont(undefined, 'bold');
-  doc.text('Booking Confirmation', 20, 55);
+  doc.text('Booking Confirmation', 20, 65);
 
   doc.setFontSize(11);
   doc.setFont(undefined, 'normal');
   doc.setTextColor(...secondaryColor);
-  doc.text('Thank you for choosing us! Your booking has been confirmed.', 20, 63);
+  doc.text('Thank you for choosing us! Your booking has been confirmed.', 20, 73);
 
-  // Confirmation details box
+  // Confirmation details box with background
   doc.setDrawColor(...primaryColor);
-  doc.setLineWidth(0.5);
-  doc.roundedRect(20, 70, 170, 25, 2, 2);
+  doc.setFillColor(240, 253, 250); // Light teal background
+  doc.roundedRect(20, 80, 170, 28, 3, 3, 'FD');
 
   doc.setTextColor(0, 0, 0);
   doc.setFontSize(10);
   doc.setFont(undefined, 'bold');
-  doc.text('Confirmation Code:', 25, 78);
-  doc.setFontSize(14);
+  doc.text('Confirmation Code:', 25, 88);
+  doc.setFontSize(16);
   doc.setTextColor(...primaryColor);
-  doc.text(booking.confirmationCode || booking.bookingId, 25, 86);
+  doc.text(booking.confirmationCode || booking.bookingId, 25, 98);
 
   doc.setTextColor(0, 0, 0);
   doc.setFontSize(10);
@@ -672,13 +654,14 @@ export const generateBookingConfirmationPDF = asyncHandler(async (req, res) => {
     year: 'numeric',
     month: 'long',
     day: 'numeric'
-  })}`, 110, 78);
-  doc.text(`Payment Status: ${booking.paymentStatus.toUpperCase()}`, 110, 86);
+  })}`, 110, 88);
+  doc.text(`Status: ${booking.status}`, 110, 94);
+  doc.text(`Payment: ${booking.paymentStatus.toUpperCase()}`, 110, 100);
 
   // Guest information
   doc.setFontSize(14);
   doc.setFont(undefined, 'bold');
-  doc.text('Guest Information', 20, 108);
+  doc.text('Guest Information', 20, 120);
 
   const guestData = [
     ['Name', booking.guestInfo?.name || 'N/A'],
@@ -687,7 +670,7 @@ export const generateBookingConfirmationPDF = asyncHandler(async (req, res) => {
   ];
 
   doc.autoTable({
-    startY: 112,
+    startY: 124,
     head: [],
     body: guestData,
     theme: 'plain',
@@ -713,6 +696,7 @@ export const generateBookingConfirmationPDF = asyncHandler(async (req, res) => {
     ['Check-out', checkOutDate.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })],
     ['Number of Nights', `${nights} night${nights > 1 ? 's' : ''}`],
     ['Room Type', booking.room?.roomName || booking.room?.title || 'N/A'],
+    ['Room Number', booking.room?.roomNumber || 'Will be assigned at check-in'],
     ['Guests', `${booking.guests?.adults || 0} Adult${booking.guests?.adults > 1 ? 's' : ''}${booking.guests?.children > 0 ? `, ${booking.guests.children} Child${booking.guests.children > 1 ? 'ren' : ''}` : ''}`],
   ];
 
@@ -761,6 +745,7 @@ export const generateBookingConfirmationPDF = asyncHandler(async (req, res) => {
   // Important information
   doc.setFontSize(12);
   doc.setFont(undefined, 'bold');
+  doc.setTextColor(0, 0, 0);
   doc.text('Important Information', 20, doc.lastAutoTable.finalY + 15);
 
   doc.setFontSize(9);
@@ -769,7 +754,8 @@ export const generateBookingConfirmationPDF = asyncHandler(async (req, res) => {
   const importantInfo = [
     '• Check-in time: 2:00 PM | Check-out time: 12:00 PM',
     '• Please bring a valid ID proof at the time of check-in',
-    '• Cancellation policy applies as per hotel terms and conditions',
+    '• Early check-in and late check-out subject to availability',
+    '• Cancellation policy: Full refund if cancelled 48+ hours before check-in, 50% refund 24-48 hours',
     '• For any queries, please contact the hotel directly',
   ];
 
@@ -779,15 +765,48 @@ export const generateBookingConfirmationPDF = asyncHandler(async (req, res) => {
     yPos += 5;
   });
 
+  // Terms & Conditions
+  doc.setFontSize(10);
+  doc.setFont(undefined, 'bold');
+  doc.setTextColor(0, 0, 0);
+  doc.text('Terms & Conditions', 20, yPos + 5);
+
+  doc.setFontSize(8);
+  doc.setFont(undefined, 'normal');
+  doc.setTextColor(...secondaryColor);
+  const terms = [
+    '1. The guest must present valid photo identification at check-in.',
+    '2. Smoking is prohibited in all rooms. Violation may result in additional charges.',
+    '3. The hotel is not responsible for loss or damage to personal belongings.',
+    '4. Guests are responsible for any damage to hotel property during their stay.',
+  ];
+
+  yPos += 12;
+  terms.forEach(term => {
+    doc.text(term, 20, yPos, { maxWidth: 170 });
+    yPos += 4;
+  });
+
+  // QR Code section at bottom
+  doc.setFontSize(10);
+  doc.setFont(undefined, 'bold');
+  doc.setTextColor(0, 0, 0);
+  doc.text('Scan to View Booking Online', 20, yPos + 8);
+
+  doc.setFontSize(8);
+  doc.setFont(undefined, 'normal');
+  doc.setTextColor(...secondaryColor);
+  doc.text('Use your phone camera to scan the QR code at the top of this document', 20, yPos + 13);
+
   // Footer
   doc.setDrawColor(...primaryColor);
   doc.setLineWidth(0.5);
-  doc.line(20, 270, 190, 270);
+  doc.line(20, 275, 190, 275);
 
   doc.setTextColor(...secondaryColor);
   doc.setFontSize(8);
-  doc.text('This is a computer-generated document and does not require a signature.', 105, 278, { align: 'center' });
-  doc.text(`Generated on ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, 105, 283, { align: 'center' });
+  doc.text('This is a computer-generated document and does not require a signature.', 105, 281, { align: 'center' });
+  doc.text(`Generated on ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`, 105, 286, { align: 'center' });
 
   // Generate PDF buffer
   const pdfBuffer = doc.output('arraybuffer');
