@@ -8,7 +8,10 @@ import {
   changeGuestRoom,
   getBookingById,
   getHotelBookings,
-  getAvailableRooms
+  getAvailableRooms,
+  modifyBooking,
+  cancelBooking,
+  requestRefund
 } from '../controllers/bookingController.js';
 
 const router = express.Router();
@@ -34,6 +37,19 @@ router.post('/check-out/express', authorize('receptionist', 'owner', 'admin', 'm
 
 // Change guest room
 router.post('/room-change', authorize('receptionist', 'owner', 'admin', 'manager'), changeGuestRoom);
+
+// ============================================
+// GUEST BOOKING MANAGEMENT (guests can modify/cancel their own bookings)
+// ============================================
+
+// Modify booking (change dates/guests) - guests and staff
+router.patch('/:id/modify', modifyBooking);
+
+// Cancel booking - guests and staff
+router.post('/:id/cancel', cancelBooking);
+
+// Request refund - guests only
+router.post('/:id/refund', requestRefund);
 
 // ============================================
 // GET ROUTES (must come after POST routes to avoid conflicts)

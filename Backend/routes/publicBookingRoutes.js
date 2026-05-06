@@ -1,6 +1,9 @@
 import express from 'express';
 import { createBookingWithPayment, getBookingDetails, generateBookingConfirmationPDF } from '../controllers/publicBookingController.js';
 import { protect } from '../middleware/authMiddleware.js';
+import { sanitizeAll } from '../middleware/sanitization.js';
+import { bookingValidation } from '../middleware/validation.js';
+import { apiLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
@@ -9,9 +12,15 @@ const router = express.Router();
  * Note: Booking creation requires authentication, but confirmation access is public
  */
 
+// Apply rate limiting to all public booking routes
+router.use(apiLimiter);
+
+// Apply sanitization to all routes
+router.use(sanitizeAll());
+
 // Create booking with payment (REQUIRES AUTHENTICATION)
 // POST /api/public/bookings/create-with-payment
-router.post('/create-with-payment', protect, createBookingWithPayment);
+router.post('/create-with-payment', protect, bookingValidation.create, createBookingWithPayment);
 
 // Get booking details by ID (for confirmation page - PUBLIC)
 // GET /api/public/bookings/:bookingId
