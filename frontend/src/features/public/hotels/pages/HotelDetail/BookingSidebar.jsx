@@ -52,8 +52,41 @@ const BookingSidebar = ({ pricePerNight, nights: initialNights, taxesAndFees: in
     };
   }, [checkIn, checkOut, pricePerNight, initialNights, initialTaxesAndFees]);
 
-  // Handle booking button click - show guest form first
+  // Handle booking button click - check authentication first
   const handleBookNowClick = () => {
+    // Check if user is authenticated
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
+      // Store booking data and redirect to login
+      sessionStorage.setItem('pendingBooking', JSON.stringify({
+        hotelId,
+        roomId,
+        checkIn,
+        checkOut,
+        guests: selectedGuests,
+        hotelName,
+        hotelAddress,
+        hotelImage,
+        totalAmount: total,
+        returnUrl: window.location.pathname
+      }));
+
+      toast.warning('Please login to continue with booking', {
+        position: 'top-center',
+        autoClose: 2000,
+      });
+
+      setTimeout(() => {
+        navigate('/login', {
+          state: {
+            from: window.location.pathname,
+            message: 'Please login to complete your booking'
+          }
+        });
+      }, 500);
+      return;
+    }
+
     // Validate dates
     if (!checkIn || !checkOut) {
       toast.error('Please select check-in and check-out dates');

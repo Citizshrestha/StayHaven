@@ -38,10 +38,16 @@ const BookingPaymentModal = ({
       setIsUserAuthenticated(authenticated);
 
       if (!authenticated) {
+        // Close modal and redirect to login immediately
         toast.warning('Please login to continue with booking', {
           position: 'top-center',
-          autoClose: 3000,
+          autoClose: 2000,
         });
+
+        // Auto-redirect after 2 seconds
+        setTimeout(() => {
+          handleLoginRedirect();
+        }, 2000);
       }
     }
   }, [isOpen]);
