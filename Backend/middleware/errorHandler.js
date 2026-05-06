@@ -94,12 +94,29 @@ export const errorHandler = (err, req, res, next) => {
   }
 
   // Send error response
+  // In production, sanitize error messages to avoid leaking sensitive information
+  const isProduction = process.env.NODE_ENV === 'production';
+
   res.status(error.statusCode).json({
     success: false,
-    message: error.message || 'Internal Server Error',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
+    message: isProduction && error.statusCode >= 500
+      ? 'An error occurred. Please try again later.'
+      : error.message || 'Internal Server Error',
+    ...(process.env.NODE_ENV === 'development' && {
+      stack: err.stack,
+      details: error
+    }),
+    // Include error ID for support reference in production
+    ...(isProduction && error.statusCode >= 500 && {
+      errorId: generateErrorId()
+    })
   });
 };
+
+// Generate unique error ID for tracking
+function generateErrorId() {
+  return `ERR-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+}
 
 // Async handler wrapper to catch errors in async route handlers
 export const asyncHandler = (fn) => (req, res, next) => {
