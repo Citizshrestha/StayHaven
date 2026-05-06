@@ -9,8 +9,11 @@ import {
   Loader2,
   Users,
   Eye,
-  X
+  X,
+  CheckSquare,
+  Square
 } from 'lucide-react';
+import { toast } from 'react-toastify';
 import * as receptionApi from '../../../../core/api/services/reception.service';
 import './BookingsView.css';
 
@@ -86,6 +89,9 @@ const BookingsView = () => {
   const [showRoomDropdown, setShowRoomDropdown] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [loadError, setLoadError] = useState('');
+  const [selectedBookingIds, setSelectedBookingIds] = useState([]);
+  const [bulkProcessing, setBulkProcessing] = useState(false);
+  const [showBulkStatusDropdown, setShowBulkStatusDropdown] = useState(false);
 
   const loadBookings = async () => {
     setIsLoading(true);
@@ -287,6 +293,68 @@ const BookingsView = () => {
     setSearchQuery(e.target.value);
   }, []);
 
+  const toggleSelectBooking = (bookingId) => {
+    setSelectedBookingIds(prev =>
+      prev.includes(bookingId) ? prev.filter(id => id !== bookingId) : [...prev, bookingId]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedBookingIds.length === paginatedBookings.length) {
+      setSelectedBookingIds([]);
+    } else {
+      setSelectedBookingIds(paginatedBookings.map(b => b.id));
+    }
+  };
+
+  const clearSelection = () => setSelectedBookingIds([]);
+
+  const handleBulkStatusUpdate = async (newStatus) => {
+    if (selectedBookingIds.length === 0) return;
+
+    const confirmed = window.confirm(
+      `Are you sure you want to update ${selectedBookingIds.length} booking(s) to ${newStatus}?`
+    );
+
+    if (!confirmed) return;
+
+    setBulkProcessing(true);
+    try {
+      const res = await receptionApi.bulkUpdateBookingStatus({
+        bookingIds: selectedBookingIds,
+        newStatus,
+        reason: `Bulk status update to ${newStatus}`
+      });
+
+      if (res?.success) {
+        const successIds = new Set((res.data?.success || []).map(s => s.bookingId));
+        setBookings(prev => prev.map(b =>
+          successIds.has(b.id) ? { ...b, status: newStatus } : b
+        ));
+
+        const successCount = res.data?.success?.length || 0;
+        const failedCount = res.data?.failed?.length || 0;
+
+        toast.success(`Bulk update completed: ${successCount} successful, ${failedCount} failed`, {
+          position: 'top-right',
+          autoClose: 4000,
+          theme: isDark ? 'dark' : 'light',
+        });
+
+        setSelectedBookingIds([]);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Bulk update failed. Please try again.', {
+        position: 'top-right',
+        autoClose: 4000,
+        theme: isDark ? 'dark' : 'light',
+      });
+    } finally {
+      setBulkProcessing(false);
+      setShowBulkStatusDropdown(false);
+    }
+  };
+
   const getStatusDisplayName = () => {
     if (statusFilter === 'all') return 'All Status';
     return statusFilter.split('-').map(word =>
@@ -436,9 +504,53 @@ const BookingsView = () => {
             </div>
           )}
         </div>
-
-
       </div>
+
+      {/* Bulk Operations Toolbar */}
+      {selectedBookingIds.length > 0 && (
+        <div style={{ marginBottom: 16, padding: '12px 16px', borderRadius: 12, background: 'var(--bg-surface, #f8fafc)', border: '1px solid var(--border-primary, #e2e8f0)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary, #1e293b)' }}>
+              {selectedBookingIds.length} selected
+            </span>
+            <button
+              onClick={clearSelection}
+              style={{ padding: '4px 12px', fontSize: 12, fontWeight: 600, borderRadius: 6, border: '1px solid var(--border-primary, #e2e8f0)', background: 'transparent', color: 'var(--text-secondary, #64748b)', cursor: 'pointer' }}
+            >
+              Clear
+            </button>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, position: 'relative' }}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowBulkStatusDropdown(!showBulkStatusDropdown);
+              }}
+              disabled={bulkProcessing}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', fontSize: 13, fontWeight: 600, borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', cursor: bulkProcessing ? 'not-allowed' : 'pointer', opacity: bulkProcessing ? 0.6 : 1 }}
+            >
+              {bulkProcessing ? <Loader2 size={14} className="animate-spin" /> : null}
+              {bulkProcessing ? 'Processing...' : 'Update Status'}
+              {!bulkProcessing && <ChevronDown size={14} />}
+            </button>
+            {showBulkStatusDropdown && !bulkProcessing && (
+              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 8, minWidth: 160, background: 'var(--bg-card, #fff)', borderRadius: 10, boxShadow: '0 4px 12px rgba(0,0,0,0.1)', border: '1px solid var(--border-primary, #e2e8f0)', overflow: 'hidden', zIndex: 100 }}>
+                {['Confirmed', 'Pending', 'Cancelled', 'No-Show'].map(status => (
+                  <button
+                    key={status}
+                    onClick={() => handleBulkStatusUpdate(status)}
+                    style={{ display: 'block', width: '100%', padding: '10px 14px', fontSize: 13, fontWeight: 500, textAlign: 'left', border: 'none', background: 'transparent', color: 'var(--text-primary, #1e293b)', cursor: 'pointer', transition: 'background 0.15s' }}
+                    onMouseEnter={(e) => e.target.style.background = 'var(--bg-surface, #f8fafc)'}
+                    onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                  >
+                    {status}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Loading State */}
       {isLoading && (
@@ -478,15 +590,36 @@ const BookingsView = () => {
 
       {/* Grid View */}
       {!isLoading && filteredBookings.length > 0 && (
-        <div className="bv-grid-container grid gap-5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
-          {paginatedBookings.map((booking) => (
-            <div key={booking.id} className="bv-grid-card p-5 rounded-xl transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5">
-              <div className="bv-grid-card-header flex items-center justify-between mb-4">
-                <span className="bv-grid-id font-semibold">{booking.id}</span>
-                <span className={`bv-status-badge inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium ${getStatusClass(booking.status)}`}>
-                  {booking.status}
-                </span>
-              </div>
+        <>
+          {/* Select All Row */}
+          <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              onClick={toggleSelectAll}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', fontSize: 13, fontWeight: 600, borderRadius: 8, border: '1px solid var(--border-primary, #e2e8f0)', background: 'var(--bg-surface, #f8fafc)', color: 'var(--text-primary, #1e293b)', cursor: 'pointer' }}
+            >
+              {selectedBookingIds.length === paginatedBookings.length ? <CheckSquare size={16} /> : <Square size={16} />}
+              {selectedBookingIds.length === paginatedBookings.length ? 'Deselect All' : 'Select All'}
+            </button>
+          </div>
+
+          <div className="bv-grid-container grid gap-5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
+            {paginatedBookings.map((booking) => (
+              <div key={booking.id} className="bv-grid-card p-5 rounded-xl transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5" style={{ position: 'relative' }}>
+                <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 10 }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedBookingIds.includes(booking.id)}
+                    onChange={() => toggleSelectBooking(booking.id)}
+                    style={{ width: 18, height: 18, cursor: 'pointer' }}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </div>
+                <div className="bv-grid-card-header flex items-center justify-between mb-4" style={{ paddingLeft: 28 }}>
+                  <span className="bv-grid-id font-semibold">{booking.id}</span>
+                  <span className={`bv-status-badge inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium ${getStatusClass(booking.status)}`}>
+                    {booking.status}
+                  </span>
+                </div>
               <div className="bv-grid-guest flex items-center gap-3 mb-4 pb-4 border-b border-slate-100 dark:border-slate-700">
                 <GuestAvatar
                   avatar={booking.guest.avatar}
@@ -521,9 +654,10 @@ const BookingsView = () => {
                   <Eye size={14} /> View
                 </button>
               </div>
-            </div>
-          ))}
-        </div>
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       {/* Booking Detail Modal */}

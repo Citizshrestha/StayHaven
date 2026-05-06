@@ -27,7 +27,9 @@ import {
     Clock,
     User,
     Calendar,
-    ArrowUpDown
+    ArrowUpDown,
+    CheckSquare,
+    Square
 } from 'lucide-react';
 import * as receptionApi from '../../../../core/api/services/reception.service';
 import { toast } from 'react-toastify';
@@ -47,6 +49,9 @@ const RoomsView = () => {
     const [selectedRoom, setSelectedRoom] = useState(null);
     const [sortBy, setSortBy] = useState('number');
     const [loadError, setLoadError] = useState('');
+    const [selectedRoomIds, setSelectedRoomIds] = useState([]);
+    const [bulkProcessing, setBulkProcessing] = useState(false);
+    const [showBulkStatusDropdown, setShowBulkStatusDropdown] = useState(false);
 
     const loadData = async () => {
         setIsLoading(true);
@@ -230,6 +235,69 @@ const RoomsView = () => {
         }
     };
 
+    const toggleSelectRoom = (roomId) => {
+        setSelectedRoomIds(prev =>
+            prev.includes(roomId) ? prev.filter(id => id !== roomId) : [...prev, roomId]
+        );
+    };
+
+    const toggleSelectAll = () => {
+        const selectableRooms = filteredRooms.filter(r => r.status !== 'occupied' && r.status !== 'reserved');
+        if (selectedRoomIds.length === selectableRooms.length) {
+            setSelectedRoomIds([]);
+        } else {
+            setSelectedRoomIds(selectableRooms.map(r => r.id));
+        }
+    };
+
+    const clearSelection = () => setSelectedRoomIds([]);
+
+    const handleBulkRoomStatusUpdate = async (newStatus) => {
+        if (selectedRoomIds.length === 0) return;
+
+        const confirmed = window.confirm(
+            `Are you sure you want to update ${selectedRoomIds.length} room(s) to ${newStatus}?`
+        );
+
+        if (!confirmed) return;
+
+        setBulkProcessing(true);
+        try {
+            const res = await receptionApi.bulkUpdateRoomStatus({
+                roomIds: selectedRoomIds,
+                newStatus,
+                reason: `Bulk status update to ${newStatus}`
+            });
+
+            if (res?.success) {
+                const successIds = new Set((res.data?.success || []).map(s => s.roomId));
+                setRooms(prev => prev.map(r =>
+                    successIds.has(r.id) ? { ...r, status: newStatus, lastCleaned: newStatus === 'available' ? new Date() : r.lastCleaned } : r
+                ));
+
+                const successCount = res.data?.success?.length || 0;
+                const failedCount = res.data?.failed?.length || 0;
+
+                toast.success(`Bulk update completed: ${successCount} successful, ${failedCount} failed`, {
+                    position: 'top-right',
+                    autoClose: 4000,
+                    theme: isDark ? 'dark' : 'light',
+                });
+
+                setSelectedRoomIds([]);
+            }
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Bulk update failed. Please try again.', {
+                position: 'top-right',
+                autoClose: 4000,
+                theme: isDark ? 'dark' : 'light',
+            });
+        } finally {
+            setBulkProcessing(false);
+            setShowBulkStatusDropdown(false);
+        }
+    };
+
     return (
         <div className={`rooms-view ${isDark ? 'dark' : ''}`}>
             {!!loadError && (
@@ -309,6 +377,52 @@ const RoomsView = () => {
                     );
                 })}
             </div>
+
+            {/* Bulk Operations Toolbar */}
+            {selectedRoomIds.length > 0 && (
+                <div style={{ marginBottom: 16, padding: '12px 16px', borderRadius: 12, background: 'var(--bg-surface, #f8fafc)', border: '1px solid var(--border-primary, #e2e8f0)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary, #1e293b)' }}>
+                            {selectedRoomIds.length} selected
+                        </span>
+                        <button
+                            onClick={clearSelection}
+                            style={{ padding: '4px 12px', fontSize: 12, fontWeight: 600, borderRadius: 6, border: '1px solid var(--border-primary, #e2e8f0)', background: 'transparent', color: 'var(--text-secondary, #64748b)', cursor: 'pointer' }}
+                        >
+                            Clear
+                        </button>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, position: 'relative' }}>
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setShowBulkStatusDropdown(!showBulkStatusDropdown);
+                            }}
+                            disabled={bulkProcessing}
+                            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', fontSize: 13, fontWeight: 600, borderRadius: 8, border: 'none', background: '#8b5cf6', color: '#fff', cursor: bulkProcessing ? 'not-allowed' : 'pointer', opacity: bulkProcessing ? 0.6 : 1 }}
+                        >
+                            {bulkProcessing ? <Loader2 size={14} className="animate-spin" /> : null}
+                            {bulkProcessing ? 'Processing...' : 'Update Status'}
+                            {!bulkProcessing && <ChevronDown size={14} />}
+                        </button>
+                        {showBulkStatusDropdown && !bulkProcessing && (
+                            <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 8, minWidth: 160, background: 'var(--bg-card, #fff)', borderRadius: 10, boxShadow: '0 4px 12px rgba(0,0,0,0.1)', border: '1px solid var(--border-primary, #e2e8f0)', overflow: 'hidden', zIndex: 100 }}>
+                                {['available', 'cleaning', 'maintenance'].map(status => (
+                                    <button
+                                        key={status}
+                                        onClick={() => handleBulkRoomStatusUpdate(status)}
+                                        style={{ display: 'block', width: '100%', padding: '10px 14px', fontSize: 13, fontWeight: 500, textAlign: 'left', border: 'none', background: 'transparent', color: 'var(--text-primary, #1e293b)', cursor: 'pointer', transition: 'background 0.15s' }}
+                                        onMouseEnter={(e) => e.target.style.background = 'var(--bg-surface, #f8fafc)'}
+                                        onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                                    >
+                                        {status.charAt(0).toUpperCase() + status.slice(1)}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
 
             {/* Filter Bar */}
             <div className="rv-filter-bar">
@@ -433,17 +547,42 @@ const RoomsView = () => {
 
             {/* Room Grid */}
             {!isLoading && filteredRooms.length > 0 && (
-                <div className="rv-rooms-grid">
-                    {filteredRooms.map(room => {
+                <>
+                    {/* Select All Row */}
+                    <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <button
+                            onClick={toggleSelectAll}
+                            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', fontSize: 13, fontWeight: 600, borderRadius: 8, border: '1px solid var(--border-primary, #e2e8f0)', background: 'var(--bg-surface, #f8fafc)', color: 'var(--text-primary, #1e293b)', cursor: 'pointer' }}
+                        >
+                            {selectedRoomIds.length === filteredRooms.filter(r => r.status !== 'occupied' && r.status !== 'reserved').length ? <CheckSquare size={16} /> : <Square size={16} />}
+                            {selectedRoomIds.length === filteredRooms.filter(r => r.status !== 'occupied' && r.status !== 'reserved').length ? 'Deselect All' : 'Select All Available'}
+                        </button>
+                    </div>
+
+                    <div className="rv-rooms-grid">
+                        {filteredRooms.map(room => {
                         const statusConfig = getStatusConfig(room.status);
                         const StatusIcon = statusConfig.icon;
+                        const isSelectable = room.status !== 'occupied' && room.status !== 'reserved';
                         return (
                             <div
                                 key={room.id}
                                 className={`rv-room-card ${room.status}`}
                                 onClick={() => setSelectedRoom(selectedRoom?.id === room.id ? null : room)}
+                                style={{ position: 'relative' }}
                             >
-                                <div className="rv-room-header">
+                                {isSelectable && (
+                                    <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 10 }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedRoomIds.includes(room.id)}
+                                            onChange={() => toggleSelectRoom(room.id)}
+                                            style={{ width: 18, height: 18, cursor: 'pointer' }}
+                                            onClick={(e) => e.stopPropagation()}
+                                        />
+                                    </div>
+                                )}
+                                <div className="rv-room-header" style={isSelectable ? { paddingLeft: 28 } : {}}>
                                     <div className="rv-room-number-wrap">
                                         <DoorOpen size={16} className="rv-room-door-icon" />
                                         <span className="rv-room-number">{room.number}</span>
@@ -565,7 +704,8 @@ const RoomsView = () => {
                             </div>
                         );
                     })}
-                </div>
+                    </div>
+                </>
             )}
 
             {/* Results count */}
