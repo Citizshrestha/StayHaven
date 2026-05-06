@@ -1,10 +1,10 @@
 /**
  * Guest Dashboard - Bookings View
- * Current and past bookings list
+ * Current and past bookings list with modify/cancel functionality
  */
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { getGuestBookings } from "../guestDashboardApi";
+import { getGuestBookings, modifyBooking, cancelBooking, requestRefund } from "../services/guestDashboardApi";
 import { useTheme } from '../../../../core/hooks/useTheme';
 import { toast } from 'react-toastify';
 import {
@@ -17,6 +17,8 @@ import {
   Loader2,
   AlertCircle,
   RefreshCw,
+  Edit2,
+  X,
 } from 'lucide-react';
 
 const BookingsView = () => {
@@ -25,6 +27,9 @@ const BookingsView = () => {
   const [bookings, setBookings] = useState([]);
   const [filter, setFilter] = useState('all');
   const [error, setError] = useState(null);
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [showModifyModal, setShowModifyModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
 
   const loadBookings = useCallback(async (statusFilter) => {
     try {
@@ -57,6 +62,28 @@ const BookingsView = () => {
   useEffect(() => {
     loadBookings(filter);
   }, [filter, loadBookings]);
+
+  const handleModifyClick = (booking) => {
+    setSelectedBooking(booking);
+    setShowModifyModal(true);
+  };
+
+  const handleCancelClick = (booking) => {
+    setSelectedBooking(booking);
+    setShowCancelModal(true);
+  };
+
+  const handleModifySuccess = () => {
+    setShowModifyModal(false);
+    setSelectedBooking(null);
+    loadBookings(filter);
+  };
+
+  const handleCancelSuccess = () => {
+    setShowCancelModal(false);
+    setSelectedBooking(null);
+    loadBookings(filter);
+  };
 
   const statusIcons = {
     Pending: <Clock className="w-5 h-5 text-yellow-600" />,
@@ -156,11 +183,37 @@ const BookingsView = () => {
                 booking={booking}
                 statusIcon={statusIcons[booking.status]}
                 statusColor={statusColors[booking.status]}
+                onModify={() => handleModifyClick(booking)}
+                onCancel={() => handleCancelClick(booking)}
               />
             ))}
           </div>
         )}
       </div>
+
+      {/* Modify Booking Modal */}
+      {showModifyModal && selectedBooking && (
+        <ModifyBookingModal
+          booking={selectedBooking}
+          onClose={() => {
+            setShowModifyModal(false);
+            setSelectedBooking(null);
+          }}
+          onSuccess={handleModifySuccess}
+        />
+      )}
+
+      {/* Cancel Booking Modal */}
+      {showCancelModal && selectedBooking && (
+        <CancelBookingModal
+          booking={selectedBooking}
+          onClose={() => {
+            setShowCancelModal(false);
+            setSelectedBooking(null);
+          }}
+          onSuccess={handleCancelSuccess}
+        />
+      )}
     </div>
   );
 };
@@ -169,7 +222,7 @@ const BookingsView = () => {
 // Sub-components
 // ─────────────────────────────────────────
 
-const BookingCard = ({ booking, statusIcon, statusColor }) => {
+const BookingCard = ({ booking, statusIcon, statusColor, onModify, onCancel }) => {
   const checkInDate = booking?.checkIn ? new Date(booking.checkIn) : null;
   const checkOutDate = booking?.checkOut ? new Date(booking.checkOut) : null;
   const nights = checkInDate && checkOutDate
@@ -196,6 +249,19 @@ const BookingCard = ({ booking, statusIcon, statusColor }) => {
       return `${booking.room.type} Room`;
     }
     return 'TBD';
+  };
+
+  // Check if booking can be modified (24h before check-in, status Pending/Confirmed)
+  const canModify = () => {
+    if (!['Pending', 'Confirmed'].includes(booking.status)) return false;
+    if (!checkInDate) return false;
+    const hoursUntilCheckIn = (checkInDate - new Date()) / (1000 * 60 * 60);
+    return hoursUntilCheckIn >= 24;
+  };
+
+  // Check if booking can be cancelled
+  const canCancel = () => {
+    return !['Cancelled', 'Checked-Out', 'No-Show'].includes(booking.status);
   };
 
   return (
@@ -268,6 +334,255 @@ const BookingCard = ({ booking, statusIcon, statusColor }) => {
             </div>
           )}
         </div>
+
+        {/* Action Buttons */}
+        {(canModify() || canCancel()) && (
+          <div className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-800 flex gap-3">
+            {canModify() && (
+              <button
+                onClick={onModify}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              >
+                <Edit2 className="w-4 h-4" />
+                Modify Booking
+              </button>
+            )}
+            {canCancel() && (
+              <button
+                onClick={onCancel}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+              >
+                <X className="w-4 h-4" />
+                Cancel Booking
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────
+// Modify Booking Modal
+// ────────────────────────────────────────
+
+const ModifyBookingModal = ({ booking, onClose, onSuccess }) => {
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    checkIn: booking.checkIn ? new Date(booking.checkIn).toISOString().split('T')[0] : '',
+    checkOut: booking.checkOut ? new Date(booking.checkOut).toISOString().split('T')[0] : '',
+    numGuests: booking.numGuests || 1,
+  });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    try {
+      setLoading(true);
+      const res = await modifyBooking(booking._id, formData);
+
+      if (res?.success) {
+        toast.success('Booking modified successfully!');
+        onSuccess();
+      }
+    } catch (error) {
+      console.error('Modify booking error:', error);
+      toast.error(error.response?.data?.message || 'Failed to modify booking');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl max-w-md w-full p-6">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">Modify Booking</h2>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Check-in Date
+            </label>
+            <input
+              type="date"
+              value={formData.checkIn}
+              onChange={(e) => setFormData({ ...formData, checkIn: e.target.value })}
+              min={new Date().toISOString().split('T')[0]}
+              className="w-full px-4 py-2 border border-gray-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Check-out Date
+            </label>
+            <input
+              type="date"
+              value={formData.checkOut}
+              onChange={(e) => setFormData({ ...formData, checkOut: e.target.value })}
+              min={formData.checkIn}
+              className="w-full px-4 py-2 border border-gray-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Number of Guests
+            </label>
+            <input
+              type="number"
+              value={formData.numGuests}
+              onChange={(e) => setFormData({ ...formData, numGuests: parseInt(e.target.value) })}
+              min="1"
+              max="10"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+            <p className="text-sm text-yellow-800 dark:text-yellow-300">
+              Note: Modifications can only be made at least 24 hours before check-in.
+            </p>
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Saving...
+                </span>
+              ) : (
+                'Save Changes'
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-6 py-3 bg-gray-200 dark:bg-slate-800 text-gray-700 dark:text-gray-300 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-slate-700 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────
+// Cancel Booking Modal
+// ─────────────────────────────────────────
+
+const CancelBookingModal = ({ booking, onClose, onSuccess }) => {
+  const [loading, setLoading] = useState(false);
+  const [reason, setReason] = useState('');
+
+  // Calculate refund info
+  const calculateRefund = () => {
+    const now = new Date();
+    const checkInDate = new Date(booking.checkIn);
+    const hoursUntilCheckIn = (checkInDate - now) / (1000 * 60 * 60);
+
+    let refundPercentage = 0;
+    let refundPolicy = '';
+
+    if (hoursUntilCheckIn >= 48) {
+      refundPercentage = 100;
+      refundPolicy = 'Full refund (48+ hours before check-in)';
+    } else if (hoursUntilCheckIn >= 24) {
+      refundPercentage = 50;
+      refundPolicy = '50% refund (24-48 hours before check-in)';
+    } else {
+      refundPercentage = 0;
+      refundPolicy = 'No refund (less than 24 hours before check-in)';
+    }
+
+    const refundAmount = (booking.totalAmount * refundPercentage) / 100;
+
+    return { refundAmount, refundPercentage, refundPolicy };
+  };
+
+  const { refundAmount, refundPercentage, refundPolicy } = calculateRefund();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    try {
+      setLoading(true);
+      const res = await cancelBooking(booking._id, { reason });
+
+      if (res?.success) {
+        toast.success('Booking cancelled successfully!');
+        onSuccess();
+      }
+    } catch (error) {
+      console.error('Cancel booking error:', error);
+      toast.error(error.response?.data?.message || 'Failed to cancel booking');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl max-w-md w-full p-6">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">Cancel Booking</h2>
+
+        <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <p className="text-sm font-medium text-red-800 dark:text-red-300 mb-2">Cancellation Policy</p>
+          <p className="text-sm text-red-700 dark:text-red-400">{refundPolicy}</p>
+          <p className="text-lg font-bold text-red-900 dark:text-red-200 mt-2">
+            Refund: ${refundAmount.toFixed(2)} ({refundPercentage}%)
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Reason for Cancellation (Optional)
+            </label>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              rows="3"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-red-500 resize-none"
+              placeholder="Please let us know why you're cancelling..."
+            />
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Cancelling...
+                </span>
+              ) : (
+                'Confirm Cancellation'
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-6 py-3 bg-gray-200 dark:bg-slate-800 text-gray-700 dark:text-gray-300 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-slate-700 transition-colors"
+            >
+              Keep Booking
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
