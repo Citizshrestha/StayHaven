@@ -178,14 +178,11 @@ export const staffLogin = asyncHandler(async (req, res) => {
     );
 
   if (!isAllowedRole) {
-    // console.log("❌ Access denied. User role:", userRoleName, "| Allowed roles:", allowedRoles);
     return res.status(403).json({
       success: false,
       message: "Access denied. Staff account required.",
     });
   }
-
-  // console.log("✅ Role check passed for:", userRoleName);
 
   // Check if user is active
   if (!user.isActive) {
@@ -391,20 +388,15 @@ export const registerStaff = asyncHandler(async (req, res) => {
     });
   }
 
-  // Verify property exists and belongs to the same company
-  const property = await Hotel.findById(propertyId);
+  // Verify property exists and belongs to the same company (query-scoped for security)
+  const property = await Hotel.findOne({
+    _id: propertyId,
+    company: req.user.company
+  });
   if (!property) {
     return res.status(404).json({
       success: false,
-      message: "Property not found",
-    });
-  }
-
-  // Check if property belongs to the same company as the registering user
-  if (property.company.toString() !== req.user.company.toString()) {
-    return res.status(403).json({
-      success: false,
-      message: "Property does not belong to your company",
+      message: "Property not found or access denied",
     });
   }
 
@@ -454,12 +446,12 @@ export const getPropertyStaff = asyncHandler(async (req, res) => {
     });
   }
 
-  // Verify property belongs to user's company
-  const property = await Hotel.findById(propertyId);
-  if (
-    !property ||
-    property.company.toString() !== req.user.company.toString()
-  ) {
+  // Verify property belongs to user's company (query-scoped for security)
+  const property = await Hotel.findOne({
+    _id: propertyId,
+    company: req.user.company
+  });
+  if (!property) {
     return res.status(403).json({
       success: false,
       message: "Property not found or access denied",
@@ -502,20 +494,15 @@ export const updateStaffStatus = asyncHandler(async (req, res) => {
     });
   }
 
-  // Find staff member
-  const staff = await User.findById(staffId).populate("role");
+  // Find staff member (query-scoped by company for security)
+  const staff = await User.findOne({
+    _id: staffId,
+    company: req.user.company
+  }).populate("role");
   if (!staff) {
     return res.status(404).json({
       success: false,
-      message: "Staff member not found",
-    });
-  }
-
-  // Check if staff belongs to same company
-  if (staff.company.toString() !== req.user.company.toString()) {
-    return res.status(403).json({
-      success: false,
-      message: "Access denied",
+      message: "Staff member not found or access denied",
     });
   }
 
@@ -684,19 +671,15 @@ export const inviteStaff = asyncHandler(async (req, res) => {
     });
   }
 
-  // check if property exists and belongs to the company
-  const property = await Hotel.findById(propertyId);
+  // check if property exists and belongs to the company (query-scoped for security)
+  const property = await Hotel.findOne({
+    _id: propertyId,
+    company: req.user.company
+  });
   if (!property) {
-    return res.status(400).json({
+    return res.status(404).json({
       success: false,
-      message: "Property Not Found!",
-    });
-  }
-
-  if (property.company.toString() !== req.user.company.toString()) {
-    return res.status(403).json({
-      success: false,
-      message: "You can only invite staff for your own company's properties ",
+      message: "Property not found or access denied",
     });
   }
 
@@ -754,7 +737,6 @@ export const inviteStaff = asyncHandler(async (req, res) => {
   // send invite email
   const managerName = req.user.fullname || "Your Manager";
   const roleCapitalized = role.charAt(0).toUpperCase() + role.slice(1);
-  console.log("📧 Sending invite email with role:", roleCapitalized);
 
   const emailTemplate = getStaffInviteEmailTemplate({
     staffName: fullname,
@@ -972,23 +954,18 @@ export const resendInvite = asyncHandler(async (req, res) => {
     });
   }
 
-  //  Find the staff member
-  const staff = await User.findById(staffId)
+  //  Find the staff member (query-scoped by company for security)
+  const staff = await User.findOne({
+    _id: staffId,
+    company: req.user.company
+  })
     .populate("assignedProperties", "name contact")
     .populate("company", "name");
 
   if (!staff) {
     return res.status(404).json({
       success: false,
-      message: "Staff member not found",
-    });
-  }
-
-  // Manager from Company A can't resend invite for Company B staff
-  if (staff.company._id.toString() !== req.user.company.toString()) {
-    return res.status(403).json({
-      success: false,
-      message: "Not authorized to manage this staff member",
+      message: "Staff member not found or access denied",
     });
   }
 
@@ -1107,19 +1084,15 @@ export const deleteInvite = asyncHandler(async (req, res) => {
     });
   }
 
-  const staff = await User.findById(staffId);
+  // Find staff with company scoping (query-scoped for security)
+  const staff = await User.findOne({
+    _id: staffId,
+    company: req.user.company
+  });
   if (!staff) {
     return res.status(404).json({
       success: false,
-      message: "Staff invite not found",
-    });
-  }
-
-  // Security: Verify staff belongs to the same company (multi-tenant isolation)
-  if (staff.company.toString() !== req.user.company.toString()) {
-    return res.status(403).json({
-      success: false,
-      message: "Not authorized to manage this staff member",
+      message: "Staff invite not found or access denied",
     });
   }
 

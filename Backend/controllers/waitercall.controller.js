@@ -93,11 +93,19 @@ export const getActiveWaiterCalls = asyncHandler(async (req, res) => {
 export const acknowledgeWaiterCall = asyncHandler(async (req, res) => {
   const { callId } = req.params;
 
-  const call = await WaiterCall.findById(callId);
+  const hotelId = req.body.hotelId || req.query.hotelId ||
+    (req.user.assignedProperties && req.user.assignedProperties[0]?._id) ||
+    req.user.assignedProperties?.[0];
+
+  // Query-scoped by hotel for security (prevent cross-hotel call acknowledgment)
+  const call = await WaiterCall.findOne({
+    _id: callId,
+    hotel: hotelId
+  });
   if (!call) {
     return res.status(404).json({
       success: false,
-      message: "Waiter call not found",
+      message: "Waiter call not found or access denied",
     });
   }
 
@@ -136,11 +144,19 @@ export const resolveWaiterCall = asyncHandler(async (req, res) => {
   const { callId } = req.params;
   const { notes } = req.body;
 
-  const call = await WaiterCall.findById(callId);
+  const hotelId = req.body.hotelId || req.query.hotelId ||
+    (req.user.assignedProperties && req.user.assignedProperties[0]?._id) ||
+    req.user.assignedProperties?.[0];
+
+  // Query-scoped by hotel for security (prevent cross-hotel call resolution)
+  const call = await WaiterCall.findOne({
+    _id: callId,
+    hotel: hotelId
+  });
   if (!call) {
     return res.status(404).json({
       success: false,
-      message: "Waiter call not found",
+      message: "Waiter call not found or access denied",
     });
   }
 

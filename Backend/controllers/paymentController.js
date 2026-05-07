@@ -4,6 +4,7 @@ import { Booking } from "../models/booking.schema.js";
 import { Invoice } from "../models/invoice.schema.js";
 import { PaymentTransaction } from "../models/paymentTransaction.schema.js";
 import { Room } from "../models/room.schema.js";
+import { Hotel } from "../models/hotel.schema.js";
 import { ActivityLog } from "../models/activityLog.schema.js";
 import { emitToHotel } from "../config/socket.js";
 import { sendEmail } from "../config/nodemailer.js";
@@ -16,6 +17,37 @@ const getCtx = (req) => {
   const hotel = req._scopedHotelId || req.query.hotelId || user?.assignedProperties?.[0]?._id;
   const company = req.query.companyId || user?.company?._id || user?.company;
   return { hotel, company, userId: user?._id, userName: user?.fullname };
+};
+
+// Multi-tenancy helpers
+const getUserRole = (req) => req.user?.role?.name || req.user?.companyRole;
+
+const getAssignedHotelIds = (req) => {
+  const assigned = req.user?.assignedProperties || [];
+  return assigned
+    .map((p) => (typeof p === "object" ? p?._id?.toString() : p?.toString()))
+    .filter(Boolean);
+};
+
+const assertHotelAccess = async (req, hotelId) => {
+  const role = getUserRole(req);
+  const assignedHotelIds = getAssignedHotelIds(req);
+  const userCompany = req.user?.company?._id?.toString?.() || req.user?.company?.toString?.() || req.user?.company;
+
+  const hotel = await Hotel.findById(hotelId).select("company");
+  if (!hotel) {
+    throw Object.assign(new Error("Hotel not found"), { status: 404 });
+  }
+
+  if (role === "receptionist" && assignedHotelIds.length > 0 && !assignedHotelIds.includes(hotelId.toString())) {
+    throw Object.assign(new Error("Not authorized for this hotel"), { status: 403 });
+  }
+
+  if (role !== "owner" && userCompany && hotel.company?.toString() !== userCompany.toString()) {
+    throw Object.assign(new Error("Not authorized for this hotel company"), { status: 403 });
+  }
+
+  return hotel;
 };
 
 // Helper: log activity
@@ -56,7 +88,16 @@ export const createPaymentIntent = async (req, res) => {
       return res.status(400).json({ success: false, message: "Valid amount is required" });
     }
 
-    const booking = bookingId ? await Booking.findById(bookingId).populate("guest") : null;
+    // CRITICAL: Validate hotel access before processing payment
+    let booking = null;
+    if (bookingId) {
+      booking = await Booking.findById(bookingId).populate("guest");
+      if (!booking) {
+        return res.status(404).json({ success: false, message: "Booking not found" });
+      }
+      // Validate user has access to this booking's hotel
+      await assertHotelAccess(req, booking.hotel);
+    }
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100), // Stripe uses cents
@@ -97,6 +138,13 @@ export const confirmPayment = async (req, res) => {
     if (!bookingId || !amount) {
       return res.status(400).json({ success: false, message: "bookingId and amount are required" });
     }
+
+    // CRITICAL: Validate hotel access BEFORE starting transaction
+    const bookingCheck = await Booking.findById(bookingId).select('hotel');
+    if (!bookingCheck) {
+      return res.status(404).json({ success: false, message: "Booking not found" });
+    }
+    await assertHotelAccess(req, bookingCheck.hotel);
 
     let paymentResult;
 
@@ -241,6 +289,13 @@ export const processRefund = async (req, res) => {
       return res.status(400).json({ success: false, message: "transactionId and amount are required" });
     }
 
+    // CRITICAL: Validate hotel access BEFORE processing refund
+    const txnCheck = await PaymentTransaction.findById(transactionId).select('hotel');
+    if (!txnCheck) {
+      return res.status(404).json({ success: false, message: "Transaction not found" });
+    }
+    await assertHotelAccess(req, txnCheck.hotel);
+
     let refundResult;
 
     await session.withTransaction(async () => {
@@ -378,6 +433,13 @@ export const approveRefund = async (req, res) => {
       return res.status(400).json({ success: false, message: "refundId and action (approve/reject) are required" });
     }
 
+    // CRITICAL: Validate hotel access BEFORE approving/rejecting refund
+    const refundCheck = await PaymentTransaction.findById(refundId).select('hotel');
+    if (!refundCheck) {
+      return res.status(404).json({ success: false, message: "Refund transaction not found" });
+    }
+    await assertHotelAccess(req, refundCheck.hotel);
+
     await session.withTransaction(async () => {
       const refundTxn = await PaymentTransaction.findById(refundId).session(session);
       if (!refundTxn) throw new Error("Refund transaction not found");
@@ -509,7 +571,8 @@ export const handleStripeWebhook = async (req, res) => {
         await handleChargeRefunded(event.data.object);
         break;
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        // Unhandled event type - silently ignore
+        break;
     }
 
     res.json({ received: true });
@@ -536,7 +599,7 @@ async function handlePaymentIntentFailed(paymentIntent) {
 
 async function handleChargeRefunded(charge) {
   // Handle automatic refund updates from Stripe
-  console.log("Charge refunded:", charge);
+  // Log to application logger if needed
 }
 
 /**
@@ -627,6 +690,13 @@ async function sendPaymentReceipt({ to, booking, txn, invoice }) {
 export const getPaymentSummary = async (req, res) => {
   try {
     const { bookingId } = req.params;
+
+    // CRITICAL: Validate hotel access BEFORE fetching payment data
+    const bookingCheck = await Booking.findById(bookingId).select('hotel');
+    if (!bookingCheck) {
+      return res.status(404).json({ success: false, message: "Booking not found" });
+    }
+    await assertHotelAccess(req, bookingCheck.hotel);
 
     const [booking, transactions, invoice] = await Promise.all([
       Booking.findById(bookingId).populate("guest", "fullName email").lean(),

@@ -282,15 +282,27 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     });
   }
 
-  const order = await Order.findById(orderId);
+  // Build hotel filter for multi-tenancy
+  const role = getUserRole(req);
+  const assignedHotelIds = getAssignedHotelIds(req);
+  const userCompany = req.user?.company?._id?.toString?.() || req.user?.company?.toString?.() || req.user?.company;
+
+  let hotelFilter = {};
+  if (role === 'receptionist' && assignedHotelIds.length > 0) {
+    hotelFilter = { hotel: { $in: assignedHotelIds } };
+  } else if (userCompany) {
+    const userHotels = await Hotel.find({ company: userCompany }).select('_id');
+    hotelFilter = { hotel: { $in: userHotels.map(h => h._id) } };
+  }
+
+  // Find order with hotel scope - prevents cross-hotel access
+  const order = await Order.findOne({ _id: orderId, ...hotelFilter });
   if (!order) {
     return res.status(404).json({
       success: false,
-      message: "Order not found",
+      message: "Order not found or access denied",
     });
   }
-
-  await assertHotelAccess(req, order.hotel);
   order.status = status;
 
   if (status === "delivered") {
@@ -376,15 +388,27 @@ export const updateOrder = asyncHandler(async (req, res) => {
   const { orderId } = req.params;
   const { customerName, customerPhone, priority, notes, items } = req.body;
 
-  const order = await Order.findById(orderId);
+  // Build hotel filter for multi-tenancy
+  const role = getUserRole(req);
+  const assignedHotelIds = getAssignedHotelIds(req);
+  const userCompany = req.user?.company?._id?.toString?.() || req.user?.company?.toString?.() || req.user?.company;
+
+  let hotelFilter = {};
+  if (role === 'receptionist' && assignedHotelIds.length > 0) {
+    hotelFilter = { hotel: { $in: assignedHotelIds } };
+  } else if (userCompany) {
+    const userHotels = await Hotel.find({ company: userCompany }).select('_id');
+    hotelFilter = { hotel: { $in: userHotels.map(h => h._id) } };
+  }
+
+  // Find order with hotel scope - prevents cross-hotel access
+  const order = await Order.findOne({ _id: orderId, ...hotelFilter });
   if (!order) {
     return res.status(404).json({
       success: false,
-      message: "Order not found",
+      message: "Order not found or access denied",
     });
   }
-
-  await assertHotelAccess(req, order.hotel);
 
   // Only allow editing pending or confirmed orders
   const editableStatuses = ["pending", "confirmed"];
@@ -471,7 +495,21 @@ export const updateOrder = asyncHandler(async (req, res) => {
 export const getOrderById = asyncHandler(async (req, res) => {
   const { orderId } = req.params;
 
-  const order = await Order.findById(orderId)
+  // Build hotel filter for multi-tenancy
+  const role = getUserRole(req);
+  const assignedHotelIds = getAssignedHotelIds(req);
+  const userCompany = req.user?.company?._id?.toString?.() || req.user?.company?.toString?.() || req.user?.company;
+
+  let hotelFilter = {};
+  if (role === 'receptionist' && assignedHotelIds.length > 0) {
+    hotelFilter = { hotel: { $in: assignedHotelIds } };
+  } else if (userCompany) {
+    const userHotels = await Hotel.find({ company: userCompany }).select('_id');
+    hotelFilter = { hotel: { $in: userHotels.map(h => h._id) } };
+  }
+
+  // Find order with hotel scope - prevents cross-hotel access
+  const order = await Order.findOne({ _id: orderId, ...hotelFilter })
     .populate("hotel", "name")
     .populate("room", "roomNumber")
     .populate("orderBy", "fullname email")
@@ -480,11 +518,9 @@ export const getOrderById = asyncHandler(async (req, res) => {
   if (!order) {
     return res.status(404).json({
       success: false,
-      message: "Order not found",
+      message: "Order not found or access denied",
     });
   }
-
-  await assertHotelAccess(req, order.hotel?._id || order.hotel);
 
   return res.status(200).json({
     success: true,
@@ -502,6 +538,9 @@ export const getMenuItems = asyncHandler(async (req, res) => {
       message: "Hotel ID is required",
     });
   }
+
+  // CRITICAL: Validate hotel access - was missing before!
+  await assertHotelAccess(req, hotelId);
 
   // Build filter
   const filter = {
@@ -561,15 +600,27 @@ export const getMenuCategories = asyncHandler(async (req, res) => {
 export const deleteOrder = asyncHandler(async (req, res) => {
   const { orderId } = req.params;
 
-  const order = await Order.findById(orderId);
+  // Build hotel filter for multi-tenancy
+  const role = getUserRole(req);
+  const assignedHotelIds = getAssignedHotelIds(req);
+  const userCompany = req.user?.company?._id?.toString?.() || req.user?.company?.toString?.() || req.user?.company;
+
+  let hotelFilter = {};
+  if (role === 'receptionist' && assignedHotelIds.length > 0) {
+    hotelFilter = { hotel: { $in: assignedHotelIds } };
+  } else if (userCompany) {
+    const userHotels = await Hotel.find({ company: userCompany }).select('_id');
+    hotelFilter = { hotel: { $in: userHotels.map(h => h._id) } };
+  }
+
+  // Find order with hotel scope - prevents cross-hotel access
+  const order = await Order.findOne({ _id: orderId, ...hotelFilter });
   if (!order) {
     return res.status(404).json({
       success: false,
-      message: "Order not found",
+      message: "Order not found or access denied",
     });
   }
-
-  await assertHotelAccess(req, order.hotel);
 
   // allowing deletion only of pending, cancelled, and new orders
   const deletableStatus = ["pending", "cancelled", "new"];
@@ -608,16 +659,27 @@ export const confirmPayment = asyncHandler(async (req, res) => {
     });
   }
 
-  // Find the order
-  const order = await Order.findById(orderId).populate('hotel', 'name');
+  // Build hotel filter for multi-tenancy
+  const role = getUserRole(req);
+  const assignedHotelIds = getAssignedHotelIds(req);
+  const userCompany = req.user?.company?._id?.toString?.() || req.user?.company?.toString?.() || req.user?.company;
+
+  let hotelFilter = {};
+  if (role === 'receptionist' && assignedHotelIds.length > 0) {
+    hotelFilter = { hotel: { $in: assignedHotelIds } };
+  } else if (userCompany) {
+    const userHotels = await Hotel.find({ company: userCompany }).select('_id');
+    hotelFilter = { hotel: { $in: userHotels.map(h => h._id) } };
+  }
+
+  // Find order with hotel scope - prevents cross-hotel access
+  const order = await Order.findOne({ _id: orderId, ...hotelFilter }).populate('hotel', 'name');
   if (!order) {
     return res.status(404).json({
       success: false,
-      message: "Order not found",
+      message: "Order not found or access denied",
     });
   }
-
-  await assertHotelAccess(req, order.hotel?._id || order.hotel);
 
   // Check if already paid
   if (order.paymentStatus === 'paid') {
@@ -700,16 +762,27 @@ export const sendBillToCustomer = asyncHandler(async (req, res) => {
     });
   }
 
-  // Find the order
-  const order = await Order.findById(orderId).populate('hotel', 'name location contact');
+  // Build hotel filter for multi-tenancy
+  const role = getUserRole(req);
+  const assignedHotelIds = getAssignedHotelIds(req);
+  const userCompany = req.user?.company?._id?.toString?.() || req.user?.company?.toString?.() || req.user?.company;
+
+  let hotelFilter = {};
+  if (role === 'receptionist' && assignedHotelIds.length > 0) {
+    hotelFilter = { hotel: { $in: assignedHotelIds } };
+  } else if (userCompany) {
+    const userHotels = await Hotel.find({ company: userCompany }).select('_id');
+    hotelFilter = { hotel: { $in: userHotels.map(h => h._id) } };
+  }
+
+  // Find order with hotel scope - prevents cross-hotel access
+  const order = await Order.findOne({ _id: orderId, ...hotelFilter }).populate('hotel', 'name location contact');
   if (!order) {
     return res.status(404).json({
       success: false,
-      message: "Order not found",
+      message: "Order not found or access denied",
     });
   }
-
-  await assertHotelAccess(req, order.hotel?._id || order.hotel);
 
   // Validate contact based on method
   if (method === 'email' && !email) {
@@ -764,10 +837,6 @@ export const sendBillToCustomer = asyncHandler(async (req, res) => {
     // Handle different delivery methods
     if (method === 'app') {
       // Send in-app notification to guest dashboard
-      console.log(`🔔 Sending app notification to guest ${order.customerId}:`, {
-        orderNumber: order.orderNumber,
-        total: order.totalPrice,
-      });
       
       // Emit to guest's dashboard immediately
       if (order.customerId) {
@@ -793,7 +862,6 @@ export const sendBillToCustomer = asyncHandler(async (req, res) => {
         text: emailText,
       });
       
-      console.log(`📧 Email sent successfully to ${email}`);
     } else if (method === 'sms') {
       // Send SMS with plain text bill
       const smsMessage = generateBillTextMessage(billData);
@@ -803,7 +871,6 @@ export const sendBillToCustomer = asyncHandler(async (req, res) => {
         message: smsMessage,
       });
       
-      console.log(`💬 SMS sent successfully to ${phone}`);
     } else if (method === 'whatsapp') {
       // Send WhatsApp message with plain text bill
       const whatsappMessage = generateBillTextMessage(billData);
@@ -813,7 +880,6 @@ export const sendBillToCustomer = asyncHandler(async (req, res) => {
         message: whatsappMessage,
       });
       
-      console.log(`📱 WhatsApp message sent successfully to ${phone}`);
     }
 
     // Update order with bill sent info
@@ -890,15 +956,27 @@ export const sendBillToCustomer = asyncHandler(async (req, res) => {
 export const retryBillSending = asyncHandler(async (req, res) => {
   const { orderId } = req.params;
 
-  const order = await Order.findById(orderId).populate('hotel', 'name');
+  // Build hotel filter for multi-tenancy
+  const role = getUserRole(req);
+  const assignedHotelIds = getAssignedHotelIds(req);
+  const userCompany = req.user?.company?._id?.toString?.() || req.user?.company?.toString?.() || req.user?.company;
+
+  let hotelFilter = {};
+  if (role === 'receptionist' && assignedHotelIds.length > 0) {
+    hotelFilter = { hotel: { $in: assignedHotelIds } };
+  } else if (userCompany) {
+    const userHotels = await Hotel.find({ company: userCompany }).select('_id');
+    hotelFilter = { hotel: { $in: userHotels.map(h => h._id) } };
+  }
+
+  // Find order with hotel scope - prevents cross-hotel access
+  const order = await Order.findOne({ _id: orderId, ...hotelFilter }).populate('hotel', 'name');
   if (!order) {
     return res.status(404).json({
       success: false,
-      message: "Order not found",
+      message: "Order not found or access denied",
     });
   }
-
-  await assertHotelAccess(req, order.hotel?._id || order.hotel);
 
   // Check if bill sending failed
   if (order.billSentStatus !== 'failed') {
