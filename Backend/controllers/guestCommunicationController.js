@@ -409,14 +409,22 @@ export const sendBookingConfirmation = async (req, res) => {
     const { hotel, company, userId, userName } = getCtx(req);
     const { bookingId, customMessage } = req.body;
 
-    const booking = await Booking.findById(bookingId)
+    if (!hotel) {
+      return res.status(400).json({ success: false, message: "Hotel context required" });
+    }
+
+    // Query-scoped by hotel for security (prevent cross-hotel email sending)
+    const booking = await Booking.findOne({
+      _id: bookingId,
+      hotel: hotel
+    })
       .populate("room", "type roomNumber")
       .populate("guest", "fullName email")
       .populate("hotel", "name address phone email")
       .lean();
 
     if (!booking) {
-      return res.status(404).json({ success: false, message: "Booking not found" });
+      return res.status(404).json({ success: false, message: "Booking not found or access denied" });
     }
 
     const hotelData = await Hotel.findById(booking.hotel?._id || booking.hotel).lean();
@@ -482,13 +490,21 @@ export const sendCheckInReminder = async (req, res) => {
     const { hotel, company, userId, userName } = getCtx(req);
     const { bookingId } = req.body;
 
-    const booking = await Booking.findById(bookingId)
+    if (!hotel) {
+      return res.status(400).json({ success: false, message: "Hotel context required" });
+    }
+
+    // Query-scoped by hotel for security (prevent cross-hotel email sending)
+    const booking = await Booking.findOne({
+      _id: bookingId,
+      hotel: hotel
+    })
       .populate("room", "type")
       .populate("guest", "fullName email")
       .lean();
 
     if (!booking) {
-      return res.status(404).json({ success: false, message: "Booking not found" });
+      return res.status(404).json({ success: false, message: "Booking not found or access denied" });
     }
 
     const hotelData = await Hotel.findById(booking.hotel).lean();
@@ -547,13 +563,21 @@ export const sendCheckOutReminder = async (req, res) => {
     const { hotel, company, userId, userName } = getCtx(req);
     const { bookingId } = req.body;
 
-    const booking = await Booking.findById(bookingId)
+    if (!hotel) {
+      return res.status(400).json({ success: false, message: "Hotel context required" });
+    }
+
+    // Query-scoped by hotel for security (prevent cross-hotel email sending)
+    const booking = await Booking.findOne({
+      _id: bookingId,
+      hotel: hotel
+    })
       .populate("room", "roomNumber")
       .populate("guest", "fullName email")
       .lean();
 
     if (!booking) {
-      return res.status(404).json({ success: false, message: "Booking not found" });
+      return res.status(404).json({ success: false, message: "Booking not found or access denied" });
     }
 
     const hotelData = await Hotel.findById(booking.hotel).lean();

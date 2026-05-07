@@ -274,18 +274,15 @@ export const placeOrder = asyncHandler(async (req, res) => {
       });
     }
 
-    const menuItem = await MenuItem.findById(item.menuItem);
+    // Query-scoped by hotel for security (prevent cross-hotel menu item access)
+    const menuItem = await MenuItem.findOne({
+      _id: item.menuItem,
+      hotel: hotelId
+    });
     if (!menuItem) {
       return res.status(404).json({
         success: false,
-        message: `Menu item not found: ${item.menuItem}`,
-      });
-    }
-
-    if (menuItem.hotel.toString() !== hotelId) {
-      return res.status(400).json({
-        success: false,
-        message: `Menu item "${menuItem.name}" does not belong to this hotel`,
+        message: `Menu item not found or not available at this hotel`,
       });
     }
 
@@ -978,15 +975,6 @@ async function processEsewaPayment(amount, metadata) {
  */
 async function processKhaltiPayment(amount, metadata) {
   try {
-    console.log("Processing Khalti payment with metadata:", {
-      amount,
-      orderId: metadata.orderId || metadata.invoiceId,
-      orderNumber: metadata.orderNumber,
-      customerName: metadata.customerName,
-      customerEmail: metadata.customerEmail,
-      customerPhone: metadata.customerPhone,
-    });
-
     const result = await initiateKhaltiPayment({
       amount,
       orderId: metadata.orderId || metadata.invoiceId || `order-${Date.now()}`,
@@ -1000,11 +988,6 @@ async function processKhaltiPayment(amount, metadata) {
         email: metadata.customerEmail || "guest@example.com",
         phone: metadata.customerPhone || "9800000000",
       },
-    });
-
-    console.log("Khalti payment initiated successfully:", {
-      pidx: result.pidx,
-      paymentUrl: result.paymentUrl,
     });
 
     return {
@@ -1049,7 +1032,6 @@ async function processCardPayment(amount, cardDetails, metadata) {
 
     // If test card in development, simulate immediate success
     if (isTestCard && process.env.NODE_ENV === 'development') {
-      console.log('Test card detected in development mode - simulating payment');
       return {
         success: true,
         transactionId: `CARD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -1107,14 +1089,6 @@ async function processCardPayment(amount, cardDetails, metadata) {
  */
 async function processBankTransferPayment(amount, bankDetails, metadata) {
   try {
-    console.log("Processing bank transfer payment:", {
-      amount,
-      accountName: bankDetails.accountName,
-      accountNumber: bankDetails.accountNumber,
-      bankName: bankDetails.bankName,
-      transactionId: bankDetails.transactionId,
-    });
-
     // Validate bank transfer details
     if (!bankDetails.accountName || bankDetails.accountName.length < 3) {
       return { success: false, message: "Valid account name is required" };

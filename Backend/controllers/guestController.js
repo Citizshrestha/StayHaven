@@ -294,11 +294,16 @@ export const createGuestOrder = asyncHandler(async (req, res) => {
       });
     }
 
-    const menuItem = await MenuItem.findById(item.menuItem);
+    // SECURITY: Query with hotel filter to prevent cross-tenant access
+    const menuItem = await MenuItem.findOne({
+      _id: item.menuItem,
+      hotel: hotelId,
+    });
+
     if (!menuItem) {
       return res.status(404).json({
         success: false,
-        message: `Menu item not found: ${item.menuItem}`,
+        message: `Menu item not found or not available at this restaurant`,
       });
     }
 
@@ -306,13 +311,6 @@ export const createGuestOrder = asyncHandler(async (req, res) => {
       return res.status(400).json({
         success: false,
         message: `${menuItem.name} is currently not available`,
-      });
-    }
-
-    if (menuItem.hotel.toString() !== hotelId) {
-      return res.status(400).json({
-        success: false,
-        message: `Menu item ${menuItem.name} does not belong to this restaurant`,
       });
     }
 
@@ -406,11 +404,20 @@ export const createGuestOrder = asyncHandler(async (req, res) => {
 // @desc    Get order status (for guests to track their order)
 // @route   GET /api/guest/order/:orderId
 // @access  Public (but requires order ID)
+// Note: This is a public endpoint for order tracking. Security relies on order ID being hard to guess.
+// Optional: Pass hotelId as query param for additional validation
 export const getGuestOrderStatus = asyncHandler(async (req, res) => {
   const { orderId } = req.params;
+  const { hotelId } = req.query; // Optional hotel validation
 
-  const order = await Order.findById(orderId)
-    .select('orderNumber status items totalPrice orderType tableNumber roomNumber createdAt updatedAt');
+  // Build query - optionally scope by hotel for additional security
+  const query = { _id: orderId };
+  if (hotelId) {
+    query.hotel = hotelId;
+  }
+
+  const order = await Order.findOne(query)
+    .select('orderNumber status items totalPrice orderType tableNumber roomNumber createdAt updatedAt hotel');
 
   if (!order) {
     return res.status(404).json({

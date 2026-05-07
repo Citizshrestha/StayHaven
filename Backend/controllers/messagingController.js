@@ -286,11 +286,20 @@ export const updateCallStatus = asyncHandler(async (req, res) => {
     const { callId } = req.params;
     const { callStatus, callDuration } = req.body;
 
-    const callMessage = await Message.findById(callId);
+    const hotelId =
+        req.body.hotelId ||
+        (req.user.assignedProperties && req.user.assignedProperties[0]?._id) ||
+        req.user.assignedProperties?.[0];
+
+    // Query-scoped by hotel for security (prevent cross-hotel call status updates)
+    const callMessage = await Message.findOne({
+        _id: callId,
+        hotel: hotelId
+    });
     if (!callMessage) {
         return res.status(404).json({
             success: false,
-            message: "Call not found",
+            message: "Call not found or access denied",
         });
     }
 
@@ -846,11 +855,20 @@ export const editMessage = asyncHandler(async (req, res) => {
         });
     }
 
-    const message = await Message.findById(messageId);
+    const hotelId =
+        req.body.hotelId ||
+        (req.user.assignedProperties && req.user.assignedProperties[0]?._id) ||
+        req.user.assignedProperties?.[0];
+
+    // Query-scoped by hotel for security (prevent cross-hotel message editing)
+    const message = await Message.findOne({
+        _id: messageId,
+        hotel: hotelId
+    });
     if (!message) {
         return res.status(404).json({
             success: false,
-            message: "Message not found",
+            message: "Message not found or access denied",
         });
     }
 
@@ -924,11 +942,20 @@ export const editMessage = asyncHandler(async (req, res) => {
 export const deleteMessage = asyncHandler(async (req, res) => {
     const { messageId } = req.params;
 
-    const message = await Message.findById(messageId);
+    const hotelId =
+        req.body.hotelId ||
+        (req.user.assignedProperties && req.user.assignedProperties[0]?._id) ||
+        req.user.assignedProperties?.[0];
+
+    // Query-scoped by hotel for security (prevent cross-hotel message deletion)
+    const message = await Message.findOne({
+        _id: messageId,
+        hotel: hotelId
+    });
     if (!message) {
         return res.status(404).json({
             success: false,
-            message: "Message not found",
+            message: "Message not found or access denied",
         });
     }
 

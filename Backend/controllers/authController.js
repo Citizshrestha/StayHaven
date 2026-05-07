@@ -123,7 +123,6 @@ export const googleLogin = asyncHandler(async (req, res) => {
       user.googleId = payload.sub;
       user.isGoogleUser = true;
       await user.save();
-      console.log('✅ Updated profile picture for user:', user.email, 'Picture URL:', payload.picture);
     }
 
     const accessToken = generateAccessToken(user._id);
@@ -327,12 +326,6 @@ export const sendSignupOtp = asyncHandler(async (req, res) => {
     expiresAt: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
   });
 
-  console.log("💾 Storing signup OTP in database:", {
-    email,
-    otp,
-    expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-  });
-
   const mailOptions = {
     from: process.env.SENDER_EMAIL,
     to: email,
@@ -386,12 +379,6 @@ export const verifySignupOtp = asyncHandler(async (req, res) => {
 
   // Find valid OTP in database
   const otpRecord = await OTP.findValidOTP(email, otp, "signup");
-
-  console.log("🔍 Verifying signup OTP:", {
-    email,
-    otp,
-    found: !!otpRecord,
-  });
 
   if (!otpRecord) {
     return res.status(404).json({
@@ -459,8 +446,6 @@ export const verifySignupOtp = asyncHandler(async (req, res) => {
 
     // Clean up OTP record from database
     await OTP.deleteOne({ _id: otpRecord._id });
-
-    console.log("✅ User created successfully:", newUser.email);
 
     return res.status(200).json({
       success: true,
