@@ -1,8 +1,40 @@
 import mongoose from "mongoose";
 import { MaintenanceSchedule } from "../models/maintenanceSchedule.schema.js";
 import { Room } from "../models/room.schema.js";
+import { Hotel } from "../models/hotel.schema.js";
 import { ActivityLog } from "../models/activityLog.schema.js";
 import { emitToHotel } from "../config/socket.js";
+
+// Multi-tenancy helpers
+const getUserRole = (req) => req.user?.role?.name || req.user?.companyRole;
+
+const getAssignedHotelIds = (req) => {
+  const assigned = req.user?.assignedProperties || [];
+  return assigned
+    .map((p) => (typeof p === "object" ? p?._id?.toString() : p?.toString()))
+    .filter(Boolean);
+};
+
+const assertHotelAccess = async (req, hotelId) => {
+  const role = getUserRole(req);
+  const assignedHotelIds = getAssignedHotelIds(req);
+  const userCompany = req.user?.company?._id?.toString?.() || req.user?.company?.toString?.() || req.user?.company;
+
+  const hotel = await Hotel.findById(hotelId).select("company");
+  if (!hotel) {
+    throw Object.assign(new Error("Hotel not found"), { status: 404 });
+  }
+
+  if (role === "receptionist" && assignedHotelIds.length > 0 && !assignedHotelIds.includes(hotelId.toString())) {
+    throw Object.assign(new Error("Not authorized for this hotel"), { status: 403 });
+  }
+
+  if (role !== "owner" && userCompany && hotel.company?.toString() !== userCompany.toString()) {
+    throw Object.assign(new Error("Not authorized for this hotel company"), { status: 403 });
+  }
+
+  return hotel;
+};
 
 // Helper: get hotel & company from request
 const getCtx = (req) => {
@@ -272,6 +304,9 @@ export const getMaintenanceScheduleById = async (req, res) => {
       return res.status(404).json({ success: false, message: "Maintenance schedule not found" });
     }
 
+    // CRITICAL: Validate hotel access - prevents cross-hotel maintenance access
+    await assertHotelAccess(req, schedule.hotel);
+
     res.json({ success: true, data: schedule });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -287,6 +322,13 @@ export const updateMaintenanceSchedule = async (req, res) => {
     const { hotel, userId, userName } = getCtx(req);
     const updates = req.body;
 
+    // CRITICAL: Validate hotel access BEFORE updating
+    const existingSchedule = await MaintenanceSchedule.findById(id).select('hotel');
+    if (!existingSchedule) {
+      return res.status(404).json({ success: false, message: "Maintenance schedule not found" });
+    }
+    await assertHotelAccess(req, existingSchedule.hotel);
+
     // Prevent updating certain fields
     delete updates._id;
     delete updates.hotel;
@@ -298,10 +340,6 @@ export const updateMaintenanceSchedule = async (req, res) => {
       { ...updates, updatedAt: new Date() },
       { new: true }
     ).populate("room", "roomNumber");
-
-    if (!schedule) {
-      return res.status(404).json({ success: false, message: "Maintenance schedule not found" });
-    }
 
     await logActivity({
       hotel: schedule.hotel,
@@ -336,6 +374,9 @@ export const startMaintenance = async (req, res) => {
     if (!schedule) {
       return res.status(404).json({ success: false, message: "Schedule not found" });
     }
+
+    // CRITICAL: Validate hotel access - prevents cross-hotel maintenance modification
+    await assertHotelAccess(req, schedule.hotel);
 
     if (schedule.status !== "scheduled" && schedule.status !== "overdue") {
       return res.status(400).json({ success: false, message: `Cannot start maintenance in '${schedule.status}' status` });
@@ -393,6 +434,9 @@ export const completeMaintenance = async (req, res) => {
     await session.withTransaction(async () => {
       const schedule = await MaintenanceSchedule.findById(id).session(session);
       if (!schedule) throw new Error("Schedule not found");
+
+      // CRITICAL: Validate hotel access BEFORE modifying - prevents cross-hotel maintenance completion
+      await assertHotelAccess(req, schedule.hotel);
 
       if (schedule.status !== "in-progress" && schedule.status !== "scheduled") {
         throw new Error(`Cannot complete maintenance in '${schedule.status}' status`);
@@ -467,6 +511,9 @@ export const cancelMaintenance = async (req, res) => {
     if (!schedule) {
       return res.status(404).json({ success: false, message: "Schedule not found" });
     }
+
+    // CRITICAL: Validate hotel access - prevents cross-hotel maintenance cancellation
+    await assertHotelAccess(req, schedule.hotel);
 
     if (schedule.status === "completed" || schedule.status === "cancelled") {
       return res.status(400).json({ success: false, message: `Cannot cancel ${schedule.status} maintenance` });
@@ -550,6 +597,13 @@ export const getRoomMaintenanceHistory = async (req, res) => {
   try {
     const { roomId } = req.params;
     const { limit = 20 } = req.query;
+
+    // CRITICAL: Validate room belongs to user's hotel - prevents cross-hotel room access
+    const room = await Room.findById(roomId).select('hotel');
+    if (!room) {
+      return res.status(404).json({ success: false, message: "Room not found" });
+    }
+    await assertHotelAccess(req, room.hotel);
 
     const history = await MaintenanceSchedule.find({ room: roomId })
       .populate("completedBy", "fullname")

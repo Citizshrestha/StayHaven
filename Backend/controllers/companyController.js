@@ -44,14 +44,18 @@ export const createCompany = async (req, res) => {
 // Get company details
 export const getCompany = async (req, res) => {
     try {
-        const company = await Company.findById(req.params.id)
+        // Query-scoped by owner for security (users can only view their own company)
+        const company = await Company.findOne({
+            _id: req.params.id,
+            owner: req.user._id
+        })
             .populate('owner', 'fullname email contact')
             .populate('admins.user', 'fullname email');
 
         if (!company) {
             return res.status(404).json({
                 success: false,
-                message: 'Company not found'
+                message: 'Company not found or access denied'
             });
         }
 
@@ -95,20 +99,16 @@ export const getMyCompany = async (req, res) => {
 // Update company
 export const updateCompany = async (req, res) => {
     try {
-        const company = await Company.findById(req.params.id);
+        // Query-scoped by owner for security (users can only update their own company)
+        const company = await Company.findOne({
+            _id: req.params.id,
+            owner: req.user._id
+        });
 
         if (!company) {
             return res.status(404).json({
                 success: false,
-                message: 'Company not found'
-            });
-        }
-
-        // Check if user is owner
-        if (company.owner.toString() !== req.user._id.toString()) {
-            return res.status(403).json({
-                success: false,
-                message: 'Not authorized to update this company'
+                message: 'Company not found or access denied'
             });
         }
 
@@ -134,6 +134,19 @@ export const updateCompany = async (req, res) => {
 // Get company properties
 export const getCompanyProperties = async (req, res) => {
     try {
+        // Verify user owns this company before listing properties
+        const company = await Company.findOne({
+            _id: req.params.id,
+            owner: req.user._id
+        });
+
+        if (!company) {
+            return res.status(404).json({
+                success: false,
+                message: 'Company not found or access denied'
+            });
+        }
+
         const { Hotel } = await import('../models/hotel.schema.js');
 
         const properties = await Hotel.find({ company: req.params.id });
@@ -154,6 +167,19 @@ export const getCompanyProperties = async (req, res) => {
 // Get company users
 export const getCompanyUsers = async (req, res) => {
     try {
+        // Verify user owns this company before listing users
+        const company = await Company.findOne({
+            _id: req.params.id,
+            owner: req.user._id
+        });
+
+        if (!company) {
+            return res.status(404).json({
+                success: false,
+                message: 'Company not found or access denied'
+            });
+        }
+
         const users = await User.find({ company: req.params.id })
             .select('-password -resetOtp -resetOtpExpireAt');
 

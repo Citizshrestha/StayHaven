@@ -53,19 +53,19 @@ export const bulkCheckIn = async (req, res) => {
     await session.withTransaction(async () => {
       for (const bookingId of bookingIds) {
         try {
-          const booking = await Booking.findById(bookingId)
+          // SECURITY: Query with hotel filter to prevent cross-tenant access
+          const query = { _id: bookingId };
+          if (hotel) {
+            query.hotel = hotel;
+          }
+
+          const booking = await Booking.findOne(query)
             .populate("room")
             .populate("guest")
             .session(session);
 
           if (!booking) {
-            results.failed.push({ bookingId, reason: "Booking not found" });
-            continue;
-          }
-
-          // Property scope check
-          if (hotel && booking.hotel.toString() !== hotel.toString()) {
-            results.failed.push({ bookingId, reason: "Booking does not belong to your property" });
+            results.failed.push({ bookingId, reason: "Booking not found or access denied" });
             continue;
           }
 
@@ -198,19 +198,19 @@ export const bulkCheckOut = async (req, res) => {
     await session.withTransaction(async () => {
       for (const bookingId of bookingIds) {
         try {
-          const booking = await Booking.findById(bookingId)
+          // SECURITY: Query with hotel filter to prevent cross-tenant access
+          const query = { _id: bookingId };
+          if (hotel) {
+            query.hotel = hotel;
+          }
+
+          const booking = await Booking.findOne(query)
             .populate("room")
             .populate("guest")
             .session(session);
 
           if (!booking) {
-            results.failed.push({ bookingId, reason: "Booking not found" });
-            continue;
-          }
-
-          // Property scope check
-          if (hotel && booking.hotel.toString() !== hotel.toString()) {
-            results.failed.push({ bookingId, reason: "Booking does not belong to your property" });
+            results.failed.push({ bookingId, reason: "Booking not found or access denied" });
             continue;
           }
 
@@ -342,18 +342,18 @@ export const bulkMarkPayment = async (req, res) => {
             continue;
           }
 
-          const booking = await Booking.findById(bookingId)
+          // SECURITY: Query with hotel filter to prevent cross-tenant access
+          const query = { _id: bookingId };
+          if (hotel) {
+            query.hotel = hotel;
+          }
+
+          const booking = await Booking.findOne(query)
             .populate("guest")
             .session(session);
 
           if (!booking) {
-            results.failed.push({ bookingId, reason: "Booking not found" });
-            continue;
-          }
-
-          // Property scope check
-          if (hotel && booking.hotel.toString() !== hotel.toString()) {
-            results.failed.push({ bookingId, reason: "Booking does not belong to your property" });
+            results.failed.push({ bookingId, reason: "Booking not found or access denied" });
             continue;
           }
 
@@ -485,16 +485,16 @@ export const bulkUpdateStatus = async (req, res) => {
     await session.withTransaction(async () => {
       for (const bookingId of bookingIds) {
         try {
-          const booking = await Booking.findById(bookingId).session(session);
-
-          if (!booking) {
-            results.failed.push({ bookingId, reason: "Booking not found" });
-            continue;
+          // SECURITY: Query with hotel filter to prevent cross-tenant access
+          const query = { _id: bookingId };
+          if (hotel) {
+            query.hotel = hotel;
           }
 
-          // Property scope check
-          if (hotel && booking.hotel.toString() !== hotel.toString()) {
-            results.failed.push({ bookingId, reason: "Booking does not belong to your property" });
+          const booking = await Booking.findOne(query).session(session);
+
+          if (!booking) {
+            results.failed.push({ bookingId, reason: "Booking not found or access denied" });
             continue;
           }
 
@@ -590,16 +590,16 @@ export const bulkUpdateRoomStatus = async (req, res) => {
     await session.withTransaction(async () => {
       for (const roomId of roomIds) {
         try {
-          const room = await Room.findById(roomId).session(session);
-
-          if (!room) {
-            results.failed.push({ roomId, reason: "Room not found" });
-            continue;
+          // SECURITY: Query with hotel filter to prevent cross-tenant access
+          const query = { _id: roomId };
+          if (hotel) {
+            query.hotel = hotel;
           }
 
-          // Property scope check
-          if (hotel && room.hotel.toString() !== hotel.toString()) {
-            results.failed.push({ roomId, reason: "Room does not belong to your property" });
+          const room = await Room.findOne(query).session(session);
+
+          if (!room) {
+            results.failed.push({ roomId, reason: "Room not found or access denied" });
             continue;
           }
 

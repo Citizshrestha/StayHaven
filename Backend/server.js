@@ -4,6 +4,10 @@ dns.setServers(["8.8.8.8", "8.8.4.4"]);
 import dotenv from "dotenv";
 dotenv.config();
 
+// Validate environment variables before proceeding
+import { validateEnvironmentOrExit } from "./utils/envValidator.js";
+validateEnvironmentOrExit();
+
 import express from "express";
 import net from "net";
 import { createServer } from "http";
@@ -24,6 +28,8 @@ import bookingRoutes from "./routes/bookingRoutes.js";
 import publicBookingRoutes from "./routes/publicBookingRoutes.js";
 import seedRoutes from "./routes/seedRoutes.js";
 import receptionRoutes from "./routes/receptionRoutes.js";
+import webhookRoutes from "./routes/webhookRoutes.js";
+import healthRoutes from "./routes/healthRoutes.js";
 import cookieParser from "cookie-parser";
 import { initCloudinary } from "./config/cloudinary.js";
 import { initSocket } from "./config/socket.js";
@@ -111,6 +117,31 @@ app.use(
 // General API rate limiting (100 req / 15 min per IP)
 app.use("/api/", apiLimiter);
 
+// Request timeout middleware - 30 seconds for all requests
+app.use((req, res, next) => {
+  req.setTimeout(30000, () => {
+    logger.warn('Request timeout', {
+      path: req.path,
+      method: req.method,
+      ip: req.ip
+    });
+    res.status(408).json({
+      success: false,
+      message: 'Request timeout. Please try again.',
+    });
+  });
+
+  res.setTimeout(30000, () => {
+    logger.warn('Response timeout', {
+      path: req.path,
+      method: req.method,
+      ip: req.ip
+    });
+  });
+
+  next();
+});
+
 // Audit logging — attaches req.audit helper to every request
 app.use(auditMiddleware);
 
@@ -184,6 +215,10 @@ const findAvailablePort = (preferredPort) =>
 app.get("/", (req, res) => {
   res.send(`Welcome to Hotel Booking and Order Management System`);
 });
+
+// Health check endpoints (no authentication required)
+app.use("/health", healthRoutes);
+
 app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/hotels", hotelRoutes);
@@ -197,6 +232,7 @@ app.use("/api/seed", seedRoutes);         // Seed test data (admin only)
 app.use("/api/guest", guestRoutes);       // Guest QR scanning (public)
 app.use("/api/guest/portal", guestDashboardRoutes); // Guest dashboard (authenticated)
 app.use("/api/reception", receptionRoutes); // Reception dashboard APIs (authenticated)
+app.use("/api/webhooks", webhookRoutes);    // Payment gateway webhooks (public)
 
 // ═══════════════════════════════════════════
 // Error Handling Middleware (MUST BE LAST)

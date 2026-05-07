@@ -2,9 +2,41 @@ import { Booking } from "../models/booking.schema.js";
 import { Invoice } from "../models/invoice.schema.js";
 import { Guest } from "../models/guest.schema.js";
 import { Room } from "../models/room.schema.js";
+import { Hotel } from "../models/hotel.schema.js";
 import { PaymentTransaction } from "../models/paymentTransaction.schema.js";
 import { jsPDF } from "jspdf";
 import "jspdf-autotable";
+
+// Multi-tenancy helpers
+const getUserRole = (req) => req.user?.role?.name || req.user?.companyRole;
+
+const getAssignedHotelIds = (req) => {
+  const assigned = req.user?.assignedProperties || [];
+  return assigned
+    .map((p) => (typeof p === "object" ? p?._id?.toString() : p?.toString()))
+    .filter(Boolean);
+};
+
+const assertHotelAccess = async (req, hotelId) => {
+  const role = getUserRole(req);
+  const assignedHotelIds = getAssignedHotelIds(req);
+  const userCompany = req.user?.company?._id?.toString?.() || req.user?.company?.toString?.() || req.user?.company;
+
+  const hotel = await Hotel.findById(hotelId).select("company");
+  if (!hotel) {
+    throw Object.assign(new Error("Hotel not found"), { status: 404 });
+  }
+
+  if (role === "receptionist" && assignedHotelIds.length > 0 && !assignedHotelIds.includes(hotelId.toString())) {
+    throw Object.assign(new Error("Not authorized for this hotel"), { status: 403 });
+  }
+
+  if (role !== "owner" && userCompany && hotel.company?.toString() !== userCompany.toString()) {
+    throw Object.assign(new Error("Not authorized for this hotel company"), { status: 403 });
+  }
+
+  return hotel;
+};
 
 // Helper: get context from request
 const getCtx = (req) => {
@@ -370,6 +402,9 @@ export const generateInvoicePDF = async (req, res) => {
     if (!invoice) {
       return res.status(404).json({ success: false, message: "Invoice not found" });
     }
+
+    // CRITICAL: Validate hotel access - prevents downloading invoices from other hotels
+    await assertHotelAccess(req, invoice.hotel._id || invoice.hotel);
 
     const doc = new jsPDF();
 
