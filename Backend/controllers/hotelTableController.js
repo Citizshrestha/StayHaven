@@ -5,21 +5,52 @@ import { User } from "../models/user.schema.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { generateTableQRCode } from "../utils/qrGenerator.js";
 
+// Multi-tenancy helpers
+const getUserRole = (req) => req.user?.role?.name || req.user?.companyRole;
+
+const getAssignedHotelIds = (req) => {
+  const assigned = req.user?.assignedProperties || [];
+  return assigned
+    .map((p) => (typeof p === "object" ? p?._id?.toString() : p?.toString()))
+    .filter(Boolean);
+};
+
+const assertHotelAccess = async (req, hotelId) => {
+  const role = getUserRole(req);
+  const assignedHotelIds = getAssignedHotelIds(req);
+  const userCompany = req.user?.company?._id?.toString?.() || req.user?.company?.toString?.() || req.user?.company;
+
+  const hotel = await Hotel.findById(hotelId).select("company owner");
+  if (!hotel) {
+    throw Object.assign(new Error("Hotel not found"), { status: 404 });
+  }
+
+  if (role === "receptionist" && assignedHotelIds.length > 0 && !assignedHotelIds.includes(hotelId.toString())) {
+    throw Object.assign(new Error("Not authorized for this hotel"), { status: 403 });
+  }
+
+  if (role !== "owner" && userCompany && hotel.company?.toString() !== userCompany.toString()) {
+    throw Object.assign(new Error("Not authorized for this hotel company"), { status: 403 });
+  }
+
+  return hotel;
+};
+
 // Helper function to get hotel ID from user
 const getHotelFromUser = async (user) => {
   // Populate assignedProperties if not already
   const populatedUser = await User.findById(user._id).populate('assignedProperties');
-  
+
   if (populatedUser.assignedProperties && populatedUser.assignedProperties.length > 0) {
     return populatedUser.assignedProperties[0];
   }
-  
+
   // Fallback: check if user owns any hotels
   const ownedHotel = await Hotel.findOne({ owner: user._id });
   if (ownedHotel) {
     return ownedHotel;
   }
-  
+
   return null;
 };
 
@@ -173,6 +204,9 @@ export const getTableById = asyncHandler(async (req, res) => {
       message: "Table not found",
     });
   }
+
+  // CRITICAL: Validate hotel access - prevents cross-hotel table access
+  await assertHotelAccess(req, table.hotel._id || table.hotel);
 
   res.status(200).json({
     success: true,
@@ -461,6 +495,9 @@ export const updateTableStatus = asyncHandler(async (req, res) => {
     });
   }
 
+  // CRITICAL: Validate hotel access - prevents cross-hotel table modification
+  await assertHotelAccess(req, table.hotel);
+
   table.status = status;
   await table.save();
 
@@ -484,6 +521,9 @@ export const getTableQRDownload = asyncHandler(async (req, res) => {
       message: "Table not found",
     });
   }
+
+  // CRITICAL: Validate hotel access - prevents cross-hotel QR code access
+  await assertHotelAccess(req, table.hotel._id || table.hotel);
 
   if (!table.qrCodeImage) {
     return res.status(400).json({

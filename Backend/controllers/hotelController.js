@@ -207,20 +207,16 @@ export const getMyHotels = asyncHandler(async (req, res) => {
 // @route   PUT /api/hotels/:id
 // @access  Private (Hotel Owner)
 export const updateHotel = asyncHandler(async (req, res) => {
-  const hotel = await Hotel.findById(req.params.id);
+  // Query-scoped by owner for security
+  const hotel = await Hotel.findOne({
+    _id: req.params.id,
+    owner: req.user._id
+  });
 
   if (!hotel) {
     return res.status(404).json({
       success: false,
-      message: "Hotel not found",
-    });
-  }
-
-  // Check ownership
-  if (hotel.owner.toString() !== req.user._id.toString()) {
-    return res.status(403).json({
-      success: false,
-      message: "Not authorized to update this hotel",
+      message: "Hotel not found or access denied",
     });
   }
 
@@ -254,20 +250,16 @@ export const updateHotel = asyncHandler(async (req, res) => {
 // @route   DELETE /api/hotels/:id
 // @access  Private (Hotel Owner)
 export const deleteHotel = asyncHandler(async (req, res) => {
-  const hotel = await Hotel.findById(req.params.id);
+  // Query-scoped by owner for security
+  const hotel = await Hotel.findOne({
+    _id: req.params.id,
+    owner: req.user._id
+  });
 
   if (!hotel) {
     return res.status(404).json({
       success: false,
-      message: "Hotel not found",
-    });
-  }
-
-  // Check ownership
-  if (hotel.owner.toString() !== req.user._id.toString()) {
-    return res.status(403).json({
-      success: false,
-      message: "Not authorized to delete this hotel",
+      message: "Hotel not found or access denied",
     });
   }
 
@@ -285,20 +277,16 @@ export const deleteHotel = asyncHandler(async (req, res) => {
 // @route   GET /api/hotels/:id/statistics
 // @access  Private (Hotel Owner)
 export const getHotelStatistics = asyncHandler(async (req, res) => {
-  const hotel = await Hotel.findById(req.params.id);
+  // Query-scoped by owner for security
+  const hotel = await Hotel.findOne({
+    _id: req.params.id,
+    owner: req.user._id
+  });
 
   if (!hotel) {
     return res.status(404).json({
       success: false,
-      message: "Hotel not found",
-    });
-  }
-
-  // Check ownership
-  if (hotel.owner.toString() !== req.user._id.toString()) {
-    return res.status(403).json({
-      success: false,
-      message: "Not authorized to view this hotel's statistics",
+      message: "Hotel not found or access denied",
     });
   }
 

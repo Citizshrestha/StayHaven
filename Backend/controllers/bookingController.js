@@ -6,6 +6,7 @@ import { User } from "../models/user.schema.js";
 import { Role } from "../models/role.schema.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import crypto from "crypto";
+import mongoose from "mongoose";
 
 // Helper function to generate unique confirmation code
 const generateConfirmationCode = () => {
@@ -43,9 +44,11 @@ const validateDates = (checkIn, checkOut) => {
 };
 
 // Helper function to check room availability
-const checkRoomAvailability = async (roomId, checkIn, checkOut, excludeBookingId = null) => {
+// IMPORTANT: This should be called with a room that's already validated to belong to the correct hotel
+const checkRoomAvailability = async (roomId, checkIn, checkOut, hotelId, excludeBookingId = null) => {
   const query = {
     room: roomId,
+    hotel: hotelId, // Multi-tenancy: scope by hotel
     status: { $in: ['Confirmed', 'Checked-In'] },
     $or: [
       {
@@ -170,7 +173,7 @@ export const createNewBooking = asyncHandler(async (req, res) => {
   }
 
   // Check room availability for dates
-  const isAvailable = await checkRoomAvailability(roomId, checkIn, checkOut);
+  const isAvailable = await checkRoomAvailability(roomId, checkIn, checkOut, hotelId);
   if (!isAvailable) {
     throw Object.assign(new Error('Room is already booked for selected dates'), { status: 400 });
   }
@@ -379,13 +382,26 @@ export const expressCheckOut = asyncHandler(async (req, res) => {
     throw Object.assign(new Error('Booking ID is required'), { status: 400 });
   }
 
-  // Find booking
-  const booking = await Booking.findById(bookingId);
-  if (!booking) {
-    throw Object.assign(new Error('Booking not found'), { status: 404 });
+  // Get user's hotel context for multi-tenancy validation
+  const role = getUserRole(req);
+  const assignedHotelIds = getAssignedHotelIds(req);
+  const userCompany = req.user?.company?._id?.toString?.() || req.user?.company?.toString?.() || req.user?.company;
+
+  // Build hotel filter based on user role
+  let hotelFilter = {};
+  if (role === 'receptionist' && assignedHotelIds.length > 0) {
+    hotelFilter = { hotel: { $in: assignedHotelIds } };
+  } else if (userCompany) {
+    // For non-owner users, scope by company
+    const userHotels = await Hotel.find({ company: userCompany }).select('_id');
+    hotelFilter = { hotel: { $in: userHotels.map(h => h._id) } };
   }
 
-  await assertHotelAccess(req, booking.hotel);
+  // Find booking with hotel scope - prevents cross-hotel access
+  const booking = await Booking.findOne({ _id: bookingId, ...hotelFilter });
+  if (!booking) {
+    throw Object.assign(new Error('Booking not found or access denied'), { status: 404 });
+  }
 
   // Check if guest is currently checked in
   if (booking.status !== 'Checked-In') {
@@ -448,13 +464,25 @@ export const changeGuestRoom = asyncHandler(async (req, res) => {
     );
   }
 
-  // Find booking
-  const booking = await Booking.findById(bookingId);
-  if (!booking) {
-    throw Object.assign(new Error('Booking not found'), { status: 404 });
+  // Get user's hotel context for multi-tenancy validation
+  const role = getUserRole(req);
+  const assignedHotelIds = getAssignedHotelIds(req);
+  const userCompany = req.user?.company?._id?.toString?.() || req.user?.company?.toString?.() || req.user?.company;
+
+  // Build hotel filter based on user role
+  let hotelFilter = {};
+  if (role === 'receptionist' && assignedHotelIds.length > 0) {
+    hotelFilter = { hotel: { $in: assignedHotelIds } };
+  } else if (userCompany) {
+    const userHotels = await Hotel.find({ company: userCompany }).select('_id');
+    hotelFilter = { hotel: { $in: userHotels.map(h => h._id) } };
   }
 
-  await assertHotelAccess(req, booking.hotel);
+  // Find booking with hotel scope - prevents cross-hotel access
+  const booking = await Booking.findOne({ _id: bookingId, ...hotelFilter });
+  if (!booking) {
+    throw Object.assign(new Error('Booking not found or access denied'), { status: 404 });
+  }
 
   // Check if guest is checked in
   if (booking.status !== 'Checked-In') {
@@ -478,10 +506,11 @@ export const changeGuestRoom = asyncHandler(async (req, res) => {
     throw Object.assign(new Error('New room is not available'), { status: 400 });
   }
 
-  // Check for booking conflicts on new room
+  // Check for booking conflicts on new room (scoped to same hotel)
   const hasConflict = await Booking.findOne({
     _id: { $ne: bookingId },
     room: newRoomId,
+    hotel: booking.hotel, // Multi-tenancy: scope by hotel
     status: { $in: ['Confirmed', 'Checked-In'] },
     checkIn: { $lt: booking.checkOut },
     checkOut: { $gt: booking.checkIn }
@@ -542,14 +571,27 @@ export const changeGuestRoom = asyncHandler(async (req, res) => {
 // 5. GET BOOKING DETAILS (helper)
 // ============================================
 export const getBookingById = asyncHandler(async (req, res) => {
-  const booking = await Booking.findById(req.params.id)
+  // Get user's hotel context for multi-tenancy validation
+  const role = getUserRole(req);
+  const assignedHotelIds = getAssignedHotelIds(req);
+  const userCompany = req.user?.company?._id?.toString?.() || req.user?.company?.toString?.() || req.user?.company;
+
+  // Build hotel filter based on user role
+  let hotelFilter = {};
+  if (role === 'receptionist' && assignedHotelIds.length > 0) {
+    hotelFilter = { hotel: { $in: assignedHotelIds } };
+  } else if (userCompany) {
+    const userHotels = await Hotel.find({ company: userCompany }).select('_id');
+    hotelFilter = { hotel: { $in: userHotels.map(h => h._id) } };
+  }
+
+  // Find booking with hotel scope - prevents cross-hotel access
+  const booking = await Booking.findOne({ _id: req.params.id, ...hotelFilter })
     .populate(['user', 'hotel', 'room', 'company']);
 
   if (!booking) {
-    throw Object.assign(new Error('Booking not found'), { status: 404 });
+    throw Object.assign(new Error('Booking not found or access denied'), { status: 404 });
   }
-
-  await assertHotelAccess(req, booking.hotel?._id || booking.hotel);
 
   res.status(200).json({
     success: true,
@@ -599,7 +641,243 @@ export const getHotelBookings = asyncHandler(async (req, res) => {
 });
 
 // ============================================
-// 7. BATCH ROOM BOOKING WITH CONFLICT DETECTION
+// 7. MODIFY BOOKING (Change dates/guests)
+// ============================================
+export const modifyBooking = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { checkIn, checkOut, numGuests } = req.body;
+
+  if (!id) {
+    throw Object.assign(new Error('Booking ID is required'), { status: 400 });
+  }
+
+  // Find booking
+  const booking = await Booking.findById(id).populate('room hotel');
+  if (!booking) {
+    throw Object.assign(new Error('Booking not found'), { status: 404 });
+  }
+
+  // Check authorization - user must own the booking or be staff
+  const userRole = getUserRole(req);
+  const isOwner = booking.user?.toString() === req.user._id.toString();
+  const isStaff = ['receptionist', 'owner', 'admin', 'manager'].includes(userRole);
+
+  if (!isOwner && !isStaff) {
+    throw Object.assign(new Error('Not authorized to modify this booking'), { status: 403 });
+  }
+
+  // Check if booking can be modified (must be at least 24h before check-in)
+  const now = new Date();
+  const checkInDate = new Date(booking.checkIn);
+  const hoursUntilCheckIn = (checkInDate - now) / (1000 * 60 * 60);
+
+  if (hoursUntilCheckIn < 24 && !isStaff) {
+    throw Object.assign(
+      new Error('Bookings can only be modified at least 24 hours before check-in'),
+      { status: 400 }
+    );
+  }
+
+  // Check if booking is in a modifiable status
+  if (!['Pending', 'Confirmed'].includes(booking.status)) {
+    throw Object.assign(
+      new Error(`Cannot modify booking with status: ${booking.status}`),
+      { status: 400 }
+    );
+  }
+
+  // Validate new dates if provided
+  if (checkIn && checkOut) {
+    validateDates(checkIn, checkOut);
+
+    // Check room availability for new dates
+    const isAvailable = await checkRoomAvailability(
+      booking.room._id,
+      checkIn,
+      checkOut,
+      booking.hotel._id,
+      booking._id
+    );
+
+    if (!isAvailable) {
+      throw Object.assign(
+        new Error('Room is not available for the new dates'),
+        { status: 400 }
+      );
+    }
+
+    // Calculate new total amount
+    const newCheckIn = new Date(checkIn);
+    const newCheckOut = new Date(checkOut);
+    const nights = Math.ceil((newCheckOut - newCheckIn) / (1000 * 60 * 60 * 24));
+    const newTotal = booking.room.price * nights;
+
+    booking.checkIn = checkIn;
+    booking.checkOut = checkOut;
+    booking.totalAmount = newTotal;
+  }
+
+  // Update number of guests if provided
+  if (numGuests !== undefined) {
+    if (isNaN(numGuests) || numGuests < 1 || numGuests > 10) {
+      throw Object.assign(new Error('Number of guests must be between 1 and 10'), { status: 400 });
+    }
+    booking.numGuests = numGuests;
+  }
+
+  await booking.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Booking modified successfully',
+    booking
+  });
+});
+
+// ============================================
+// 8. CANCEL BOOKING
+// ============================================
+export const cancelBooking = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { reason } = req.body;
+
+  if (!id) {
+    throw Object.assign(new Error('Booking ID is required'), { status: 400 });
+  }
+
+  // Find booking
+  const booking = await Booking.findById(id).populate('room hotel');
+  if (!booking) {
+    throw Object.assign(new Error('Booking not found'), { status: 404 });
+  }
+
+  // Check authorization
+  const userRole = getUserRole(req);
+  const isOwner = booking.user?.toString() === req.user._id.toString();
+  const isStaff = ['receptionist', 'owner', 'admin', 'manager'].includes(userRole);
+
+  if (!isOwner && !isStaff) {
+    throw Object.assign(new Error('Not authorized to cancel this booking'), { status: 403 });
+  }
+
+  // Check if booking can be cancelled
+  if (['Cancelled', 'Checked-Out', 'No-Show'].includes(booking.status)) {
+    throw Object.assign(
+      new Error(`Cannot cancel booking with status: ${booking.status}`),
+      { status: 400 }
+    );
+  }
+
+  // Calculate refund amount based on cancellation policy
+  const now = new Date();
+  const checkInDate = new Date(booking.checkIn);
+  const hoursUntilCheckIn = (checkInDate - now) / (1000 * 60 * 60);
+
+  let refundPercentage = 0;
+  let refundPolicy = '';
+
+  if (hoursUntilCheckIn >= 48) {
+    refundPercentage = 100;
+    refundPolicy = 'Full refund (cancelled 48+ hours before check-in)';
+  } else if (hoursUntilCheckIn >= 24) {
+    refundPercentage = 50;
+    refundPolicy = '50% refund (cancelled 24-48 hours before check-in)';
+  } else {
+    refundPercentage = 0;
+    refundPolicy = 'No refund (cancelled less than 24 hours before check-in)';
+  }
+
+  const refundAmount = (booking.totalAmount * refundPercentage) / 100;
+
+  // Update booking status
+  booking.status = 'Cancelled';
+  booking.specialRequests = (booking.specialRequests || '') +
+    `\n[Cancelled] ${reason || 'No reason provided'} - ${refundPolicy}`;
+
+  await booking.save();
+
+  // Update room status back to available if it was reserved
+  if (booking.room.status === 'reserved') {
+    booking.room.status = 'available';
+    await booking.room.save();
+  }
+
+  res.status(200).json({
+    success: true,
+    message: 'Booking cancelled successfully',
+    booking,
+    refund: {
+      amount: refundAmount,
+      percentage: refundPercentage,
+      policy: refundPolicy
+    }
+  });
+});
+
+// ============================================
+// 9. REQUEST REFUND
+// ============================================
+export const requestRefund = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { reason } = req.body;
+
+  if (!id) {
+    throw Object.assign(new Error('Booking ID is required'), { status: 400 });
+  }
+
+  // Find booking
+  const booking = await Booking.findById(id).populate('room hotel');
+  if (!booking) {
+    throw Object.assign(new Error('Booking not found'), { status: 404 });
+  }
+
+  // Check authorization
+  const isOwner = booking.user?.toString() === req.user._id.toString();
+  if (!isOwner) {
+    throw Object.assign(new Error('Not authorized to request refund for this booking'), { status: 403 });
+  }
+
+  // Check if booking is cancelled
+  if (booking.status !== 'Cancelled') {
+    throw Object.assign(
+      new Error('Only cancelled bookings can request refunds'),
+      { status: 400 }
+    );
+  }
+
+  // Calculate refund amount
+  const now = new Date();
+  const checkInDate = new Date(booking.checkIn);
+  const hoursUntilCheckIn = (checkInDate - now) / (1000 * 60 * 60);
+
+  let refundPercentage = 0;
+  if (hoursUntilCheckIn >= 48) {
+    refundPercentage = 100;
+  } else if (hoursUntilCheckIn >= 24) {
+    refundPercentage = 50;
+  }
+
+  const refundAmount = (booking.totalAmount * refundPercentage) / 100;
+
+  // Add refund request note
+  booking.specialRequests = (booking.specialRequests || '') +
+    `\n[Refund Requested] ${reason || 'No reason provided'} - Amount: $${refundAmount}`;
+
+  await booking.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Refund request submitted successfully',
+    refund: {
+      amount: refundAmount,
+      percentage: refundPercentage,
+      status: 'pending'
+    }
+  });
+});
+
+// ============================================
+// 10. BATCH ROOM BOOKING WITH CONFLICT DETECTION
 // ============================================
 // Accepts an array of room bookings, validates each, detects date conflicts
 // (both against existing bookings and within the batch), and creates all
@@ -766,12 +1044,16 @@ export const batchCreateBookings = asyncHandler(async (req, res) => {
   // then query existing bookings that overlap with ANY of those ranges
   for (const rid of roomIdsForQuery) {
     const relatedBookings = bookings.filter((b) => b.roomId === rid);
+    // Get hotel for this room to pass to checkRoomAvailability
+    const roomForCheck = roomMap.get(rid);
     const hasOverlap = await Promise.all(
-      relatedBookings.map((rb) => checkRoomAvailability(rb.roomId, rb.checkIn, rb.checkOut))
+      relatedBookings.map((rb) => checkRoomAvailability(rb.roomId, rb.checkIn, rb.checkOut, roomForCheck.hotel))
     );
     if (hasOverlap.some((available) => !available)) {
+      const roomForCheck = roomMap.get(rid);
       const conflicts = await Booking.find({
         room: rid,
+        hotel: roomForCheck.hotel, // Multi-tenancy: scope by hotel
         status: { $in: ['Confirmed', 'Checked-In'] },
         $or: relatedBookings.map((rb) => ({
           checkIn: { $lt: new Date(rb.checkOut) },
