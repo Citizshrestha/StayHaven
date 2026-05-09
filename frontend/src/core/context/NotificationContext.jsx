@@ -18,6 +18,7 @@ import { useSocket } from "./SocketContext";
 import { useStaffAuth } from "./StaffAuthContext";
 import useNotificationSound from "../hooks/useNotificationSound";
 import { NOTIFICATION_TYPES } from "./useNotifications";
+import { getNotifications } from "../api/services/messaging.service";
 
 const formatOrderLocation = ({ orderType, roomNumber, tableNumber }) => {
   if (orderType === "roomService") {
@@ -70,6 +71,7 @@ const saveNotificationsToStorage = (notifications) => {
 export const NotificationProvider = ({ children }) => {
   const [notifications, setNotifications] = useState(() => loadNotificationsFromStorage());
   const [waiterCallCount, setWaiterCallCount] = useState(0);
+  const [isLoadingInitial, setIsLoadingInitial] = useState(true);
   
   const { subscribe } = useSocket();
   const { staffRole, isAuthenticated, staffUser } = useStaffAuth();
@@ -78,10 +80,55 @@ export const NotificationProvider = ({ children }) => {
   // Get current user ID for filtering self-notifications
   const currentUserId = staffUser?._id;
 
+  // Fetch initial notifications from backend on mount
+  useEffect(() => {
+    const fetchInitialNotifications = async () => {
+      if (!isAuthenticated) {
+        setIsLoadingInitial(false);
+        return;
+      }
+
+      try {
+        console.log('📥 [NotificationContext] Fetching initial notifications from backend...');
+        const response = await getNotifications({ limit: 50, unreadOnly: false });
+        
+        if (response.success && response.data) {
+          console.log(`✅ [NotificationContext] Fetched ${response.data.length} notifications from backend`);
+          
+          // Transform backend notifications to match our format
+          const transformedNotifications = response.data.map(n => ({
+            id: n._id,
+            type: n.type || NOTIFICATION_TYPES.ORDER_STATUS,
+            message: n.message || n.title,
+            title: n.title,
+            orderId: n.payload?.orderId,
+            orderNumber: n.payload?.orderNumber,
+            callId: n.payload?.callId,
+            isRead: n.isRead,
+            createdAt: new Date(n.createdAt),
+            priority: n.priority,
+          }));
+
+          setNotifications(transformedNotifications);
+          console.log(`📊 [NotificationContext] Loaded notifications. Unread: ${transformedNotifications.filter(n => !n.isRead).length}`);
+        }
+      } catch (error) {
+        console.error('❌ [NotificationContext] Failed to fetch initial notifications:', error);
+        // Keep localStorage notifications as fallback
+      } finally {
+        setIsLoadingInitial(false);
+      }
+    };
+
+    fetchInitialNotifications();
+  }, [isAuthenticated]);
+
   // Persist notifications to localStorage whenever they change
   useEffect(() => {
-    saveNotificationsToStorage(notifications);
-  }, [notifications]);
+    if (!isLoadingInitial) {
+      saveNotificationsToStorage(notifications);
+    }
+  }, [notifications, isLoadingInitial]);
 
   // Computed unread count
   const unreadCount = useMemo(
@@ -97,22 +144,26 @@ export const NotificationProvider = ({ children }) => {
       isRead: false,
       ...notification,
     };
-    
+
+    console.log('🔔 [NotificationContext] addNotification called:', newNotification);
+
     setNotifications(prev => {
       // Prevent duplicates: check if same type + orderId exists within last 5 seconds
-      const isDuplicate = prev.some(n => 
-        n.type === notification.type && 
+      const isDuplicate = prev.some(n =>
+        n.type === notification.type &&
         n.orderId === notification.orderId &&
         notification.orderId && // Only check if orderId exists
         (new Date() - new Date(n.createdAt)) < 5000 // Within 5 seconds
       );
-      
+
       if (isDuplicate) {
         console.log('🔇 Duplicate notification ignored:', notification.type, notification.orderId);
         return prev;
       }
-      
-      return [newNotification, ...prev.slice(0, 99)]; // Keep max 100 notifications
+
+      const newState = [newNotification, ...prev.slice(0, 99)]; // Keep max 100 notifications
+      console.log('✅ [NotificationContext] Notification added. Total count:', newState.length, 'Unread:', newState.filter(n => !n.isRead).length);
+      return newState;
     });
   }, []);
 
@@ -141,37 +192,47 @@ export const NotificationProvider = ({ children }) => {
 
   // Subscribe to socket events
   useEffect(() => {
-    if (!subscribe || !isAuthenticated) return;
+    if (!subscribe || !isAuthenticated) {
+      console.log('⚠️ [NotificationContext] Not subscribing:', {
+        hasSubscribe: !!subscribe,
+        isAuthenticated
+      });
+      return;
+    }
 
     console.log(`📡 [NotificationContext] Setting up subscriptions for role: ${staffRole}`);
+    console.log(`👤 [NotificationContext] Current user ID: ${currentUserId}`);
     const unsubscribers = [];
 
     // New order notification (skip if current user is the creator)
     unsubscribers.push(
       subscribe('new-order', (data) => {
         console.log('📦 [NotificationContext] New order received:', data);
-        
+
         // Skip notification if current user created this order (self-notification)
         if (data.creatorId && currentUserId && data.creatorId === currentUserId) {
           console.log('🔇 Skipping self-notification for new order:', data.order?.orderNumber);
           return;
         }
-        
+
         console.log('🔊 [NotificationContext] Playing sound for new order');
         playWithVibration('newOrder');
-        
+
         const location = formatOrderLocation({
           orderType: data.order.orderType,
           roomNumber: data.order.roomNumber,
           tableNumber: data.order.tableNumber,
         });
-        
-        addNotification({
+
+        const notification = {
           type: NOTIFICATION_TYPES.NEW_ORDER,
           message: `New order #${data.order.orderNumber} for ${location}`,
           orderId: data.order._id,
           orderNumber: data.order.orderNumber,
-        });
+        };
+
+        console.log('➕ [NotificationContext] Adding notification:', notification);
+        addNotification(notification);
       })
     );
 
@@ -294,6 +355,7 @@ export const NotificationProvider = ({ children }) => {
     notifications,
     unreadCount,
     waiterCallCount,
+    isLoadingInitial,
     
     // Actions
     addNotification,
