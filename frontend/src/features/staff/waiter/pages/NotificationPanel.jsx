@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Bell, Check, CheckCircle, X, Clock, ChefHat, AlertCircle, Utensils, Package, Phone, Sparkles } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Bell, CheckCircle, Package, ChefHat, Phone } from "lucide-react";
 import useRelativeTime from "../../../../hooks/useRelativeTime";
 
 // Separate component to use hook for each notification's time
@@ -7,9 +7,10 @@ const NotificationTime = ({ date, color }) => {
     const relativeTime = useRelativeTime(date, true);
     return (
         <span style={{
-            fontSize: '12px',
+            fontSize: '13px',
             color: color,
-            fontWeight: '500',
+            fontWeight: '400',
+            whiteSpace: 'nowrap',
         }}>
             {relativeTime || 'Just now'}
         </span>
@@ -21,10 +22,11 @@ const NotificationPanel = ({
     onMarkRead,
     onMarkAllRead,
     onClose,
-    onNotificationClick, // New: callback when clicking a notification to navigate
-    isDarkMode = false, // New: dark mode support
+    onNotificationClick,
+    isDarkMode = false,
 }) => {
     const [isMobile, setIsMobile] = useState(false);
+    const [activeTab, setActiveTab] = useState("all");
 
     useEffect(() => {
         const checkScreenSize = () => {
@@ -35,488 +37,682 @@ const NotificationPanel = ({
         return () => window.removeEventListener('resize', checkScreenSize);
     }, []);
 
-    // Status-based colors matching OrderCard exactly, theme-aware
+    // Design system colors (teal theme)
+    const colors = {
+        primary: '#00BFA6',
+        primaryLight: '#00E5CC',
+        bg: '#F8FAFB',
+        cardBg: '#FFFFFF',
+        text: '#263238',
+        textMuted: '#546E7A',
+        textTertiary: '#94A3B8',
+        border: '#E0E7EB',
+        shadow: '0 2px 8px rgba(0,0,0,0.05)',
+        shadowHover: '0 6px 20px rgba(0,191,166,0.12)',
+        unreadGlow: '0 0 0 3px rgba(0,191,166,0.1)',
+    };
+
+    // Status colors matching design system with Lucide React icons
     const STATUS_COLORS = {
-        pending: {
-            bg: isDarkMode ? "rgba(37, 99, 235, 0.2)" : "#DBEAFE",
-            color: isDarkMode ? "#60A5FA" : "#2563EB",
-            label: "New",
-            gradient: "linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)"
-        },
-        new: {
-            bg: isDarkMode ? "rgba(37, 99, 235, 0.2)" : "#DBEAFE",
-            color: isDarkMode ? "#60A5FA" : "#2563EB",
-            label: "New",
-            gradient: "linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)"
-        },
-        confirmed: {
-            bg: isDarkMode ? "rgba(79, 70, 229, 0.2)" : "#E0E7FF",
-            color: isDarkMode ? "#A5B4FC" : "#4F46E5",
-            label: "Confirmed",
-            gradient: "linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)"
+        ready: {
+            bg: '#DCFCE7',
+            text: '#16A34A',
+            dot: '#22C55E',
+            Icon: CheckCircle,
+            label: 'READY'
         },
         preparing: {
-            bg: isDarkMode ? "rgba(217, 119, 6, 0.2)" : "#FEF3C7",
-            color: isDarkMode ? "#FBBF24" : "#D97706",
-            label: "Preparing",
-            gradient: "linear-gradient(135deg, #F59E0B 0%, #D97706 100%)"
-        },
-        ready: {
-            bg: isDarkMode ? "rgba(5, 150, 105, 0.2)" : "#D1FAE5",
-            color: isDarkMode ? "#34D399" : "#059669",
-            label: "Ready",
-            gradient: "linear-gradient(135deg, #10B981 0%, #059669 100%)"
+            bg: '#FEF9C3',
+            text: '#CA8A04',
+            dot: '#EAB308',
+            Icon: ChefHat,
+            label: 'PREPARING'
         },
         delivered: {
-            bg: isDarkMode ? "rgba(5, 150, 105, 0.15)" : "#D1FAE5",
-            color: isDarkMode ? "#6EE7B7" : "#059669",
-            label: "Delivered",
-            gradient: "linear-gradient(135deg, #34D399 0%, #10B981 100%)"
+            bg: '#CCFBF1',
+            text: '#00BFA6',
+            dot: '#00E5CC',
+            Icon: Package,
+            label: 'DELIVERED'
         },
-        cancelled: {
-            bg: isDarkMode ? "rgba(220, 38, 38, 0.2)" : "#FEE2E2",
-            color: isDarkMode ? "#F87171" : "#DC2626",
-            label: "Cancelled",
-            gradient: "linear-gradient(135deg, #EF4444 0%, #DC2626 100%)"
+        new: {
+            bg: '#EDE9FE',
+            text: '#7C3AED',
+            dot: '#8B5CF6',
+            Icon: Bell,
+            label: 'NEW'
+        },
+        pending: {
+            bg: '#EDE9FE',
+            text: '#7C3AED',
+            dot: '#8B5CF6',
+            Icon: Bell,
+            label: 'NEW'
+        },
+        confirmed: {
+            bg: '#EDE9FE',
+            text: '#7C3AED',
+            dot: '#8B5CF6',
+            Icon: Bell,
+            label: 'NEW'
+        },
+        waiter_call: {
+            bg: '#FEE2E2',
+            text: '#DC2626',
+            dot: '#EF4444',
+            Icon: Phone,
+            label: 'GUEST'
         },
     };
 
     const getNotificationStyle = (notification) => {
-        // If notification has a status, use that status's color
-        if (notification.status && STATUS_COLORS[notification.status]) {
-            const statusColor = STATUS_COLORS[notification.status];
-            return {
-                Icon: getIconForType(notification.type),
-                bgColor: statusColor.bg,
-                color: statusColor.color,
-                label: statusColor.label,
-            };
-        }
-
-        // Fallback to type-based styling
-        return getNotificationIconByType(notification.type);
+        const status = notification.status || notification.type;
+        return STATUS_COLORS[status] || STATUS_COLORS.new;
     };
 
-    const getIconForType = (type) => {
-        switch (type) {
-            case "new_order": return Package;
-            case "order_ready": return CheckCircle;
-            case "status_update": return Sparkles;
-            case "waiter_call": return Phone;
-            default: return Bell;
+    // Fix table undefined bug - check order type FIRST
+    const getLocation = (notification) => {
+        // Check order type first to avoid showing "Table undefined" for takeaway
+        const orderType = notification.type || notification.orderType;
+
+        if (orderType === 'takeaway') return 'Takeaway';
+        if (orderType === 'roomService' || orderType === 'room_service') {
+            if (notification.room_number) return `Room ${notification.room_number}`;
+            if (notification.room) return `Room ${notification.room}`;
+            return 'Room Service';
         }
+        if (orderType === 'dineIn' || orderType === 'dine_in') {
+            if (notification.table_number) return `Table ${notification.table_number}`;
+            if (notification.table) return `Table ${notification.table}`;
+            return 'Dine In';
+        }
+
+        // Fallback checks if type is not specified
+        if (notification.table_number) return `Table ${notification.table_number}`;
+        if (notification.table) return `Table ${notification.table}`;
+        if (notification.room_number) return `Room ${notification.room_number}`;
+        if (notification.room) return `Room ${notification.room}`;
+
+        return 'Location TBD';
     };
 
-    const getNotificationIconByType = (type) => {
-        switch (type) {
-            case "new_order":
-                return {
-                    Icon: Package,
-                    bgColor: isDarkMode ? "rgba(37, 99, 235, 0.2)" : "#DBEAFE",
-                    color: isDarkMode ? "#60A5FA" : "#2563EB",
-                    label: "New Order"
-                };
-            case "order_ready":
-                return {
-                    Icon: CheckCircle,
-                    bgColor: isDarkMode ? "rgba(5, 150, 105, 0.2)" : "#D1FAE5",
-                    color: isDarkMode ? "#34D399" : "#059669",
-                    label: "Ready"
-                };
-            case "status_update":
-                return {
-                    Icon: Sparkles,
-                    bgColor: isDarkMode ? "rgba(79, 70, 229, 0.2)" : "#E0E7FF",
-                    color: isDarkMode ? "#A5B4FC" : "#4F46E5",
-                    label: "Updated"
-                };
-            case "waiter_call":
-                return {
-                    Icon: Phone,
-                    bgColor: isDarkMode ? "rgba(220, 38, 38, 0.2)" : "#FEE2E2",
-                    color: isDarkMode ? "#F87171" : "#DC2626",
-                    label: "Guest Call"
-                };
-            case "delay":
-                return {
-                    Icon: AlertCircle,
-                    bgColor: isDarkMode ? "rgba(220, 38, 38, 0.2)" : "#FEE2E2",
-                    color: isDarkMode ? "#F87171" : "#DC2626",
-                    label: "Alert"
-                };
-            default:
-                return {
-                    Icon: Bell,
-                    bgColor: isDarkMode ? "#334155" : "#F3F4F6",
-                    color: isDarkMode ? "#94A3B8" : "#6B7280",
-                    label: "Notification"
-                };
+    // Time grouping logic
+    const groupedNotifications = useMemo(() => {
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+
+        const groups = {
+            today: [],
+            yesterday: [],
+            older: []
+        };
+
+        notifications.forEach(notif => {
+            const notifDate = new Date(notif.createdAt || notif.time);
+            const notifDay = new Date(notifDate.getFullYear(), notifDate.getMonth(), notifDate.getDate());
+
+            if (notifDay.getTime() === today.getTime()) {
+                groups.today.push(notif);
+            } else if (notifDay.getTime() === yesterday.getTime()) {
+                groups.yesterday.push(notif);
+            } else {
+                groups.older.push(notif);
+            }
+        });
+
+        return groups;
+    }, [notifications]);
+
+    // Filter notifications based on active tab
+    const filteredNotifications = useMemo(() => {
+        let filtered = notifications;
+
+        if (activeTab === "unread") {
+            filtered = notifications.filter(n => !n.isRead);
+        } else if (activeTab !== "all") {
+            filtered = notifications.filter(n => n.status === activeTab);
         }
-    };
+
+        return filtered;
+    }, [notifications, activeTab]);
+
+    // Regroup filtered notifications
+    const filteredGrouped = useMemo(() => {
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+
+        const groups = {
+            today: [],
+            yesterday: [],
+            older: []
+        };
+
+        filteredNotifications.forEach(notif => {
+            const notifDate = new Date(notif.createdAt || notif.time);
+            const notifDay = new Date(notifDate.getFullYear(), notifDate.getMonth(), notifDate.getDate());
+
+            if (notifDay.getTime() === today.getTime()) {
+                groups.today.push(notif);
+            } else if (notifDay.getTime() === yesterday.getTime()) {
+                groups.yesterday.push(notif);
+            } else {
+                groups.older.push(notif);
+            }
+        });
+
+        return groups;
+    }, [filteredNotifications]);
+
+    const unreadCount = notifications.filter(n => !n.isRead).length;
 
     const handleNotificationClick = (notification) => {
-        // Mark as read
         if (onMarkRead) onMarkRead(notification.id);
-
-        // Navigate to order if callback provided and notification has orderId
         if (onNotificationClick && notification.orderId) {
             onNotificationClick(notification);
         }
     };
 
-    const unreadCount = notifications.filter(n => !n.isRead).length;
-
-    // Theme colors
-    const colors = {
-        bg: isDarkMode ? '#0F172A' : '#F8F9FB',
-        cardBg: isDarkMode ? '#1E293B' : 'white',
-        text: isDarkMode ? '#F8FAFC' : '#111827',
-        textSecondary: isDarkMode ? '#CBD5E1' : '#6B7280',
-        textTertiary: isDarkMode ? '#94A3B8' : '#9CA3AF',
-        border: isDarkMode ? '#334155' : '#E5E7EB',
-        bgTertiary: isDarkMode ? '#334155' : '#F3F4F6',
-        accentLight: isDarkMode ? 'rgba(59, 130, 246, 0.15)' : '#EFF6FF',
-        primary: '#3B82F6',
+    const handleMarkAsRead = (e, notificationId) => {
+        e.stopPropagation();
+        if (onMarkRead) onMarkRead(notificationId);
     };
 
-    // Styles
-    const containerStyle = {
-        backgroundColor: colors.bg,
-        minHeight: '100vh',
-        padding: isMobile ? '16px' : '32px 48px',
-        fontFamily: "'Nunito', sans-serif",
-    };
-
-    const headerStyle = {
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '32px',
-        padding: isMobile ? '20px' : '24px 32px',
-        background: isDarkMode 
-            ? 'linear-gradient(135deg, #1E293B 0%, #0F172A 100%)'
-            : 'linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%)',
-        borderRadius: '20px',
-        boxShadow: isDarkMode 
-            ? '0 4px 20px rgba(0, 0, 0, 0.3)'
-            : '0 4px 20px rgba(0, 0, 0, 0.08)',
-        border: `1px solid ${colors.border}`,
-    };
-
-    const titleStyle = {
-        fontSize: isMobile ? '24px' : '32px',
-        fontWeight: '800',
-        background: 'linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%)',
-        WebkitBackgroundClip: 'text',
-        WebkitTextFillColor: 'transparent',
-        backgroundClip: 'text',
-        margin: 0,
-        display: 'flex',
-        alignItems: 'center',
-        gap: '12px',
-    };
-
-    const subtitleStyle = {
-        fontSize: '14px',
-        color: colors.textSecondary,
-        marginTop: '8px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-    };
-
-    const badgeStyle = {
-        background: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)',
-        color: 'white',
-        padding: '6px 14px',
-        borderRadius: '20px',
-        fontSize: '13px',
-        fontWeight: '700',
-        boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)',
-        animation: 'pulse 2s infinite',
-    };
-
-    const actionsStyle = {
-        display: 'flex',
-        gap: '12px',
-    };
-
-    const actionButtonStyle = {
-        padding: '12px 20px',
-        borderRadius: '12px',
-        border: 'none',
-        cursor: 'pointer',
-        fontSize: '14px',
-        fontWeight: '600',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-    };
-
-    const notificationStyle = (isRead) => ({
-        backgroundColor: colors.cardBg,
-        borderRadius: '16px',
-        padding: '20px',
-        display: 'flex',
-        gap: '16px',
-        alignItems: 'flex-start',
-        border: isRead ? `1px solid ${colors.border}` : `2px solid ${colors.primary}`,
-        cursor: 'pointer',
-        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-        boxShadow: isRead 
-            ? '0 2px 8px rgba(0, 0, 0, 0.05)'
-            : '0 8px 24px rgba(59, 130, 246, 0.15)',
-        transform: 'translateY(0)',
-        position: 'relative',
-        overflow: 'hidden',
-    });
-
-    const iconContainerStyle = (bgColor, gradient) => ({
-        width: '56px',
-        height: '56px',
-        borderRadius: '16px',
-        background: gradient || bgColor,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexShrink: 0,
-        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-        position: 'relative',
-    });
-
-    const listStyle = {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '16px',
-    };
-
-    const emptyStateStyle = {
-        textAlign: 'center',
-        padding: '60px 20px',
-        color: colors.textTertiary,
+    // Tab counts
+    const tabCounts = {
+        all: notifications.length,
+        unread: unreadCount,
+        ready: notifications.filter(n => n.status === 'ready').length,
+        preparing: notifications.filter(n => n.status === 'preparing').length,
+        delivered: notifications.filter(n => n.status === 'delivered').length,
     };
 
     return (
-        <div style={containerStyle}>
-            <div style={headerStyle}>
-                <div>
-                    <h1 style={titleStyle}>
-                        <Bell size={isMobile ? 28 : 32} />
-                        Notifications
-                    </h1>
-                    <div style={subtitleStyle}>
-                        {unreadCount > 0 ? (
-                            <>
-                                <span style={badgeStyle}>{unreadCount} unread</span>
-                                <span>•</span>
-                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                    <div style={{
-                                        width: '8px',
-                                        height: '8px',
-                                        borderRadius: '50%',
-                                        backgroundColor: '#10B981',
-                                        animation: 'pulse 2s infinite',
-                                    }} />
-                                    Live updates enabled
-                                </span>
-                            </>
-                        ) : (
-                            <span>All caught up! 🎉</span>
+        <div style={{
+            backgroundColor: colors.bg,
+            minHeight: '100vh',
+            padding: isMobile ? '16px' : '32px 48px',
+            fontFamily: "'Poppins', 'Nunito', sans-serif",
+        }}>
+            {/* Header Section - No card wrapper */}
+            <div style={{
+                marginBottom: '24px',
+                paddingBottom: '20px',
+                borderBottom: `1px solid ${colors.border}`,
+            }}>
+                <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    marginBottom: '12px',
+                }}>
+                    <div>
+                        <h1 style={{
+                            fontSize: isMobile ? '1.5rem' : '1.8rem',
+                            fontWeight: '700',
+                            color: colors.text,
+                            margin: 0,
+                            marginBottom: '8px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                        }}>
+                            🔔 Notifications
+                        </h1>
+                        <p style={{
+                            fontSize: '0.9rem',
+                            color: colors.textMuted,
+                            margin: 0,
+                        }}>
+                            {notifications.length} notifications • {unreadCount} unread
+                        </p>
+                    </div>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                        {unreadCount > 0 && (
+                            <button
+                                onClick={onMarkAllRead}
+                                style={{
+                                    padding: '8px 16px',
+                                    borderRadius: '8px',
+                                    border: `1.5px solid ${colors.primary}`,
+                                    background: 'transparent',
+                                    color: colors.primary,
+                                    fontSize: '0.85rem',
+                                    fontWeight: '600',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease',
+                                    fontFamily: "'Poppins', sans-serif",
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = colors.primary;
+                                    e.currentTarget.style.color = '#FFFFFF';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = 'transparent';
+                                    e.currentTarget.style.color = colors.primary;
+                                }}
+                            >
+                                Mark all read
+                            </button>
                         )}
                     </div>
                 </div>
-                <div style={actionsStyle}>
-                    {unreadCount > 0 && (
+
+                {/* Filter Tabs */}
+                <div style={{
+                    display: 'flex',
+                    gap: '8px',
+                    marginTop: '16px',
+                    flexWrap: 'wrap',
+                }}>
+                    {[
+                        { key: 'all', label: 'All' },
+                        { key: 'unread', label: 'Unread', badge: tabCounts.unread },
+                        { key: 'ready', label: 'Ready', badge: tabCounts.ready },
+                        { key: 'preparing', label: 'Preparing', badge: tabCounts.preparing },
+                        { key: 'delivered', label: 'Delivered', badge: tabCounts.delivered },
+                    ].map(tab => (
                         <button
-                            onClick={onMarkAllRead}
+                            key={tab.key}
+                            onClick={() => setActiveTab(tab.key)}
                             style={{
-                                ...actionButtonStyle,
-                                background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
-                                color: 'white',
+                                padding: '8px 18px',
+                                borderRadius: '20px',
+                                border: activeTab === tab.key ? 'none' : `1.5px solid ${colors.border}`,
+                                background: activeTab === tab.key
+                                    ? `linear-gradient(135deg, ${colors.primary}, ${colors.primaryLight})`
+                                    : colors.cardBg,
+                                color: activeTab === tab.key ? '#FFFFFF' : colors.textMuted,
+                                fontSize: '0.88rem',
+                                fontWeight: '500',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                                fontFamily: "'Poppins', sans-serif",
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                boxShadow: activeTab === tab.key ? '0 4px 12px rgba(0,191,166,0.25)' : 'none',
                             }}
                             onMouseEnter={(e) => {
-                                e.currentTarget.style.transform = 'translateY(-2px)';
-                                e.currentTarget.style.boxShadow = '0 8px 16px rgba(59, 130, 246, 0.3)';
+                                if (activeTab !== tab.key) {
+                                    e.currentTarget.style.borderColor = colors.primary;
+                                    e.currentTarget.style.color = colors.primary;
+                                }
                             }}
                             onMouseLeave={(e) => {
-                                e.currentTarget.style.transform = 'translateY(0)';
-                                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+                                if (activeTab !== tab.key) {
+                                    e.currentTarget.style.borderColor = colors.border;
+                                    e.currentTarget.style.color = colors.textMuted;
+                                }
                             }}
                         >
-                            <Check size={18} />
-                            {!isMobile && 'Mark all read'}
+                            {tab.label}
+                            {tab.badge > 0 && (
+                                <span style={{
+                                    background: activeTab === tab.key ? 'rgba(255,255,255,0.3)' : '#EF4444',
+                                    color: activeTab === tab.key ? '#FFFFFF' : 'white',
+                                    fontSize: '0.7rem',
+                                    fontWeight: '700',
+                                    padding: '1px 6px',
+                                    borderRadius: '10px',
+                                }}>
+                                    {tab.badge}
+                                </span>
+                            )}
                         </button>
-                    )}
-                    {onClose && (
-                        <button
-                            onClick={onClose}
-                            style={{
-                                ...actionButtonStyle,
-                                backgroundColor: colors.bgTertiary,
-                                color: colors.textSecondary,
-                                padding: '12px',
-                            }}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.transform = 'translateY(-2px)';
-                                e.currentTarget.style.backgroundColor = isDarkMode ? '#475569' : '#E5E7EB';
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.transform = 'translateY(0)';
-                                e.currentTarget.style.backgroundColor = colors.bgTertiary;
-                            }}
-                        >
-                            <X size={20} />
-                        </button>
-                    )}
+                    ))}
                 </div>
             </div>
 
-            {notifications.length === 0 ? (
-                <div style={emptyStateStyle}>
-                    <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px', color: colors.textSecondary }}>
-                        No notifications
+            {/* Notifications List with Time Grouping */}
+            {filteredNotifications.length === 0 ? (
+                // Empty State
+                <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '80px 20px',
+                    textAlign: 'center',
+                }}>
+                    <div style={{
+                        fontSize: '80px',
+                        marginBottom: '20px',
+                        animation: 'pulse 2s infinite',
+                    }}>
+                        🔔
+                    </div>
+                    <h3 style={{
+                        fontSize: '1.3rem',
+                        fontWeight: '600',
+                        color: colors.text,
+                        margin: '0 0 8px 0',
+                    }}>
+                        You're all caught up!
                     </h3>
-                    <p>You're all caught up! New notifications will appear here.</p>
+                    <p style={{
+                        fontSize: '0.9rem',
+                        color: colors.textMuted,
+                        margin: 0,
+                    }}>
+                        No new notifications
+                    </p>
                 </div>
             ) : (
-                <div style={listStyle}>
-                    {notifications.map((notification, index) => {
-                        const { Icon, bgColor, color, label, gradient } = getNotificationStyle(notification);
-
-                        return (
-                            <div
-                                key={notification.id}
-                                style={{
-                                    ...notificationStyle(notification.isRead),
-                                    animation: index < 3 && !notification.isRead ? 'slideIn 0.4s ease-out' : 'none',
-                                    cursor: notification.orderId ? 'pointer' : 'default',
-                                }}
-                                onClick={() => handleNotificationClick(notification)}
-                                onMouseEnter={(e) => {
-                                    e.currentTarget.style.transform = 'translateY(-4px)';
-                                    e.currentTarget.style.boxShadow = notification.isRead 
-                                        ? '0 12px 32px rgba(0, 0, 0, 0.12)'
-                                        : '0 16px 40px rgba(59, 130, 246, 0.25)';
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget.style.transform = 'translateY(0)';
-                                    e.currentTarget.style.boxShadow = notification.isRead 
-                                        ? '0 2px 8px rgba(0, 0, 0, 0.05)'
-                                        : '0 8px 24px rgba(59, 130, 246, 0.15)';
-                                }}
-                            >
-                                {/* Gradient overlay for unread */}
-                                {!notification.isRead && (
-                                    <div style={{
-                                        position: 'absolute',
-                                        top: 0,
-                                        left: 0,
-                                        right: 0,
-                                        height: '4px',
-                                        background: 'linear-gradient(90deg, #3B82F6 0%, #8B5CF6 100%)',
-                                        borderRadius: '16px 16px 0 0',
-                                    }} />
-                                )}
-                                
-                                <div style={iconContainerStyle(bgColor, gradient)}>
-                                    <Icon size={26} color="white" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }} />
-                                </div>
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px', flexWrap: 'wrap' }}>
-                                        <span style={{
-                                            padding: '4px 12px',
-                                            borderRadius: '8px',
-                                            fontSize: '12px',
-                                            fontWeight: '700',
-                                            background: gradient || bgColor,
-                                            color: 'white',
-                                            textTransform: 'uppercase',
-                                            letterSpacing: '0.5px',
-                                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
-                                        }}>
-                                            {label}
-                                        </span>
-                                        <NotificationTime
-                                            date={notification.createdAt || notification.time}
-                                            color={colors.textTertiary}
-                                        />
-                                    </div>
-                                    <p style={{
-                                        fontSize: '16px',
-                                        fontWeight: notification.isRead ? '500' : '700',
-                                        color: colors.text,
-                                        lineHeight: '1.6',
-                                        margin: 0,
-                                        wordBreak: 'break-word',
-                                    }}>
-                                        {notification.message}
-                                    </p>
-                                    {notification.orderNumber && (
-                                        <p style={{
-                                            fontSize: '14px',
-                                            color: color,
-                                            fontWeight: '600',
-                                            marginTop: '8px',
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: '6px',
-                                            padding: '4px 10px',
-                                            background: bgColor,
-                                            borderRadius: '8px',
-                                        }}>
-                                            Order #{notification.orderNumber}
-                                            {notification.orderId && (
-                                                <span style={{
-                                                    fontSize: '12px',
-                                                    opacity: 0.8,
-                                                }}>
-                                                    → View
-                                                </span>
-                                            )}
-                                        </p>
-                                    )}
-                                </div>
-                                {!notification.isRead && (
-                                    <div style={{
-                                        width: '14px',
-                                        height: '14px',
-                                        borderRadius: '50%',
-                                        background: 'linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%)',
-                                        flexShrink: 0,
-                                        marginTop: '4px',
-                                        boxShadow: '0 0 0 4px rgba(59, 130, 246, 0.2)',
-                                        animation: 'pulse 2s infinite',
-                                    }} />
-                                )}
+                <>
+                    {/* TODAY */}
+                    {filteredGrouped.today.length > 0 && (
+                        <div style={{ marginBottom: '32px' }}>
+                            <div style={{
+                                fontSize: '0.75rem',
+                                fontWeight: '600',
+                                letterSpacing: '0.1em',
+                                color: colors.textTertiary,
+                                textTransform: 'uppercase',
+                                padding: '16px 0 12px',
+                                display: 'flex',
+                                alignItems: 'center',
+                            }}>
+                                TODAY
+                                <div style={{
+                                    content: '',
+                                    flex: 1,
+                                    height: '1px',
+                                    background: colors.border,
+                                    marginLeft: '12px',
+                                }} />
                             </div>
-                        );
-                    })}
-                </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                {filteredGrouped.today.map((notification, index) => {
+                                    const style = getNotificationStyle(notification);
+                                    return (
+                                        <NotificationCard
+                                            key={notification.id}
+                                            notification={notification}
+                                            style={style}
+                                            colors={colors}
+                                            index={index}
+                                            onClick={() => handleNotificationClick(notification)}
+                                            onMarkRead={(e) => handleMarkAsRead(e, notification.id)}
+                                            getLocation={getLocation}
+                                        />
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* YESTERDAY */}
+                    {filteredGrouped.yesterday.length > 0 && (
+                        <div style={{ marginBottom: '32px' }}>
+                            <div style={{
+                                fontSize: '0.75rem',
+                                fontWeight: '600',
+                                letterSpacing: '0.1em',
+                                color: colors.textTertiary,
+                                textTransform: 'uppercase',
+                                padding: '16px 0 12px',
+                                display: 'flex',
+                                alignItems: 'center',
+                            }}>
+                                YESTERDAY
+                                <div style={{
+                                    content: '',
+                                    flex: 1,
+                                    height: '1px',
+                                    background: colors.border,
+                                    marginLeft: '12px',
+                                }} />
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                {filteredGrouped.yesterday.map((notification, index) => {
+                                    const style = getNotificationStyle(notification);
+                                    return (
+                                        <NotificationCard
+                                            key={notification.id}
+                                            notification={notification}
+                                            style={style}
+                                            colors={colors}
+                                            index={index}
+                                            onClick={() => handleNotificationClick(notification)}
+                                            onMarkRead={(e) => handleMarkAsRead(e, notification.id)}
+                                            getLocation={getLocation}
+                                        />
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* OLDER */}
+                    {filteredGrouped.older.length > 0 && (
+                        <div style={{ marginBottom: '32px' }}>
+                            <div style={{
+                                fontSize: '0.75rem',
+                                fontWeight: '600',
+                                letterSpacing: '0.1em',
+                                color: colors.textTertiary,
+                                textTransform: 'uppercase',
+                                padding: '16px 0 12px',
+                                display: 'flex',
+                                alignItems: 'center',
+                            }}>
+                                OLDER
+                                <div style={{
+                                    content: '',
+                                    flex: 1,
+                                    height: '1px',
+                                    background: colors.border,
+                                    marginLeft: '12px',
+                                }} />
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                {filteredGrouped.older.map((notification, index) => {
+                                    const style = getNotificationStyle(notification);
+                                    return (
+                                        <NotificationCard
+                                            key={notification.id}
+                                            notification={notification}
+                                            style={style}
+                                            colors={colors}
+                                            index={index}
+                                            onClick={() => handleNotificationClick(notification)}
+                                            onMarkRead={(e) => handleMarkAsRead(e, notification.id)}
+                                            getLocation={getLocation}
+                                        />
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+                </>
             )}
 
             {/* CSS Animations */}
             <style>{`
-                @keyframes slideIn {
-                    from {
-                        opacity: 0;
-                        transform: translateX(-20px);
-                    }
-                    to {
-                        opacity: 1;
-                        transform: translateX(0);
-                    }
+                @keyframes slideInUp {
+                    from { opacity: 0; transform: translateY(12px); }
+                    to { opacity: 1; transform: translateY(0); }
                 }
                 @keyframes pulse {
-                    0%, 100% {
-                        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
-                    }
-                    50% {
-                        box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.1);
-                    }
+                    0%, 100% { opacity: 1; transform: scale(1); }
+                    50% { opacity: 0.5; transform: scale(1.3); }
+                }
+                .marking-read {
+                    transition: opacity 0.3s ease, transform 0.3s ease;
+                    opacity: 0.5;
+                    transform: translateX(10px);
                 }
             `}</style>
+        </div>
+    );
+};
+
+// Notification Card Component
+const NotificationCard = ({ notification, style, colors, index, onClick, onMarkRead, getLocation }) => {
+    const [isHovered, setIsHovered] = useState(false);
+    const IconComponent = style.Icon;
+
+    return (
+        <div
+            onClick={onClick}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+            style={{
+                background: notification.isRead
+                    ? colors.cardBg
+                    : 'linear-gradient(135deg, #F0FDFB 0%, #FFFFFF 100%)',
+                borderRadius: '14px',
+                padding: '18px 20px',
+                border: `1px solid ${colors.border}`,
+                borderLeft: `4px solid ${style.dot}`,
+                boxShadow: notification.isRead
+                    ? colors.shadow
+                    : '0 2px 8px rgba(0,0,0,0.05), 0 0 0 3px rgba(0,191,166,0.08)',
+                display: 'grid',
+                gridTemplateColumns: '48px 1fr auto',
+                gap: '14px',
+                alignItems: 'center',
+                transition: 'all 0.25s ease',
+                cursor: notification.orderId ? 'pointer' : 'default',
+                transform: isHovered ? 'translateY(-2px)' : 'translateY(0)',
+                animation: index < 3 ? `slideInUp 0.3s ease forwards ${index * 0.05}s` : 'none',
+                opacity: index < 3 ? 0 : 1,
+                position: 'relative',
+                ...(isHovered && {
+                    boxShadow: '0 6px 20px rgba(0,191,166,0.12)',
+                    borderColor: 'rgba(0,191,166,0.3)',
+                }),
+            }}
+        >
+            {/* Unread dot indicator */}
+            {!notification.isRead && (
+                <div style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    background: colors.primary,
+                    position: 'absolute',
+                    top: '18px',
+                    right: '18px',
+                    animation: 'pulse 2s infinite',
+                }} />
+            )}
+
+            {/* Icon Circle (Squircle) - Using Lucide React Icons */}
+            <div style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: '12px',
+                background: style.bg,
+                display: 'grid',
+                placeItems: 'center',
+                flexShrink: 0,
+            }}>
+                <IconComponent size={22} color={style.text} strokeWidth={2.5} />
+            </div>
+
+            {/* Content */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                    fontSize: '0.95rem',
+                    fontWeight: '600',
+                    color: colors.text,
+                    marginBottom: '4px',
+                    lineHeight: '1.4',
+                }}>
+                    {notification.message}
+                </div>
+                <div style={{
+                    fontSize: '0.82rem',
+                    color: colors.textMuted,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    flexWrap: 'wrap',
+                }}>
+                    <span>📍 {getLocation(notification)}</span>
+                    <span>•</span>
+                    <span style={{
+                        background: style.bg,
+                        color: style.text,
+                        padding: '3px 10px',
+                        borderRadius: '20px',
+                        fontSize: '0.7rem',
+                        fontWeight: '700',
+                        letterSpacing: '0.05em',
+                        textTransform: 'uppercase',
+                    }}>
+                        {style.label}
+                    </span>
+                </div>
+            </div>
+
+            {/* Actions */}
+            <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-end',
+                gap: '8px',
+            }}>
+                <NotificationTime
+                    date={notification.createdAt || notification.time}
+                    color={colors.textTertiary}
+                />
+                {notification.orderId && (
+                    <button
+                        style={{
+                            background: 'transparent',
+                            border: `1.5px solid ${colors.primary}`,
+                            color: colors.primary,
+                            fontSize: '0.85rem',
+                            fontWeight: '600',
+                            padding: '7px 16px',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            fontFamily: "'Poppins', sans-serif",
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.background = colors.primary;
+                            e.currentTarget.style.color = '#FFFFFF';
+                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,191,166,0.25)';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'transparent';
+                            e.currentTarget.style.color = colors.primary;
+                            e.currentTarget.style.boxShadow = 'none';
+                        }}
+                    >
+                        View Order →
+                    </button>
+                )}
+                {!notification.isRead && (
+                    <button
+                        onClick={onMarkRead}
+                        style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: colors.textTertiary,
+                            fontSize: '0.8rem',
+                            padding: '4px 8px',
+                            cursor: 'pointer',
+                            transition: 'color 0.2s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.color = colors.primary;
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.color = colors.textTertiary;
+                        }}
+                    >
+                        ✓ Mark read
+                    </button>
+                )}
+            </div>
         </div>
     );
 };

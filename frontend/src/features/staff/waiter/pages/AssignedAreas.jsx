@@ -19,7 +19,7 @@ const AssignedAreas = ({ orders = [], onFilterByArea, onClose }) => {
   useEffect(() => {
     const fetchMyAssignment = async () => {
       try {
-        const response = await axiosClient.get('/api/staff/table-assignments/my');
+        const response = await axiosClient.get('/api/v1/staff/table-assignments/my');
         if (response.data.success) {
           setMyAssignment(response.data.data);
         }

@@ -5,10 +5,11 @@ import {
   Bell as BellIcon,
   ChefHat,
   CheckCircle,
+  Menu,
 } from "lucide-react";
 import OrderCard from "./order/OrderCard";
 
-const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed, onDeleteOrder, onRefresh, isRefreshing, onUpdateOrder }) => {
+const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed, onDeleteOrder, onRefresh, isRefreshing, onUpdateOrder, onMenuToggle }) => {
   const [isMobile, setIsMobile] = useState(false);
   const [isTablet, setIsTablet] = useState(false);
 
@@ -80,6 +81,27 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
     justifyContent: "space-between",
     gap: isMobile ? "16px" : "0",
     marginBottom: isMobile ? "20px" : "32px",
+  };
+
+  const titleRowStyle = {
+    display: "flex",
+    alignItems: "center",
+    gap: isMobile ? "12px" : "0",
+    marginBottom: isMobile ? "0" : "0",
+  };
+
+  const menuButtonStyle = {
+    display: isMobile ? "flex" : "none",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "40px",
+    height: "40px",
+    borderRadius: "12px",
+    backgroundColor: "var(--bg-primary)",
+    border: "1px solid var(--border-color)",
+    cursor: "pointer",
+    transition: "all 0.2s",
+    flexShrink: 0,
   };
 
   const titleStyle = {
@@ -159,9 +181,30 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
       <div style={headerContainerStyle}>
         {/* Title + Refresh Button */}
         <div style={titleSectionStyle}>
-          <div>
-            <h1 style={titleStyle}>Waiter Dashboard</h1>
-            <p style={subtitleStyle}>Real-time view of orders and table statuses.</p>
+          <div style={titleRowStyle}>
+            {/* Mobile Menu Button */}
+            <button
+              onClick={onMenuToggle}
+              style={menuButtonStyle}
+              onMouseEnter={(e) => {
+                if (isMobile) {
+                  e.currentTarget.style.backgroundColor = "var(--bg-tertiary)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (isMobile) {
+                  e.currentTarget.style.backgroundColor = "var(--bg-primary)";
+                }
+              }}
+            >
+              <Menu size={20} style={{ color: "var(--text-primary)" }} />
+            </button>
+
+            {/* Title */}
+            <div style={{ flex: 1 }}>
+              <h1 style={titleStyle}>Waiter Dashboard</h1>
+              <p style={subtitleStyle}>Real-time view of orders and table statuses.</p>
+            </div>
           </div>
 
           {/* Refresh Button */}
@@ -215,6 +258,23 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
           </div>
         )}
       </div>
+
+      {/* CSS Animations */}
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
     </div>
   );
 };

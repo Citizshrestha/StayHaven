@@ -22,6 +22,7 @@ const WaiterDashboard = () => {
     useOrderContext();
   const [showOrderForm, setShowOrderForm] = useState(false);
   const [isMessagingOpen, setIsMessagingOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { isDark } = useTheme(); // Get theme state
 
   // Use centralized notification context (Socket + Context API)
@@ -154,6 +155,7 @@ const WaiterDashboard = () => {
             onRefresh={fetchOrders}
             isRefreshing={loading}
             onUpdateOrder={updateOrder}
+            onMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           />
         );
     }
@@ -187,14 +189,42 @@ const WaiterDashboard = () => {
 
       {/* Main Content Area - Flex grow to fill space */}
       <main className="flex-1 lg:h-full min-h-0 overflow-y-auto relative w-full">
-        {/* Mobile Header */}
-        <header className="lg:hidden">
-          <MobileHeader />
-        </header>
-
         {/* Main Content - switches based on activeView */}
         {renderMainContent()}
       </main>
+
+      {/* Mobile Menu Overlay */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          {/* Background Overlay */}
+          <div
+            className="absolute inset-0 bg-black bg-opacity-50"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+
+          {/* Sidebar Drawer */}
+          <div className="absolute left-0 top-0 bottom-0 w-64 shadow-xl"
+            style={{
+              backgroundColor: "var(--bg-primary)",
+            }}
+          >
+            <Sidebar
+              activeView={activeView}
+              onViewChange={(view) => {
+                handleViewChange(view);
+                setIsMobileMenuOpen(false);
+              }}
+              notificationCount={unreadCount}
+              waiterCallCount={waiterCallCount}
+              onMessagingToggle={() => {
+                setIsMessagingOpen(prev => !prev);
+                setIsMobileMenuOpen(false);
+              }}
+              unreadMessageCount={0}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Right Panel - Hidden on mobile, visible flex item on desktop */}
       <aside

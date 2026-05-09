@@ -72,7 +72,7 @@ const WaiterCallsPanel = ({ onClose, onCallCountChange }) => {
         return;
       }
 
-      const response = await axiosClient.get("/api/staff/waiter-calls", {
+      const response = await axiosClient.get("/api/v1/staff/waiter-calls", {
         params: { hotelId: activeProperty._id }
       });
 
