@@ -600,7 +600,11 @@ const AuthPage = () => {
                           <div
                             key={level}
                             className={`${styles.strengthBar} ${level <= passwordStrength ? styles.active : ''}`}
-                            style={{ color: level <= passwordStrength ? getStrengthClass(passwordStrength).replace(styles.strength, '').toLowerCase() : '#e5e7eb' }}
+                            style={{ 
+                              background: level <= passwordStrength 
+                                ? (passwordStrength === 1 ? '#ef4444' : passwordStrength === 2 ? '#f59e0b' : passwordStrength === 3 ? '#10b981' : '#059669')
+                                : '#e5e7eb' 
+                            }}
                           />
                         ))}
                       </div>

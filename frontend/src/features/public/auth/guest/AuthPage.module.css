@@ -387,7 +387,7 @@
 }
 
 .strengthBar.active {
-  background: currentColor;
+  /* Background set inline via style prop */
 }
 
 .strengthLabel {
