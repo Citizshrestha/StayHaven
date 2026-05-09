@@ -1,6 +1,6 @@
 import axiosClient from "../client.js";
 
-const BASE = "/api/staff";
+const BASE = "/api/v1/staff";
 
 /**
  * Send a message to a channel or direct recipient

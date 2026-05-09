@@ -1,4 +1,5 @@
 import axios from "axios";
+import { setupCsrfInterceptor } from "../../utils/csrf";
 
 // Singleton refresh promise — prevents concurrent token-rotation races
 let activeRefreshPromise = null;
@@ -11,13 +12,16 @@ const axiosClient = axios.create({
     withCredentials: true, // send cookies
 });
 
+// Setup CSRF token interceptor
+setupCsrfInterceptor(axiosClient);
+
 axiosClient.interceptors.request.use(
     (config) => {
         // Token selection logic:
         // - Normal users use `accessToken`
         // - Staff endpoints should prefer `staffAccessToken`
         const url = String(config.url || "");
-        const isStaffRequest = url.includes("/api/staff") || url.includes("/api/reception");
+        const isStaffRequest = url.includes("/api/v1/staff") || url.includes("/api/v1/reception");
 
         const staffAccessToken = sessionStorage.getItem("staffAccessToken") || localStorage.getItem("staffAccessToken");
         const accessToken = localStorage.getItem('accessToken');
@@ -40,25 +44,25 @@ axiosClient.interceptors.response.use(
     async (error) => {
         const originalRequest = error.config;
         const url = String(originalRequest.url || "");
-        const isStaffRequest = url.includes("/api/staff") || url.includes("/api/reception");
+        const isStaffRequest = url.includes("/api/v1/staff") || url.includes("/api/v1/reception");
         const skipRefreshEndpoints = [
-            '/api/auth/login',
-            '/api/auth/register',
-            '/api/auth/google-login',
-            '/api/auth/sendResetPasswordOtp',
-            '/api/auth/verifyResetPasswordOtp',
-            '/api/auth/resetPassword',
-            '/api/auth/sendSignupOtp',
-            '/api/auth/verifySignupOtp',
+            '/api/v1/auth/login',
+            '/api/v1/auth/register',
+            '/api/v1/auth/google-login',
+            '/api/v1/auth/sendResetPasswordOtp',
+            '/api/v1/auth/verifyResetPasswordOtp',
+            '/api/v1/auth/resetPassword',
+            '/api/v1/auth/sendSignupOtp',
+            '/api/v1/auth/verifySignupOtp',
             // Token refresh endpoints — never try to refresh a refresh
-            '/api/auth/refresh',
-            '/api/staff/refresh-token',
+            '/api/v1/auth/refresh',
+            '/api/v1/staff/refresh-token',
             // Staff public endpoints
-            '/api/staff/login',
-            '/api/staff/forgot-password',
-            '/api/staff/reset-password',
-            '/api/staff/complete-onboard',
-            '/api/staff/verify-invite'
+            '/api/v1/staff/login',
+            '/api/v1/staff/forgot-password',
+            '/api/v1/staff/reset-password',
+            '/api/v1/staff/complete-onboard',
+            '/api/v1/staff/verify-invite'
         ];
 
         const isAuthEndpoint = skipRefreshEndpoints.some(endpoint =>
@@ -84,8 +88,8 @@ axiosClient.interceptors.response.use(
             try {
                 // Choose refresh endpoint based on request type
                 const refreshUrl = isStaffRequest && hasStaffSession
-                    ? '/api/staff/refresh-token'
-                    : '/api/auth/refresh';
+                    ? '/api/v1/staff/refresh-token'
+                    : '/api/v1/auth/refresh';
 
                 // Singleton promise: when many parallel requests all 401 at once
                 // (e.g. 12 simultaneous getOrders calls), only ONE refresh is made.

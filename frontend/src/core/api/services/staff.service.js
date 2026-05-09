@@ -2,7 +2,7 @@ import axiosClient from "../client";
 
 // Staff Login
 export const staffLogin = async (email, password) => {
-  const response = await axiosClient.post("/api/staff/login", {
+  const response = await axiosClient.post("/api/v1/staff/login", {
     email,
     password,
   });
@@ -31,7 +31,7 @@ export const staffLogin = async (email, password) => {
 // Staff Logout
 export const staffLogout = async () => {
   try {
-    await axiosClient.post("/api/staff/logout");
+    await axiosClient.post("/api/v1/staff/logout");
   } catch (error) {
     console.error("Logout error:", error);
   } finally {
@@ -48,7 +48,7 @@ export const staffLogout = async () => {
 
 // Get Staff Profile
 export const getStaffProfile = async () => {
-  const response = await axiosClient.get("/api/staff/me");
+  const response = await axiosClient.get("/api/v1/staff/me");
   return response.data;
 };
 
@@ -76,14 +76,14 @@ export const getActiveProperty = () => {
 
 // Update order status (for cross-dashboard sync)
 export const updateOrderStatus = async (orderId, status) => {
-  const response = await axiosClient.put(`/api/staff/orders/${orderId}/status`, { status });
+  const response = await axiosClient.put(`/api/v1/staff/orders/${orderId}/status`, { status });
   return response.data;
 };
 
 
 // create order
 export const createOrder = async (orderData) => {
-  const response = await axiosClient.post("/api/staff/create-order", orderData);
+  const response = await axiosClient.post("/api/v1/staff/create-order", orderData);
   return response.data;
 };
 
@@ -110,7 +110,7 @@ export const getOrders = async (arg1, statusArg = "all", orderTypeArg = "all") =
       search: "",
     };
 
-  const response = await axiosClient.get("/api/staff/orders", {
+  const response = await axiosClient.get("/api/v1/staff/orders", {
     params
   });
 
@@ -119,38 +119,38 @@ export const getOrders = async (arg1, statusArg = "all", orderTypeArg = "all") =
 
 // Delete an order
 export const deleteOrder = async (orderId) => {
-  const response = await axiosClient.delete(`/api/staff/orders/${orderId}`);
+  const response = await axiosClient.delete(`/api/v1/staff/orders/${orderId}`);
   return response.data;
 };
 
 export const changePassword = async (currentPassword, newPassword) => {
-  const response = await axiosClient.put("/api/staff/change-password", { currentPassword, newPassword });
+  const response = await axiosClient.put("/api/v1/staff/change-password", { currentPassword, newPassword });
   return response.data;
 }
 
 export const forgotPassword = async (email) => {
-  const response = await axiosClient.post("/api/staff/forgot-password", { email });
+  const response = await axiosClient.post("/api/v1/staff/forgot-password", { email });
   return response.data;
 }
 
 export const resetPassword = async (token, newPassword) => {
-  const response = await axiosClient.post("/api/staff/reset-password", { token, newPassword });
+  const response = await axiosClient.post("/api/v1/staff/reset-password", { token, newPassword });
   return response.data;
 }
 
 // Update an order
 export const updateOrder = async (orderId, orderData) => {
-  const response = await axiosClient.put(`/api/staff/orders/${orderId}`, orderData);
+  const response = await axiosClient.put(`/api/v1/staff/orders/${orderId}`, orderData);
   return response.data;
 }
 
 export const sendOrderBill = async (orderId, payload) => {
-  const response = await axiosClient.post(`/api/staff/orders/${orderId}/send-bill`, payload);
+  const response = await axiosClient.post(`/api/v1/staff/orders/${orderId}/send-bill`, payload);
   return response.data;
 }
 
 export const getMenuItems = async (hotelId, category = '', available = 'all') => {
-  const response = await axiosClient.get('/api/staff/menu-items', {
+  const response = await axiosClient.get('/api/v1/staff/menu-items', {
     params: { hotelId, category, available }
   });
   return response.data;
@@ -160,7 +160,7 @@ export const updateProfilePicture = async (file) => {
   const formData = new FormData();
   formData.append("profilePicture", file);
 
-  const response = await axiosClient.patch("/api/staff/profile-picture", formData, {
+  const response = await axiosClient.patch("/api/v1/staff/profile-picture", formData, {
     headers: {
       "Content-Type": "multipart/form-data",
     },
@@ -175,19 +175,19 @@ export const updateProfilePicture = async (file) => {
 
 // Edit a message
 export const editMessage = async (messageId, content) => {
-  const response = await axiosClient.put(`/api/staff/messages/${messageId}`, { content });
+  const response = await axiosClient.put(`/api/v1/staff/messages/${messageId}`, { content });
   return response.data;
 };
 
 // Delete a message
 export const deleteMessage = async (messageId) => {
-  const response = await axiosClient.delete(`/api/staff/messages/${messageId}`);
+  const response = await axiosClient.delete(`/api/v1/staff/messages/${messageId}`);
   return response.data;
 };
 
 // Block a user
 export const blockUser = async (userId, hotelId, reason = null) => {
-  const response = await axiosClient.post(`/api/staff/messages/block/${userId}`, {
+  const response = await axiosClient.post(`/api/v1/staff/messages/block/${userId}`, {
     hotelId,
     reason,
   });
@@ -196,12 +196,12 @@ export const blockUser = async (userId, hotelId, reason = null) => {
 
 // Unblock a user
 export const unblockUser = async (userId) => {
-  const response = await axiosClient.delete(`/api/staff/messages/block/${userId}`);
+  const response = await axiosClient.delete(`/api/v1/staff/messages/block/${userId}`);
   return response.data;
 };
 
 // Get blocked users list
 export const getBlockedUsers = async () => {
-  const response = await axiosClient.get('/api/staff/messages/blocked');
+  const response = await axiosClient.get('/api/v1/staff/messages/blocked');
   return response.data;
 };

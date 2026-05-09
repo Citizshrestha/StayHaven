@@ -1,6 +1,7 @@
 import axios from 'axios';
+import { getCsrfToken } from '../utils/csrf';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
 /**
  * Get authentication token from localStorage
@@ -22,6 +23,9 @@ export const createBookingWithPayment = async (bookingData) => {
       throw new Error('Authentication required. Please login to continue.');
     }
 
+    // Fetch CSRF token
+    const csrfToken = await getCsrfToken();
+
     console.log('Creating booking with payment:', {
       hotelId: bookingData.hotelId,
       roomId: bookingData.roomId,
@@ -33,7 +37,9 @@ export const createBookingWithPayment = async (bookingData) => {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
+        'X-CSRF-Token': csrfToken,
       },
+      withCredentials: true,
       timeout: 30000, // 30 second timeout
     });
 
@@ -49,6 +55,11 @@ export const createBookingWithPayment = async (bookingData) => {
     // Handle authentication errors
     if (error.response?.status === 401) {
       throw new Error('Please login to create a booking');
+    }
+
+    // Handle CSRF errors
+    if (error.response?.status === 403 && error.response?.data?.code?.includes('CSRF')) {
+      throw new Error('CSRF token missing. Please refresh the page and try again.');
     }
 
     // Re-throw with better error message

@@ -1,6 +1,6 @@
 import axiosClient from "../client";
 
-const BASE = "/api/reception";
+const BASE = "/api/v1/reception";
 
 const getActiveHotelId = () => {
   try {
@@ -26,11 +26,11 @@ export const getWeeklyOccupancy = () => axiosClient.get(`${BASE}/dashboard/occup
 export const getRevenueSplit = () => axiosClient.get(`${BASE}/dashboard/revenue-split`, { params: withHotelParam() }).then(r => r.data);
 
 /* ═══ Arrivals / Departures / Check-in / Check-out ═══ */
-export const getTodayArrivals = () => axiosClient.get(`${BASE}/checkin/today-arrivals`, { params: withHotelParam() }).then(r => r.data);
-export const getTodayDepartures = () => axiosClient.get(`${BASE}/checkin/today-departures`, { params: withHotelParam() }).then(r => r.data);
-export const performCheckIn = (bookingId) => axiosClient.post(`${BASE}/checkin/${bookingId}/checkin`).then(r => r.data);
-export const performCheckOut = (bookingId) => axiosClient.post(`${BASE}/checkin/${bookingId}/checkout`).then(r => r.data);
-export const performBulkCheckIn = (payload) => axiosClient.post(`${BASE}/checkin/bulk-checkin`, payload).then(r => r.data);
+export const getTodayArrivals = () => axiosClient.get(`${BASE}/arrivals/today`, { params: withHotelParam() }).then(r => r.data);
+export const getTodayDepartures = () => axiosClient.get(`${BASE}/departures/today`, { params: withHotelParam() }).then(r => r.data);
+export const performCheckIn = (bookingId) => axiosClient.post(`${BASE}/bookings/${bookingId}/check-in`).then(r => r.data);
+export const performCheckOut = (bookingId) => axiosClient.post(`${BASE}/bookings/${bookingId}/check-out`).then(r => r.data);
+export const performBulkCheckIn = (payload) => axiosClient.post(`${BASE}/batch/check-in`, payload).then(r => r.data);
 
 /* ═══ Guest Communication ═══ */
 export const getGuestCommunicationTemplates = () =>
@@ -43,7 +43,7 @@ export const getReservations = (params = {}) =>
   axiosClient.get(`${BASE}/reservations`, { params: withHotelParam(params) }).then(r => r.data);
 
 /* ═══ Rooms ═══ */
-export const getRoomsList = () => axiosClient.get(`${BASE}/rooms/list`, { params: withHotelParam() }).then(r => r.data);
+export const getRoomsList = () => axiosClient.get(`${BASE}/rooms`, { params: withHotelParam() }).then(r => r.data);
 export const updateRoomStatus = (roomId, status) =>
   axiosClient.patch(`${BASE}/rooms/${roomId}/status`, { status }).then(r => r.data);
 
@@ -81,7 +81,7 @@ export const getBillingSummary = () =>
   axiosClient.get(`${BASE}/billing/summary`, { params: withHotelParam() }).then(r => r.data);
 
 /* ═══ Staff ═══ */
-export const getStaffList = () => axiosClient.get(`${BASE}/staff/list`, { params: withHotelParam() }).then(r => r.data);
+export const getStaffList = () => axiosClient.get(`${BASE}/staff`, { params: withHotelParam() }).then(r => r.data);
 // Report a staff issue to management (receptionist cannot delete/deactivate staff)
 export const notifyManagerAboutStaff = (staffId, reason, urgency = "normal") =>
   axiosClient.post(`${BASE}/staff/${staffId}/notify-manager`, { reason, urgency }).then(r => r.data);
@@ -92,4 +92,14 @@ export const getReportsOverview = (params = {}) =>
 
 /* ═══ Activity Log ═══ */
 export const getActivityLog = (limit = 20) =>
-  axiosClient.get(`${BASE}/activity/live`, { params: withHotelParam({ limit }) }).then(r => r.data);
+  axiosClient.get(`${BASE}/activity`, { params: withHotelParam({ limit }) }).then(r => r.data);
+
+/* ═══ Bulk Operations ═══ */
+export const bulkUpdateBookingStatus = (payload) =>
+  axiosClient.post(`${BASE}/batch/status-update`, payload).then(r => r.data);
+export const bulkUpdateRoomStatus = (payload) =>
+  axiosClient.post(`${BASE}/batch/room-status`, payload).then(r => r.data);
+export const bulkCheckOut = (payload) =>
+  axiosClient.post(`${BASE}/batch/check-out`, payload).then(r => r.data);
+export const bulkMarkPayment = (payload) =>
+  axiosClient.post(`${BASE}/batch/payments`, payload).then(r => r.data);

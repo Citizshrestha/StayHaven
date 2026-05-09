@@ -1,6 +1,6 @@
 import axiosClient from '../client';
 
-const BASE = '/api/hotels';
+const BASE = '/api/v1/hotels';
 
 // Get all hotels (public - with filters)
 export const getAllHotels = async (filters = {}) => {

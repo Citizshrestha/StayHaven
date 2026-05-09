@@ -5,7 +5,7 @@ const logger = createLogger('StaffAPI');
 
 // Staff Login
 export const staffLogin = async (email, password) => {
-  const response = await axiosClient.post("/api/staff/login", {
+  const response = await axiosClient.post("/api/v1/staff/login", {
     email,
     password,
   });
@@ -33,7 +33,7 @@ export const staffLogin = async (email, password) => {
 // Staff Logout
 export const staffLogout = async () => {
   try {
-    await axiosClient.post("/api/staff/logout");
+    await axiosClient.post("/api/v1/staff/logout");
   } catch (error) {
     logger.error("Logout error:", error);
   } finally {
@@ -49,7 +49,7 @@ export const staffLogout = async () => {
 
 // Get Staff Profile
 export const getStaffProfile = async () => {
-  const response = await axiosClient.get("/api/staff/me");
+  const response = await axiosClient.get("/api/v1/staff/me");
   return response.data;
 };
 
@@ -77,20 +77,20 @@ export const getActiveProperty = () => {
 
 // Update order status (for cross-dashboard sync)
 export const updateOrderStatus = async (orderId, status) => {
-  const response = await axiosClient.put(`/api/staff/orders/${orderId}/status`, { status });
+  const response = await axiosClient.put(`/api/v1/staff/orders/${orderId}/status`, { status });
   return response.data;
 };
 
 
 // create order
 export const createOrder = async (orderData) => {
-  const response = await axiosClient.post("/api/staff/create-order", orderData);
+  const response = await axiosClient.post("/api/v1/staff/create-order", orderData);
   return response.data;
 };
 
 // get order
 export const getOrders = async (hotelId, status = "pending", orderType = "dineIn") => {
-  const response = await axiosClient.get("/api/staff/orders", {
+  const response = await axiosClient.get("/api/v1/staff/orders", {
     params: { hotelId, status, orderType }
   });
 
@@ -99,28 +99,28 @@ export const getOrders = async (hotelId, status = "pending", orderType = "dineIn
 
 // Delete an order
 export const deleteOrder = async (orderId) => {
-  const response = await axiosClient.delete(`/api/staff/orders/${orderId}`);
+  const response = await axiosClient.delete(`/api/v1/staff/orders/${orderId}`);
   return response.data;
 };
 
 export const changePassword = async (currentPassword, newPassword) => {
-  const response = await axiosClient.put("/api/staff/change-password", { currentPassword, newPassword });
+  const response = await axiosClient.put("/api/v1/staff/change-password", { currentPassword, newPassword });
   return response.data;
 }
 
 export const forgotPassword = async (email) => {
-  const response = await axiosClient.post("/api/staff/forgot-password", { email });
+  const response = await axiosClient.post("/api/v1/staff/forgot-password", { email });
   return response.data;
 }
 
 export const resetPassword = async (token, newPassword) => {
-  const response = await axiosClient.post("/api/staff/reset-password", { token, newPassword });
+  const response = await axiosClient.post("/api/v1/staff/reset-password", { token, newPassword });
   return response.data;
 }
 
 // Update an order
 export const updateOrder = async (orderId, orderData) => {
-  const response = await axiosClient.put(`/api/staff/orders/${orderId}`, orderData);
+  const response = await axiosClient.put(`/api/v1/staff/orders/${orderId}`, orderData);
   return response.data;
 }
 
@@ -128,7 +128,7 @@ export const updateProfilePicture = async (file) => {
   const formData = new FormData();
   formData.append("profilePicture", file);
 
-  const response = await axiosClient.patch("/api/staff/profile-picture", formData, {
+  const response = await axiosClient.patch("/api/v1/staff/profile-picture", formData, {
     headers: {
       "Content-Type": "multipart/form-data",
     },
@@ -138,7 +138,7 @@ export const updateProfilePicture = async (file) => {
 };
 
 export const updateStaffProfile = async ({ fullname, contact, username }) => {
-  const response = await axiosClient.patch("/api/staff/profile", {
+  const response = await axiosClient.patch("/api/v1/staff/profile", {
     fullname,
     contact,
     username,

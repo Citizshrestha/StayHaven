@@ -11,7 +11,7 @@ import axiosClient from '../client';
  */
 export const validateTableToken = async (token) => {
   try {
-    const response = await axiosClient.get(`/guest/table/${token}`);
+    const response = await axiosClient.get(`/api/v1/guest/table/${token}`);
     return response.data;
   } catch (error) {
     console.error('Error validating table token:', error);
@@ -25,7 +25,7 @@ export const validateTableToken = async (token) => {
  */
 export const validateRoomToken = async (token) => {
   try {
-    const response = await axiosClient.get(`/guest/room/${token}`);
+    const response = await axiosClient.get(`/api/v1/guest/room/${token}`);
     return response.data;
   } catch (error) {
     console.error('Error validating room token:', error);
@@ -41,8 +41,8 @@ export const validateRoomToken = async (token) => {
 export const getGuestMenu = async (hotelId, category = null) => {
   try {
     const url = category
-      ? `/guest/menu/${hotelId}?category=${category}`
-      : `/guest/menu/${hotelId}`;
+      ? `/api/v1/guest/menu/${hotelId}?category=${category}`
+      : `/api/v1/guest/menu/${hotelId}`;
     const response = await axiosClient.get(url);
     return response.data;
   } catch (error) {
@@ -57,7 +57,7 @@ export const getGuestMenu = async (hotelId, category = null) => {
  */
 export const createGuestOrder = async (orderData) => {
   try {
-    const response = await axiosClient.post('/guest/order', orderData);
+    const response = await axiosClient.post('/api/v1/guest/order', orderData);
     return response.data;
   } catch (error) {
     console.error('Error creating guest order:', error);
@@ -71,7 +71,7 @@ export const createGuestOrder = async (orderData) => {
  */
 export const getGuestOrderStatus = async (orderId) => {
   try {
-    const response = await axiosClient.get(`/guest/order/${orderId}`);
+    const response = await axiosClient.get(`/api/v1/guest/order/${orderId}`);
     return response.data;
   } catch (error) {
     console.error('Error fetching order status:', error);
@@ -85,7 +85,7 @@ export const getGuestOrderStatus = async (orderId) => {
  */
 export const callWaiter = async (data) => {
   try {
-    const response = await axiosClient.post('/guest/call-waiter', data);
+    const response = await axiosClient.post('/api/v1/guest/call-waiter', data);
     return response.data;
   } catch (error) {
     console.error('Error calling waiter:', error);
@@ -99,7 +99,7 @@ export const callWaiter = async (data) => {
  */
 export const requestBill = async (data) => {
   try {
-    const response = await axiosClient.post('/guest/request-bill', data);
+    const response = await axiosClient.post('/api/v1/guest/request-bill', data);
     return response.data;
   } catch (error) {
     console.error('Error requesting bill:', error);
@@ -118,7 +118,7 @@ export const requestBill = async (data) => {
  */
 export const createTable = async (tableData) => {
   try {
-    const response = await axiosClient.post('/tables', tableData);
+    const response = await axiosClient.post('/api/v1/tables', tableData);
     return response.data;
   } catch (error) {
     console.error('Error creating table:', error);
@@ -133,7 +133,7 @@ export const createTable = async (tableData) => {
 export const getTables = async (filters = {}) => {
   try {
     const queryParams = new URLSearchParams(filters).toString();
-    const url = queryParams ? `/tables?${queryParams}` : '/tables';
+    const url = queryParams ? `/api/v1/tables?${queryParams}` : '/api/v1/tables';
     const response = await axiosClient.get(url);
     return response.data;
   } catch (error) {
@@ -148,7 +148,7 @@ export const getTables = async (filters = {}) => {
  */
 export const getTableById = async (tableId) => {
   try {
-    const response = await axiosClient.get(`/tables/${tableId}`);
+    const response = await axiosClient.get(`/api/v1/tables/${tableId}`);
     return response.data;
   } catch (error) {
     console.error('Error fetching table:', error);
@@ -163,7 +163,7 @@ export const getTableById = async (tableId) => {
  */
 export const updateTable = async (tableId, tableData) => {
   try {
-    const response = await axiosClient.put(`/tables/${tableId}`, tableData);
+    const response = await axiosClient.put(`/api/v1/tables/${tableId}`, tableData);
     return response.data;
   } catch (error) {
     console.error('Error updating table:', error);
@@ -177,7 +177,7 @@ export const updateTable = async (tableId, tableData) => {
  */
 export const deleteTable = async (tableId) => {
   try {
-    const response = await axiosClient.delete(`/tables/${tableId}`);
+    const response = await axiosClient.delete(`/api/v1/tables/${tableId}`);
     return response.data;
   } catch (error) {
     console.error('Error deleting table:', error);
@@ -191,7 +191,7 @@ export const deleteTable = async (tableId) => {
  */
 export const batchCreateTables = async (data) => {
   try {
-    const response = await axiosClient.post('/tables/batch', data);
+    const response = await axiosClient.post('/api/v1/tables/batch', data);
     return response.data;
   } catch (error) {
     console.error('Error batch creating tables:', error);
@@ -206,7 +206,7 @@ export const batchCreateTables = async (data) => {
  */
 export const generateTableQR = async (tableId, regenerate = false) => {
   try {
-    const response = await axiosClient.post(`/tables/${tableId}/generate-qr`, { regenerate });
+    const response = await axiosClient.post(`/api/v1/tables/${tableId}/generate-qr`, { regenerate });
     return response.data;
   } catch (error) {
     console.error('Error generating table QR:', error);
@@ -221,7 +221,7 @@ export const generateTableQR = async (tableId, regenerate = false) => {
  */
 export const updateTableStatus = async (tableId, status) => {
   try {
-    const response = await axiosClient.patch(`/tables/${tableId}/status`, { status });
+    const response = await axiosClient.patch(`/api/v1/tables/${tableId}/status`, { status });
     return response.data;
   } catch (error) {
     console.error('Error updating table status:', error);
@@ -235,7 +235,7 @@ export const updateTableStatus = async (tableId, status) => {
  */
 export const getTableQRDownload = async (tableId) => {
   try {
-    const response = await axiosClient.get(`/tables/${tableId}/qr-download`);
+    const response = await axiosClient.get(`/api/v1/tables/${tableId}/qr-download`);
     return response.data;
   } catch (error) {
     console.error('Error getting table QR download:', error);
@@ -255,7 +255,7 @@ export const getTableQRDownload = async (tableId) => {
 export const getRooms = async (hotelId, filters = {}) => {
   try {
     const queryParams = new URLSearchParams({ hotelId, ...filters }).toString();
-    const response = await axiosClient.get(`/rooms?${queryParams}`);
+    const response = await axiosClient.get(`/api/v1/rooms?${queryParams}`);
     return response.data;
   } catch (error) {
     console.error('Error fetching rooms:', error);
@@ -270,7 +270,7 @@ export const getRooms = async (hotelId, filters = {}) => {
  */
 export const generateRoomQR = async (roomId, regenerate = false) => {
   try {
-    const response = await axiosClient.post(`/rooms/${roomId}/generate-qr`, { regenerate });
+    const response = await axiosClient.post(`/api/v1/rooms/${roomId}/generate-qr`, { regenerate });
     return response.data;
   } catch (error) {
     console.error('Error generating room QR:', error);
@@ -285,7 +285,7 @@ export const generateRoomQR = async (roomId, regenerate = false) => {
  */
 export const batchGenerateRoomQR = async (hotelId, regenerate = false) => {
   try {
-    const response = await axiosClient.post('/rooms/batch-generate-qr', { hotelId, regenerate });
+    const response = await axiosClient.post('/api/v1/rooms/batch-generate-qr', { hotelId, regenerate });
     return response.data;
   } catch (error) {
     console.error('Error batch generating room QR:', error);
@@ -299,7 +299,7 @@ export const batchGenerateRoomQR = async (hotelId, regenerate = false) => {
  */
 export const toggleRoomQR = async (roomId) => {
   try {
-    const response = await axiosClient.patch(`/rooms/${roomId}/toggle-qr`);
+    const response = await axiosClient.patch(`/api/v1/rooms/${roomId}/toggle-qr`);
     return response.data;
   } catch (error) {
     console.error('Error toggling room QR:', error);
@@ -313,7 +313,7 @@ export const toggleRoomQR = async (roomId) => {
  */
 export const getRoomQRDownload = async (roomId) => {
   try {
-    const response = await axiosClient.get(`/rooms/${roomId}/qr-download`);
+    const response = await axiosClient.get(`/api/v1/rooms/${roomId}/qr-download`);
     return response.data;
   } catch (error) {
     console.error('Error getting room QR download:', error);
@@ -327,7 +327,7 @@ export const getRoomQRDownload = async (roomId) => {
  */
 export const getAllRoomQRCodes = async (hotelId) => {
   try {
-    const response = await axiosClient.get(`/rooms/qr-codes/${hotelId}`);
+    const response = await axiosClient.get(`/api/v1/rooms/qr-codes/${hotelId}`);
     return response.data;
   } catch (error) {
     console.error('Error getting all room QR codes:', error);

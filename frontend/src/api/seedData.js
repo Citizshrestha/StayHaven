@@ -7,7 +7,7 @@ import axiosClient from "../axiosClient";
  */
 export const seedRoomsForHotel = async (hotelId) => {
   try {
-    const response = await axiosClient.post(`/seed/rooms/${hotelId}`);
+    const response = await axiosClient.post(`/api/v1/seed/rooms/${hotelId}`);
     return response.data;
   } catch (error) {
     throw error.response?.data || { success: false, message: error.message };
@@ -20,7 +20,7 @@ export const seedRoomsForHotel = async (hotelId) => {
  */
 export const seedAllRooms = async () => {
   try {
-    const response = await axiosClient.post('/seed/all-rooms');
+    const response = await axiosClient.post('/api/v1/seed/all-rooms');
     return response.data;
   } catch (error) {
     throw error.response?.data || { success: false, message: error.message };
@@ -34,7 +34,7 @@ export const seedAllRooms = async () => {
  */
 export const clearHotelRooms = async (hotelId) => {
   try {
-    const response = await axiosClient.delete(`/seed/rooms/${hotelId}`);
+    const response = await axiosClient.delete(`/api/v1/seed/rooms/${hotelId}`);
     return response.data;
   } catch (error) {
     throw error.response?.data || { success: false, message: error.message };

@@ -6,7 +6,7 @@ const logger = createLogger('AuthAPI');
 
 export const login = async (email, password) => {
   try {
-    const response = await axiosClient.post("/api/auth/login", { email, password });
+    const response = await axiosClient.post("/api/v1/auth/login", { email, password });
     if (response.data.accessToken) {
       localStorage.setItem("accessToken", response.data.accessToken);
       localStorage.setItem("userId", response.data._id);
@@ -40,7 +40,7 @@ export const register = async (
   profilePicture
 ) => {
   try {
-    const response = await axiosClient.post("/api/auth/register", {
+    const response = await axiosClient.post("/api/v1/auth/register", {
       userId,
       email,
       fullname,
@@ -69,7 +69,7 @@ export const register = async (
 
 export const googleLogin = async (credential) => {
   try {
-    const res = await axiosClient.post("/api/auth/google-login", { credential });
+    const res = await axiosClient.post("/api/v1/auth/google-login", { credential });
     if (res.data.accessToken) {
       localStorage.setItem("accessToken", res.data.accessToken);
       localStorage.setItem("userId", res.data._id);
@@ -94,7 +94,7 @@ export const googleLogin = async (credential) => {
 
 export const googleRegister = async (credential) => {
   try {
-    const res = await axiosClient.post("/api/auth/google-register", { credential });
+    const res = await axiosClient.post("/api/v1/auth/google-register", { credential });
     if (res.data.accessToken) {
       localStorage.setItem("accessToken", res.data.accessToken);
       localStorage.setItem("userId", res.data._id);
@@ -130,7 +130,7 @@ const clearUserStorage = () => {
 
 export const logout = async () => {
   try {
-    await axiosClient.post("/api/auth/logout");
+    await axiosClient.post("/api/v1/auth/logout");
     clearUserStorage();
     delete axiosClient.defaults.headers.Authorization;
   } catch (error) {
@@ -147,7 +147,7 @@ export const logout = async () => {
 
 export const sendOtpEmailVerification = async (userId) => {
   try {
-    const response = await axiosClient.post("/api/auth/sendOtpEmailVerification", { userId });
+    const response = await axiosClient.post("/api/v1/auth/sendOtpEmailVerification", { userId });
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error) && error.response) {
@@ -161,7 +161,7 @@ export const sendOtpEmailVerification = async (userId) => {
 
 export const verifyEmail = async (userId, otp) => {
   try {
-    const response = await axiosClient.post("/api/auth/verifyEmail", { userId, otp });
+    const response = await axiosClient.post("/api/v1/auth/verifyEmail", { userId, otp });
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error) && error.response) {
@@ -175,7 +175,7 @@ export const verifyEmail = async (userId, otp) => {
 
 export const sendSignupOtp = async (email, signupFormData) => {
   try {
-    const response = await axiosClient.post("/api/auth/sendSignupOtp", { email, signupFormData });
+    const response = await axiosClient.post("/api/v1/auth/sendSignupOtp", { email, signupFormData });
     if (response.data.success && response.data.userId) {
       localStorage.setItem("signupUserId", response.data.userId);
     }
@@ -191,7 +191,7 @@ export const sendSignupOtp = async (email, signupFormData) => {
 
 export const verifySignupOtp = async (userId, otp) => {
   try {
-    const response = await axiosClient.post("/api/auth/verifySignupOtp", { userId, otp });
+    const response = await axiosClient.post("/api/v1/auth/verifySignupOtp", { userId, otp });
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error) && error.response) {
@@ -205,7 +205,7 @@ export const verifySignupOtp = async (userId, otp) => {
 
 export const isAuthenticated = async (userId) => {
   try {
-    const response = await axiosClient.post("/api/auth/isAuth", { userId });
+    const response = await axiosClient.post("/api/v1/auth/isAuth", { userId });
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error) && error.response) {
@@ -219,7 +219,7 @@ export const isAuthenticated = async (userId) => {
 
 export const sendResetPasswordOtp = async (email) => {
   try {
-    const response = await axiosClient.post("/api/auth/sendResetPasswordOtp", { email });
+    const response = await axiosClient.post("/api/v1/auth/sendResetPasswordOtp", { email });
     if (response.data.success && response.data.userId) {
       localStorage.setItem("userId", response.data.userId);
     }
@@ -236,7 +236,7 @@ export const sendResetPasswordOtp = async (email) => {
 
 export const verifyResetPasswordOtp = async (userId, otp) => {
   try {
-    const response = await axiosClient.post("/api/auth/verifyResetPasswordOtp", { userId, otp });
+    const response = await axiosClient.post("/api/v1/auth/verifyResetPasswordOtp", { userId, otp });
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error) && error.response) {
@@ -250,7 +250,7 @@ export const verifyResetPasswordOtp = async (userId, otp) => {
 
 export const resetPassword = async (userId, newPassword) => {
   try {
-    const response = await axiosClient.post("/api/auth/resetPassword", { userId, newPassword });
+    const response = await axiosClient.post("/api/v1/auth/resetPassword", { userId, newPassword });
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error) && error.response) {
@@ -264,7 +264,7 @@ export const resetPassword = async (userId, newPassword) => {
 
 export const checkUserExists = async (email) => {
   try {
-    const response = await axiosClient.get(`/api/auth/check?email=${encodeURIComponent(email)}`);
+    const response = await axiosClient.get(`/api/v1/auth/check?email=${encodeURIComponent(email)}`);
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error) && error.response) {
@@ -278,7 +278,7 @@ export const checkUserExists = async (email) => {
 
 export const changePassword = async (currentPassword, newPassword) => {
   try {
-    const response = await axiosClient.post("/api/auth/change-password", {
+    const response = await axiosClient.post("/api/v1/auth/change-password", {
       currentPassword,
       newPassword,
     });
