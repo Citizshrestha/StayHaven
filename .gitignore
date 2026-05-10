@@ -38,3 +38,32 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Development logs
+*.log
+*.err.log
+backend-dev.log
+backend-dev.err.log
+frontend-dev.log
+frontend-dev.err.log
+
+# Python scripts
+*.py
+
+# Windows batch files
+*.bat
+
+# PowerShell scripts
+*.ps1
+
+# Custom scripts directory
+scripts/
+
+# Documentation drafts (optional - remove if you want to commit these)
+MONGODB_CONNECTION_FIX.md
+NOTIFICATION_FIX_SUMMARY.md
+NOTIFICATION_SOUND_IMPLEMENTATION.md
+NOTIFICATION_SYSTEM_FIX_SUMMARY.md
+PRODUCTION_AUDIT_REPORT.md
+SESSION_SUMMARY.md
+todo.md
