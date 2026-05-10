@@ -17,6 +17,26 @@ const ProtectedStaffRoute = ({ children, allowedRoles = [] }) => {
 
   // If allowedRoles provided, ensure user's role is included
   if (allowedRoles.length > 0 && !allowedRoles.includes(staffUser?.role)) {
+    // Redirect to appropriate dashboard based on user's actual role
+    const role = staffUser?.role;
+
+    if (role === 'receptionist' || role === 'manager') {
+      return <Navigate to="/reception-dashboard" replace />;
+    }
+    if (role === 'waiter') {
+      return <Navigate to="/waiter-dashboard" replace />;
+    }
+    if (role === 'chief') {
+      return <Navigate to="/kitchen-dashboard" replace />;
+    }
+    if (role === 'hoteladmin') {
+      return <Navigate to="/hoteladmin-dashboard" replace />;
+    }
+    if (role === 'superadmin') {
+      return <Navigate to="/superadmindashboard" replace />;
+    }
+
+    // Fallback to login if role is unknown
     return <Navigate to="/staff/login" replace />;
   }
 

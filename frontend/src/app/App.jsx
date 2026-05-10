@@ -1,8 +1,14 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { GoogleOAuthProvider } from "@react-oauth/google";
+import { fetchCsrfToken } from "../utils/csrf";
+
+// ============================================
+// ERROR BOUNDARY (Must be imported first)
+// ============================================
+import ErrorBoundary from "../components/ErrorBoundary";
 
 // ============================================
 // CORE - Context Providers (Global State)
@@ -160,17 +166,32 @@ const Layout = ({ children }) => {
 // Main App Component
 // ============================================
 const App = () => {
+  // Fetch CSRF token on app initialization
+  useEffect(() => {
+    const initializeCsrf = async () => {
+      try {
+        await fetchCsrfToken();
+        console.log('✅ CSRF token initialized');
+      } catch (error) {
+        console.error('❌ Failed to initialize CSRF token:', error);
+      }
+    };
+
+    initializeCsrf();
+  }, []);
+
   return (
-    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
-      <Router>
-        <StaffAuthProvider>
-          <SocketProvider>
-            <NotificationProvider>
-              <OrderProvider>
-                {/* Page Routes */}
-                <div className="w-screen min-h-screen overflow-x-hidden">
-                  <Layout>
-                    <Routes>
+    <ErrorBoundary>
+      <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
+        <Router>
+          <StaffAuthProvider>
+            <SocketProvider>
+              <NotificationProvider>
+                <OrderProvider>
+                  {/* Page Routes */}
+                  <div className="w-screen min-h-screen overflow-x-hidden">
+                    <Layout>
+                      <Routes>
                       {/* ================================ */}
                       {/* PUBLIC ROUTES - No Auth Required */}
                       {/* ================================ */}
@@ -306,6 +327,7 @@ const App = () => {
         />
       </Router>
     </GoogleOAuthProvider>
+    </ErrorBoundary>
   );
 };
 

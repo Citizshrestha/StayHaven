@@ -98,7 +98,7 @@ const StaffSettings = ({ onClose, variant = "waiter" }) => {
       const formData = new FormData();
       formData.append("profilePicture", file);
 
-      const response = await axiosClient.patch("/api/staff/profile-picture", formData, {
+      const response = await axiosClient.patch("/api/v1/staff/profile-picture", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 

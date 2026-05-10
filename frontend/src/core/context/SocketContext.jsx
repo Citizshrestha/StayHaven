@@ -83,12 +83,19 @@ export const SocketProvider = ({ children }) => {
 
     // Connection established
     socketInstance.on("connect", () => {
-      console.log("Socket connected:", socketInstance.id);
+      console.log("✅ Socket connected:", socketInstance.id);
       setIsConnected(true);
 
       // Join hotel room to receive hotel-specific updates
       if (activeProperty?._id) {
-        console.log(`Joining as staff role: ${staffUser.role} for hotel: ${activeProperty._id}`);
+        console.log(`🏨 Joining as staff role: ${staffUser.role} for hotel: ${activeProperty._id}`);
+        console.log(`👤 User details:`, {
+          userId: staffUser._id,
+          role: staffUser.role,
+          fullname: staffUser.fullname || staffUser.name || "Unknown",
+          hotelId: activeProperty._id
+        });
+
         socketInstance.emit("join-hotel", activeProperty._id);
 
         // Join role-specific room
@@ -98,8 +105,10 @@ export const SocketProvider = ({ children }) => {
           userId: staffUser._id,
           fullname: staffUser.fullname || staffUser.name || "Unknown",
         });
+
+        console.log(`📍 Joined rooms: hotel-${activeProperty._id} and hotel-${activeProperty._id}-${staffUser.role}s`);
       } else if (isGuestUser) {
-        console.log(`Joining as guest user: ${guestUserId}`);
+        console.log(`🏨 Joining as guest user: ${guestUserId}`);
         // Join personal room for direct order status updates
         socketInstance.emit("join-role", {
           hotelId: authPayload.hotelId,

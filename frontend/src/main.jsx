@@ -4,20 +4,29 @@ import './index.css'
 import App from './app/App.jsx'
 import { ThemeProvider } from './core/context/ThemeContext'
 
-// Suppress browser extension localization errors
+// Suppress browser extension errors (cookie managers, translation extensions, etc.)
 window.addEventListener('unhandledrejection', (event) => {
   const reason = event?.reason;
   const name = reason?.name;
   const message = reason?.message;
   const text = String(name || message || reason || '');
 
-  if (
-    text.includes('RegisterClientLocalizationsError') ||
-    text.includes('translations') ||
-    text.includes('localization')
-  ) {
+  // List of known browser extension errors to suppress
+  const extensionErrors = [
+    'RegisterClientLocalizationsError',
+    'MessageNotSentError',
+    'translations',
+    'localization',
+    'cookieManager',
+    'Could not establish connection',
+    'Receiving end does not exist',
+    'injectClientScript'
+  ];
+
+  if (extensionErrors.some(err => text.includes(err))) {
     event.preventDefault();
-    console.warn('Browser extension localization error suppressed');
+    // Silently suppress - no console output
+    return;
   }
 });
 
@@ -25,13 +34,42 @@ window.addEventListener('unhandledrejection', (event) => {
 const originalError = console.error;
 console.error = (...args) => {
   const message = args.join(' ');
-  if (
-    message.includes('RegisterClientLocalizationsError') ||
-    message.includes("Cannot read properties of undefined (reading 'translations')")
-  ) {
-    return;
+
+  // List of known browser extension errors to suppress
+  const extensionErrors = [
+    'RegisterClientLocalizationsError',
+    'MessageNotSentError',
+    'translations',
+    'localization',
+    'cookieManager',
+    'Could not establish connection',
+    'Receiving end does not exist',
+    'injectClientScript'
+  ];
+
+  if (extensionErrors.some(err => message.includes(err))) {
+    return; // Silently suppress
   }
+
   originalError.apply(console, args);
+};
+
+// Suppress console warnings from browser extensions
+const originalWarn = console.warn;
+console.warn = (...args) => {
+  const message = args.join(' ');
+
+  const extensionWarnings = [
+    'extension',
+    'cookieManager',
+    'localization'
+  ];
+
+  if (extensionWarnings.some(warn => message.toLowerCase().includes(warn.toLowerCase()))) {
+    return; // Silently suppress
+  }
+
+  originalWarn.apply(console, args);
 };
 
 createRoot(document.getElementById('root')).render(

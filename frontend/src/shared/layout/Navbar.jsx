@@ -116,7 +116,7 @@ const Navbar = () => {
 
     const fetchUserData = async () => {
       try {
-        const res = await axiosClient.get("/api/auth/me");
+        const res = await axiosClient.get("/api/v1/auth/me");
         setUser({
           id: res.data._id || res.data.id,
           username: res.data.username,
@@ -142,7 +142,7 @@ const Navbar = () => {
 
   const handleLogout = async () => {
     try {
-      await axiosClient.post("/api/auth/logout");
+      await axiosClient.post("/api/v1/auth/logout");
       localStorage.clear();
       setUser(null);
       window.location.href = "/";
