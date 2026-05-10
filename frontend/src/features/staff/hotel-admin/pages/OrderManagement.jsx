@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { createLogger } from '../../../../core/utils/logger.js';
-import { getOrders, updateOrderStatus, getActiveProperty } from '../../../../core/api/services/staff.service.js';
-
-const logger = createLogger('OrderManagement');
+import { useStaffAuth } from '../../../../core/context/StaffAuthContext';
+import { getOrders, updateOrderStatus } from '../services/orderApi';
+import './OrderManagement.css';
 
 const OrderManagement = () => {
+  const { activeProperty } = useStaffAuth();
   const [activeSection, setActiveSection] = useState('orders');
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -12,7 +12,7 @@ const OrderManagement = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterType, setFilterType] = useState('all');
 
-  const hotelId = getActiveProperty()?._id;
+  const hotelId = activeProperty?._id || activeProperty;
 
   const fetchOrders = useCallback(async () => {
     if (!hotelId) {
@@ -24,28 +24,19 @@ const OrderManagement = () => {
       setLoading(true);
       setError(null);
 
-      const statuses = ['pending', 'preparing', 'ready', 'delivered'];
-      const types = ['dineIn', 'roomService', 'takeaway'];
+      const response = await getOrders({ hotelId });
 
-      const results = await Promise.all(
-        statuses.flatMap(status =>
-          types.map(type => getOrders(hotelId, status, type))
-        )
-      );
-
-      const allOrders = results
-        .filter(r => r.status === 'fulfilled' || r.orders)
-        .flatMap(r => r.orders || [])
-        .map(order => ({
+      if (response.data.success) {
+        const allOrders = (response.data.orders || []).map(order => ({
           ...order,
           id: order._id,
           displayStatus: order.status === 'pending' ? 'New' : order.status,
         }));
-
-      setOrders(allOrders);
+        setOrders(allOrders);
+      }
     } catch (err) {
-      logger.error('Failed to fetch orders', { error: err.message });
-      setError(err.message || 'Failed to load orders');
+      console.error('Failed to fetch orders', err);
+      setError(err.response?.data?.message || 'Failed to load orders');
     } finally {
       setLoading(false);
     }
@@ -69,11 +60,10 @@ const OrderManagement = () => {
       if (statusMap[action]) {
         await updateOrderStatus(orderId, statusMap[action]);
         await fetchOrders();
-        logger.info(`Order ${orderId} ${action}ed`);
       }
     } catch (err) {
-      logger.error(`Failed to ${action} order`, { orderId, error: err.message });
-      setError(err.message);
+      console.error(`Failed to ${action} order`, err);
+      setError(err.response?.data?.message || `Failed to ${action} order`);
     } finally {
       setLoading(false);
     }
@@ -159,7 +149,12 @@ const OrderManagement = () => {
       </div>
 
       {/* Error Display */}
-      {error && <div className="error-message">{error}</div>}
+      {error && (
+        <div className="error-banner">
+          <span>{error}</span>
+          <button onClick={() => setError(null)}>✕</button>
+        </div>
+      )}
 
       {/* Orders Table */}
       <div className="orders-table-container">
@@ -199,13 +194,14 @@ const OrderManagement = () => {
                       {order.displayStatus || order.status}
                     </span>
                   </td>
-                  <td>Rs. {order.totalPrice?.toLocaleString() || 0}</td>
+                  <td>NPR {order.totalPrice?.toLocaleString() || 0}</td>
                   <td>
                     <div className="action-buttons">
                       {order.status === 'pending' && (
                         <button
                           className="btn-confirm"
                           onClick={() => handleOrderAction(order.id, 'confirm')}
+                          disabled={loading}
                         >
                           Confirm
                         </button>
@@ -214,6 +210,7 @@ const OrderManagement = () => {
                         <button
                           className="btn-ready"
                           onClick={() => handleOrderAction(order.id, 'ready')}
+                          disabled={loading}
                         >
                           Ready
                         </button>
@@ -222,6 +219,7 @@ const OrderManagement = () => {
                         <button
                           className="btn-deliver"
                           onClick={() => handleOrderAction(order.id, 'deliver')}
+                          disabled={loading}
                         >
                           Deliver
                         </button>

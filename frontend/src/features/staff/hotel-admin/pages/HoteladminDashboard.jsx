@@ -379,7 +379,7 @@ const HoteladminDashboard = () => {
   };
 
   const renderDashboard = () => (
-    <div style={{marginLeft: "20px", padding: "24px 32px 48px 32px"}} className="bg-gray-50 dark:bg-gray-900 min-h-screen">
+    <div className="dashboard-content bg-gray-50 dark:bg-gray-900 min-h-screen">
       {/* Dashboard Header */}
       <div style={{marginBottom: "32px"}} className="flex items-center justify-between">
         <div>

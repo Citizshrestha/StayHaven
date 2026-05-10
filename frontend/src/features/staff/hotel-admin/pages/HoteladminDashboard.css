@@ -34,6 +34,7 @@
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   color: var(--hotel-text);
   overflow-x: hidden;
+  gap: 0;
 }
 
 /* Sidebar Styles - Clean Light Theme */
@@ -43,7 +44,8 @@
   background: #ffffff;
   color: #374151;
   padding: 0;
-  box-shadow: 1px 0 0 #e5e7eb;
+  box-shadow: none;
+  border-right: 1px solid #e5e7eb;
   position: fixed;
   left: 0;
   top: 0;
@@ -51,6 +53,7 @@
   overflow-y: auto;
   z-index: 100;
   flex-shrink: 0;
+  margin: 0;
 }
 
 .hotel-dashboard.dark .sidebar {
@@ -245,6 +248,7 @@
   width: calc(100% - 220px);
   transition: background-color 0.3s ease;
   box-sizing: border-box;
+  padding-left: 12px;
 }
 
 .hotel-dashboard.dark .main-content {
@@ -252,8 +256,9 @@
 }
 
 .dashboard-content {
-  max-width: 1200px;
-  margin: 0 auto;
+  max-width: 100%;
+  margin: 0;
+  padding: 20px 16px 20px 8px;
 }
 
 /* Remove default top margins so content aligns flush with sidebar */
@@ -263,8 +268,9 @@
 .staff-content,
 .billing-payments-content {
   margin-top: 0;
-  padding-top: 0;
-  padding-left: 0;
+  padding-top: 20px;
+  padding-left: 8px;
+  padding-right: 16px;
 }
 
 .dashboard-header h1,
@@ -1634,8 +1640,8 @@
 .rooms-page-wrap {
   background: #f5f6fa;
   min-height: 100%;
-  padding: 24px 32px 48px 32px;
-  margin-left: 20px;
+  padding: 20px 20px 20px 8px;
+  margin-left: 0;
   box-sizing: border-box;
 }
 

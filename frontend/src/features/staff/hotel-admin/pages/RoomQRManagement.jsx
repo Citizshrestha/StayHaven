@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
+import { useStaffAuth } from '../../../../core/context/StaffAuthContext';
 import {
   getRooms,
   generateRoomQR,
   batchGenerateRoomQR,
   toggleRoomQR
-} from '../../../../api/qrService';
+} from '../services/roomApi';
 import './RoomQRManagement.css';
 
 // Utility to download base64 as image
@@ -91,7 +92,7 @@ const printQRCode = (base64Data, roomNumber, hotelName) => {
 
 // Print all QR codes
 const printAllQRCodes = (rooms, hotelName) => {
-  const roomsWithQR = rooms.filter(r => r.qrCodeData);
+  const roomsWithQR = rooms.filter(r => r.qrCodeImage);
   if (roomsWithQR.length === 0) {
     toast.error('No rooms with QR codes to print');
     return;
@@ -165,7 +166,7 @@ const printAllQRCodes = (rooms, hotelName) => {
           ${roomsWithQR.map(room => `
             <div class="qr-item">
               <h3>Room ${room.roomNumber}</h3>
-              <img src="${room.qrCodeData}" alt="QR Code" />
+              <img src="${room.qrCodeImage}" alt="QR Code" />
               <p>Scan for room service</p>
             </div>
           `).join('')}
@@ -183,6 +184,7 @@ const printAllQRCodes = (rooms, hotelName) => {
 };
 
 const RoomQRManagement = () => {
+  const { activeProperty } = useStaffAuth();
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState({});
@@ -191,25 +193,32 @@ const RoomQRManagement = () => {
   const [hotelName, setHotelName] = useState('');
   const [filter, setFilter] = useState('all'); // all, with-qr, without-qr
 
+  const hotelId = activeProperty?._id || activeProperty;
+
   // Fetch rooms
   const fetchRooms = useCallback(async () => {
+    if (!hotelId) {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
-      const response = await getRooms();
-      if (response.success) {
-        setRooms(response.data || []);
+      const response = await getRooms({ hotelId });
+      if (response.data.success) {
+        setRooms(response.data.rooms || []);
         // Get hotel name from first room if available
-        if (response.data?.[0]?.hotel?.name) {
-          setHotelName(response.data[0].hotel.name);
+        if (response.data.rooms?.[0]?.hotel?.name) {
+          setHotelName(response.data.rooms[0].hotel.name);
         }
       }
     } catch (err) {
       console.error('Fetch rooms error:', err);
-      toast.error('Failed to load rooms');
+      toast.error(err.response?.data?.message || 'Failed to load rooms');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [hotelId]);
 
   useEffect(() => {
     fetchRooms();
@@ -217,8 +226,8 @@ const RoomQRManagement = () => {
 
   // Filter rooms
   const filteredRooms = rooms.filter(room => {
-    if (filter === 'with-qr') return room.qrCodeData;
-    if (filter === 'without-qr') return !room.qrCodeData;
+    if (filter === 'with-qr') return room.qrCodeImage;
+    if (filter === 'without-qr') return !room.qrCodeImage;
     return true;
   });
 
@@ -228,13 +237,13 @@ const RoomQRManagement = () => {
       setActionLoading(prev => ({ ...prev, [`qr_${roomId}`]: true }));
 
       const response = await generateRoomQR(roomId);
-      if (response.success) {
+      if (response.data.success) {
         toast.success('QR code generated successfully');
         fetchRooms();
       }
     } catch (err) {
       console.error('QR generate error:', err);
-      toast.error(err.message || 'QR generation failed');
+      toast.error(err.response?.data?.message || 'QR generation failed');
     } finally {
       setActionLoading(prev => ({ ...prev, [`qr_${roomId}`]: false }));
     }
@@ -242,7 +251,7 @@ const RoomQRManagement = () => {
 
   // Handle batch generate QR
   const handleBatchGenerateQR = async () => {
-    const roomsWithoutQR = rooms.filter(r => !r.qrCodeData);
+    const roomsWithoutQR = rooms.filter(r => !r.qrCodeImage);
     if (roomsWithoutQR.length === 0) {
       toast.info('All rooms already have QR codes');
       return;
@@ -253,14 +262,14 @@ const RoomQRManagement = () => {
     try {
       setActionLoading(prev => ({ ...prev, batch: true }));
 
-      const response = await batchGenerateRoomQR();
-      if (response.success) {
-        toast.success(`${response.data.generated} QR codes generated`);
+      const response = await batchGenerateRoomQR(hotelId);
+      if (response.data.success) {
+        toast.success(`${response.data.successCount || roomsWithoutQR.length} QR codes generated`);
         fetchRooms();
       }
     } catch (err) {
       console.error('Batch QR generate error:', err);
-      toast.error(err.message || 'Batch generation failed');
+      toast.error(err.response?.data?.message || 'Batch generation failed');
     } finally {
       setActionLoading(prev => ({ ...prev, batch: false }));
     }
@@ -271,14 +280,14 @@ const RoomQRManagement = () => {
     try {
       setActionLoading(prev => ({ ...prev, [`status_${roomId}`]: true }));
 
-      const response = await toggleRoomQR(roomId, !currentStatus);
-      if (response.success) {
+      const response = await toggleRoomQR(roomId);
+      if (response.data.success) {
         toast.success(`Room QR ${!currentStatus ? 'activated' : 'deactivated'}`);
         fetchRooms();
       }
     } catch (err) {
       console.error('Status toggle error:', err);
-      toast.error(err.message || 'Status update failed');
+      toast.error(err.response?.data?.message || 'Status update failed');
     } finally {
       setActionLoading(prev => ({ ...prev, [`status_${roomId}`]: false }));
     }
@@ -317,22 +326,22 @@ const RoomQRManagement = () => {
   // Get status badge class
   const getStatusClass = (room) => {
     if (!room.isQrActive) return 'status-inactive';
-    if (!room.qrCodeData) return 'status-no-qr';
+    if (!room.qrCodeImage) return 'status-no-qr';
     return 'status-active';
   };
 
   // Get status text
   const getStatusText = (room) => {
     if (!room.isQrActive) return 'QR Inactive';
-    if (!room.qrCodeData) return 'No QR';
+    if (!room.qrCodeImage) return 'No QR';
     return 'Active';
   };
 
   // Stats
   const stats = {
     total: rooms.length,
-    withQR: rooms.filter(r => r.qrCodeData).length,
-    active: rooms.filter(r => r.qrCodeData && r.isQrActive !== false).length,
+    withQR: rooms.filter(r => r.qrCodeImage).length,
+    active: rooms.filter(r => r.qrCodeImage && r.isQrActive !== false).length,
     inactive: rooms.filter(r => r.isQrActive === false).length
   };
 
@@ -348,14 +357,14 @@ const RoomQRManagement = () => {
           <button
             className="rqm-btn rqm-btn-secondary"
             onClick={() => printAllQRCodes(rooms, hotelName)}
-            disabled={rooms.filter(r => r.qrCodeData).length === 0}
+            disabled={rooms.filter(r => r.qrCodeImage).length === 0}
           >
             🖨️ Print All
           </button>
           <button
             className="rqm-btn rqm-btn-primary"
             onClick={handleBatchGenerateQR}
-            disabled={actionLoading.batch || rooms.filter(r => !r.qrCodeData).length === 0}
+            disabled={actionLoading.batch || rooms.filter(r => !r.qrCodeImage).length === 0}
           >
             {actionLoading.batch ? 'Generating...' : '⚡ Generate All QR'}
           </button>
@@ -450,9 +459,9 @@ const RoomQRManagement = () => {
               </div>
 
               <div className="rqm-card-body">
-                {room.qrCodeData ? (
+                {room.qrCodeImage ? (
                   <div className="rqm-qr-container" onClick={() => viewQRCode(room)}>
-                    <img src={room.qrCodeData} alt={`Room ${room.roomNumber} QR`} />
+                    <img src={room.qrCodeImage} alt={`Room ${room.roomNumber} QR`} />
                     <span>Click to enlarge</span>
                   </div>
                 ) : (
@@ -471,7 +480,7 @@ const RoomQRManagement = () => {
               </div>
 
               <div className="rqm-card-footer">
-                {room.qrCodeData && (
+                {room.qrCodeImage && (
                   <>
                     <button
                       className="rqm-action-btn"
@@ -483,14 +492,14 @@ const RoomQRManagement = () => {
                     </button>
                     <button
                       className="rqm-action-btn"
-                      onClick={() => downloadQRCode(room.qrCodeData, `room-${room.roomNumber}-qr.png`)}
+                      onClick={() => downloadQRCode(room.qrCodeImage, `room-${room.roomNumber}-qr.png`)}
                       title="Download QR"
                     >
                       ⬇️
                     </button>
                     <button
                       className="rqm-action-btn"
-                      onClick={() => printQRCode(room.qrCodeData, room.roomNumber, hotelName)}
+                      onClick={() => printQRCode(room.qrCodeImage, room.roomNumber, hotelName)}
                       title="Print QR"
                     >
                       🖨️
@@ -504,7 +513,7 @@ const RoomQRManagement = () => {
                     </button>
                   </>
                 )}
-                {!room.qrCodeData && (
+                {!room.qrCodeImage && (
                   <button
                     className="rqm-action-btn rqm-action-generate"
                     onClick={() => handleGenerateQR(room._id)}
@@ -531,10 +540,10 @@ const RoomQRManagement = () => {
               </button>
             </div>
             <div className="rqm-modal-body">
-              {selectedRoom.qrCodeData ? (
+              {selectedRoom.qrCodeImage ? (
                 <>
                   <img
-                    src={selectedRoom.qrCodeData}
+                    src={selectedRoom.qrCodeImage}
                     alt={`Room ${selectedRoom.roomNumber} QR Code`}
                     className="rqm-qr-full"
                   />
@@ -546,7 +555,7 @@ const RoomQRManagement = () => {
                     <button
                       className="rqm-btn rqm-btn-secondary"
                       onClick={() => downloadQRCode(
-                        selectedRoom.qrCodeData,
+                        selectedRoom.qrCodeImage,
                         `room-${selectedRoom.roomNumber}-qr.png`
                       )}
                     >
@@ -555,7 +564,7 @@ const RoomQRManagement = () => {
                     <button
                       className="rqm-btn rqm-btn-primary"
                       onClick={() => printQRCode(
-                        selectedRoom.qrCodeData,
+                        selectedRoom.qrCodeImage,
                         selectedRoom.roomNumber,
                         hotelName
                       )}

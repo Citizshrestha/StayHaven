@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
+import { useStaffAuth } from '../../../../core/context/StaffAuthContext';
 import {
   getTables,
   createTable,
@@ -8,7 +9,7 @@ import {
   generateTableQR,
   updateTableStatus,
   batchCreateTables
-} from '../../../../api/qrService';
+} from '../services/tableApi';
 import './TableManagement.css';
 
 // Utility to download base64 as image
@@ -93,6 +94,7 @@ const printQRCode = (base64Data, tableNumber, hotelName) => {
 };
 
 const TableManagement = () => {
+  const { activeProperty } = useStaffAuth();
   const [tables, setTables] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState({});
@@ -101,6 +103,8 @@ const TableManagement = () => {
   const [showQRModal, setShowQRModal] = useState(false);
   const [selectedTable, setSelectedTable] = useState(null);
   const [hotelName, setHotelName] = useState('');
+
+  const hotelId = activeProperty?._id || activeProperty;
 
   // Form state
   const [formData, setFormData] = useState({
@@ -121,23 +125,28 @@ const TableManagement = () => {
 
   // Fetch tables
   const fetchTables = useCallback(async () => {
+    if (!hotelId) {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
-      const response = await getTables();
-      if (response.success) {
-        setTables(response.data || []);
+      const response = await getTables({ hotelId });
+      if (response.data.success) {
+        setTables(response.data.data || []);
         // Get hotel name from first table
-        if (response.data?.[0]?.hotel?.name) {
-          setHotelName(response.data[0].hotel.name);
+        if (response.data.data?.[0]?.hotel?.name) {
+          setHotelName(response.data.data[0].hotel.name);
         }
       }
     } catch (err) {
       console.error('Fetch tables error:', err);
-      toast.error('Failed to load tables');
+      toast.error(err.response?.data?.message || 'Failed to load tables');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [hotelId]);
 
   useEffect(() => {
     fetchTables();
@@ -205,14 +214,14 @@ const TableManagement = () => {
       if (selectedTable) {
         // Update
         const response = await updateTable(selectedTable._id, formData);
-        if (response.success) {
+        if (response.data.success) {
           toast.success('Table updated successfully');
           fetchTables();
         }
       } else {
         // Create
-        const response = await createTable(formData);
-        if (response.success) {
+        const response = await createTable({ ...formData, hotelId });
+        if (response.data.success) {
           toast.success('Table created successfully');
           fetchTables();
         }
@@ -221,7 +230,7 @@ const TableManagement = () => {
       resetForm();
     } catch (err) {
       console.error('Submit error:', err);
-      toast.error(err.message || 'Operation failed');
+      toast.error(err.response?.data?.message || 'Operation failed');
     } finally {
       setActionLoading(prev => ({ ...prev, submit: false }));
     }
@@ -234,15 +243,15 @@ const TableManagement = () => {
     try {
       setActionLoading(prev => ({ ...prev, batch: true }));
 
-      const response = await batchCreateTables(batchData);
-      if (response.success) {
-        toast.success(`${response.data.created} tables created successfully`);
+      const response = await batchCreateTables({ ...batchData, hotelId });
+      if (response.data.success) {
+        toast.success(`${response.data.createdCount || batchData.count} tables created successfully`);
         fetchTables();
         setShowBatchModal(false);
       }
     } catch (err) {
       console.error('Batch create error:', err);
-      toast.error(err.message || 'Batch creation failed');
+      toast.error(err.response?.data?.message || 'Batch creation failed');
     } finally {
       setActionLoading(prev => ({ ...prev, batch: false }));
     }
@@ -256,13 +265,13 @@ const TableManagement = () => {
       setActionLoading(prev => ({ ...prev, [tableId]: true }));
 
       const response = await deleteTable(tableId);
-      if (response.success) {
+      if (response.data.success) {
         toast.success('Table deleted successfully');
         fetchTables();
       }
     } catch (err) {
       console.error('Delete error:', err);
-      toast.error(err.message || 'Delete failed');
+      toast.error(err.response?.data?.message || 'Delete failed');
     } finally {
       setActionLoading(prev => ({ ...prev, [tableId]: false }));
     }
@@ -274,13 +283,13 @@ const TableManagement = () => {
       setActionLoading(prev => ({ ...prev, [`qr_${tableId}`]: true }));
 
       const response = await generateTableQR(tableId);
-      if (response.success) {
+      if (response.data.success) {
         toast.success('QR code generated successfully');
         fetchTables();
       }
     } catch (err) {
       console.error('QR generate error:', err);
-      toast.error(err.message || 'QR generation failed');
+      toast.error(err.response?.data?.message || 'QR generation failed');
     } finally {
       setActionLoading(prev => ({ ...prev, [`qr_${tableId}`]: false }));
     }
@@ -291,14 +300,15 @@ const TableManagement = () => {
     try {
       setActionLoading(prev => ({ ...prev, [`status_${tableId}`]: true }));
 
-      const response = await updateTableStatus(tableId, { isActive: !currentStatus });
-      if (response.success) {
-        toast.success(`Table ${!currentStatus ? 'activated' : 'deactivated'}`);
+      const newStatus = currentStatus === 'available' ? 'occupied' : 'available';
+      const response = await updateTableStatus(tableId, newStatus);
+      if (response.data.success) {
+        toast.success(`Table status updated to ${newStatus}`);
         fetchTables();
       }
     } catch (err) {
       console.error('Status toggle error:', err);
-      toast.error(err.message || 'Status update failed');
+      toast.error(err.response?.data?.message || 'Status update failed');
     } finally {
       setActionLoading(prev => ({ ...prev, [`status_${tableId}`]: false }));
     }
