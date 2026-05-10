@@ -191,8 +191,101 @@ const BookingSidebar = ({ pricePerNight, nights: initialNights, taxesAndFees: in
           <hr style={{ borderTop: '1px solid rgba(0,191,166,0.15)', marginBottom: '18px' }} />
 
           <div style={{ marginBottom: '20px' }}>
-            <div className="flex bg-white rounded-t-[12px] border-[1.5px] border-[rgba(0,191,166,0.3)] overflow-hidden focus-within:border-[#00BFA6] focus-within:ring-2 focus-within:ring-[#00BFA6]/20 transition-all duration-300">
-              <div className="flex-1 p-3 border-r border-[rgba(0,191,166,0.2)]">
+            <style>{`
+              /* Ensure date picker calendar icon is always visible - Enhanced visibility */
+              input[type="date"]::-webkit-calendar-picker-indicator {
+                cursor: pointer;
+                opacity: 1 !important;
+                display: block !important;
+                width: 30px;
+                height: 30px;
+                border-radius: 6px;
+                margin-left: 4px;
+                margin-right: 2px;
+                /* Transparent background with black icon */
+                background-color: transparent;
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23000000' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2' ry='2'%3E%3C/rect%3E%3Cline x1='16' y1='2' x2='16' y2='6'%3E%3C/line%3E%3Cline x1='8' y1='2' x2='8' y2='6'%3E%3C/line%3E%3Cline x1='3' y1='10' x2='21' y2='10'%3E%3C/line%3E%3C/svg%3E");
+                background-repeat: no-repeat;
+                background-position: center;
+                background-size: 18px 18px;
+                border: none;
+                flex-shrink: 0;
+                position: relative;
+                z-index: 10;
+                transition: all 0.2s ease;
+              }
+              
+              input[type="date"]::-webkit-calendar-picker-indicator:hover {
+                background-color: rgba(0, 191, 166, 0.15);
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%2300BFA6' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2' ry='2'%3E%3C/rect%3E%3Cline x1='16' y1='2' x2='16' y2='6'%3E%3C/line%3E%3Cline x1='8' y1='2' x2='8' y2='6'%3E%3C/line%3E%3Cline x1='3' y1='10' x2='21' y2='10'%3E%3C/line%3E%3C/svg%3E");
+                transform: scale(1.05);
+              }
+
+              input[type="date"]::-webkit-calendar-picker-indicator:active {
+                transform: scale(0.98);
+                background-color: rgba(0, 191, 166, 0.25);
+              }
+
+              /* Firefox */
+              input[type="date"]::-moz-calendar-picker-indicator {
+                cursor: pointer;
+                opacity: 1 !important;
+                display: block !important;
+                width: 30px;
+                height: 30px;
+                background-color: transparent;
+                border: none;
+                border-radius: 6px;
+              }
+
+              /* Ensure the input has enough space for the icon */
+              input[type="date"] {
+                padding-right: 8px !important;
+                padding-left: 8px !important;
+                min-height: 40px;
+                display: flex;
+                align-items: center;
+              }
+
+              /* Prevent overflow from hiding the icon */
+              input[type="date"]::-webkit-datetime-edit {
+                flex: 1;
+                min-width: 0;
+                padding-right: 6px;
+              }
+
+              /* Mobile specific - make icon even more prominent */
+              @media (max-width: 640px) {
+                input[type="date"]::-webkit-calendar-picker-indicator {
+                  width: 24px !important;
+                  height: 24px !important;
+                  margin-left: 0px !important;
+                  margin-right: 0px !important;
+                  background-size: 16px 16px !important;
+                  background-color: transparent !important;
+                  border-radius: 4px !important;
+                }
+                
+                input[type="date"] {
+                  min-height: 44px !important;
+                  padding-right: 6px !important;
+                  padding-left: 6px !important;
+                }
+
+                input[type="date"]::-webkit-datetime-edit {
+                  font-size: 13px;
+                  padding-right: 4px !important;
+                  flex: 1;
+                  max-width: calc(100% - 30px);
+                }
+
+                input[type="date"]::-webkit-datetime-edit-fields-wrapper {
+                  padding-right: 2px;
+                }
+              }
+            `}</style>
+            <div className="flex bg-white rounded-t-[12px] border-[1.5px] border-[rgba(0,191,166,0.3)] focus-within:border-[#00BFA6] focus-within:ring-2 focus-within:ring-[#00BFA6]/20 transition-all duration-300">
+              <div className="flex-1 p-3 border-r border-[rgba(0,191,166,0.2)] min-w-0">
                 <label className="flex items-center gap-1.5 text-[11px] font-bold text-[#546E7A] uppercase tracking-wider mb-1.5">
                   <Calendar className="w-3.5 h-3.5 text-[#00BFA6]" /> Check-In
                 </label>
@@ -207,9 +300,10 @@ const BookingSidebar = ({ pricePerNight, nights: initialNights, taxesAndFees: in
                   min={new Date().toISOString().split('T')[0]}
                   max="2099-12-31"
                   className="w-full text-sm font-semibold text-[#263238] outline-none bg-transparent cursor-pointer"
+                  placeholder="mm/dd/yyyy"
                 />
               </div>
-              <div className="flex-1 p-3">
+              <div className="flex-1 p-3 min-w-0">
                 <label className="flex items-center gap-1.5 text-[11px] font-bold text-[#546E7A] uppercase tracking-wider mb-1.5">
                   <Calendar className="w-3.5 h-3.5 text-[#00BFA6]" /> Check-Out
                 </label>
@@ -224,6 +318,7 @@ const BookingSidebar = ({ pricePerNight, nights: initialNights, taxesAndFees: in
                   min={checkIn || new Date().toISOString().split('T')[0]}
                   max="2099-12-31"
                   className="w-full text-sm font-semibold text-[#263238] outline-none bg-transparent cursor-pointer"
+                  placeholder="mm/dd/yyyy"
                 />
               </div>
             </div>

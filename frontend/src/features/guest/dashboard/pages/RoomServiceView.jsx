@@ -10,6 +10,7 @@ import { getGuestMenu, placeOrder, getGuestOrders } from "../guestDashboardApi";
 import { useSocket } from '../../../../core/context/SocketContext';
 import { useTheme } from '../../../../core/hooks/useTheme';
 import { toast } from 'react-toastify';
+import notificationSoundService from '../../../../services/notificationSoundService';
 import {
   ShoppingCart,
   Plus,

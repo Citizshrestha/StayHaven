@@ -27,6 +27,7 @@ import {
 } from '../guestDashboardApi';
 import ExtendStayModal from '../../../../shared/components/ExtendStayModal';
 import CancelOrderModal from '../../../../shared/components/CancelOrderModal';
+import notificationSoundService from '../../../../services/notificationSoundService';
 
 const LIGHT_BRAND = {
   primary: '#00BFA6',
@@ -285,6 +286,7 @@ const DashboardView = () => {
 
   const onRealtimeOrderPlaced = useCallback((payload) => {
     toast.success(`Order #${payload?.orderNumber || '--'} placed successfully`);
+    notificationSoundService.play('order'); // Play notification sound
     pushRealtimeNotification({
       id: `rt-order-placed-${payload?.orderId || payload?._id || payload?.orderNumber || Date.now()}`,
       title: `Order #${payload?.orderNumber || '--'} has been placed`,
@@ -300,6 +302,7 @@ const DashboardView = () => {
   const onRealtimeOrderStatus = useCallback((payload) => {
     const statusLabel = normalizeStatusLabel(payload?.status || 'updated');
     toast.info(`Order #${payload?.orderNumber || '--'} is now ${statusLabel}`);
+    notificationSoundService.play('notification'); // Play notification sound
     pushRealtimeNotification({
       id: `rt-order-status-${payload?.orderId || payload?.orderNumber || Date.now()}-${payload?.updatedAt || Date.now()}`,
       title: `Order #${payload?.orderNumber || '--'} is ${statusLabel}`,
@@ -313,6 +316,7 @@ const DashboardView = () => {
 
   const onRealtimePayment = useCallback((payload) => {
     toast.success(`Payment confirmed • ${payload?.transactionId || 'success'}`);
+    notificationSoundService.play('notification'); // Play notification sound
     pushRealtimeNotification({
       id: `rt-payment-${payload?.transactionId || Date.now()}`,
       title: 'Payment confirmed',
@@ -330,6 +334,7 @@ const DashboardView = () => {
     toast.info(`📄 Bill received for Order #${orderNum}`, {
       autoClose: 5000,
     });
+    notificationSoundService.play('notification'); // Play notification sound
     pushRealtimeNotification({
       id: `rt-bill-${payload?.orderId || Date.now()}`,
       title: `Bill Ready - Order #${orderNum}`,

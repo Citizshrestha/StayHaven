@@ -249,27 +249,28 @@ const HotelDetail = () => {
               </section>
 
               {/* Amenities Section - Premium Mobile Design */}
-              <section id="section-amenities" className="rounded-3xl bg-gradient-to-br from-white to-[#F0FDFB] p-6 sm:p-8 md:p-10 border-2 border-[#00BFA6]/20 shadow-[0_8px_32px_rgba(0,191,166,0.12)] animate-[fadeInUp_0.9s_ease] relative overflow-hidden">
+              <section id="section-amenities" className="rounded-2xl sm:rounded-3xl bg-gradient-to-br from-white to-[#F0FDFB] p-5 sm:p-6 md:p-8 lg:p-10 border-2 border-[#00BFA6]/20 shadow-[0_8px_32px_rgba(0,191,166,0.12)] animate-[fadeInUp_0.9s_ease] relative overflow-hidden">
                 {/* Decorative Element */}
-                <div className="absolute bottom-0 left-0 w-40 h-40 bg-gradient-to-tr from-[#00BFA6]/10 to-transparent rounded-tr-full"></div>
+                <div className="absolute bottom-0 left-0 w-32 h-32 sm:w-40 sm:h-40 bg-gradient-to-tr from-[#00BFA6]/10 to-transparent rounded-tr-full"></div>
 
-                <div className="flex items-center gap-3 mb-6 relative z-10">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#00BFA6] to-[#00E5CC] flex items-center justify-center shadow-lg">
-                    <Star className="w-5 h-5 text-white fill-white" />
+                <div className="flex items-center gap-2.5 sm:gap-3 mb-5 sm:mb-6 relative z-10">
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-br from-[#00BFA6] to-[#00E5CC] flex items-center justify-center shadow-lg flex-shrink-0">
+                    <Star className="w-4 h-4 sm:w-5 sm:h-5 text-white fill-white" />
                   </div>
-                  <h3 className="text-2xl md:text-3xl font-extrabold text-[#263238]">Amenities</h3>
+                  <h3 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-[#263238]">Amenities</h3>
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 relative z-10">
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 relative z-10">
                   {(hotel.amenities || []).map((amenityKey) => (
                     <AmenityCard key={amenityKey} icon={amenityKey} label={AMENITY_LABELS[amenityKey] || amenityKey} />
                   ))}
                 </div>
 
                 {/* Premium Badge */}
-                <div className="mt-6 p-4 bg-gradient-to-r from-[#00BFA6]/10 to-[#00E5CC]/10 rounded-2xl border border-[#00BFA6]/20 relative z-10">
-                  <p className="text-sm font-semibold text-[#00A896] text-center">
-                    ✨ All amenities included in your stay
+                <div className="mt-5 sm:mt-6 p-3 sm:p-4 bg-gradient-to-r from-[#00BFA6]/10 to-[#00E5CC]/10 rounded-xl sm:rounded-2xl border border-[#00BFA6]/20 relative z-10">
+                  <p className="text-xs sm:text-sm font-semibold text-[#00A896] text-center flex items-center justify-center gap-1.5">
+                    <span className="text-base sm:text-lg">✨</span>
+                    <span>All amenities included in your stay</span>
                   </p>
                 </div>
               </section>

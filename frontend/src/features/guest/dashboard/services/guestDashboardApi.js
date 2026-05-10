@@ -5,9 +5,10 @@
  */
 
 import axios from 'axios';
+import { setupCsrfInterceptor } from '../../../../utils/csrf';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1',
   withCredentials: true,
 });
 
@@ -19,6 +20,9 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// Setup CSRF token interceptor
+setupCsrfInterceptor(api);
 
 // ────────────────────────────────
 // Dashboard Overview

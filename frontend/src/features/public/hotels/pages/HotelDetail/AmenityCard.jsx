@@ -60,22 +60,33 @@ const AmenityCard = ({ icon, label }) => {
   
   return (
     <div
-      className="group flex flex-col items-center gap-2.5 p-5 rounded-[14px] transition-all duration-300 border hover:-translate-y-0.75 hover:shadow-[0_6px_16px_var(--accentShadow)] hover:border-(--accent) hover:bg-[linear-gradient(135deg,var(--accentBgFrom),var(--accentBgTo))]"
+      className="group flex flex-col items-center justify-center gap-2 sm:gap-2.5 p-3 sm:p-4 md:p-5 rounded-xl sm:rounded-[14px] transition-all duration-300 border hover:-translate-y-0.75 hover:shadow-[0_6px_16px_var(--accentShadow)] hover:border-[var(--accent)] min-h-[100px] sm:min-h-[110px]"
       style={{
         background: '#F8FAFB',
-        borderColor: 'var(--accentBorder)',
+        borderColor: `${theme.accent}22`,
         '--accent': theme.accent,
-        '--accentBorder': `${theme.accent}22`,
         '--accentShadow': `${theme.accent}1F`,
-        '--accentBgFrom': theme.bgFrom,
-        '--accentBgTo': theme.bgTo,
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = `linear-gradient(135deg, ${theme.bgFrom}, ${theme.bgTo})`;
+        e.currentTarget.style.borderColor = theme.accent;
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = '#F8FAFB';
+        e.currentTarget.style.borderColor = `${theme.accent}22`;
       }}
     >
-      <div className="relative">
-        <IconComponent className="w-8 h-8 text-(--accent) transition-transform duration-300 group-hover:scale-110" />
-        <ShieldCheck className="w-3.5 h-3.5 text-(--accent) absolute -right-2 -top-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+      <div className="relative flex items-center justify-center">
+        <IconComponent 
+          className="w-7 h-7 sm:w-8 sm:h-8 transition-transform duration-300 group-hover:scale-110" 
+          style={{ color: theme.accent }}
+        />
+        <ShieldCheck 
+          className="w-3 h-3 sm:w-3.5 sm:h-3.5 absolute -right-1.5 sm:-right-2 -top-0.5 sm:-top-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300" 
+          style={{ color: theme.accent }}
+        />
       </div>
-      <span className="text-sm font-medium text-[#263238] text-center">{label}</span>
+      <span className="text-xs sm:text-sm font-medium text-[#263238] text-center leading-tight px-1">{label}</span>
     </div>
   );
 };

@@ -9,7 +9,7 @@
 
 import axiosClient from "../../../core/api/client";
 
-const BASE = "/api/guest/portal";
+const BASE = "/api/v1/guest/portal";
 
 /** Resolve the user's active hotelId from activeProperty or query */
 const getActiveHotelId = () => {
