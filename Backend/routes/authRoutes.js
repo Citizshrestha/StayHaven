@@ -2,7 +2,7 @@ import express from 'express';
 import {
   loginUser,
   registerUser,
-  logoutUser, 
+  logoutUser,
   isAuthenticated,
   getCurrentUser,
   sendResetPasswordOtp,
@@ -23,8 +23,12 @@ import {
   otpLimiter,
   signupLimiter,
 } from "../middleware/rateLimiter.js";
+import { sanitizeAll } from '../middleware/sanitization.js';
 
 const router = express.Router();
+
+// Apply sanitization to all routes
+router.use(sanitizeAll());
 
 // Public routes
 router.get('/check', checkUserExists);

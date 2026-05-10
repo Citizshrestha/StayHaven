@@ -73,9 +73,13 @@ import {
 } from "../controllers/notificationController.js";
 import { protect, authorize } from "../middleware/authMiddleware.js";
 import { upload } from "../middleware/upload.js";
-import { authLimiter, passwordResetLimiter, sensitiveOpLimiter } from "../middleware/rateLimiter.js";
+import { authLimiter, passwordResetLimiter, sensitiveOpLimiter, writeOperationLimiter, batchLimiter } from "../middleware/rateLimiter.js";
+import { sanitizeAll } from "../middleware/sanitization.js";
 
 const router = express.Router();
+
+// Apply sanitization to all routes
+router.use(sanitizeAll());
 
 // PUBLIC ROUTES (No authentication required)
 // Rate-limited auth endpoints to prevent brute force attacks
@@ -90,9 +94,9 @@ router.post("/reset-password", passwordResetLimiter, resetPassword);
 // PROTECTED ROUTES (Requires valid access token)
 router.get("/me", protect, getStaffProfile);
 router.post("/logout", protect, staffLogout);
-router.put("/change-password", protect, changePassword);
-router.patch("/profile-picture", protect, upload.single("profilePicture"), updateProfilePicture);
-router.patch("/profile", protect, updateStaffProfile);
+router.put("/change-password", protect, writeOperationLimiter, changePassword);
+router.patch("/profile-picture", protect, writeOperationLimiter, upload.single("profilePicture"), updateProfilePicture);
+router.patch("/profile", protect, writeOperationLimiter, updateStaffProfile);
 
 // MENU ROUTES (Any authenticated staff can access)
 router.get("/menu-items", protect, getMenuItems);
@@ -104,6 +108,7 @@ router.post(
   "/create-order",
   protect,
   authorize("waiter", "receptionist", "chief", "manager"),
+  writeOperationLimiter,
   createOrder
 );
 
@@ -118,6 +123,7 @@ router.put(
   "/orders/:orderId/status",
   protect,
   authorize("waiter", "chief", "manager"),
+  writeOperationLimiter,
   updateOrderStatus
 );
 
@@ -126,6 +132,7 @@ router.put(
   "/orders/:orderId",
   protect,
   authorize("waiter", "chief", "manager", "receptionist"),
+  writeOperationLimiter,
   updateOrder
 );
 
@@ -134,6 +141,7 @@ router.post(
   "/orders/:orderId/confirm-payment",
   protect,
   authorize("waiter", "chief", "receptionist", "manager"),
+  writeOperationLimiter,
   confirmPayment
 );
 
@@ -142,6 +150,7 @@ router.post(
   "/orders/:orderId/send-bill",
   protect,
   authorize("waiter", "chief", "receptionist", "manager"),
+  writeOperationLimiter,
   sendBillToCustomer
 );
 
@@ -150,6 +159,7 @@ router.post(
   "/orders/:orderId/retry-bill",
   protect,
   authorize("waiter", "chief", "receptionist", "manager"),
+  writeOperationLimiter,
   retryBillSending
 );
 
@@ -158,6 +168,7 @@ router.post(
   "/register",
   protect,
   authorize("manager", "admin", "owner"),
+  sensitiveOpLimiter,
   registerStaff
 );
 
@@ -165,6 +176,7 @@ router.post(
   "/invite",
   protect,
   authorize("manager", "admin", "owner"),
+  sensitiveOpLimiter,
   inviteStaff
 );
 
@@ -172,6 +184,7 @@ router.post(
   "/resend-invite/:staffId",
   protect,
   authorize("manager", "admin", "owner"),
+  sensitiveOpLimiter,
   resendInvite
 );
 
@@ -186,6 +199,7 @@ router.delete(
   "/invite/:staffId",
   protect,
   authorize("manager", "admin", "owner"),
+  writeOperationLimiter,
   deleteInvite
 );
 
@@ -200,6 +214,7 @@ router.put(
   "/status/:staffId",
   protect,
   authorize("manager", "admin", "owner"),
+  writeOperationLimiter,
   updateStaffStatus
 );
 
@@ -207,6 +222,7 @@ router.delete(
   "/orders/:orderId",
   protect,
   authorize("waiter", "manager", "receptionist", "admin"),
+  writeOperationLimiter,
   deleteOrder
 );
 
@@ -217,6 +233,7 @@ router.delete(
 router.post(
   "/waiter-calls",
   protect,
+  writeOperationLimiter,
   createWaiterCall
 );
 
@@ -231,6 +248,7 @@ router.put(
   "/waiter-calls/:callId/acknowledge",
   protect,
   authorize("waiter", "manager"),
+  writeOperationLimiter,
   acknowledgeWaiterCall
 );
 
@@ -239,6 +257,7 @@ router.put(
   "/waiter-calls/:callId/resolve",
   protect,
   authorize("waiter", "manager"),
+  writeOperationLimiter,
   resolveWaiterCall
 );
 
@@ -262,6 +281,7 @@ router.post(
   "/table-assignments",
   protect,
   authorize("manager", "admin", "owner"),
+  writeOperationLimiter,
   assignTables
 );
 
@@ -270,6 +290,7 @@ router.delete(
   "/table-assignments/:assignmentId",
   protect,
   authorize("manager", "admin", "owner"),
+  writeOperationLimiter,
   removeAssignment
 );
 
@@ -278,6 +299,7 @@ router.put(
   "/table-assignments/bulk",
   protect,
   authorize("manager", "admin", "owner"),
+  batchLimiter,
   bulkUpdateAssignments
 );
 
@@ -286,13 +308,13 @@ router.put(
 // ═══════════════════════════════════════════
 
 // Send a message
-router.post("/messages", protect, sendMessage);
+router.post("/messages", protect, writeOperationLimiter, sendMessage);
 
 // Get messages (by channel or direct)
 router.get("/messages", protect, getMessages);
 
 // Mark messages as read
-router.put("/messages/read", protect, markMessagesRead);
+router.put("/messages/read", protect, writeOperationLimiter, markMessagesRead);
 
 // Get contacts (staff list for messaging)
 router.get("/messages/contacts", protect, getContacts);
@@ -301,37 +323,37 @@ router.get("/messages/contacts", protect, getContacts);
 router.get("/messages/conversations", protect, getConversations);
 
 // Delete conversation (soft delete - archives for this user)
-router.delete("/messages/conversations/:partnerId", protect, deleteConversation);
+router.delete("/messages/conversations/:partnerId", protect, writeOperationLimiter, deleteConversation);
 
 // Archive conversation
-router.post("/messages/conversations/:partnerId/archive", protect, archiveConversation);
+router.post("/messages/conversations/:partnerId/archive", protect, writeOperationLimiter, archiveConversation);
 
 // Mute conversation
-router.post("/messages/conversations/:partnerId/mute", protect, muteConversation);
+router.post("/messages/conversations/:partnerId/mute", protect, writeOperationLimiter, muteConversation);
 
 // Unmute conversation
-router.post("/messages/conversations/:partnerId/unmute", protect, unmuteConversation);
+router.post("/messages/conversations/:partnerId/unmute", protect, writeOperationLimiter, unmuteConversation);
 
 // Mark conversation as unread
-router.post("/messages/conversations/:partnerId/mark-unread", protect, markConversationUnread);
+router.post("/messages/conversations/:partnerId/mark-unread", protect, writeOperationLimiter, markConversationUnread);
 
 // Initiate a call
-router.post("/messages/call", protect, initiateCall);
+router.post("/messages/call", protect, writeOperationLimiter, initiateCall);
 
 // Update call status
-router.put("/messages/call/:callId", protect, updateCallStatus);
+router.put("/messages/call/:callId", protect, writeOperationLimiter, updateCallStatus);
 
 // Edit a message (within 15 minutes)
-router.put("/messages/:messageId", protect, editMessage);
+router.put("/messages/:messageId", protect, writeOperationLimiter, editMessage);
 
 // Delete a message (soft delete)
-router.delete("/messages/:messageId", protect, deleteMessage);
+router.delete("/messages/:messageId", protect, writeOperationLimiter, deleteMessage);
 
 // Block a user
-router.post("/messages/block/:userId", protect, blockUser);
+router.post("/messages/block/:userId", protect, writeOperationLimiter, blockUser);
 
 // Unblock a user
-router.delete("/messages/block/:userId", protect, unblockUser);
+router.delete("/messages/block/:userId", protect, writeOperationLimiter, unblockUser);
 
 // Get blocked users list
 router.get("/messages/blocked", protect, getBlockedUsers);
@@ -347,13 +369,14 @@ router.get("/notifications", protect, getNotifications);
 router.get("/notifications/count", protect, getUnreadCount);
 
 // Mark notifications as read
-router.put("/notifications/read", protect, markNotificationsRead);
+router.put("/notifications/read", protect, writeOperationLimiter, markNotificationsRead);
 
 // Create a notification (for sending to other staff)
 router.post(
   "/notifications",
   protect,
   authorize("receptionist", "manager", "admin", "owner"),
+  writeOperationLimiter,
   createNotification
 );
 
