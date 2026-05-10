@@ -45,9 +45,9 @@ export const validatePasswordStrength = (password) => {
         errors.push("This password is too common. Please choose a more unique password");
     }
 
-    // Check for sequential characters (e.g., "12345", "abcde")
-    if (/(?:012|123|234|345|456|567|678|789|890|abc|bcd|cde|def|efg|fgh|ghi|hij|ijk|jkl|klm|lmn|mno|nop|opq|pqr|qrs|rst|stu|tuv|uvw|vwx|wxy|xyz)/i.test(password)) {
-        errors.push("Password should not contain sequential characters");
+    // Check for sequential characters (4+ chars: e.g., "1234", "abcd")
+    if (/(?:0123|1234|2345|3456|4567|5678|6789|7890|abcd|bcde|cdef|defg|efgh|fghi|ghij|hijk|ijkl|jklm|klmn|lmno|mnop|nopq|opqr|pqrs|qrst|rstu|stuv|tuvw|uvwx|vwxy|wxyz)/i.test(password)) {
+        errors.push("Password should not contain sequential characters (4 or more in a row)");
     }
 
     // Check for repeated characters (e.g., "aaaa", "1111")

@@ -109,8 +109,15 @@ export const createBookingWithPayment = asyncHandler(async (req, res) => {
     // Get authenticated user
     const authenticatedUser = req.user;
     if (!authenticatedUser) {
+      console.error('Authentication failed: No user found in request');
       throw Object.assign(new Error("Authentication required to create booking"), { status: 401 });
     }
+
+    logger.debug('Authenticated user:', {
+      id: authenticatedUser._id,
+      username: authenticatedUser.username,
+      email: authenticatedUser.email
+    });
 
     const {
       // Booking details
@@ -296,26 +303,32 @@ export const createBookingWithPayment = asyncHandler(async (req, res) => {
       } else if (paymentMethod === "esewa") {
         // eSewa form POST redirect
 
-        paymentResult = generateEsewaPaymentData({
+        const paymentData = generateEsewaPaymentData({
           amount: totalAmount,
           taxAmount: 0,
           orderId: booking._id.toString(),
         });
 
-        // Store payment reference
-        booking.paymentReference = paymentResult.transactionUuid;
+        // Store payment reference (transaction UUID)
+        booking.paymentReference = paymentData.transactionUuid;
         await booking.save({ session });
 
         await session.commitTransaction();
 
+        logger.debug('eSewa payment initiated:', {
+          bookingId: booking._id,
+          transactionUuid: paymentData.transactionUuid,
+          amount: totalAmount,
+          formUrl: paymentData.formUrl
+        });
 
         return res.status(200).json({
           success: true,
           message: "Booking created. Redirecting to eSewa for payment...",
           requiresRedirect: true,
           redirectType: "form-post",
-          formUrl: paymentResult.formUrl,
-          formData: paymentResult.formData,
+          formUrl: paymentData.formUrl,
+          formData: paymentData.formData,
           booking: {
             _id: booking._id,
             bookingId: booking.bookingId,

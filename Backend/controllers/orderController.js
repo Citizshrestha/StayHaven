@@ -3,8 +3,10 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { Room } from "../models/room.schema.js";
 import { Hotel } from "../models/hotel.schema.js";
 import { MenuItem } from "../models/menuItem.schema.js";
+import { User } from "../models/user.schema.js";
 import { emitToHotel, emitToWaiters, emitToKitchen, emitToUser } from "../config/socket.js";
 import { sendEmail, sendSMS, sendWhatsApp, generateBillEmailHTML, generateBillTextMessage } from "../services/notificationService.js";
+import { createNotificationInternal } from "./notificationController.js";
 
 const getUserRole = (req) => req.user?.role?.name || req.user?.companyRole;
 
@@ -203,6 +205,49 @@ export const createOrder = asyncHandler(async (req, res) => {
     message: `New order #${order.orderNumber} placed by ${order.orderByName}`,
   });
 
+  // Create persistent notifications in database for all staff in this hotel
+  try {
+    // Get all staff users for this hotel (excluding the creator)
+    const hotelStaff = await User.find({
+      assignedProperties: hotelId,
+      _id: { $ne: req.user._id }, // Exclude the order creator
+      companyRole: { $in: ['waiter', 'chief', 'kitchen', 'receptionist', 'manager'] }
+    }).select('_id');
+
+    // Format location for notification message
+    const location = order.orderType === 'roomService' 
+      ? `Room ${order.roomNumber}`
+      : order.orderType === 'dineIn'
+      ? `Table ${order.tableNumber}`
+      : 'Takeaway';
+
+    // Create notification for each staff member
+    const notificationPromises = hotelStaff.map(staff => 
+      createNotificationInternal({
+        userId: staff._id,
+        senderId: req.user._id,
+        type: 'order_status',
+        title: `New Order #${order.orderNumber}`,
+        message: `New order #${order.orderNumber} for ${location}`,
+        priority: order.priority === 'high' ? 'high' : 'medium',
+        actionUrl: `/staff/orders/${order._id}`,
+        payload: {
+          orderId: order._id.toString(),
+          orderNumber: order.orderNumber,
+          orderType: order.orderType,
+          tableNumber: order.tableNumber,
+          roomNumber: order.roomNumber,
+        }
+      })
+    );
+
+    await Promise.all(notificationPromises);
+    console.log(`✅ Created ${hotelStaff.length} notifications for new order #${order.orderNumber}`);
+  } catch (notifError) {
+    console.error('❌ Failed to create notifications for new order:', notifError);
+    // Don't fail the order creation if notifications fail
+  }
+
   return res.status(201).json({
     success: true,
     message: "Order created successfully",
@@ -374,6 +419,65 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
       items: order.items,
       updatedAt: new Date(),
     });
+  }
+
+  // Create persistent notifications in database for status updates
+  try {
+    // Get all staff users for this hotel (excluding the updater)
+    const hotelStaff = await User.find({
+      assignedProperties: order.hotel,
+      _id: { $ne: req.user._id }, // Exclude the person who made the update
+      companyRole: { $in: ['waiter', 'chief', 'kitchen', 'receptionist', 'manager'] }
+    }).select('_id companyRole');
+
+    // Filter recipients based on updater role (cross-role notifications)
+    let recipients = hotelStaff;
+    if (updaterRole === 'chief' || updaterRole === 'kitchen') {
+      // Kitchen updated -> notify only waiters
+      recipients = hotelStaff.filter(staff => staff.companyRole === 'waiter');
+    } else if (updaterRole === 'waiter') {
+      // Waiter updated -> notify only kitchen/chiefs
+      recipients = hotelStaff.filter(staff => ['chief', 'kitchen'].includes(staff.companyRole));
+    }
+
+    if (recipients.length > 0) {
+      const statusEmoji = {
+        preparing: '🍳',
+        ready: '✅',
+        delivered: '🎉',
+        cancelled: '❌',
+        confirmed: '👍',
+        pending: '⏳',
+      };
+      const emoji = statusEmoji[status] || '📝';
+
+      // Create notification for each recipient
+      const notificationPromises = recipients.map(staff => 
+        createNotificationInternal({
+          userId: staff._id,
+          senderId: req.user._id,
+          type: status === 'delivered' ? 'order_delivered' : 'order_status',
+          title: `Order #${order.orderNumber} ${status}`,
+          message: `${emoji} Order #${order.orderNumber} (${location}) → ${status.toUpperCase()}`,
+          priority: status === 'ready' ? 'high' : 'medium',
+          actionUrl: `/staff/orders/${order._id}`,
+          payload: {
+            orderId: order._id.toString(),
+            orderNumber: order.orderNumber,
+            status: order.status,
+            orderType: order.orderType,
+            tableNumber: order.tableNumber,
+            roomNumber: order.roomNumber,
+          }
+        })
+      );
+
+      await Promise.all(notificationPromises);
+      console.log(`✅ Created ${recipients.length} notifications for order #${order.orderNumber} status: ${status}`);
+    }
+  } catch (notifError) {
+    console.error('❌ Failed to create notifications for order status update:', notifError);
+    // Don't fail the status update if notifications fail
   }
 
   return res.status(200).json({
