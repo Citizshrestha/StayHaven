@@ -22,7 +22,14 @@ const connectDB = async () => {
             return false;
         }
 
-        await mongoose.connect(process.env.MONGODB_URI);
+        await mongoose.connect(process.env.MONGODB_URI, {
+            serverSelectionTimeoutMS: 10000, // 10 seconds timeout for initial connection
+            socketTimeoutMS: 45000, // 45 seconds timeout for socket operations
+        });
+
+        // Set default query timeout for all queries
+        mongoose.set('maxTimeMS', 10000); // 10 seconds for all queries
+
         logger.info("MongoDB Connected Successfully");
         return true;
     } catch (error) {

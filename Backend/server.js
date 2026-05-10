@@ -35,6 +35,7 @@ import { initCloudinary } from "./config/cloudinary.js";
 import { initSocket } from "./config/socket.js";
 import { apiLimiter } from "./middleware/rateLimiter.js";
 import { auditMiddleware } from "./middleware/auditLogger.js";
+import { generateCsrfToken } from "./middleware/csrf.js";
 import { initSentry, sentryRequestHandler, sentryTracingHandler, sentryErrorHandler } from "./config/sentry.js";
 import { errorHandler, notFound } from "./middleware/errorHandler.js";
 import { createLogger } from "./utils/logger.js";
@@ -110,7 +111,7 @@ app.use(
     origin: CORS_ORIGINS,
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token"],
   })
 );
 
@@ -216,23 +217,31 @@ app.get("/", (req, res) => {
   res.send(`Welcome to Hotel Booking and Order Management System`);
 });
 
+// CSRF token endpoint (public, no authentication required)
+app.get("/api/v1/csrf-token", generateCsrfToken, (req, res) => {
+  res.json({
+    success: true,
+    csrfToken: req.csrfToken,
+  });
+});
+
 // Health check endpoints (no authentication required)
 app.use("/health", healthRoutes);
 
-app.use("/api/auth", authRoutes);
-app.use("/api/user", userRoutes);
-app.use("/api/hotels", hotelRoutes);
-app.use("/api/company", companyRoutes);
-app.use("/api/staff", staffRoutes);
-app.use("/api/tables", tableRoutes);      // HotelTable management (authenticated)
-app.use("/api/rooms", roomRoutes);        // Room QR management (authenticated)
-app.use("/api/bookings", bookingRoutes);  // Booking management (authenticated)
-app.use("/api/public/bookings", publicBookingRoutes); // Public booking with payment (no auth)
-app.use("/api/seed", seedRoutes);         // Seed test data (admin only)
-app.use("/api/guest", guestRoutes);       // Guest QR scanning (public)
-app.use("/api/guest/portal", guestDashboardRoutes); // Guest dashboard (authenticated)
-app.use("/api/reception", receptionRoutes); // Reception dashboard APIs (authenticated)
-app.use("/api/webhooks", webhookRoutes);    // Payment gateway webhooks (public)
+app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/user", userRoutes);
+app.use("/api/v1/hotels", hotelRoutes);
+app.use("/api/v1/company", companyRoutes);
+app.use("/api/v1/staff", staffRoutes);
+app.use("/api/v1/tables", tableRoutes);      // HotelTable management (authenticated)
+app.use("/api/v1/rooms", roomRoutes);        // Room QR management (authenticated)
+app.use("/api/v1/bookings", bookingRoutes);  // Booking management (authenticated)
+app.use("/api/v1/public/bookings", publicBookingRoutes); // Public booking with payment (no auth)
+app.use("/api/v1/seed", seedRoutes);         // Seed test data (admin only)
+app.use("/api/v1/guest", guestRoutes);       // Guest QR scanning (public)
+app.use("/api/v1/guest/portal", guestDashboardRoutes); // Guest dashboard (authenticated)
+app.use("/api/v1/reception", receptionRoutes); // Reception dashboard APIs (authenticated)
+app.use("/api/v1/webhooks", webhookRoutes);    // Payment gateway webhooks (public)
 
 // ═══════════════════════════════════════════
 // Error Handling Middleware (MUST BE LAST)

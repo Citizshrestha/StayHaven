@@ -84,7 +84,7 @@ export async function initiateKhaltiPayment({ amount, orderId, orderName, custom
   const amountInPaisa = Math.round(amount * 100);
   const baseUrl = CONFIG.khalti.baseUrl();
   const serverUrl = process.env.SERVER_URL || 'http://localhost:3000';
-  const returnUrl = `${serverUrl}/api/webhooks/khalti/verify`;
+  const returnUrl = `${serverUrl}/api/v1/webhooks/khalti/verify`;
 
   const payload = {
     return_url: returnUrl,
@@ -215,7 +215,7 @@ export function generateEsewaPaymentData({ amount, taxAmount = 0, orderId }) {
   const transactionUuid = `${orderId}-${Date.now()}`;
 
   const serverUrl = process.env.SERVER_URL || 'http://localhost:3000';
-  const successUrl = `${serverUrl}/api/webhooks/esewa/verify`;
+  const successUrl = `${serverUrl}/api/v1/webhooks/esewa/verify`;
   const failureUrl = `${CONFIG.clientUrl()}/payment-callback?status=failed&method=esewa&orderId=${orderId}`;
 
   console.log('Generating eSewa payment data:', {
@@ -269,14 +269,26 @@ export function generateEsewaPaymentData({ amount, taxAmount = 0, orderId }) {
  */
 export function verifyEsewaCallback(encodedData) {
   try {
+    console.log('Verifying eSewa callback, encoded data length:', encodedData?.length);
+
     const decoded = Buffer.from(encodedData, "base64").toString("utf-8");
+    console.log('Decoded eSewa data:', decoded.substring(0, 200) + '...');
+
     const data = JSON.parse(decoded);
+    console.log('Parsed eSewa data:', {
+      status: data.status,
+      transactionCode: data.transaction_code,
+      transactionUuid: data.transaction_uuid,
+      totalAmount: data.total_amount,
+      hasSignature: !!data.signature
+    });
 
     // Verify signature
     const secret = CONFIG.esewa.secretKey();
     const signedFields = data.signed_field_names;
 
     if (!signedFields) {
+      console.error('eSewa verification failed: Missing signed_field_names');
       return { verified: false, data, error: "Missing signed_field_names" };
     }
 
@@ -284,10 +296,19 @@ export function verifyEsewaCallback(encodedData) {
     const signatureInput = fieldNames.map((f) => `${f}=${data[f]}`).join(",");
     const expectedSignature = generateEsewaSignature(signatureInput, secret);
 
+    console.log('eSewa signature verification:', {
+      signatureInput,
+      expectedSignature: expectedSignature.substring(0, 20) + '...',
+      receivedSignature: data.signature?.substring(0, 20) + '...',
+      match: expectedSignature === data.signature
+    });
+
     if (expectedSignature !== data.signature) {
-      console.error("eSewa signature mismatch:", { expected: expectedSignature, received: data.signature });
+      console.error("eSewa signature mismatch");
       return { verified: false, data, error: "Signature verification failed" };
     }
+
+    console.log('eSewa signature verified successfully');
 
     return {
       verified: true,
@@ -316,16 +337,34 @@ export async function checkEsewaTransactionStatus(transactionUuid, totalAmount) 
   const productCode = CONFIG.esewa.productCode();
   const url = `${CONFIG.esewa.statusUrl()}/api/epay/transaction/status/?product_code=${productCode}&total_amount=${totalAmount}&transaction_uuid=${transactionUuid}`;
 
-  const response = await fetch(url);
-  const data = await response.json();
+  console.log('Checking eSewa transaction status:', {
+    transactionUuid,
+    totalAmount,
+    productCode,
+    url
+  });
 
-  return {
-    status: data.status, // "COMPLETE", "PENDING", "FULL_REFUND", "PARTIAL_REFUND", "CANCELED", "NOT_FOUND", "AMBIGUOUS"
-    refId: data.ref_id,
-    productCode: data.product_code,
-    transactionUuid: data.transaction_uuid,
-    totalAmount: data.total_amount,
-  };
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+
+    console.log('eSewa status check response:', {
+      status: data.status,
+      refId: data.ref_id,
+      responseStatus: response.status
+    });
+
+    return {
+      status: data.status, // "COMPLETE", "PENDING", "FULL_REFUND", "PARTIAL_REFUND", "CANCELED", "NOT_FOUND", "AMBIGUOUS"
+      refId: data.ref_id,
+      productCode: data.product_code,
+      transactionUuid: data.transaction_uuid,
+      totalAmount: data.total_amount,
+    };
+  } catch (error) {
+    console.error('eSewa status check error:', error);
+    throw error;
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════
