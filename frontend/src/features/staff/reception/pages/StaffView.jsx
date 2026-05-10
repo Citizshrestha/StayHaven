@@ -51,45 +51,50 @@ const StaffView = ({ onMessageStaff }) => {
     const [reportReason, setReportReason] = useState('');
     const [reportUrgency, setReportUrgency] = useState('normal');
     const [reportLoading, setReportLoading] = useState(false);
+    const [loadError, setLoadError] = useState('');
+
+    const loadStaff = async () => {
+        setIsLoading(true);
+        setLoadError('');
+        try {
+            const res = await receptionApi.getStaffList();
+            if (res?.success && res.data) {
+                const mapped = res.data.map((s, i) => {
+                    const name = s.name || s.fullName || `${s.firstName || ''} ${s.lastName || ''}`.trim() || 'Unknown';
+                    const role = s.role?.name || s.roleName || s.position || 'Staff';
+                    const dept = s.department || getDeptFromRole(role);
+                    const yearsExp = s.yearsExperience || Math.max(1, Math.floor((Date.now() - new Date(s.createdAt || Date.now()).getTime()) / (365.25 * 24 * 60 * 60 * 1000)));
+                    return {
+                        _id: s._id,
+                        id: s.id || s.staffId || `STF-${1000 + i}`,
+                        name,
+                        initials: name.split(' ').map(n => n[0]).join(''),
+                        role,
+                        department: dept,
+                        email: s.email || '',
+                        phone: s.phone || '',
+                        shift: s.shift || 'Morning',
+                        status: s.status || 'on-duty',
+                        rating: s.rating || 4.5,
+                        yearsExp,
+                        joinDate: s.createdAt ? new Date(s.createdAt) : new Date(),
+                        tasksCompleted: s.tasksCompleted || 0,
+                        shiftsThisMonth: s.shiftsThisMonth || 0,
+                    };
+                });
+                setStaff(mapped);
+            } else {
+                setLoadError('Unable to load staff. Please try again.');
+            }
+        } catch {
+            setLoadError('Unable to load staff. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const load = async () => {
-            setIsLoading(true);
-            try {
-                const res = await receptionApi.getStaffList();
-                if (res?.success && res.data) {
-                    const mapped = res.data.map((s, i) => {
-                        const name = s.name || s.fullName || `${s.firstName || ''} ${s.lastName || ''}`.trim() || 'Unknown';
-                        const role = s.role?.name || s.roleName || s.position || 'Staff';
-                        const dept = s.department || getDeptFromRole(role);
-                        const yearsExp = s.yearsExperience || Math.max(1, Math.floor((Date.now() - new Date(s.createdAt || Date.now()).getTime()) / (365.25 * 24 * 60 * 60 * 1000)));
-                        return {
-                            _id: s._id,
-                            id: s.id || s.staffId || `STF-${1000 + i}`,
-                            name,
-                            initials: name.split(' ').map(n => n[0]).join(''),
-                            role,
-                            department: dept,
-                            email: s.email || '',
-                            phone: s.phone || '',
-                            shift: s.shift || 'Morning',
-                            status: s.status || 'on-duty',
-                            rating: s.rating || 4.5,
-                            yearsExp,
-                            joinDate: s.createdAt ? new Date(s.createdAt) : new Date(),
-                            tasksCompleted: s.tasksCompleted || 0,
-                            shiftsThisMonth: s.shiftsThisMonth || 0,
-                        };
-                    });
-                    setStaff(mapped);
-                }
-            } catch {
-                /* silently ignore */
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        load();
+        loadStaff();
     }, []);
 
     useEffect(() => {
@@ -179,6 +184,19 @@ const StaffView = ({ onMessageStaff }) => {
 
     return (
         <div className={`staff-view ${isDark ? 'dark' : ''}`}>
+            {/* Error Banner */}
+            {!!loadError && (
+                <div style={{ marginBottom: 16, padding: '12px 16px', borderRadius: 10, border: '1px solid #fecaca', background: '#fef2f2', color: '#b91c1c', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                    <span style={{ fontSize: 13, fontWeight: 500 }}>{loadError}</span>
+                    <button
+                        onClick={loadStaff}
+                        style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #fca5a5', background: '#fff', color: '#991b1b', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
+                    >
+                        Retry
+                    </button>
+                </div>
+            )}
+
             {/* Stats */}
             <div className="sv-stats-grid">
                 <div className="sv-stat-card">

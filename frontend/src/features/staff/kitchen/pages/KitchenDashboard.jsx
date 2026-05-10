@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import KitchenMobileHeader from "./KitchenMobileHeader";
 import KitchenMobileNav from "./KitchenMobileNav";
@@ -9,15 +10,34 @@ import { useOrderContext } from "../../../../core/context/useOrderContext";
 import { useSocket } from "../../../../core/context/SocketContext";
 import { useNotifications } from "../../../../core/context/useNotifications";
 import { useTheme } from "../../../../core/hooks/useTheme";
+import { useStaffAuth } from "../../../../context/StaffAuthContext";
 import MessagingPanel from "../../../../shared/components/MessagingPanel";
 
 const KitchenDashboard = () => {
+  const navigate = useNavigate();
+  const { staffUser } = useStaffAuth();
   const [activeFilter, setActiveFilter] = useState("all");
   const [activeView, setActiveView] = useState("dashboard");
   const [isMessagingOpen, setIsMessagingOpen] = useState(false);
 
   // Use centralized theme context
   const { isDark: isDarkMode, toggleTheme: toggleDarkMode } = useTheme();
+
+  // Additional security check - only chief role can access Kitchen Dashboard
+  useEffect(() => {
+    if (staffUser && staffUser.role !== 'chief') {
+      // Redirect to appropriate dashboard based on role
+      if (staffUser.role === 'receptionist' || staffUser.role === 'manager') {
+        navigate('/reception-dashboard', { replace: true });
+      } else if (staffUser.role === 'waiter') {
+        navigate('/waiter-dashboard', { replace: true });
+      } else if (staffUser.role === 'hoteladmin') {
+        navigate('/hoteladmin-dashboard', { replace: true });
+      } else {
+        navigate('/staff/login', { replace: true });
+      }
+    }
+  }, [staffUser, navigate]);
 
   const { orders, updateOrderStatus, fetchOrders, loading } = useOrderContext();
 
@@ -28,6 +48,15 @@ const KitchenDashboard = () => {
     markRead,
     markAllRead
   } = useNotifications();
+
+  // Debug: Log notification state changes
+  useEffect(() => {
+    console.log('🔔 [KitchenDashboard] Notification state updated:', {
+      totalNotifications: notifications.length,
+      unreadCount,
+      notifications: notifications.slice(0, 3) // Log first 3 for debugging
+    });
+  }, [notifications, unreadCount]);
 
   // Socket.io for order refresh (notifications handled by context)
   const { subscribe } = useSocket();

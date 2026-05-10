@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ChefHat, Settings, LogOut, Bell, LayoutDashboard, MessageCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { staffLogout } from "../../../../api/staff";
@@ -49,6 +49,11 @@ const Sidebar = ({
     { id: "notifications", label: "Notifications", icon: Bell, badge: notificationCount },
     { id: "messages", label: "Messages", icon: MessageCircle, badge: unreadMessageCount, action: onMessagingToggle },
   ];
+
+  // Debug: Log notification count changes
+  useEffect(() => {
+    console.log('🔔 [Kitchen Sidebar] Notification count:', notificationCount);
+  }, [notificationCount]);
 
   return (
     <>

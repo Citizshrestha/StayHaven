@@ -535,7 +535,14 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
       )}
 
       {showDetailsModal && (
-        <OrderDetailsModal order={order} onClose={() => setShowDetailsModal(false)} isDarkMode={isDarkMode} />
+        <OrderDetailsModal
+          order={order}
+          onClose={() => setShowDetailsModal(false)}
+          isDarkMode={isDarkMode}
+          onMarkReady={() => {}}
+          onPrintBill={() => {}}
+          onSendBill={() => {}}
+        />
       )}
     </div>
   );

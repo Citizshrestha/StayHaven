@@ -100,53 +100,58 @@ const GuestsView = ({ onMessageGuest }) => {
   const [blacklistModal, setBlacklistModal] = useState({ open: false, guest: null });
   const [blacklistReason, setBlacklistReason] = useState('');
   const [actionLoading, setActionLoading] = useState(null);
+  const [loadError, setLoadError] = useState('');
+
+  const loadGuests = async () => {
+    setIsLoading(true);
+    setLoadError('');
+    try {
+      const res = await receptionApi.getGuestsList({ limit: 200 });
+      if (res?.success && res.data) {
+        const mapped = res.data.map(g => ({
+          id: g.guestId || g._id,
+          _id: g._id,
+          firstName: g.fullName?.split(' ')[0] || '',
+          lastName: g.fullName?.split(' ').slice(1).join(' ') || '',
+          fullName: g.fullName || '',
+          initials: (g.fullName || 'U').split(' ').map(n => n[0]).join(''),
+          email: g.email || '',
+          phone: g.phone || '',
+          country: g.country || '',
+          membershipTier: g.membershipTier || 'Bronze',
+          loyaltyPoints: g.loyaltyPoints || 0,
+          totalStays: g.totalStays || 0,
+          totalSpent: g.totalSpent || 0,
+          avatarUrl: g.avatarUrl || null,
+          lastVisit: g.lastVisit || g.updatedAt || new Date().toISOString(),
+          isCurrentGuest: g.status === 'In-House',
+          isActive: g.isActive !== false,
+          blacklisted: g.blacklisted || false,
+          blacklistReason: g.blacklistReason || '',
+          currentRoom: g.currentRoom || null,
+          checkInDate: g.checkInDate || null,
+          checkOutDate: g.checkOutDate || null,
+          preferences: g.preferences || {
+            roomType: 'Standard', bedType: 'Queen', smoking: false, floor: 'Low', specialRequests: null
+          },
+          vipStatus: g.vipStatus || false,
+        }));
+        setGuests(mapped.sort((a, b) => {
+          if (a.isCurrentGuest && !b.isCurrentGuest) return -1;
+          if (!a.isCurrentGuest && b.isCurrentGuest) return 1;
+          return 0;
+        }));
+      } else {
+        setLoadError('Unable to load guests. Please try again.');
+      }
+    } catch {
+      setLoadError('Unable to load guests. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadGuests = async () => {
-      setIsLoading(true);
-      try {
-        const res = await receptionApi.getGuestsList({ limit: 200 });
-        if (res?.success && res.data) {
-          const mapped = res.data.map(g => ({
-            id: g.guestId || g._id,
-            _id: g._id,
-            firstName: g.fullName?.split(' ')[0] || '',
-            lastName: g.fullName?.split(' ').slice(1).join(' ') || '',
-            fullName: g.fullName || '',
-            initials: (g.fullName || 'U').split(' ').map(n => n[0]).join(''),
-            email: g.email || '',
-            phone: g.phone || '',
-            country: g.country || '',
-            membershipTier: g.membershipTier || 'Bronze',
-            loyaltyPoints: g.loyaltyPoints || 0,
-            totalStays: g.totalStays || 0,
-            totalSpent: g.totalSpent || 0,
-            avatarUrl: g.avatarUrl || null,
-            lastVisit: g.lastVisit || g.updatedAt || new Date().toISOString(),
-            isCurrentGuest: g.status === 'In-House',
-            isActive: g.isActive !== false,
-            blacklisted: g.blacklisted || false,
-            blacklistReason: g.blacklistReason || '',
-            currentRoom: g.currentRoom || null,
-            checkInDate: g.checkInDate || null,
-            checkOutDate: g.checkOutDate || null,
-            preferences: g.preferences || {
-              roomType: 'Standard', bedType: 'Queen', smoking: false, floor: 'Low', specialRequests: null
-            },
-            vipStatus: g.vipStatus || false,
-          }));
-          setGuests(mapped.sort((a, b) => {
-            if (a.isCurrentGuest && !b.isCurrentGuest) return -1;
-            if (!a.isCurrentGuest && b.isCurrentGuest) return 1;
-            return 0;
-          }));
-        }
-      } catch {
-        /* silently ignore */
-      } finally {
-        setIsLoading(false);
-      }
-    };
     loadGuests();
   }, []);
 
@@ -331,6 +336,19 @@ const GuestsView = ({ onMessageGuest }) => {
 
   return (
     <div className={`guests-view ${isDark ? 'dark' : ''}`}>
+      {/* Error Banner */}
+      {!!loadError && (
+        <div style={{ marginBottom: 16, padding: '12px 16px', borderRadius: 10, border: '1px solid #fecaca', background: '#fef2f2', color: '#b91c1c', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <span style={{ fontSize: 13, fontWeight: 500 }}>{loadError}</span>
+          <button
+            onClick={loadGuests}
+            style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #fca5a5', background: '#fff', color: '#991b1b', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* Stats Cards */}
       <div className="gv-stats-grid grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="gv-stat-card flex items-center gap-4 p-4 rounded-xl transition-all duration-200">

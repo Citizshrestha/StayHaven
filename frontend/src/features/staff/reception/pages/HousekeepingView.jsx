@@ -37,6 +37,24 @@ const HousekeepingView = () => {
   const [showFloorDropdown, setShowFloorDropdown] = useState(false);
   const [showPriorityDropdown, setShowPriorityDropdown] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState(null);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [staffList, setStaffList] = useState([]);
+  const [assigningStaff, setAssigningStaff] = useState(false);
+  const [selectedStaffId, setSelectedStaffId] = useState('');
+  const [assignedToFilter, setAssignedToFilter] = useState('all');
+  const [showAssignedToDropdown, setShowAssignedToDropdown] = useState(false);
+
+  const fetchStaff = async () => {
+    try {
+      const res = await receptionApi.getStaffList();
+      if (res?.success && res.data) {
+        const housekeepingStaff = res.data.filter(s => s.role === 'housekeeping' || s.role === 'Housekeeping');
+        setStaffList(housekeepingStaff);
+      }
+    } catch {
+      // silently ignore
+    }
+  };
 
   const fetchRooms = async () => {
     setIsLoading(true);
@@ -73,6 +91,7 @@ const HousekeepingView = () => {
 
   useEffect(() => {
     fetchRooms();
+    fetchStaff();
   }, []);
 
   useEffect(() => {
@@ -81,6 +100,7 @@ const HousekeepingView = () => {
         setShowStatusDropdown(false);
         setShowFloorDropdown(false);
         setShowPriorityDropdown(false);
+        setShowAssignedToDropdown(false);
       }
     };
     document.addEventListener('click', handleClickOutside);
@@ -104,10 +124,14 @@ const HousekeepingView = () => {
       if (statusFilter !== 'all' && room.status !== statusFilter) return false;
       if (floorFilter !== 'all' && room.floor !== parseInt(floorFilter)) return false;
       if (priorityFilter !== 'all' && room.priority !== priorityFilter) return false;
+      if (assignedToFilter !== 'all') {
+        if (assignedToFilter === 'unassigned' && room.assignedTo) return false;
+        if (assignedToFilter !== 'unassigned' && room.assignedTo?.id !== assignedToFilter) return false;
+      }
 
       return true;
     });
-  }, [rooms, searchQuery, statusFilter, floorFilter, priorityFilter]);
+  }, [rooms, searchQuery, statusFilter, floorFilter, priorityFilter, assignedToFilter]);
 
   const stats = useMemo(() => ({
     total: rooms.length,
@@ -155,6 +179,50 @@ const HousekeepingView = () => {
 
   const refreshData = async () => {
     await fetchRooms();
+  };
+
+  const openAssignModal = (room) => {
+    setSelectedRoom(room);
+    setSelectedStaffId(room.assignedTo?.id || '');
+    setShowAssignModal(true);
+  };
+
+  const handleAssignStaff = async () => {
+    if (!selectedRoom?._taskId || !selectedStaffId) return;
+
+    setAssigningStaff(true);
+    try {
+      await receptionApi.updateHousekeepingTask(selectedRoom._taskId, { assignedTo: selectedStaffId });
+
+      const assignedStaff = staffList.find(s => s._id === selectedStaffId);
+      setRooms(prev => prev.map(r =>
+        r.id === selectedRoom.id ? {
+          ...r,
+          assignedTo: assignedStaff ? {
+            id: assignedStaff._id,
+            name: assignedStaff.name || assignedStaff.fullName,
+            avatar: assignedStaff.avatar
+          } : null
+        } : r
+      ));
+
+      toast.success('Staff assigned successfully', {
+        position: 'top-right',
+        autoClose: 3000,
+        theme: isDark ? 'dark' : 'light',
+      });
+
+      setShowAssignModal(false);
+      setSelectedRoom(null);
+    } catch {
+      toast.error('Failed to assign staff. Please try again.', {
+        position: 'top-right',
+        autoClose: 4000,
+        theme: isDark ? 'dark' : 'light',
+      });
+    } finally {
+      setAssigningStaff(false);
+    }
   };
 
   return (
@@ -308,6 +376,7 @@ const HousekeepingView = () => {
               setShowPriorityDropdown(!showPriorityDropdown);
               setShowStatusDropdown(false);
               setShowFloorDropdown(false);
+              setShowAssignedToDropdown(false);
             }}
           >
             <span>{priorityFilter === 'all' ? 'All Priority' : `${priorityFilter.charAt(0).toUpperCase() + priorityFilter.slice(1)} Priority`}</span>
@@ -327,6 +396,48 @@ const HousekeepingView = () => {
                   onClick={() => { setPriorityFilter(option.value); setShowPriorityDropdown(false); }}
                 >
                   {option.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="hk-filter-dropdown relative">
+          <button
+            className="hk-filter-btn flex items-center gap-2 h-11 px-4 rounded-xl text-sm font-medium transition-all duration-200"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowAssignedToDropdown(!showAssignedToDropdown);
+              setShowStatusDropdown(false);
+              setShowFloorDropdown(false);
+              setShowPriorityDropdown(false);
+            }}
+          >
+            <User size={16} />
+            <span>{assignedToFilter === 'all' ? 'All Staff' : assignedToFilter === 'unassigned' ? 'Unassigned' : staffList.find(s => s._id === assignedToFilter)?.name || 'Staff'}</span>
+            <ChevronDown size={16} />
+          </button>
+          {showAssignedToDropdown && (
+            <div className="hk-dropdown-menu absolute top-full left-0 mt-2 min-w-[180px] rounded-xl shadow-lg z-50 max-h-72 overflow-y-auto">
+              <button
+                className={`hk-dropdown-item w-full text-left px-4 py-2.5 text-sm transition-colors duration-200 ${assignedToFilter === 'all' ? 'active' : ''}`}
+                onClick={() => { setAssignedToFilter('all'); setShowAssignedToDropdown(false); }}
+              >
+                All Staff
+              </button>
+              <button
+                className={`hk-dropdown-item w-full text-left px-4 py-2.5 text-sm transition-colors duration-200 ${assignedToFilter === 'unassigned' ? 'active' : ''}`}
+                onClick={() => { setAssignedToFilter('unassigned'); setShowAssignedToDropdown(false); }}
+              >
+                Unassigned
+              </button>
+              {staffList.map(staff => (
+                <button
+                  key={staff._id}
+                  className={`hk-dropdown-item w-full text-left px-4 py-2.5 text-sm transition-colors duration-200 ${assignedToFilter === staff._id ? 'active' : ''}`}
+                  onClick={() => { setAssignedToFilter(staff._id); setShowAssignedToDropdown(false); }}
+                >
+                  {staff.name || staff.fullName}
                 </button>
               ))}
             </div>
@@ -402,14 +513,24 @@ const HousekeepingView = () => {
                     Occupied
                   </div>
                 )}
-                {room.assignedTo && (
-                  <div className="hk-assigned-to flex items-center gap-2 mt-3 pt-3 border-t border-slate-100 dark:border-slate-700">
-                    <div className="hk-housekeeper-avatar w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium bg-indigo-100 text-indigo-600">
-                      {room.assignedTo.name.split(' ').map(n => n[0]).join('')}
+                <div className="hk-card-footer mt-3 pt-3 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between">
+                  {room.assignedTo ? (
+                    <div className="hk-assigned-to flex items-center gap-2">
+                      <div className="hk-housekeeper-avatar w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium bg-indigo-100 text-indigo-600">
+                        {room.assignedTo.name.split(' ').map(n => n[0]).join('')}
+                      </div>
+                      <span className="text-xs text-slate-500">{room.assignedTo.name.split(' ')[0]}</span>
                     </div>
-                    <span className="text-xs text-slate-500">{room.assignedTo.name.split(' ')[0]}</span>
-                  </div>
-                )}
+                  ) : (
+                    <span className="text-xs text-slate-400 italic">Unassigned</span>
+                  )}
+                  <button
+                    className="hk-assign-btn text-xs px-2 py-1 rounded-md transition-all duration-200"
+                    onClick={(e) => { e.stopPropagation(); openAssignModal(room); }}
+                  >
+                    {room.assignedTo ? 'Reassign' : 'Assign'}
+                  </button>
+                </div>
               </div>
             );
           })}
@@ -475,12 +596,20 @@ const HousekeepingView = () => {
                       </span>
                     </td>
                     <td className="p-4">
-                      <button
-                        className="hk-action-btn px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200"
-                        onClick={() => setSelectedRoom(room)}
-                      >
-                        Update
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          className="hk-action-btn px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200"
+                          onClick={() => setSelectedRoom(room)}
+                        >
+                          Update
+                        </button>
+                        <button
+                          className="hk-assign-btn-list px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200"
+                          onClick={() => openAssignModal(room)}
+                        >
+                          Assign
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -578,6 +707,74 @@ const HousekeepingView = () => {
               </button>
               <button className="hk-modal-btn primary px-5 py-2.5 rounded-lg text-sm font-medium transition-all duration-200">
                 Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Assign Staff Modal */}
+      {showAssignModal && selectedRoom && (
+        <div className="hk-modal-overlay fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => !assigningStaff && setShowAssignModal(false)}>
+          <div className="hk-modal w-full max-w-md rounded-2xl p-6" onClick={e => e.stopPropagation()}>
+            <div className="hk-modal-header flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold">Assign Staff</h2>
+              <button className="hk-modal-close w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200" onClick={() => !assigningStaff && setShowAssignModal(false)} disabled={assigningStaff}>
+                <XCircle size={24} />
+              </button>
+            </div>
+
+            <div className="hk-modal-body mb-6">
+              <div className="mb-4">
+                <p className="text-sm text-slate-500 mb-2">Room: <strong>{selectedRoom.number}</strong> - {selectedRoom.type}</p>
+                <p className="text-sm text-slate-500">Status: <strong>{getStatusConfig(selectedRoom.status).label}</strong></p>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-semibold mb-2">Select Staff Member</label>
+                <select
+                  className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm"
+                  value={selectedStaffId}
+                  onChange={(e) => setSelectedStaffId(e.target.value)}
+                  disabled={assigningStaff}
+                >
+                  <option value="">-- Select Staff --</option>
+                  {staffList.map(staff => (
+                    <option key={staff._id} value={staff._id}>
+                      {staff.name || staff.fullName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {selectedRoom.assignedTo && (
+                <div className="hk-current-assignment p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+                  <p className="text-xs text-slate-500 mb-1">Currently assigned to:</p>
+                  <div className="flex items-center gap-2">
+                    <div className="hk-housekeeper-avatar w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium bg-indigo-100 text-indigo-600">
+                      {selectedRoom.assignedTo.name.split(' ').map(n => n[0]).join('')}
+                    </div>
+                    <span className="text-sm font-medium">{selectedRoom.assignedTo.name}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="hk-modal-footer flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-700">
+              <button
+                className="hk-modal-btn secondary px-5 py-2.5 rounded-lg text-sm font-medium transition-all duration-200"
+                onClick={() => setShowAssignModal(false)}
+                disabled={assigningStaff}
+              >
+                Cancel
+              </button>
+              <button
+                className="hk-modal-btn primary px-5 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2"
+                onClick={handleAssignStaff}
+                disabled={!selectedStaffId || assigningStaff}
+              >
+                {assigningStaff && <Loader2 size={16} className="animate-spin" />}
+                {assigningStaff ? 'Assigning...' : 'Assign Staff'}
               </button>
             </div>
           </div>

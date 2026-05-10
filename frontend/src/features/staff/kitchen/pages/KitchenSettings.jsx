@@ -65,7 +65,7 @@ const KitchenSettings = ({ onClose, isDarkMode, onToggleDarkMode }) => {
       const formData = new FormData();
       formData.append("profilePicture", file);
 
-      const response = await axiosClient.patch("/api/staff/profile-picture", formData, {
+      const response = await axiosClient.patch("/api/v1/staff/profile-picture", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
@@ -101,7 +101,7 @@ const KitchenSettings = ({ onClose, isDarkMode, onToggleDarkMode }) => {
     }
     setIsSavingName(true);
     try {
-      const response = await axiosClient.patch("/api/staff/profile", { fullname: trimmed });
+      const response = await axiosClient.patch("/api/v1/staff/profile", { fullname: trimmed });
       if (response.data.success) {
         updateUser({ fullname: trimmed });
         toast.success("Name updated!");
