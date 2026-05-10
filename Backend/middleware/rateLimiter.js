@@ -124,13 +124,13 @@ export const batchLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Payment operations limiter
+// Payment operations limiter - strict for security
 export const paymentLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: isDev ? 100 : 20, // dev: 100 | prod: 20 payment operations per minute
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: isDev ? 100 : 5, // dev: 100 | prod: 5 payment operations per hour per IP
   message: {
     success: false,
-    message: "Too many payment attempts. Please wait a moment.",
+    message: "Too many payment attempts. Please try again after 1 hour.",
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -155,6 +155,30 @@ export const guestLimiter = rateLimit({
   message: {
     success: false,
     message: "Too many requests from your guest session. Please slow down.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Booking operations limiter — prevent booking spam
+export const bookingLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: isDev ? 100 : 10, // dev: 100 | prod: 10 booking operations per hour per user
+  message: {
+    success: false,
+    message: "Too many booking requests. Please try again after 1 hour.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// General write operations limiter — for all POST/PUT/DELETE endpoints
+export const writeOperationLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: isDev ? 1000 : 100, // dev: 1000 | prod: 100 write operations per hour per user
+  message: {
+    success: false,
+    message: "Too many write operations. Please try again later.",
   },
   standardHeaders: true,
   legacyHeaders: false,

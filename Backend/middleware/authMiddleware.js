@@ -31,7 +31,11 @@ export const protect = asyncHandler(async (req, res, next) => {
 
     const decoded = jwt.verify(token, accessSecret);
 
-    req.user = await User.findById(decoded.id).select('-password').populate('role');
+    req.user = await User.findById(decoded.id)
+      .select('-password')
+      .populate('role')
+      .populate('assignedProperties', '_id name')
+      .populate('company', '_id name');
 
     if (!req.user) {
       console.error("Auth Middleware - User not found for ID:", decoded.id);

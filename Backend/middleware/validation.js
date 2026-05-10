@@ -27,9 +27,14 @@ export const handleValidationErrors = (req, res, next) => {
  */
 export const bookingValidation = {
   create: [
-    body("room")
+    body("hotelId")
       .notEmpty()
-      .withMessage("Room is required")
+      .withMessage("Hotel ID is required")
+      .isMongoId()
+      .withMessage("Invalid hotel ID"),
+    body("roomId")
+      .notEmpty()
+      .withMessage("Room ID is required")
       .isMongoId()
       .withMessage("Invalid room ID"),
     body("checkIn")
@@ -68,26 +73,25 @@ export const bookingValidation = {
         return true;
       }),
     body("guests.adults")
-      .notEmpty()
-      .withMessage("Number of adults is required")
+      .optional()
       .isInt({ min: 1, max: 10 })
       .withMessage("Adults must be between 1 and 10"),
     body("guests.children")
       .optional()
       .isInt({ min: 0, max: 8 })
       .withMessage("Children must be between 0 and 8"),
-    body("guestInfo.name")
+    body("guestName")
       .optional()
       .trim()
       .isLength({ min: 2, max: 100 })
       .withMessage("Guest name must be 2-100 characters"),
-    body("guestInfo.email")
+    body("guestEmail")
       .optional()
       .trim()
       .isEmail()
       .withMessage("Invalid email format")
       .normalizeEmail(),
-    body("guestInfo.phone")
+    body("guestPhone")
       .optional()
       .trim()
       .matches(/^[+]?[\d\s-]{8,20}$/)
@@ -97,11 +101,19 @@ export const bookingValidation = {
       .trim()
       .isLength({ max: 500 })
       .withMessage("Special requests cannot exceed 500 characters"),
-    body("totalAmount")
+    body("paymentMethod")
       .notEmpty()
-      .withMessage("Total amount is required")
-      .isFloat({ min: 0, max: 1000000 })
-      .withMessage("Total amount must be between 0 and 1,000,000"),
+      .withMessage("Payment method is required")
+      .isIn(["esewa", "khalti", "card", "bank", "bank-transfer"])
+      .withMessage("Invalid payment method"),
+    body("cardDetails")
+      .optional()
+      .isObject()
+      .withMessage("Card details must be an object"),
+    body("bankTransferDetails")
+      .optional()
+      .isObject()
+      .withMessage("Bank transfer details must be an object"),
     handleValidationErrors,
   ],
 

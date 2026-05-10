@@ -35,20 +35,26 @@ export const errorHandler = (err, req, res, next) => {
 
   // Mongoose bad ObjectId
   if (err.name === 'CastError') {
-    const message = `Resource not found with id: ${err.value}`;
+    const message = process.env.NODE_ENV === 'production'
+      ? 'Resource not found'
+      : `Resource not found with id: ${err.value}`;
     error = new AppError(message, 404);
   }
 
   // Mongoose duplicate key error
   if (err.code === 11000) {
     const field = Object.keys(err.keyValue)[0];
-    const message = `Duplicate field value: ${field}. Please use another value.`;
+    const message = process.env.NODE_ENV === 'production'
+      ? 'This value already exists. Please use another value.'
+      : `Duplicate field value: ${field}. Please use another value.`;
     error = new AppError(message, 400);
   }
 
   // Mongoose validation error
   if (err.name === 'ValidationError') {
-    const message = Object.values(err.errors).map(val => val.message).join(', ');
+    const message = process.env.NODE_ENV === 'production'
+      ? 'Invalid input data. Please check your entries.'
+      : Object.values(err.errors).map(val => val.message).join(', ');
     error = new AppError(message, 400);
   }
 

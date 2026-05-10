@@ -45,12 +45,13 @@ export const enforcePropertyScope = (opts = { strict: false }) => {
       return next();
     }
 
-    const assignedIds = (user.assignedProperties || []).map((p) =>
-      (p._id || p).toString()
-    );
+    const assignedIds = (user.assignedProperties || [])
+      .filter(p => p) // Filter out null/undefined
+      .map((p) => (p._id || p).toString());
 
     // Nothing assigned at all → block property-scoped roles
     if (assignedIds.length === 0) {
+      console.warn(`[PropertyScope] User ${user._id} (${userRole}) has no assigned properties`);
       return res.status(403).json({
         success: false,
         message: "No properties assigned to your account. Contact management.",
