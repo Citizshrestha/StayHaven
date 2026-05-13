@@ -13,6 +13,7 @@ import {
   BarChart3, MessageSquare, BadgePercent
 } from 'lucide-react';
 import { Input } from '../../../../shared/ui/input';
+import { getApiBaseUrl } from '../../../../utils/apiConfig';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -708,7 +709,7 @@ const FeaturedHotelsSection = () => {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'}/api/v1/hotels`);
+        const response = await fetch(`${getApiBaseUrl()}/api/v1/hotels`);
         if (!response.ok) throw new Error('Failed to fetch hotels');
         const data = await response.json();
 

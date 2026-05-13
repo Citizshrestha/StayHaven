@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import styles from './AvailabilityCalendar.module.css';
+import { getApiUrl } from '../../../../utils/apiConfig';
 
 const AvailabilityCalendar = ({ roomId, onDateSelect, selectedCheckIn, selectedCheckOut }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -29,7 +30,7 @@ const AvailabilityCalendar = ({ roomId, onDateSelect, selectedCheckIn, selectedC
       const month = String(currentMonth.getMonth() + 1).padStart(2, '0');
       const monthParam = `${year}-${month}`;
 
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+      const apiUrl = getApiUrl();
       const response = await axios.get(`${apiUrl}/rooms/${roomId}/availability?month=${monthParam}`);
 
       if (response.data?.success) {

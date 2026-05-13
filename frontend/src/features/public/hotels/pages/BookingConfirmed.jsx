@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { CheckCircle, Download, Calendar, Users, Home, MapPin, CreditCard, Copy, Check } from 'lucide-react';
 import { useState } from 'react';
+import { getApiBaseUrl } from '../../../../utils/apiConfig';
 
 const BookingConfirmed = () => {
   const location = useLocation();
@@ -44,7 +45,7 @@ const BookingConfirmed = () => {
     setDownloading(true);
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'}/api/public/bookings/${bookingId}/confirmation-pdf`
+        `${getApiBaseUrl()}/api/public/bookings/${bookingId}/confirmation-pdf`
       );
 
       if (!response.ok) {

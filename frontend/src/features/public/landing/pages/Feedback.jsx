@@ -35,7 +35,7 @@ const Feedback = () => {
 
     try {
       // Send to backend server
-      const { data } = await axiosClient.post('/api/feedback', formData);
+      const { data } = await axiosClient.post('/api/v1/feedback', formData);
 
       if (data && data.success) {
         alert(data.message || 'Thank you for your feedback!');

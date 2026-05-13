@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { Loader2, CheckCircle, XCircle, Home, RefreshCw } from 'lucide-react';
+import { getApiBaseUrl } from '../../../utils/apiConfig';
 
 const PaymentCallback = () => {
   const [searchParams] = useSearchParams();
@@ -37,7 +38,7 @@ const PaymentCallback = () => {
           // Fetch booking details to get confirmation code
           try {
             const response = await fetch(
-              `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'}/api/v1/public/bookings/${orderId}`
+              `${getApiBaseUrl()}/api/v1/public/bookings/${orderId}`
             );
             const data = await response.json();
 
