@@ -105,7 +105,7 @@ const BookingsView = () => {
 
   if (loading) {
     return (
-      <div className={`min-h-screen flex items-center justify-center ${isDark ? 'bg-gradient-to-br from-slate-950 to-slate-900' : 'bg-gradient-to-br from-indigo-50 to-blue-50'}`}>
+      <div className={`min-h-screen flex items-center justify-center ${isDark ? 'bg-linear-to-br from-slate-950 to-slate-900' : 'bg-linear-to-br from-indigo-50 to-blue-50'}`}>
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="w-10 h-10 animate-spin text-indigo-600" />
           <p className="text-gray-500 dark:text-gray-400">Loading your bookings...</p>
@@ -115,9 +115,9 @@ const BookingsView = () => {
   }
 
   return (
-    <div className={`min-h-screen pb-12 ${isDark ? 'bg-gradient-to-br from-slate-950 via-slate-900 to-gray-950 text-gray-100' : 'bg-gradient-to-br from-indigo-50 via-blue-50 to-cyan-50'}`}>
+    <div className={`min-h-screen pb-24 md:pb-8 ${isDark ? 'bg-linear-to-br from-slate-950 via-slate-900 to-gray-950 text-gray-100' : 'bg-linear-to-br from-indigo-50 via-blue-50 to-cyan-50'}`}>
       {/* Header */}
-      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border-b border-gray-100 dark:border-slate-800 shadow-sm">
+      <div className="hidden md:block bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border-b border-gray-100 dark:border-slate-800 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -134,7 +134,7 @@ const BookingsView = () => {
                 onClick={() => setFilter(status)}
                 className={`px-4 py-2 rounded-lg font-medium transition-all ${
                   filter === status
-                    ? 'bg-gradient-to-r from-indigo-500 to-blue-500 text-white shadow-md'
+                    ? 'bg-linear-to-r from-indigo-500 to-blue-500 text-white shadow-md'
                     : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'
                 }`}
               >
@@ -145,7 +145,32 @@ const BookingsView = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 md:pt-8 pb-8">
+        {/* Mobile: compact filter row */}
+        <div className="md:hidden mb-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-base font-semibold text-gray-900 dark:text-gray-100 truncate">My Bookings</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">Tap a card to manage</p>
+            </div>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pt-3 scrollbar-hide">
+            {['all', 'Pending', 'Confirmed', 'Checked-In', 'Checked-Out', 'Cancelled'].map((status) => (
+              <button
+                key={status}
+                onClick={() => setFilter(status)}
+                className={`px-3 py-2 rounded-xl font-medium transition-all whitespace-nowrap text-sm ${
+                  filter === status
+                    ? 'bg-linear-to-r from-indigo-500 to-blue-500 text-white shadow-md'
+                    : 'bg-white/90 dark:bg-slate-800 text-gray-700 dark:text-gray-300 border border-gray-100 dark:border-slate-700'
+                }`}
+              >
+                {status === 'all' ? 'All' : status}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Error State */}
         {error && (
           <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-center gap-4">

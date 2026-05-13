@@ -148,9 +148,9 @@ const RequestsView = () => {
   }
 
   return (
-    <div className={`min-h-screen pb-20 ${isDark ? 'bg-linear-to-br from-slate-950 via-slate-900 to-gray-950 text-gray-100' : 'bg-linear-to-br from-purple-50 via-pink-50 to-rose-50'}`}>
+    <div className={`min-h-screen pb-24 md:pb-8 ${isDark ? 'bg-linear-to-br from-slate-950 via-slate-900 to-gray-950 text-gray-100' : 'bg-linear-to-br from-purple-50 via-pink-50 to-rose-50'}`}>
       {/* Header */}
-      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border-b border-gray-100 dark:border-slate-800 shadow-sm sticky top-0 z-10">
+      <div className="hidden md:block bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border-b border-gray-100 dark:border-slate-800 shadow-sm md:sticky md:top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -185,7 +185,39 @@ const RequestsView = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 md:pt-8 pb-8">
+        <div className="md:hidden mb-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-base font-semibold text-gray-900 dark:text-gray-100 truncate">Requests</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">Housekeeping, maintenance, amenities</p>
+            </div>
+            <button
+              onClick={() => setShowForm(!showForm)}
+              className="flex items-center gap-2 px-3 py-2 bg-linear-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all text-sm"
+            >
+              <Plus className="w-4 h-4" />
+              New
+            </button>
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto pt-3 scrollbar-hide">
+            {['all', 'open', 'in-progress', 'resolved'].map((status) => (
+              <button
+                key={status}
+                onClick={() => setFilter(status)}
+                className={`px-3 py-2 rounded-xl font-medium transition-all whitespace-nowrap text-sm ${
+                  filter === status
+                    ? 'bg-linear-to-r from-purple-500 to-pink-500 text-white shadow-md'
+                    : 'bg-white/90 dark:bg-slate-800 text-gray-700 dark:text-gray-300 border border-gray-100 dark:border-slate-700'
+                }`}
+              >
+                {status === 'all' ? 'All' : status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ')}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* New Request Form */}
         <AnimatePresence>
           {showForm && (

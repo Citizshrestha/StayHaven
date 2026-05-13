@@ -6,9 +6,10 @@
 
 import axios from 'axios';
 import { setupCsrfInterceptor } from '../../../../utils/csrf';
+import { getApiUrl } from '../../../../utils/apiConfig';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1',
+  baseURL: getApiUrl(),
   withCredentials: true,
 });
 

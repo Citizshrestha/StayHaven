@@ -168,6 +168,7 @@ const DashboardView = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [showNotifications, setShowNotifications] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [realtimeNotifications, setRealtimeNotifications] = useState([]);
   const [billingExpanded, setBillingExpanded] = useState(true);
   const notificationsPanelRef = useRef(null);
@@ -222,6 +223,19 @@ const DashboardView = () => {
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 60000);
     return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    const onOpen = () => setShowNotifications(true);
+    window.addEventListener('guest:openNotifications', onOpen);
+    return () => window.removeEventListener('guest:openNotifications', onOpen);
   }, []);
 
   const refreshDashboard = useCallback(() => {
@@ -366,6 +380,7 @@ const DashboardView = () => {
     if (!showNotifications) return;
 
     const handleOutsideClick = (event) => {
+      if (isMobile) return;
       if (notificationsPanelRef.current && !notificationsPanelRef.current.contains(event.target)) {
         setShowNotifications(false);
       }
@@ -383,7 +398,7 @@ const DashboardView = () => {
       window.removeEventListener('mousedown', handleOutsideClick);
       window.removeEventListener('keydown', handleEscape);
     };
-  }, [showNotifications]);
+  }, [showNotifications, isMobile]);
 
   const overview = dashboardData.overview || {};
   const activeBooking = overview.activeBooking;
@@ -489,7 +504,7 @@ const DashboardView = () => {
               </p>
             </div>
 
-            <div className="relative">
+            <div className="relative hidden md:block">
               <button
                 type="button"
                 onClick={() => setShowNotifications((prev) => !prev)}
@@ -565,7 +580,7 @@ const DashboardView = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
+          <div className="grid grid-cols-3 md:grid-cols-4 gap-3 mt-6">
             <GlassInfo title="Check-in" value={formatDate(activeBooking?.checkIn)} />
             <GlassInfo title="Check-out" value={formatDate(activeBooking?.checkOut)} />
             <GlassInfo title="Nights" value={String(activeBooking?.nightsLeft || 0)} />
@@ -579,266 +594,261 @@ const DashboardView = () => {
           </div>
         </section>
 
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <StatsCard
-              icon={UtensilsCrossed}
-              title="Menu Orders"
-              value={overview.pendingOrdersCount || 0}
-              subtitle="Pending"
-              tone="text-teal-600"
-              cta="View All"
-              brand={BRAND}
-              onClick={() => navigate('/guest-dashboard/room-service')}
-            />
-          </div>
-          <div>
-            <StatsCard
-              icon={CalendarDays}
-              title="My Bookings"
-              value={upcomingBookings.length}
-              subtitle="Upcoming"
-              tone="text-blue-600"
-              cta="Manage"
-              brand={BRAND}
-              onClick={() => navigate('/guest-dashboard/bookings')}
-            />
-          </div>
-          <div>
-            <StatsCard
-              icon={Clock3}
-              title="Total Stays"
-              value={overview.pastBookingsCount || 0}
-              subtitle="Completed"
-              tone="text-violet-600"
-              cta="History"
-              brand={BRAND}
-              onClick={() => navigate('/guest-dashboard/bookings')}
-            />
-          </div>
-        </section>
-
-        <SectionCard title="Quick Actions" brand={BRAND}>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-            {quickActions.map((action) => (
-              <QuickActionCard
-                key={action.label}
-                label={action.label}
-                icon={action.icon}
-                brand={BRAND}
-                onClick={action.onClick}
-              />
-            ))}
-          </div>
-        </SectionCard>
-
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 md:gap-5">
-          <div className="xl:col-span-2 space-y-4">
-            <SectionCard title="Hotel Services" brand={BRAND}>
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                {serviceTiles.map((tile) => (
-                  <button
-                    key={tile.label}
-                    type="button"
-                    onClick={tile.action}
-                    className="rounded-xl border p-4 text-left transition-all hover:-translate-y-1 hover:shadow-lg"
-                    style={{ borderColor: BRAND.border, background: BRAND.card }}
-                  >
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center mb-3 bg-teal-50 text-teal-600">
-                      <tile.icon size={18} />
-                    </div>
-                    <p className="font-semibold text-sm" style={{ color: BRAND.textPrimary }}>{tile.label}</p>
-                    <span className="text-xs text-teal-600 font-medium inline-flex items-center gap-1 mt-1">
-                      Open <ChevronRight size={14} />
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </SectionCard>
-
-            <SectionCard
-              title="Active Orders"
-              brand={BRAND}
-              rightAction={
-                <button
-                  type="button"
-                  className="text-sm text-teal-600 font-medium hover:underline"
-                  onClick={() => navigate('/guest-dashboard/room-service')}
-                >
-                  View All
-                </button>
-              }
-            >
-              {activeOrders.length === 0 ? (
-                <EmptyState text="No active orders right now." brand={BRAND} />
-              ) : (
-                <div className="space-y-3">
-                  {activeOrders.map((order) => {
-                    const status = order.status?.toLowerCase();
-                    const progress = getOrderProgress(status);
-                    const updatedAgoText = formatUpdatedTimeAgo(order.updatedAt || order.createdAt, now);
-                    return (
-                      <div
-                        key={order._id}
-                        className="rounded-xl border p-4"
-                        style={{ borderColor: BRAND.border, background: BRAND.card }}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="font-semibold text-sm" style={{ color: BRAND.textPrimary }}>
-                              Order #{order.orderNumber} • {formatMoney(order.totalPrice)}
-                            </p>
-                            <p className="text-xs mt-1" style={{ color: BRAND.textSecondary }}>
-                              {order.orderType === 'roomService' ? 'Room Service' : order.orderType} • {order.items?.length || 0} items
-                            </p>
-                          </div>
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold capitalize ${statusStyles[status] || 'bg-slate-100 text-slate-600'}`}>
-                            {status}
-                          </span>
+        <div className="space-y-4 md:space-y-6">
+          {/* 2. Active Orders (mobile priority) */}
+          <SectionCard
+            title="Active Orders"
+            brand={BRAND}
+            rightAction={
+              <button
+                type="button"
+                className="text-sm text-teal-600 font-medium hover:underline"
+                onClick={() => navigate('/guest-dashboard/room-service')}
+              >
+                View All
+              </button>
+            }
+          >
+            {activeOrders.length === 0 ? (
+              <EmptyState text="No active orders right now." brand={BRAND} />
+            ) : (
+              <div className="space-y-3">
+                {activeOrders.map((order) => {
+                  const status = order.status?.toLowerCase();
+                  const progress = getOrderProgress(status);
+                  const updatedAgoText = formatUpdatedTimeAgo(order.updatedAt || order.createdAt, now);
+                  return (
+                    <div
+                      key={order._id}
+                      className="rounded-xl border p-4"
+                      style={{ borderColor: BRAND.border, background: BRAND.card }}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-sm" style={{ color: BRAND.textPrimary }}>
+                            Order #{order.orderNumber} • {formatMoney(order.totalPrice)}
+                          </p>
+                          <p className="text-xs mt-1" style={{ color: BRAND.textSecondary }}>
+                            {order.orderType === 'roomService' ? 'Room Service' : order.orderType} • {order.items?.length || 0} items
+                          </p>
                         </div>
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold capitalize ${statusStyles[status] || 'bg-slate-100 text-slate-600'}`}>
+                          {status}
+                        </span>
+                      </div>
 
-                        {(status === 'preparing' || status === 'confirmed' || status === 'pending') && (
-                          <div className="mt-3">
-                            <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-                              <div
-                                className="h-full rounded-full transition-all duration-500"
-                                style={{ width: `${progress}%`, background: 'linear-gradient(90deg,#00BFA6,#00E5CC)' }}
-                              />
-                            </div>
-                            <p className={`text-xs mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{updatedAgoText}</p>
+                      {(status === 'preparing' || status === 'confirmed' || status === 'pending') && (
+                        <div className="mt-3">
+                          <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                            <div
+                              className="h-full rounded-full transition-all duration-500"
+                              style={{ width: `${progress}%`, background: 'linear-gradient(90deg,#00BFA6,#00E5CC)' }}
+                            />
                           </div>
-                        )}
+                          <p className={`text-xs mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{updatedAgoText}</p>
+                        </div>
+                      )}
 
-                        <div className="mt-3 flex items-center gap-4 text-xs">
+                      <div className="mt-3 flex items-center gap-4 text-xs">
+                        <button
+                          type="button"
+                          className="text-teal-600 font-semibold hover:underline"
+                          onClick={() => navigate('/guest-dashboard/room-service')}
+                        >
+                          Track Order
+                        </button>
+                        {(status === 'pending' || status === 'confirmed') && (
                           <button
                             type="button"
-                            className="text-teal-600 font-semibold hover:underline"
-                            onClick={() => navigate('/guest-dashboard/room-service')}
+                            className="text-rose-600 font-semibold hover:underline"
+                            onClick={() => {
+                              setSelectedOrder(order);
+                              setShowCancelModal(true);
+                            }}
                           >
-                            Track Order
+                            Cancel Order
                           </button>
-                          {(status === 'pending' || status === 'confirmed') && (
-                            <button
-                              type="button"
-                              className="text-rose-600 font-semibold hover:underline"
-                              onClick={() => {
-                                setSelectedOrder(order);
-                                setShowCancelModal(true);
-                              }}
-                            >
-                              Cancel Order
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </SectionCard>
-          </div>
-
-          <div className="space-y-4">
-            <SectionCard title="Your Schedule" brand={BRAND}>
-              {upcomingBookings.length === 0 ? (
-                <EmptyState text="No upcoming reservations." brand={BRAND} />
-              ) : (
-                <div className="space-y-3">
-                  {upcomingBookings.map((booking) => (
-                    <div key={booking._id} className="rounded-xl border p-3" style={{ borderColor: BRAND.border }}>
-                      <p className="text-sm font-semibold" style={{ color: BRAND.textPrimary }}>
-                        {booking.hotel?.name || 'Reservation'}
-                      </p>
-                      <p className="text-xs mt-1" style={{ color: BRAND.textSecondary }}>
-                        {formatDate(booking.checkIn)} → {formatDate(booking.checkOut)} • Room {booking.room?.roomNumber || '--'}
-                      </p>
-                      <div className="flex gap-3 mt-2 text-xs text-teal-600 font-medium">
-                        <button type="button" onClick={() => navigate('/guest-dashboard/bookings')} className="hover:underline">View</button>
-                        <button type="button" onClick={() => navigate('/guest-dashboard/bookings')} className="hover:underline">Modify</button>
+                        )}
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </SectionCard>
-
-            <SectionCard title="Need Help?" brand={BRAND}>
-              <div className="space-y-2 text-sm" style={{ color: BRAND.textSecondary }}>
-                <p>📞 Front Desk: Ext 0</p>
-                <p>🍽️ Room Service: Ext 5</p>
-                <p>🔧 Maintenance: Ext 8</p>
-                <p>🚨 Emergency: Ext 9</p>
+                  );
+                })}
               </div>
-              <div className="grid grid-cols-2 gap-2 mt-4">
-                <button
-                  type="button"
-                  className="h-10 rounded-lg border text-sm font-semibold"
-                  style={{ borderColor: BRAND.border, color: BRAND.primaryDark }}
-                  onClick={() => navigate('/guest-dashboard/requests')}
-                >
-                  Live Chat
-                </button>
-                <button
-                  type="button"
-                  className="h-10 rounded-lg text-sm font-semibold text-white"
-                  style={{ background: BRAND.primary }}
-                  onClick={() => navigate('/guest-dashboard/requests')}
-                >
-                  Call Now
-                </button>
-              </div>
-            </SectionCard>
+            )}
+          </SectionCard>
 
-            <SectionCard
-              title="Your Bill"
-              brand={BRAND}
-              rightAction={
-                <button
-                  type="button"
-                  className="text-sm text-teal-600 font-medium"
-                  onClick={() => setBillingExpanded((prev) => !prev)}
-                >
-                  {billingExpanded ? 'Hide' : 'Show'}
-                </button>
-              }
+          {/* 3. Quick Actions */}
+          <SectionCard title="Quick Actions" brand={BRAND}>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+              {quickActions.map((action) => (
+                <QuickActionCard
+                  key={action.label}
+                  label={action.label}
+                  icon={action.icon}
+                  brand={BRAND}
+                  onClick={action.onClick}
+                />
+              ))}
+            </div>
+          </SectionCard>
+
+          {/* 4. Stats Cards (mobile swipe) */}
+          <section className="md:grid md:grid-cols-3 md:gap-4">
+            <div className="flex md:grid overflow-x-auto md:overflow-visible gap-3 md:gap-4 pb-1 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide snap-x snap-mandatory">
+              <div className="min-w-40 md:min-w-0 snap-start">
+                <StatsCard
+                  icon={UtensilsCrossed}
+                  title="Menu Orders"
+                  value={overview.pendingOrdersCount || 0}
+                  subtitle="Pending"
+                  tone="text-teal-600"
+                  cta="View All"
+                  brand={BRAND}
+                  onClick={() => navigate('/guest-dashboard/room-service')}
+                />
+              </div>
+              <div className="min-w-40 md:min-w-0 snap-start">
+                <StatsCard
+                  icon={CalendarDays}
+                  title="My Bookings"
+                  value={upcomingBookings.length}
+                  subtitle="Upcoming"
+                  tone="text-blue-600"
+                  cta="Manage"
+                  brand={BRAND}
+                  onClick={() => navigate('/guest-dashboard/bookings')}
+                />
+              </div>
+              <div className="min-w-40 md:min-w-0 snap-start">
+                <StatsCard
+                  icon={Clock3}
+                  title="Total Stays"
+                  value={overview.pastBookingsCount || 0}
+                  subtitle="Completed"
+                  tone="text-violet-600"
+                  cta="History"
+                  brand={BRAND}
+                  onClick={() => navigate('/guest-dashboard/bookings')}
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* 5. Upcoming Reservations (mobile swipe) */}
+          <SectionCard title="Upcoming Reservations" brand={BRAND}>
+            {upcomingBookings.length === 0 ? (
+              <EmptyState text="No upcoming reservations." brand={BRAND} />
+            ) : (
+              <div className="flex overflow-x-auto gap-3 -mx-4 px-4 md:mx-0 md:px-0 pb-1 scrollbar-hide snap-x snap-mandatory">
+                {upcomingBookings.map((booking) => (
+                  <div
+                    key={booking._id}
+                    className="min-w-65 md:min-w-0 snap-start rounded-xl border p-3"
+                    style={{ borderColor: BRAND.border, background: BRAND.card }}
+                  >
+                    <p className="text-sm font-semibold" style={{ color: BRAND.textPrimary }}>
+                      {booking.hotel?.name || 'Reservation'}
+                    </p>
+                    <p className="text-xs mt-1" style={{ color: BRAND.textSecondary }}>
+                      {formatDate(booking.checkIn)} → {formatDate(booking.checkOut)} • Room {booking.room?.roomNumber || '--'}
+                    </p>
+                    <div className="flex gap-3 mt-2 text-xs text-teal-600 font-medium">
+                      <button type="button" onClick={() => navigate('/guest-dashboard/bookings')} className="hover:underline">View</button>
+                      <button type="button" onClick={() => navigate('/guest-dashboard/bookings')} className="hover:underline">Modify</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </SectionCard>
+
+          {/* 6. Billing (mobile header tap) */}
+          <div
+            className="rounded-2xl p-4 md:p-5 border shadow-sm"
+            style={{
+              background: BRAND.card,
+              borderColor: BRAND.border,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setBillingExpanded((prev) => !prev)}
+              className="w-full flex items-center justify-between gap-2 mb-4 select-none"
             >
-              <p className="text-2xl font-bold mb-3" style={{ color: BRAND.textPrimary }}>
-                {formatMoney(dashboardData.outstandingBalance)}
-              </p>
-              {billingExpanded && (
-                <div className="space-y-2 text-sm">
-                  {invoices.length === 0 ? (
-                    <EmptyState text="No invoice data available." compact brand={BRAND} />
-                  ) : (
-                    invoices.slice(0, 3).map((invoice) => (
-                      <div key={invoice._id} className="flex items-center justify-between" style={{ color: BRAND.textSecondary }}>
-                        <span>{invoice.invoiceId || 'Invoice'}</span>
-                        <span>{formatMoney(invoice.balance || invoice.paid || 0)}</span>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-              <div className="grid grid-cols-2 gap-2 mt-4">
-                <button
-                  type="button"
-                  className="h-10 rounded-lg border text-sm font-semibold"
-                  style={{ borderColor: BRAND.border, color: BRAND.primaryDark }}
-                  onClick={() => navigate('/guest-dashboard/billing')}
-                >
-                  Detailed Bill
-                </button>
-                <button
-                  type="button"
-                  className="h-10 rounded-lg text-sm font-semibold text-white"
-                  style={{ background: BRAND.primary }}
-                  onClick={() => navigate('/guest-dashboard/billing')}
-                >
-                  Pay Now
-                </button>
+              <div className="text-left">
+                <h2 className="text-lg font-semibold" style={{ color: BRAND.textPrimary }}>Your Bill</h2>
+                <p className="text-xs mt-0.5" style={{ color: BRAND.textSecondary }}>
+                  Tap to {billingExpanded ? 'collapse' : 'expand'}
+                </p>
               </div>
-            </SectionCard>
+              <span className="text-sm text-teal-600 font-semibold">{billingExpanded ? '▾' : '▸'}</span>
+            </button>
+
+            <p className="text-2xl font-bold mb-3" style={{ color: BRAND.textPrimary }}>
+              {formatMoney(dashboardData.outstandingBalance)}
+            </p>
+            {billingExpanded && (
+              <div className="space-y-2 text-sm">
+                {invoices.length === 0 ? (
+                  <EmptyState text="No invoice data available." compact brand={BRAND} />
+                ) : (
+                  invoices.slice(0, 3).map((invoice) => (
+                    <div key={invoice._id} className="flex items-center justify-between" style={{ color: BRAND.textSecondary }}>
+                      <span>{invoice.invoiceId || 'Invoice'}</span>
+                      <span>{formatMoney(invoice.balance || invoice.paid || 0)}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-2 mt-4">
+              <button
+                type="button"
+                className="h-10 rounded-lg border text-sm font-semibold"
+                style={{ borderColor: BRAND.border, color: BRAND.primaryDark }}
+                onClick={() => navigate('/guest-dashboard/billing')}
+              >
+                View Bill
+              </button>
+              <button
+                type="button"
+                className="h-10 rounded-lg text-sm font-semibold text-white"
+                style={{ background: BRAND.primary }}
+                onClick={() => navigate('/guest-dashboard/billing')}
+              >
+                Pay Now
+              </button>
+            </div>
           </div>
+
+          {/* 7. Help (hide directory list on mobile) */}
+          <SectionCard title="Need Help?" brand={BRAND}>
+            <div className="hidden md:block space-y-2 text-sm" style={{ color: BRAND.textSecondary }}>
+              <p>📞 Front Desk: Ext 0</p>
+              <p>🍽️ Room Service: Ext 5</p>
+              <p>🔧 Maintenance: Ext 8</p>
+              <p>🚨 Emergency: Ext 9</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2 mt-1 md:mt-4">
+              <button
+                type="button"
+                className="h-10 rounded-lg border text-sm font-semibold"
+                style={{ borderColor: BRAND.border, color: BRAND.primaryDark }}
+                onClick={() => navigate('/guest-dashboard/requests')}
+              >
+                Front Desk
+              </button>
+              <button
+                type="button"
+                className="h-10 rounded-lg text-sm font-semibold text-white"
+                style={{ background: BRAND.primary }}
+                onClick={() => navigate('/guest-dashboard/requests')}
+              >
+                Live Chat
+              </button>
+            </div>
+          </SectionCard>
         </div>
 
         <div className="flex justify-end">
@@ -852,6 +862,74 @@ const DashboardView = () => {
             {refreshing ? <Loader2 size={16} className="animate-spin" /> : <ReceiptText size={16} />}
             Refresh dashboard
           </button>
+        </div>
+      </div>
+
+      {/* Mobile Notifications Sheet */}
+      <button
+        type="button"
+        aria-label="Close notifications"
+        onClick={() => setShowNotifications(false)}
+        className={`md:hidden fixed inset-0 bg-black/40 backdrop-blur-[2px] z-499 transition-opacity ${
+          showNotifications ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+      />
+      <div
+        className={`md:hidden fixed bottom-0 left-0 right-0 h-[80vh] bg-white dark:bg-slate-900 rounded-t-3xl z-500 transition-transform duration-300 ${
+          showNotifications ? 'translate-y-0' : 'translate-y-full'
+        }`}
+        role="dialog"
+        aria-modal="true"
+      >
+        <div className="py-3">
+          <div className="w-9 h-1 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto" />
+        </div>
+        <div className="px-4 flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+          <div>
+            <p className="font-semibold text-sm text-slate-900 dark:text-white">Notifications</p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">{unreadNotifications} unread • live updates enabled</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setRealtimeNotifications((prev) => prev.map((item) => ({ ...item, unread: false })));
+            }}
+            className="text-sm text-teal-600 font-semibold"
+          >
+            Mark all
+          </button>
+        </div>
+        <div className="h-[calc(80vh-72px)] overflow-y-auto px-4 py-3 pb-24">
+          {notifications.length === 0 ? (
+            <p className="px-2 py-8 text-sm text-center text-slate-500 dark:text-slate-400">No notifications yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {notifications.map((item) => (
+                <div
+                  key={item.id}
+                  className={`rounded-2xl border p-4 ${item.unread ? 'bg-teal-50/60 dark:bg-teal-900/10' : 'bg-white dark:bg-slate-900'}`}
+                  style={{ borderColor: BRAND.border }}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <p className={`text-sm leading-5 ${item.unread ? 'font-semibold' : 'font-medium'}`} style={{ color: BRAND.textPrimary }}>
+                      {item.title}
+                    </p>
+                    <span className={`text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full shrink-0 ${isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-500'}`}>
+                      {item.category || 'update'}
+                    </span>
+                  </div>
+                  {item.subtitle && (
+                    <p className="text-xs mt-1 line-clamp-2" style={{ color: BRAND.textSecondary }}>
+                      {item.subtitle}
+                    </p>
+                  )}
+                  <p className="text-[11px] mt-2" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>
+                    {formatRelativeTime(item.time)} • {formatDateTime(item.time)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -911,7 +989,7 @@ const StatsCard = ({ icon: Icon, title, value, subtitle, tone, cta, onClick, bra
   <button
     type="button"
     onClick={onClick}
-    className="w-full text-left rounded-2xl border p-5 transition-all hover:-translate-y-1"
+    className="w-full text-left rounded-2xl border p-5 transition-all hover:-translate-y-1 md:hover:-translate-y-1"
     style={{
       background: brand.card,
       borderColor: brand.border,

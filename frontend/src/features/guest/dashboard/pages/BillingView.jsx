@@ -135,9 +135,9 @@ const BillingView = () => {
   }
 
   return (
-    <div className={`min-h-screen pb-12 ${isDark ? 'bg-linear-to-br from-slate-950 via-slate-900 to-gray-950 text-gray-100' : 'bg-linear-to-br from-green-50 via-emerald-50 to-teal-50'}`}>
+    <div className={`min-h-screen pb-24 md:pb-8 ${isDark ? 'bg-linear-to-br from-slate-950 via-slate-900 to-gray-950 text-gray-100' : 'bg-linear-to-br from-green-50 via-emerald-50 to-teal-50'}`}>
       {/* Header */}
-      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border-b border-gray-100 dark:border-slate-800 shadow-sm">
+      <div className="hidden md:block bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border-b border-gray-100 dark:border-slate-800 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div>
@@ -154,7 +154,21 @@ const BillingView = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 md:pt-8 pb-8">
+        <div className="md:hidden mb-4">
+          <p className="text-base font-semibold text-gray-900 dark:text-gray-100">Billing</p>
+          <div className="mt-2 rounded-2xl border bg-white/80 dark:bg-slate-900/60 p-4 flex items-center justify-between gap-3"
+               style={{ borderColor: isDark ? 'rgba(148,163,184,0.18)' : 'rgba(2,6,23,0.08)' }}>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Outstanding</p>
+              <p className="text-xl font-bold text-gray-900 dark:text-gray-100">${outstandingBalance.toFixed(2)}</p>
+            </div>
+            <span className={`px-3 py-1.5 rounded-full text-xs font-semibold ${outstandingBalance > 0 ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/20 dark:text-rose-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300'}`}>
+              {outstandingBalance > 0 ? 'Due' : 'All clear'}
+            </span>
+          </div>
+        </div>
+
         {invoices.length === 0 ? (
           <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-xl shadow-md border border-transparent dark:border-slate-800">
             <DollarSign className="w-16 h-16 mx-auto text-gray-300 mb-4" />

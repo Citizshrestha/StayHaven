@@ -1,0 +1,47 @@
+/* StayHaven Guest Dashboard — mobile shell helpers */
+
+@media (max-width: 767px) {
+  .sh-mobile-header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    height: 56px;
+    padding: 12px 20px;
+    padding-top: max(12px, env(safe-area-inset-top));
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(0, 191, 166, 0.1);
+  }
+
+  .dark .sh-mobile-header {
+    background: rgba(15, 23, 42, 0.92);
+    border-bottom-color: rgba(45, 212, 191, 0.14);
+  }
+
+  .sh-mobile-bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 65px;
+    z-index: 1000;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(16px);
+    border-top: 1px solid rgba(0, 191, 166, 0.12);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
+    padding-bottom: max(0px, env(safe-area-inset-bottom));
+  }
+
+  .dark .sh-mobile-bottom-nav {
+    background: rgba(15, 23, 42, 0.92);
+    border-top-color: rgba(45, 212, 191, 0.14);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.24);
+  }
+}
+
+body.sh-no-scroll {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+}
+
