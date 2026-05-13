@@ -30,6 +30,7 @@ import seedRoutes from "./routes/seedRoutes.js";
 import receptionRoutes from "./routes/receptionRoutes.js";
 import webhookRoutes from "./routes/webhookRoutes.js";
 import healthRoutes from "./routes/healthRoutes.js";
+import feedbackRoutes from "./routes/feedbackRoutes.js";
 import cookieParser from "cookie-parser";
 import { initCloudinary } from "./config/cloudinary.js";
 import { initSocket } from "./config/socket.js";
@@ -242,6 +243,7 @@ app.use("/api/v1/guest", guestRoutes);       // Guest QR scanning (public)
 app.use("/api/v1/guest/portal", guestDashboardRoutes); // Guest dashboard (authenticated)
 app.use("/api/v1/reception", receptionRoutes); // Reception dashboard APIs (authenticated)
 app.use("/api/v1/webhooks", webhookRoutes);    // Payment gateway webhooks (public)
+app.use("/api/v1/feedback", feedbackRoutes);   // Feedback submission (public + admin)
 
 // ═══════════════════════════════════════════
 // Error Handling Middleware (MUST BE LAST)

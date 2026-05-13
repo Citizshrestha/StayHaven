@@ -1,10 +1,14 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import dns from 'dns';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+// Fix DNS issue with MongoDB Atlas SRV records
+dns.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1']);
 
 // Load environment variables
 dotenv.config({ path: join(__dirname, '../.env') });

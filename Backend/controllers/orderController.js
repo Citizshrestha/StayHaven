@@ -859,10 +859,10 @@ export const sendBillToCustomer = asyncHandler(async (req, res) => {
   const { method, email, phone } = req.body;
 
   // Validate method
-  if (!method || !['email', 'sms', 'whatsapp', 'app'].includes(method)) {
+  if (!method || !['email', 'app'].includes(method)) {
     return res.status(400).json({
       success: false,
-      message: "Invalid send method. Use 'email', 'sms', 'whatsapp', or 'app'",
+      message: "Invalid send method. Use 'email' or 'app'",
     });
   }
 
@@ -893,13 +893,6 @@ export const sendBillToCustomer = asyncHandler(async (req, res) => {
     return res.status(400).json({
       success: false,
       message: "Email is required for email delivery",
-    });
-  }
-
-  if ((method === 'sms' || method === 'whatsapp') && !phone) {
-    return res.status(400).json({
-      success: false,
-      message: "Phone number is required for SMS/WhatsApp delivery",
     });
   }
 
@@ -941,7 +934,7 @@ export const sendBillToCustomer = asyncHandler(async (req, res) => {
     // Handle different delivery methods
     if (method === 'app') {
       // Send in-app notification to guest dashboard
-      
+
       // Emit to guest's dashboard immediately
       if (order.customerId) {
         emitToUser(order.customerId.toString(), "bill-received", {
@@ -958,32 +951,13 @@ export const sendBillToCustomer = asyncHandler(async (req, res) => {
       // Send email with HTML bill
       const emailHTML = generateBillEmailHTML(billData);
       const emailText = generateBillTextMessage(billData);
-      
+
       await sendEmail({
         to: email,
         subject: `Bill for Order #${order.orderNumber} - ${order.hotel?.name || 'Hotel'}`,
         html: emailHTML,
         text: emailText,
       });
-      
-    } else if (method === 'sms') {
-      // Send SMS with plain text bill
-      const smsMessage = generateBillTextMessage(billData);
-      
-      await sendSMS({
-        to: phone,
-        message: smsMessage,
-      });
-      
-    } else if (method === 'whatsapp') {
-      // Send WhatsApp message with plain text bill
-      const whatsappMessage = generateBillTextMessage(billData);
-      
-      await sendWhatsApp({
-        to: phone,
-        message: whatsappMessage,
-      });
-      
     }
 
     // Update order with bill sent info
@@ -991,7 +965,6 @@ export const sendBillToCustomer = asyncHandler(async (req, res) => {
     order.billSentAt = new Date();
     order.billSentTo = {
       email: method === 'email' ? email : undefined,
-      phone: (method === 'sms' || method === 'whatsapp') ? phone : undefined,
       method,
     };
     order.billSentStatus = 'sent'; // Assume success for now
@@ -1003,12 +976,12 @@ export const sendBillToCustomer = asyncHandler(async (req, res) => {
       orderNumber: order.orderNumber,
       billSent: true,
       billSentAt: order.billSentAt,
-      billSentTo: method === 'email' ? email : method === 'app' ? 'Guest Dashboard' : phone,
+      billSentTo: method === 'email' ? email : 'Guest Dashboard',
       method,
     };
 
     // Notify all staff in the hotel
-    const methodLabel = method === 'app' ? 'guest dashboard notification' : method;
+    const methodLabel = method === 'app' ? 'app notification' : method;
     emitToHotel(order.hotel._id.toString(), "bill-sent", {
       ...eventData,
       message: `📄 Bill sent for Order #${order.orderNumber} via ${methodLabel}. Guest will make payment.`,
@@ -1020,7 +993,7 @@ export const sendBillToCustomer = asyncHandler(async (req, res) => {
       data: {
         orderId: order._id,
         orderNumber: order.orderNumber,
-        sentTo: method === 'email' ? email : method === 'app' ? 'Guest Dashboard' : phone,
+        sentTo: method === 'email' ? email : 'Guest Dashboard',
         method,
         sentAt: order.billSentAt,
         billData, // Return bill data for preview
