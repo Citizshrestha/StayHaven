@@ -148,15 +148,14 @@ export const staffLogin = asyncHandler(async (req, res) => {
     "owner",
     "receptionist",
   ];
-  const userRoleName = user.role?.name || user.companyRole;
 
   const userRoleName = user.role?.name || user.companyRole;
 
   // Make role check case-insensitive
   const isAllowedRole =
-    userRoleName &&
+    (user.role?.name || user.companyRole) &&
     allowedRoles.some(
-      (role) => role.toLowerCase() === userRoleName.toLowerCase()
+      (role) => role.toLowerCase() === (user.role?.name || user.companyRole).toLowerCase()
     );
 
   if (!isAllowedRole) {
@@ -222,7 +221,7 @@ export const staffLogin = asyncHandler(async (req, res) => {
   await user.save();
 
   // Determine redirect path based on role
-  const roleForRouting = String(userRoleName || "").toLowerCase();
+  const roleForRouting = String(user.role?.name || user.companyRole || "").toLowerCase();
   let redirectPath = "/";
   switch (roleForRouting) {
     case "chief":
@@ -251,7 +250,7 @@ export const staffLogin = asyncHandler(async (req, res) => {
       username: user.username,
       email: user.email,
       profilePicture: user.profilePicture,
-      role: userRoleName,
+      role: user.role?.name || user.companyRole,
       company: {
         _id: user.company._id,
         name: user.company.name,
