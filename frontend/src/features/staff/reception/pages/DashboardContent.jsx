@@ -18,8 +18,9 @@ import {
 import * as msgService from '../../../../core/api/services/messaging.service';
 import * as receptionApi from '../../../../core/api/services/reception.service';
 import { io as socketIO } from 'socket.io-client';
+import { getApiBaseUrl } from '../../../../utils/apiConfig';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+const API_BASE = getApiBaseUrl();
 
 /* ── Sparkline Component ── */
 const Sparkline = ({ data, color, height = 32 }) => {

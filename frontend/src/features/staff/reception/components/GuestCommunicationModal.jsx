@@ -55,7 +55,7 @@ const GuestCommunicationModal = ({ isOpen, onClose, bookingId = null, hotelId = 
 
   const fetchTemplates = async () => {
     try {
-      const response = await axiosClient.get('/api/reception/communications/templates');
+      const response = await axiosClient.get('/api/v1/reception/communications/templates');
       setTemplates(response.data?.data || defaultTemplates);
     } catch {
       setTemplates(defaultTemplates);
@@ -66,7 +66,7 @@ const GuestCommunicationModal = ({ isOpen, onClose, bookingId = null, hotelId = 
     if (!hotelId) return;
     try {
       setLoading(true);
-      const response = await axiosClient.get(`/api/reception/reservations?hotelId=${hotelId}&limit=50`);
+      const response = await axiosClient.get(`/api/v1/reception/reservations?hotelId=${hotelId}&limit=50`);
       setBookings(response.data?.data || []);
     } catch {
       setError('Failed to load bookings');
@@ -103,7 +103,7 @@ const GuestCommunicationModal = ({ isOpen, onClose, bookingId = null, hotelId = 
       setLoading(true);
       setError('');
 
-      await axiosClient.post('/api/reception/communications/send', {
+      await axiosClient.post('/api/v1/reception/communications/send', {
         bookingId: selectedBooking,
         templateKey: selectedTemplate?.key,
         customSubject,

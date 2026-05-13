@@ -37,7 +37,7 @@ const BulkCheckInModal = ({ isOpen, onClose, hotelId = null }) => {
       setLoading(true);
       setError('');
       const response = await axiosClient.get(
-        `/api/reception/reservations?hotelId=${hotelId}&status=Confirmed&limit=100`
+        `/api/v1/reception/reservations?hotelId=${hotelId}&status=Confirmed&limit=100`
       );
       // Filter to only show today's arrivals
       const today = new Date();
@@ -90,7 +90,7 @@ const BulkCheckInModal = ({ isOpen, onClose, hotelId = null }) => {
       setProcessing(true);
       setError('');
 
-      const response = await axiosClient.post('/api/reception/batch/checkin', {
+      const response = await axiosClient.post('/api/v1/reception/batch/checkin', {
         bookingIds: selectedBookings,
       });
 

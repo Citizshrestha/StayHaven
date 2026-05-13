@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTheme } from '../../../../hooks/useTheme';
+import { getApiBaseUrl } from '../../../../utils/apiConfig';
 import {
   Search,
   ChevronDown,
@@ -36,12 +37,11 @@ const normalizeAvatarUrl = (raw) => {
   if (v.startsWith('http://') || v.startsWith('https://')) return v;
   if (v.startsWith('//')) return `https:${v}`;
 
-  const base = import.meta.env.VITE_API_BASE_URL ? String(import.meta.env.VITE_API_BASE_URL).trim() : '';
+  const base = getApiBaseUrl();
   if (!base) return v; // best-effort fallback
 
-  const baseNoTrailingSlash = base.replace(/\/+$/, '');
-  if (v.startsWith('/')) return `${baseNoTrailingSlash}${v}`;
-  return `${baseNoTrailingSlash}/${v}`;
+  if (v.startsWith('/')) return `${base}${v}`;
+  return `${base}/${v}`;
 };
 
 const GuestAvatar = ({ avatar, name, initials }) => {

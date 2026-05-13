@@ -559,7 +559,7 @@ export const NewBookingModal = ({ isOpen, onClose, isDark, hotelId }) => {
         return;
       }
 
-      const response = await axiosClient.get(`/api/bookings/available/rooms/${hotelId}`, {
+      const response = await axiosClient.get(`/api/v1/bookings/available/rooms/${hotelId}`, {
         params: {
           checkIn: formData.checkIn,
           checkOut: formData.checkOut
@@ -616,7 +616,7 @@ export const NewBookingModal = ({ isOpen, onClose, isDark, hotelId }) => {
       setLoading(true);
       setError('');
 
-      const response = await axiosClient.post('/api/bookings/new', {
+      const response = await axiosClient.post('/api/v1/bookings/new', {
         guestName: formData.guestName,
         guestEmail: formData.email,
         guestPhone: formData.phone,
@@ -906,7 +906,7 @@ export const WalkInGuestModal = ({ isOpen, onClose, isDark, hotelId }) => {
     try {
       setLoading(true);
       setError('');
-      const response = await axiosClient.get('/api/bookings/available/rooms/' + hotelId);
+      const response = await axiosClient.get('/api/v1/bookings/available/rooms/' + hotelId);
       setRooms(response.data.rooms || []);
     } catch {
       setError('Failed to load available rooms');
@@ -925,7 +925,7 @@ export const WalkInGuestModal = ({ isOpen, onClose, isDark, hotelId }) => {
       setLoading(true);
       setError('');
 
-      const res = await axiosClient.post('/api/bookings/walk-in/check-in', {
+      const res = await axiosClient.post('/api/v1/bookings/walk-in/check-in', {
         guestName: formData.guestName,
         guestEmail: formData.guestEmail,
         guestPhone: formData.guestPhone,
@@ -1194,7 +1194,7 @@ export const ExpressCheckOutModal = ({ isOpen, onClose, isDark, activeBookingId,
   const loadCheckedInBookings = async () => {
     try {
       setLoading(true);
-      const response = await axiosClient.get(`/api/bookings/hotel/${hotelId}`, {
+      const response = await axiosClient.get(`/api/v1/bookings/hotel/${hotelId}`, {
         params: { status: 'Checked-In', limit: 100 }
       });
       setCheckedInBookings(response.data.bookings || []);
@@ -1209,7 +1209,7 @@ export const ExpressCheckOutModal = ({ isOpen, onClose, isDark, activeBookingId,
     try {
       setLoading(true);
       setError('');
-      const response = await axiosClient.get(`/api/bookings/${bookingId}`);
+      const response = await axiosClient.get(`/api/v1/bookings/${bookingId}`);
       setBookingData(response.data.booking);
     } catch {
       setError('Failed to load booking details');
@@ -1233,7 +1233,7 @@ export const ExpressCheckOutModal = ({ isOpen, onClose, isDark, activeBookingId,
       setLoading(true);
       setError('');
 
-      await axiosClient.post('/api/bookings/check-out/express', {
+      await axiosClient.post('/api/v1/bookings/check-out/express', {
         bookingId: targetId,
         settlePayment: settlePayment
       });
@@ -1559,7 +1559,7 @@ export const RoomChangeModal = ({ isOpen, onClose, isDark, activeBookingId, hote
     try {
       setLoading(true);
       setError('');
-      const response = await axiosClient.get(`/api/bookings/${bookingId}`);
+      const response = await axiosClient.get(`/api/v1/bookings/${bookingId}`);
       setBookingData(response.data.booking);
     } catch {
       setError('Failed to load booking details');
@@ -1570,7 +1570,7 @@ export const RoomChangeModal = ({ isOpen, onClose, isDark, activeBookingId, hote
 
   const loadAvailableRooms = async (bookingId) => {
     try {
-      const response = await axiosClient.get('/api/bookings/available/rooms/' + hotelId, {
+      const response = await axiosClient.get('/api/v1/bookings/available/rooms/' + hotelId, {
         params: {
           bookingId,
           checkIn: bookingData?.checkIn,
@@ -1602,7 +1602,7 @@ export const RoomChangeModal = ({ isOpen, onClose, isDark, activeBookingId, hote
       setLoading(true);
       setError('');
 
-      await axiosClient.post('/api/bookings/room-change', {
+      await axiosClient.post('/api/v1/bookings/room-change', {
         bookingId: targetId,
         newRoomId: newRoomId
       });
