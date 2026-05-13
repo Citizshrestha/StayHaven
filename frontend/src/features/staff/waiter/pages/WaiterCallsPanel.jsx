@@ -130,7 +130,7 @@ const WaiterCallsPanel = ({ onClose, onCallCountChange }) => {
   const handleAcknowledge = async (callId) => {
     try {
       setProcessingCall(callId);
-      await axiosClient.put(`/api/staff/waiter-calls/${callId}/acknowledge`);
+      await axiosClient.put(`/api/v1/staff/waiter-calls/${callId}/acknowledge`);
       // Socket will update the state automatically
     } catch (err) {
       console.error("Failed to acknowledge call:", err);
@@ -144,7 +144,7 @@ const WaiterCallsPanel = ({ onClose, onCallCountChange }) => {
   const handleResolve = async (callId) => {
     try {
       setProcessingCall(callId);
-      await axiosClient.put(`/api/staff/waiter-calls/${callId}/resolve`);
+      await axiosClient.put(`/api/v1/staff/waiter-calls/${callId}/resolve`);
       // Socket will update the state automatically
     } catch (err) {
       console.error("Failed to resolve call:", err);

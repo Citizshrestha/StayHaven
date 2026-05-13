@@ -447,8 +447,8 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
   // Handle send bill
   const handleSendBill = async (orderId, billData) => {
     try {
-      const response = await axiosClient.post(`/api/staff/orders/${orderId}/send-bill`, billData);
-      
+      const response = await axiosClient.post(`/api/v1/staff/orders/${orderId}/send-bill`, billData);
+
       if (response.data.success) {
         // Just return success - the socket event will update the UI
         // No need to call onUpdate which triggers the edit API
