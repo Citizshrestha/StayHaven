@@ -192,12 +192,12 @@ const Navbar = () => {
           </a>
 
           {/* Desktop Navigation */}
-          <div className="hidden lg:flex items-center gap-8">
+          <div className="hidden lg:flex items-center gap-8 ml-20">
             {navLinks.map((link) => (
               <button
                 key={link.label}
                 onClick={() => navigate(link.path)}
-                className={`text-sm font-semibold tracking-wide transition-all duration-300 relative group ${location.pathname === link.path ? 'text-teal-600' : 'text-gray-700 hover:text-teal-600'}`}
+                className={`text-sm font-semibold tracking-wide transition-all duration-300 relative group whitespace-nowrap ${location.pathname === link.path ? 'text-teal-600' : 'text-gray-700 hover:text-teal-600'}`}
               >
                 {link.label}
                 <span className={`absolute -bottom-1 left-0 h-0.5 bg-teal-500 transition-all duration-300 ${location.pathname === link.path ? 'w-full' : 'w-0 group-hover:w-full'
@@ -207,7 +207,7 @@ const Navbar = () => {
           </div>
 
           {/* Desktop Actions */}
-          <div className="hidden lg:flex items-center gap-4">
+          <div className="hidden lg:flex items-center gap-4 ml-8">
             {/* Search Bar */}
             <div className="search-bar relative">
               <input
