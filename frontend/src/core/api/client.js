@@ -1,11 +1,12 @@
 import axios from "axios";
 import { setupCsrfInterceptor } from "../../utils/csrf";
+import { getApiBaseUrl } from "../../utils/apiConfig";
 
 // Singleton refresh promise — prevents concurrent token-rotation races
 let activeRefreshPromise = null;
 
 const axiosClient = axios.create({
-    baseURL: import.meta.env.VITE_API_BASE_URL,
+    baseURL: getApiBaseUrl(),
     headers: {
         "Content-Type": "application/json",
     },
@@ -97,7 +98,7 @@ axiosClient.interceptors.response.use(
                 // new token once the refresh completes.
                 if (!activeRefreshPromise) {
                     activeRefreshPromise = axios.post(
-                        import.meta.env.VITE_API_BASE_URL + refreshUrl,
+                        getApiBaseUrl() + refreshUrl,
                         {},
                         { withCredentials: true }
                     ).finally(() => { activeRefreshPromise = null; });

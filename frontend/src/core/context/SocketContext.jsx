@@ -20,12 +20,13 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { io } from "socket.io-client";
 import { getActiveProperty, getCurrentStaffUser } from "../../api/staff";
+import { getSocketUrl } from "../../utils/apiConfig";
 
 // Create the context
 const SocketContext = createContext(null);
 
 // Backend server URL
-const SOCKET_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+const SOCKET_URL = getSocketUrl();
 
 /**
  * SocketProvider Component

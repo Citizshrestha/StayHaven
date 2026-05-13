@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import axios from "axios";
+import { getApiBaseUrl } from "../../utils/apiConfig";
 
 // Create the context
 const StaffAuthContext = createContext(null);
@@ -22,7 +23,7 @@ export const StaffAuthProvider = ({ children }) => {
     refreshInProgressRef.current = true;
     try {
       const { data } = await axios.post(
-        `${import.meta.env.VITE_API_BASE_URL}/api/staff/refresh-token`,
+        `${getApiBaseUrl()}/api/v1/staff/refresh-token`,
         {},
         { withCredentials: true }
       );
