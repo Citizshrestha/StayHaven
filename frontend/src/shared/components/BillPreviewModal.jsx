@@ -71,23 +71,16 @@ const BillPreviewModal = ({
 
   // Handle send bill
   const handleSendBill = async () => {
-    // For app notification, no email/phone required
-    if (sendMethod !== 'app') {
-      if (sendMethod === 'email' && !email) {
-        toast.error('Please enter email address');
-        return;
-      }
-
-      if ((sendMethod === 'sms' || sendMethod === 'whatsapp') && !phone) {
-        toast.error('Please enter phone number');
-        return;
-      }
+    // Validate based on method
+    if (sendMethod === 'email' && !email) {
+      toast.error('Please enter email address');
+      return;
     }
 
     try {
       setSending(true);
       const orderId = order._id || order.id;
-      
+
       console.log('🔍 Send Bill Debug:', {
         order,
         orderId,
@@ -95,21 +88,20 @@ const BillPreviewModal = ({
         has_id: !!order._id,
         orderKeys: Object.keys(order),
       });
-      
+
       if (!orderId) {
         console.error('❌ Order ID not found. Order object:', order);
         toast.error('Order ID not found');
         setSending(false);
         return;
       }
-      
+
       await onSendBill(orderId, {
         method: sendMethod,
         email: sendMethod === 'email' ? email : undefined,
-        phone: sendMethod !== 'email' && sendMethod !== 'app' ? phone : undefined,
       });
-      
-      const methodLabel = sendMethod === 'app' ? 'guest dashboard notification' : sendMethod;
+
+      const methodLabel = sendMethod === 'app' ? 'app notification' : sendMethod;
       toast.success(`📧 Bill sent successfully via ${methodLabel}! Guest will make the payment.`);
       setTimeout(() => onClose(), 1500);
     } catch (error) {
@@ -282,7 +274,7 @@ const BillPreviewModal = ({
               <label className="block text-sm font-medium text-gray-700">
                 Send Bill Via:
               </label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={() => setSendMethod('app')}
                   className={`px-4 py-3 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${
@@ -305,28 +297,6 @@ const BillPreviewModal = ({
                   <span className="text-lg">📧</span>
                   <span>Email</span>
                 </button>
-                <button
-                  onClick={() => setSendMethod('sms')}
-                  className={`px-4 py-3 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${
-                    sendMethod === 'sms'
-                      ? 'bg-teal-600 text-white shadow-md'
-                      : 'bg-teal-50 text-teal-700 hover:bg-teal-100 border border-teal-200'
-                  }`}
-                >
-                  <span className="text-lg">💬</span>
-                  <span>SMS</span>
-                </button>
-                <button
-                  onClick={() => setSendMethod('whatsapp')}
-                  className={`px-4 py-3 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${
-                    sendMethod === 'whatsapp'
-                      ? 'bg-teal-600 text-white shadow-md'
-                      : 'bg-teal-50 text-teal-700 hover:bg-teal-100 border border-teal-200'
-                  }`}
-                >
-                  <span className="text-lg">📱</span>
-                  <span>WhatsApp</span>
-                </button>
               </div>
 
               {sendMethod === 'email' && (
@@ -335,16 +305,6 @@ const BillPreviewModal = ({
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter email address"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                />
-              )}
-
-              {(sendMethod === 'sms' || sendMethod === 'whatsapp') && (
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="Enter phone number (e.g., +977 9812345678)"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                 />
               )}
