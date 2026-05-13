@@ -190,11 +190,10 @@ const HoteladminDashboard = () => {
       const newRoomWithId = {
         ...newRoom,
         id: roomsData.length + 1,
-<<<<<<< HEAD
+ HEAD
         price: newRoom.price.startsWith('$') ? newRoom.price : `$${newRoom.price}`
-=======
-        price: newRoom.price.startsWith('Rs.') ? newRoom.price : `Rs. ${newRoom.price}`
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+        price: newRoom.price.startsWith('NPR ') ? newRoom.price : `NPR ${newRoom.price}` 18a7cad6072eb3da4257dc61533fafce0ecb2070
       };
       
       setRoomsData([...roomsData, newRoomWithId]);
@@ -344,11 +343,10 @@ const HoteladminDashboard = () => {
             <div className="analytics-header">
               <h3>Sales Analytics</h3>
               <div className="analytics-value">
-<<<<<<< HEAD
+ HEAD
                 <div className="amount">$12,500</div>
-=======
-                <div className="amount">Rs. 12,50,000</div>
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+                <div className="amount">NPR 12,50,000</div> 18a7cad6072eb3da4257dc61533fafce0ecb2070
                 <div className="trend positive">Last 7 Days +15%</div>
               </div>
             </div>
@@ -1079,11 +1077,10 @@ const HoteladminDashboard = () => {
     </div>
   );
 
-<<<<<<< HEAD
+ HEAD
   const renderBillingPayments = () => {
-=======
-const renderBillingPayments = () => {
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+const renderBillingPayments = () => { 18a7cad6072eb3da4257dc61533fafce0ecb2070
 
     const renderInvoicesTab = () => (
       <div className="tab-content">

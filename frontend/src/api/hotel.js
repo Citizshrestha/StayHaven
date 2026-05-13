@@ -4,7 +4,7 @@
 export const getAllHotels = async (filters = {}) => {
   try {
     const queryParams = new URLSearchParams(filters).toString();
-    const response = await axiosClient.get(`/hotelsNPR {queryParams ? `?${queryParams}` : ''}`);
+    const response = await axiosClient.get(`/hotels${queryParams ? `?${queryParams}` : ''}`);
     return response.data;
   } catch (error) {
     console.error('Error fetching hotels:', error);

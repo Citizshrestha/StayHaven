@@ -1,16 +1,12 @@
-<<<<<<< HEAD
+ HEAD
 import { X, Clock, MapPin, User } from "lucide-react";
-
 const OrderDetailsModal = ({ order, onClose }) => {
   if (!order) return null;
 
-=======
+
 import { X, Clock, MapPin, User, Check } from "lucide-react";
 import ItemCarousel from "../../shared/ItemCarousel";
-
 const OrderDetailsModal = ({ order, onClose, isDarkMode = false }) => {
-  if (!order) return null;
-
   // Theme colors
   const colors = {
     bg: isDarkMode ? "#1E293B" : "white",
@@ -20,16 +16,13 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false }) => {
     cardBg: isDarkMode ? "#334155" : "#F9FAFB",
     accent: "#10B981",
   };
-
   const itemsArray = Array.isArray(order.items)
     ? order.items
     : typeof order.items === "string"
       ? order.items.split(", ").map((name, index) => ({ id: index, name, quantity: 1 }))
       : typeof order.itemsText === "string"
         ? order.itemsText.split(", ").map((name, index) => ({ id: index, name, quantity: 1 }))
-        : [];
-
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+        : []; 18a7cad6072eb3da4257dc61533fafce0ecb2070
   const overlayStyle = {
     position: "fixed",
     top: 0,
@@ -41,29 +34,23 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false }) => {
     alignItems: "center",
     justifyContent: "center",
     zIndex: 1000,
-<<<<<<< HEAD
+ HEAD
     padding: "20px",
   };
-
   const modalStyle = {
     backgroundColor: "white",
-=======
-    padding: "16px",
-  };
 
-  const modalStyle = {
-    backgroundColor: colors.bg,
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+    padding: "16px",
+    backgroundColor: colors.bg, 18a7cad6072eb3da4257dc61533fafce0ecb2070
     borderRadius: "24px",
     maxWidth: "600px",
     width: "100%",
     maxHeight: "90vh",
-<<<<<<< HEAD
+ HEAD
     overflow: "auto",
     position: "relative",
     boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)",
   };
-
   const headerStyle = {
     padding: "24px",
     borderBottom: "1px solid #F3F4F6",
@@ -73,45 +60,34 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false }) => {
     zIndex: 10,
     borderTopLeftRadius: "24px",
     borderTopRightRadius: "24px",
-=======
+
     overflow: "hidden",
-    position: "relative",
     boxShadow: isDarkMode 
       ? "0 20px 25px -5px rgba(0, 0, 0, 0.4)" 
       : "0 20px 25px -5px rgba(0, 0, 0, 0.1)",
     display: "flex",
     flexDirection: "column",
     border: isDarkMode ? `1px solid ${colors.border}` : "none",
-  };
-
-  const headerStyle = {
     padding: "20px",
     borderBottom: `1px solid ${colors.border}`,
     backgroundColor: colors.bg,
-    zIndex: 10,
-    borderTopLeftRadius: "24px",
     borderTopRightRadius: "24px",
-    flexShrink: 0,
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+    flexShrink: 0, 18a7cad6072eb3da4257dc61533fafce0ecb2070
   };
 
   const closeButtonStyle = {
     position: "absolute",
-<<<<<<< HEAD
+ HEAD
     top: "24px",
     right: "24px",
     background: "none",
     border: "none",
     cursor: "pointer",
     color: "#6B7280",
-=======
+
     top: "20px",
     right: "20px",
-    background: "none",
-    border: "none",
-    cursor: "pointer",
-    color: colors.textSecondary,
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+    color: colors.textSecondary, 18a7cad6072eb3da4257dc61533fafce0ecb2070
     padding: "8px",
     borderRadius: "50%",
     display: "flex",
@@ -120,29 +96,22 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false }) => {
   };
 
   const titleStyle = {
-<<<<<<< HEAD
+ HEAD
     fontSize: "24px",
     fontWeight: "800",
     color: "#111827",
     marginBottom: "8px",
   };
-
   const bodyStyle = {
     padding: "24px",
-=======
-    fontSize: "20px",
-    fontWeight: "800",
-    color: colors.text,
-    marginBottom: "8px",
-    paddingRight: "40px",
-  };
 
-  const bodyStyle = {
+    fontSize: "20px",
+    color: colors.text,
+    paddingRight: "40px",
     padding: "20px",
     overflowY: "auto",
     flex: 1,
-    backgroundColor: colors.bg,
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+    backgroundColor: colors.bg, 18a7cad6072eb3da4257dc61533fafce0ecb2070
   };
 
   const sectionStyle = {
@@ -150,15 +119,13 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false }) => {
   };
 
   const sectionTitleStyle = {
-<<<<<<< HEAD
+ HEAD
     fontSize: "14px",
     fontWeight: "700",
     color: "#6B7280",
-=======
+
     fontSize: "12px",
-    fontWeight: "700",
-    color: colors.textSecondary,
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+    color: colors.textSecondary, 18a7cad6072eb3da4257dc61533fafce0ecb2070
     textTransform: "uppercase",
     letterSpacing: "0.05em",
     marginBottom: "12px",
@@ -168,15 +135,13 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false }) => {
     display: "flex",
     alignItems: "center",
     gap: "12px",
-<<<<<<< HEAD
+ HEAD
     marginBottom: "12px",
     padding: "12px",
     backgroundColor: "#F9FAFB",
-=======
+
     marginBottom: "8px",
-    padding: "12px",
-    backgroundColor: colors.cardBg,
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+    backgroundColor: colors.cardBg, 18a7cad6072eb3da4257dc61533fafce0ecb2070
     borderRadius: "12px",
   };
 
@@ -186,13 +151,12 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false }) => {
   };
 
   const infoTextStyle = {
-<<<<<<< HEAD
+ HEAD
     fontSize: "15px",
     color: "#111827",
-=======
+
     fontSize: "14px",
-    color: colors.text,
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+    color: colors.text, 18a7cad6072eb3da4257dc61533fafce0ecb2070
     fontWeight: "600",
   };
 
@@ -204,7 +168,7 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false }) => {
 
   const itemStyle = {
     padding: "12px",
-<<<<<<< HEAD
+ HEAD
     backgroundColor: "#F9FAFB",
     borderRadius: "12px",
     marginBottom: "8px",
@@ -212,28 +176,22 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false }) => {
     color: "#111827",
     fontWeight: "600",
   };
-
   const imageStyle = {
     width: "100%",
     height: "200px",
     objectFit: "cover",
     borderRadius: "16px",
     marginTop: "16px",
-=======
+
     backgroundColor: colors.cardBg,
-    borderRadius: "12px",
-    marginBottom: "8px",
     fontSize: "14px",
     color: colors.text,
-    fontWeight: "600",
     wordWrap: "break-word",
     overflowWrap: "break-word",
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
     gap: "12px",
-  };
-
   const specialInstructionsStyle = {
     fontSize: "12px",
     color: isDarkMode ? "#FCD34D" : "#D97706",
@@ -241,39 +199,32 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false }) => {
     padding: "6px 10px",
     borderRadius: "8px",
     marginTop: "6px",
-    display: "flex",
-    alignItems: "center",
     gap: "4px",
-    wordWrap: "break-word",
-    overflowWrap: "break-word",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+    overflowWrap: "break-word", 18a7cad6072eb3da4257dc61533fafce0ecb2070
   };
 
   const getStatusStyles = (status) => {
     switch (status) {
       case "new":
-<<<<<<< HEAD
+ HEAD
         return { backgroundColor: "#DBEAFE", color: "#2563EB", label: "New" };
       case "preparing":
         return {
           backgroundColor: "#FEF3C7",
           color: "#D97706",
-=======
+
         return { 
           backgroundColor: isDarkMode ? "rgba(37, 99, 235, 0.2)" : "#DBEAFE", 
           color: isDarkMode ? "#60A5FA" : "#2563EB", 
           label: "New" 
         };
-      case "preparing":
-        return {
           backgroundColor: isDarkMode ? "rgba(217, 119, 6, 0.2)" : "#FEF3C7",
-          color: isDarkMode ? "#FBBF24" : "#D97706",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+          color: isDarkMode ? "#FBBF24" : "#D97706", 18a7cad6072eb3da4257dc61533fafce0ecb2070
           label: "Preparing",
         };
       case "ready":
         return {
-<<<<<<< HEAD
+ HEAD
           backgroundColor: "#D1FAE5",
           color: "#059669",
           label: "Ready for Pickup",
@@ -282,54 +233,39 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false }) => {
         return { backgroundColor: "#F3F4F6", color: "#4B5563", label: status };
     }
   };
-
   // TODO: Call getStatusStyles function with order.status
   // LEARN: Function calls, storing returned values
   const statusStyle = getStatusStyles(order.status); // Replace with function call
-
   const badgeStyle = {
     display: "inline-block",
     padding: "6px 16px",
     borderRadius: "8px",
     fontSize: "13px",
-=======
+
           backgroundColor: isDarkMode ? "rgba(5, 150, 105, 0.2)" : "#D1FAE5",
           color: isDarkMode ? "#34D399" : "#059669",
-          label: "Ready for Pickup",
-        };
       case "delivered":
         return {
-          backgroundColor: isDarkMode ? "rgba(5, 150, 105, 0.2)" : "#D1FAE5",
           color: isDarkMode ? "#6EE7B7" : "#059669",
           label: "Delivered",
           showCheck: true,
-        };
-      default:
         return { 
           backgroundColor: isDarkMode ? "#334155" : "#F3F4F6", 
           color: isDarkMode ? "#94A3B8" : "#4B5563", 
           label: status 
-        };
-    }
-  };
-
   const statusStyle = getStatusStyles(order.status);
-
-  const badgeStyle = {
     display: "inline-flex",
     alignItems: "center",
     gap: "6px",
     padding: "6px 12px",
-    borderRadius: "8px",
-    fontSize: "12px",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+    fontSize: "12px", 18a7cad6072eb3da4257dc61533fafce0ecb2070
     fontWeight: "700",
     backgroundColor: statusStyle.backgroundColor,
     color: statusStyle.color,
   };
 
-<<<<<<< HEAD
-=======
+ HEAD
+
   // Quantity badge style like in screenshot
   const quantityBadgeStyle = {
     display: "inline-flex",
@@ -345,8 +281,7 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false }) => {
     color: "white",
     flexShrink: 0,
   };
-
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+ 18a7cad6072eb3da4257dc61533fafce0ecb2070
   return (
     <div style={overlayStyle} onClick={onClose}>
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
@@ -356,18 +291,15 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false }) => {
           </button>
 
           <h2 style={titleStyle}>Order #{order.orderNumber || order.id?.slice?.(-5)?.toUpperCase() || order.id}</h2>
-<<<<<<< HEAD
+ HEAD
           <span style={badgeStyle}>{statusStyle.label}</span>
         </div>
-
         <div style={bodyStyle}>
-=======
+
           <span style={badgeStyle}>
             {statusStyle.showCheck && <Check size={14} />}
             {statusStyle.label}
           </span>
-        </div>
-
         <div style={bodyStyle}>
           {/* Total Amount - if available */}
           {order.totalAmount && (
@@ -385,11 +317,9 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false }) => {
               </span>
               <span style={{ fontSize: "18px", fontWeight: "800", color: colors.accent }}>
                 ${typeof order.totalAmount === 'number' ? order.totalAmount.toFixed(2) : order.totalAmount}
-              </span>
             </div>
           )}
-
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+ 18a7cad6072eb3da4257dc61533fafce0ecb2070
           <div style={sectionStyle}>
             <h3 style={sectionTitleStyle}>Order Information</h3>
             <div style={infoRowStyle}>
@@ -402,22 +332,21 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false }) => {
             </div>
             <div style={infoRowStyle}>
               <User size={20} style={iconStyle} />
-<<<<<<< HEAD
+ HEAD
               <span style={infoTextStyle}>Assigned to: Alex Miller</span>
-=======
-              <span style={infoTextStyle}>Customer: {order.customerName || "Walk-in Guest"}</span>
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+              <span style={infoTextStyle}>Customer: {order.customerName || "Walk-in Guest"}</span> 18a7cad6072eb3da4257dc61533fafce0ecb2070
             </div>
           </div>
 
           <div style={sectionStyle}>
             <h3 style={sectionTitleStyle}>Order Items</h3>
             <ul style={itemsListStyle}>
-<<<<<<< HEAD
+ HEAD
               {order.items.split(", ").map((item, index) => (
                 <li key={index} style={itemStyle}>
                   {item}
-=======
+
               {itemsArray.map((item, index) => (
                 <li key={item.id || index} style={itemStyle}>
                   <div style={{ flex: 1 }}>
@@ -430,18 +359,17 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false }) => {
                   </div>
                   {item.quantity && (
                     <span style={quantityBadgeStyle}>×{item.quantity}</span>
-                  )}
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+                  )} 18a7cad6072eb3da4257dc61533fafce0ecb2070
                 </li>
               ))}
             </ul>
           </div>
 
           <div style={sectionStyle}>
-<<<<<<< HEAD
+ HEAD
             <h3 style={sectionTitleStyle}>Order Image</h3>
             <img style={imageStyle} alt="order" src={order.image} />
-=======
+
             <h3 style={sectionTitleStyle}>Order Images</h3>
             {itemsArray.length > 0 && (
               <p style={{
@@ -469,10 +397,8 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false }) => {
                   }} 
                   alt="order" 
                   src={order.image} 
-                />
               ) : null}
-            </div>
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+            </div> 18a7cad6072eb3da4257dc61533fafce0ecb2070
           </div>
         </div>
       </div>

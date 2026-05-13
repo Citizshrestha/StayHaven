@@ -61,20 +61,17 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
   // Responsive Inline Styles
   const containerStyle = {
     minHeight: "100%",
-    paddingBottom: isMobile ? "5rem" : "6rem",
-    backgroundColor: "#F8F9FB", 
     paddingBottom: isMobile ? "5rem" : "0",
     backgroundColor: "var(--bg-secondary)",
-fontFamily: "'Nunito', sans-serif",
+    fontFamily: "'Nunito', sans-serif",
   };
 
   const headerContainerStyle = {
     position: "sticky",
     top: 0,
     zIndex: 20,
-    backgroundColor: "#F8F9FB",
     backgroundColor: "var(--bg-secondary)",
-padding: isMobile ? "16px" : isTablet ? "24px 32px 20px 32px" : "32px 48px 24px 48px",
+    padding: isMobile ? "16px" : isTablet ? "24px 32px 20px 32px" : "32px 48px 24px 48px",
   };
 
   const titleSectionStyle = {
@@ -89,18 +86,16 @@ padding: isMobile ? "16px" : isTablet ? "24px 32px 20px 32px" : "32px 48px 24px 
   const titleStyle = {
     fontSize: isMobile ? "28px" : isTablet ? "32px" : "40px",
     fontWeight: "800",
-    color: "#111827",
     color: "var(--text-primary)",
-marginBottom: "8px",
+    marginBottom: "8px",
     letterSpacing: "-0.025em",
     lineHeight: "1.1",
   };
 
   const subtitleStyle = {
     fontSize: isMobile ? "14px" : "18px",
-    color: "#6B7280",
     color: "var(--text-secondary)",
-fontWeight: "500",
+    fontWeight: "500",
   };
 
   const refreshButtonStyle = {
@@ -143,18 +138,15 @@ fontWeight: "500",
     transition: "all 0.2s",
     border: "none",
     cursor: "pointer",
-    backgroundColor: isActive ? "#D1FAE5" : "white",
-    color: isActive ? "#059669" : "#6B7280",
     backgroundColor: isActive ? "var(--color-accent-light)" : "var(--bg-primary)",
     color: isActive ? "var(--color-primary)" : "var(--text-tertiary)",
-boxShadow: isActive ? "none" : "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+    boxShadow: isActive ? "none" : "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
     flexShrink: 0,
   });
 
   const ordersGridStyle = {
-    padding: isMobile ? "0 16px 80px 16px" : isTablet ? "0 32px 48px 32px" : "0 48px 48px 48px",
     padding: isMobile ? "0 16px 80px 16px" : isTablet ? "0 32px 32px 32px" : "0 48px 32px 48px",
-};
+  };
 
   const ordersListStyle = {
     display: "flex",

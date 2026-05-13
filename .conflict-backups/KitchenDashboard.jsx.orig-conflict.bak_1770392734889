@@ -1,13 +1,11 @@
-<<<<<<< HEAD
+ HEAD
 import React, { useState } from "react";
 import Sidebar from "./Sidebar";
 import DashboardContent from "./DashboardContent";
 import { useOrderContext } from "../../context/useOrderContext";
-
 const KitchenDashboard = () => {
   const [activeFilter, setActiveFilter] = useState("all");
    const {orders, updateOrderStatus} = useOrderContext();
-
  
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "#F8F9FB", display: "flex" }}>
@@ -20,28 +18,20 @@ const KitchenDashboard = () => {
           onUpdateOrderStatus={updateOrderStatus}
         />
       </div>
-=======
+
 import React, { useEffect, useState } from "react";
-import Sidebar from "./Sidebar";
 import KitchenMobileHeader from "./KitchenMobileHeader";
 import KitchenMobileNav from "./KitchenMobileNav";
-import DashboardContent from "./DashboardContent";
 import NotificationPanel from "../WaiterDashboard/NotificationPanel";
 import StaffSettings from "../shared/StaffSettings";
-import { useOrderContext } from "../../context/useOrderContext";
 import { useSocket } from "../../context/SocketContext";
 import { useNotifications } from "../../context/useNotifications";
 import { useTheme } from "../../hooks/useTheme";
-
-const KitchenDashboard = () => {
-  const [activeFilter, setActiveFilter] = useState("all");
   const [activeView, setActiveView] = useState("dashboard");
   
   // Use centralized theme context
   const { isDark: isDarkMode, toggleTheme: toggleDarkMode } = useTheme();
-  
   const { orders, updateOrderStatus, fetchOrders, loading } = useOrderContext();
-
   // Use centralized notification context (Socket + Context API)
   const { 
     notifications, 
@@ -49,10 +39,8 @@ const KitchenDashboard = () => {
     markRead, 
     markAllRead
   } = useNotifications();
-
   // Socket.io for order refresh (notifications handled by context)
   const { subscribe } = useSocket();
-
   // Apply kitchen-dark class for legacy CSS support (in addition to dark-theme from ThemeContext)
   useEffect(() => {
     if (isDarkMode) {
@@ -62,43 +50,27 @@ const KitchenDashboard = () => {
     }
     
     return () => {
-      document.documentElement.classList.remove("kitchen-dark");
     };
   }, [isDarkMode]);
-
-  useEffect(() => {
     const prevBodyOverflow = document.body.style.overflow;
     const prevHtmlOverflow = document.documentElement.style.overflow;
     document.body.style.overflow = "hidden";
     document.documentElement.style.overflow = "hidden";
-    return () => {
       document.body.style.overflow = prevBodyOverflow;
       document.documentElement.style.overflow = prevHtmlOverflow;
-    };
   }, []);
-
   // Subscribe to socket events for order data refresh only
-  useEffect(() => {
     if (!subscribe) return;
-
     const unsubscribeStatusUpdate = subscribe('order-status-updated', () => {
       fetchOrders({ silent: true });
     });
-
     const unsubscribeNewOrder = subscribe('new-order', () => {
-      fetchOrders({ silent: true });
-    });
-
-    return () => {
       unsubscribeStatusUpdate();
       unsubscribeNewOrder();
-    };
   }, [subscribe, fetchOrders]);
-
   const handleViewChange = (view) => {
     setActiveView(view);
   };
-
   // Handle notification click - navigate to that order in dashboard
   const handleNotificationClick = (notification) => {
     if (notification.orderId) {
@@ -115,9 +87,6 @@ const KitchenDashboard = () => {
           }, 2000);
         }
       }, 100);
-    }
-  };
-
   // Render main content based on active view
   const renderMainContent = () => {
     switch (activeView) {
@@ -133,7 +102,6 @@ const KitchenDashboard = () => {
           />
         );
       case "settings":
-        return (
           <div style={{ 
             display: "flex", 
             justifyContent: "center", 
@@ -146,9 +114,7 @@ const KitchenDashboard = () => {
               variant="kitchen"
             />
           </div>
-        );
       default:
-        return (
           <DashboardContent
             orders={orders}
             activeFilter={activeFilter}
@@ -156,12 +122,6 @@ const KitchenDashboard = () => {
             onUpdateOrderStatus={updateOrderStatus}
             onRefresh={fetchOrders}
             isRefreshing={loading}
-            isDarkMode={isDarkMode}
-          />
-        );
-    }
-  };
-
   // Dynamic styles based on dark mode
   const containerStyle = {
     height: "100vh",
@@ -169,8 +129,6 @@ const KitchenDashboard = () => {
     display: "flex",
     overflow: "hidden",
     transition: "background-color 0.3s ease",
-  };
-
   const sidebarStyle = {
     width: "280px",
     backgroundColor: isDarkMode ? "#1E293B" : "var(--bg-primary, white)",
@@ -178,17 +136,11 @@ const KitchenDashboard = () => {
     flexShrink: 0,
     height: "100%",
     overflowY: "auto",
-  };
-
   const mainContentStyle = {
     flex: 1,
     padding: "32px",
-    overflowY: "auto",
     minHeight: 0,
     backgroundColor: isDarkMode ? "#0F172A" : "transparent",
-  };
-
-  return (
     <div 
       style={containerStyle}
       className={`kitchen-dashboard ${isDarkMode ? 'dark' : ''}`}
@@ -203,9 +155,7 @@ const KitchenDashboard = () => {
           onViewChange={handleViewChange}
           notificationCount={unreadCount}
           isDarkMode={isDarkMode}
-        />
       </aside>
-
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
         {/* Mobile Header */}
@@ -213,9 +163,7 @@ const KitchenDashboard = () => {
           <KitchenMobileHeader 
             isDarkMode={isDarkMode} 
             onToggleDarkMode={toggleDarkMode}
-          />
         </header>
-
         {/* Main Content */}
         <div 
           style={mainContentStyle}
@@ -224,17 +172,10 @@ const KitchenDashboard = () => {
           {renderMainContent()}
         </div>
       </main>
-
       {/* Mobile Bottom Navigation */}
       <nav className="lg:hidden">
         <KitchenMobileNav
-          activeView={activeView}
-          onViewChange={handleViewChange}
-          notificationCount={unreadCount}
-          isDarkMode={isDarkMode}
-        />
-      </nav>
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+      </nav> 18a7cad6072eb3da4257dc61533fafce0ecb2070
     </div>
   );
 };

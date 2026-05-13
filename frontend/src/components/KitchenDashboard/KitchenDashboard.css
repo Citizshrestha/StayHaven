@@ -241,6 +241,26 @@
   }
 }
 
+/* Compact/tighter spacing on smaller screens */
+@media (max-width: 1024px) {
+  .kitchen-dashboard.dark {
+    padding: 0 8px 80px 8px;
+  }
+  .kitchen-dashboard.dark .order-card {
+    padding: 10px;
+    border-radius: 10px;
+  }
+  .kitchen-dashboard.dark .filter-btn {
+    padding: 8px 10px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 640px) {
+  .kitchen-dashboard.dark .order-card { padding: 8px }
+  .kitchen-dashboard.dark h1, .kitchen-dashboard.dark h2 { font-size: 1rem }
+}
+
 /* Animation for theme transition */
 .kitchen-dashboard * {
   transition: background-color 0.3s ease, 

@@ -4,43 +4,32 @@ import {
   Bell,
   Settings,
   LogOut,
-<<<<<<< HEAD
-=======
-  Phone,
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+ HEAD
+
+  Phone, 18a7cad6072eb3da4257dc61533fafce0ecb2070
 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { staffLogout } from "../../api/staff";
 import { useStaffAuth } from "../../context/StaffAuthContext";
-<<<<<<< HEAD
-
-
+ HEAD
 const Sidebar = () => {
   const [activeMenu, setActiveMenu] = useState("dashboard");
   const navigate = useNavigate();
   const { staffUser, logout } = useStaffAuth();
-
   const handleMenuClick = (menu) => {
     setActiveMenu(menu);
-=======
-import StaffSettings from "../shared/StaffSettings";
 
+import StaffSettings from "../shared/StaffSettings";
 const Sidebar = ({ activeView = "dashboard", onViewChange, notificationCount = 0, waiterCallCount = 0 }) => {
-  const navigate = useNavigate();
   const { staffUser,activeProperty, logout, staffRole } = useStaffAuth();
   const [showSettings, setShowSettings] = useState(false);
-
   // Determine if user is chief/kitchen staff (hide waiter-specific items)
   const isChief = staffRole === 'chief' || staffRole === 'kitchen';
-
-
-  const handleMenuClick = (menu) => {
     if (onViewChange) {
       onViewChange(menu);
-    }
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+    } 18a7cad6072eb3da4257dc61533fafce0ecb2070
   };
 
   const handleLogout = async () => {
@@ -57,17 +46,14 @@ const Sidebar = ({ activeView = "dashboard", onViewChange, notificationCount = 0
 
   const containerStyle = {
     height: "100%",
-<<<<<<< HEAD
+ HEAD
     backgroundColor: "white",
     display: "flex",
     flexDirection: "column",
     borderRight: "1px solid #E5E7EB",
-=======
+
     backgroundColor: "var(--bg-primary)",
-    display: "flex",
-    flexDirection: "column",
-    borderRight: "1px solid var(--border-color)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+    borderRight: "1px solid var(--border-color)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
     fontFamily: "'Nunito', sans-serif",
   };
 
@@ -99,11 +85,10 @@ const Sidebar = ({ activeView = "dashboard", onViewChange, notificationCount = 0
     display: "flex",
     flexDirection: "column",
     gap: "8px",
-<<<<<<< HEAD
+ HEAD
     borderTop: "1px solid transparent", 
-=======
-    borderTop: "1px solid transparent",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+    borderTop: "1px solid transparent", 18a7cad6072eb3da4257dc61533fafce0ecb2070
   };
 
   const getMenuItemStyle = (isActive) => ({
@@ -117,13 +102,12 @@ const Sidebar = ({ activeView = "dashboard", onViewChange, notificationCount = 0
     border: "none",
     outline: "none",
     cursor: "pointer",
-<<<<<<< HEAD
+ HEAD
     backgroundColor: isActive ? "#D1FAE5" : "transparent",
     color: isActive ? "#059669" : "#374151",
-=======
+
     backgroundColor: isActive ? "var(--color-accent-light)" : "transparent",
-    color: isActive ? "var(--color-primary)" : "var(--text-secondary)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+    color: isActive ? "var(--color-primary)" : "var(--text-secondary)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
     fontWeight: isActive ? "600" : "500",
   });
 
@@ -151,15 +135,13 @@ const Sidebar = ({ activeView = "dashboard", onViewChange, notificationCount = 0
           style={profileImageStyle}
         />
         <div style={{ minWidth: 0 }}>
-<<<<<<< HEAD
+ HEAD
           <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "700", color: "#111827" }}>
             {staffUser?.fullname ?? "Staff Member"}
           </h3>
           <p style={{ margin: 0, fontSize: "14px", color: "#6B7280", textTransform: "capitalize" }}>{staffUser?.role ?? "Waiter"}</p>
-=======
+
           <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "700", color: "var(--text-primary)" }}>
-            {staffUser?.fullname ?? "Staff Member"}
-          </h3>
           <p style={{ margin: 0, fontSize: "14px", color: "var(--text-tertiary)", textTransform: "capitalize" }}>{staffUser?.role ?? "Waiter"}</p>
           {
             activeProperty?.name && (
@@ -175,8 +157,7 @@ const Sidebar = ({ activeView = "dashboard", onViewChange, notificationCount = 0
                🏨 {activeProperty.name}
               </p>
             )
-          }
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+          } 18a7cad6072eb3da4257dc61533fafce0ecb2070
         </div>
       </div>
 
@@ -184,18 +165,17 @@ const Sidebar = ({ activeView = "dashboard", onViewChange, notificationCount = 0
       <nav style={navSectionStyle}>
         {/* Dashboard Button */}
         <button
-<<<<<<< HEAD
+ HEAD
           style={getMenuItemStyle(activeMenu === "dashboard")}
-=======
-          style={getMenuItemStyle(activeView === "dashboard")}
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+          style={getMenuItemStyle(activeView === "dashboard")} 18a7cad6072eb3da4257dc61533fafce0ecb2070
           onClick={() => handleMenuClick("dashboard")}
         >
           <LayoutDashboard size={20} />
           <span style={{ fontSize: "14px" }}>Dashboard</span>
         </button>
 
-<<<<<<< HEAD
+ HEAD
         {/* Assigned Tables Button */}
         <button
           style={getMenuItemStyle(activeMenu === "assignedTables")}
@@ -204,11 +184,10 @@ const Sidebar = ({ activeView = "dashboard", onViewChange, notificationCount = 0
           <UtensilsCrossed size={20} />
           <span style={{ fontSize: "14px" }}>Assigned Tables</span>
         </button>
-
         {/* Notifications Button */}
         <button
           style={getMenuItemStyle(activeMenu === "notifications")}
-=======
+
         {/* Assigned Tables Button - Only for waiters, not chiefs */}
         {!isChief && (
           <button
@@ -219,24 +198,19 @@ const Sidebar = ({ activeView = "dashboard", onViewChange, notificationCount = 0
             <span style={{ fontSize: "14px" }}>Assigned Tables</span>
           </button>
         )}
-
-        {/* Notifications Button */}
-        <button
-          style={getMenuItemStyle(activeView === "notifications")}
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+          style={getMenuItemStyle(activeView === "notifications")} 18a7cad6072eb3da4257dc61533fafce0ecb2070
           onClick={() => handleMenuClick("notifications")}
         >
           <Bell size={20} />
           <span style={{ fontSize: "14px" }}>Notifications</span>
-<<<<<<< HEAD
+ HEAD
           <span style={badgeStyle}>3</span>
         </button>
-=======
+
           {notificationCount > 0 && (
             <span style={badgeStyle}>{notificationCount > 99 ? '99+' : notificationCount}</span>
           )}
         </button>
-
         {/* Waiter Calls Button - Only for waiters, not chiefs */}
         {!isChief && (
           <button
@@ -250,39 +224,35 @@ const Sidebar = ({ activeView = "dashboard", onViewChange, notificationCount = 0
             )}
           </button>
         )}
-
-        {/* Order History removed */}
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+        {/* Order History removed */} 18a7cad6072eb3da4257dc61533fafce0ecb2070
       </nav>
 
       {/* Bottom Actions */}
       <div style={bottomSectionStyle}>
         <button
-<<<<<<< HEAD
+ HEAD
           style={getMenuItemStyle(activeMenu === "settings")}
           onClick={() => handleMenuClick("settings")}
-=======
+
           style={getMenuItemStyle(activeView === "settings")}
-          onClick={() => setShowSettings(true)}
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+          onClick={() => setShowSettings(true)} 18a7cad6072eb3da4257dc61533fafce0ecb2070
         >
           <Settings size={20} />
           <span style={{ fontSize: "14px" }}>Settings</span>
         </button>
 
         <button
-<<<<<<< HEAD
+ HEAD
           style={getMenuItemStyle(activeMenu === "logout")}
-=======
-          style={getMenuItemStyle(activeView === "logout")}
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+          style={getMenuItemStyle(activeView === "logout")} 18a7cad6072eb3da4257dc61533fafce0ecb2070
           onClick={handleLogout}
         >
           <LogOut size={20} />
           <span style={{ fontSize: "14px" }}>Log Out</span>
         </button>
-<<<<<<< HEAD
-=======
+ HEAD
+
         {/* Settings Modal */}
         {showSettings && (
           <div
@@ -305,8 +275,7 @@ const Sidebar = ({ activeView = "dashboard", onViewChange, notificationCount = 0
               <StaffSettings onClose={() => setShowSettings(false)} variant="waiter" />
             </div>
           </div>
-        )}
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+        )} 18a7cad6072eb3da4257dc61533fafce0ecb2070
       </div>
     </div>
   );

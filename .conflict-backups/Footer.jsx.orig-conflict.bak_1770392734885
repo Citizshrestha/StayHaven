@@ -1,7 +1,7 @@
 import React from 'react';
 
 const Footer = () => {
-<<<<<<< HEAD
+ HEAD
   return (
     <footer
       style={{
@@ -45,7 +45,6 @@ const Footer = () => {
         >
           About Us
         </a>
-
         <a
           href="/report-problem"
           style={{
@@ -67,7 +66,6 @@ const Footer = () => {
         >
           Report a Problem
         </a>
-
         <a
           href="/feedback"
           style={{
@@ -89,7 +87,6 @@ const Footer = () => {
         >
           Feedback
         </a>
-
         <a
           href="/contactus"
           style={{
@@ -114,9 +111,8 @@ const Footer = () => {
       </div>
     </footer>
   );
-=======
-  return null;
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+  return null; 18a7cad6072eb3da4257dc61533fafce0ecb2070
 };
 
 export default Footer;

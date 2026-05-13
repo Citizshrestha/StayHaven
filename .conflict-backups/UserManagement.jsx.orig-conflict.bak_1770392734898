@@ -1,8 +1,7 @@
-<<<<<<< HEAD
+ HEAD
 import React, { useState } from 'react';
-=======
-import React, { useState, useEffect } from 'react';
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+import React, { useState, useEffect } from 'react'; 18a7cad6072eb3da4257dc61533fafce0ecb2070
 import { useNavigate } from 'react-router-dom';
 import './UserManagement.css';
 
@@ -11,18 +10,15 @@ const UserManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeNav, setActiveNav] = useState('user-management');
 
-<<<<<<< HEAD
+ HEAD
   const navigationItems = [
     { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', path: '/' },
-=======
+
   // Scroll to top when component mounts
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
-
-  const navigationItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', path: '/superadmindashboard' },
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+    { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', path: '/superadmindashboard' }, 18a7cad6072eb3da4257dc61533fafce0ecb2070
     { id: 'bookings', label: 'Bookings', icon: 'calendar_month', path: '/bookings' },
     { id: 'user-management', label: 'User Management', icon: 'group', path: '/usermanagement' },
     { id: 'settings', label: 'Settings', icon: 'settings', path: '/settings' },

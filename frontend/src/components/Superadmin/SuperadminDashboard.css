@@ -36,6 +36,8 @@
   color: var(--text-light);
   min-height: 100vh;
   height: 100vh;
+  /* slightly smaller base font to avoid a "zoomed" look */
+  font-size: 14px;
   overflow: hidden;
 }
 
@@ -46,7 +48,7 @@
 
 /* Sidebar Styles */
 .sidebar {
-  width: 16rem;
+  width: 12rem;
   background-color: var(--card-light);
   border-right: 1px solid var(--border-light);
   display: flex;
@@ -164,9 +166,101 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  margin-left: 16rem;
+  margin-left: 0rem;
   height: 100vh;
   overflow-y: auto;
+}
+
+/* Reduce left gap and stack sidebar on smaller screens */
+@media (max-width: 1024px) {
+  .sidebar {
+    position: relative; /* make sidebar flow with document */
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    border-right: none;
+  }
+
+  .main-content {
+    margin: 0; /* remove large left gap */
+    height: auto;
+  }
+
+  .page-content {
+    padding: 1rem; /* reduce internal padding */
+    gap: 1rem;
+  }
+
+  .top-header {
+    padding: 0.75rem 1rem;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+
+  .stat-card {
+    padding: 0.75rem;
+  }
+
+  .stat-value {
+    font-size: 1.25rem;
+    line-height: 1.5rem;
+  }
+
+  .chart-value {
+    font-size: 1.25rem;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Mobile: single column stats, compact charts */
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-value {
+    font-size: 1.125rem;
+  }
+
+  .chart-value {
+    font-size: 1.25rem;
+  }
+
+  .chart-container {
+    min-height: 140px;
+  }
+
+  .page-content {
+    padding: 0.75rem;
+  }
+}
+
+/* Override any centered dashboard container so content sits flush after the sidebar */
+.main-content .dashboard-content,
+.main-content .page-content {
+  max-width: none !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  width: 100% !important;
+}
+
+/* Make sure inner content aligns to the left edge of the main-area when sidebar is present */
+.main-content {
+  box-sizing: border-box;
+}
+
+@media (min-width: 1024px) {
+  /* keep content starting right after fixed sidebar */
+  .main-content {
+    /* move content to sit directly after the fixed sidebar (12rem) */
+    margin-left: 12rem; /* matches .sidebar width */
+  }
 }
 
 /* Top Header Styles */
@@ -187,7 +281,7 @@
 
 .header-left h2 {
   color: var(--text-light);
-  font-size: 1.25rem;
+  font-size: 1rem;
   font-weight: 700;
   line-height: 1.25;
   margin: 0;
@@ -306,7 +400,7 @@
 
 /* Page Content Styles */
 .page-content {
-  padding: 2rem;
+  padding: 1.25rem;
   display: flex;
   flex-direction: column;
   gap: 2rem;
@@ -360,10 +454,10 @@
 
 .stat-value {
   color: var(--text-light);
-  font-size: 1.875rem;
+  font-size: 1.5rem;
   font-weight: 700;
-  letter-spacing: -0.025em;
-  line-height: 2.25rem;
+  letter-spacing: -0.02em;
+  line-height: 1.75rem;
   margin: 0;
 }
 
@@ -440,7 +534,7 @@
 
 .chart-value {
   color: var(--text-light);
-  font-size: 2rem;
+  font-size: 1.5rem;
   font-weight: 700;
   letter-spacing: -0.025em;
   line-height: 2.25rem;

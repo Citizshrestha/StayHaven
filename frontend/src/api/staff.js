@@ -77,11 +77,7 @@ export const updateOrderStatus = async (orderId, status) => {
   const response = await axiosClient.put(`/api/staff/orders/${orderId}/status`, { status });
   return response.data;
 };
-<<<<<<< HEAD
-=======
-
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
-
+ 
 // create order
 export const createOrder = async (orderData) => {
   const response = await axiosClient.post("/api/staff/create-order", orderData);
@@ -104,15 +100,9 @@ export const deleteOrder = async (orderId) => {
 };
 
 export const changePassword = async (currentPassword, newPassword) => {
-<<<<<<< HEAD
   const response = await axiosClient.post("/api/staff/change-password", { currentPassword, newPassword });
   return response.data;
 };
-=======
-  const response = await axiosClient.put("/api/staff/change-password", { currentPassword, newPassword });
-  return response.data;
-}
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
 
 export const forgotPassword = async (email) => {
   const response = await axiosClient.post("/api/staff/forgot-password", { email });
@@ -121,34 +111,14 @@ export const forgotPassword = async (email) => {
 
 export const resetPassword = async (token, newPassword) => {
   const response = await axiosClient.post("/api/staff/reset-password", { token, newPassword });
-<<<<<<< HEAD
-=======
-  return response.data;
-}
-
-// Update an order
-export const updateOrder = async (orderId, orderData) => {
-  const response = await axiosClient.put(`/api/staff/orders/${orderId}`, orderData);
-  return response.data;
-}
-
-export const updateProfilePicture = async (file) => {
-  const formData = new FormData();
-  formData.append("profilePicture", file);
-
-  const response = await axiosClient.patch("/staff/profile-picture", formData, {
-    headers: {
-      "Content-Type" : "multipart/form-data",
-    },
-  });
-
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
   return response.data;
 };
 
-// Update an order
 export const updateOrder = async (orderId, orderData) => {
   const response = await axiosClient.put(`/api/staff/orders/${orderId}`, orderData);
+  return response.data;
+};
+
 export const updateProfilePicture = async (file) => {
   const formData = new FormData();
   formData.append("profilePicture", file);
@@ -157,6 +127,5 @@ export const updateProfilePicture = async (file) => {
       "Content-Type": "multipart/form-data",
     },
   });
-
   return response.data;
 };

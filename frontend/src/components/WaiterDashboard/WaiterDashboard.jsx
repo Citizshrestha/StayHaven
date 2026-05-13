@@ -1,36 +1,25 @@
-﻿import React, { useState } from "react";
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import Sidebar from "./Sidebar";
 import MobileHeader from "./MobileHeader";
 import DashboardContent from "./DashboardContent";
 import RightPanel from "./RightPanel";
 import MobileBottomNav from "./MobileBottomNav";
-import { useOrderContext } from "../../context/useOrderContext";
-const WaiterDashboard = () => {
-  const [activeFilter, setActiveFilter] = useState("all");
-  const { orders, markServed, removeOrder } = useOrderContext();
-  return (
-    <div className="min-h-screen bg-[#F8F9FB] text-gray-900 lg:flex lg:h-screen lg:overflow-hidden">
-      {/* Sidebar - Hidden on mobile, visible flex item on desktop */}
-      <aside className="hidden lg:block lg:w-[280px] lg:shrink-0 lg:h-full lg:bg-white lg:border-r lg:border-gray-100 lg:overflow-y-auto">
-        <Sidebar />
-      </aside>
-      {/* Main Content Area - Flex grow to fill space */}
-      <main className="flex-1 h-full overflow-y-auto relative w-full">
 import OrderFormModal from "./OrderFormModal";
 import AssignedAreas from "./AssignedAreas";
 import NotificationPanel from "./NotificationPanel";
 import WaiterCallsPanel from "./WaiterCallsPanel";
+import { useOrderContext } from "../../context/useOrderContext";
 import { useSocket } from "../../context/SocketContext";
 import { useNotifications } from "../../context/useNotifications";
 import { useTheme } from "../../hooks/useTheme";
 import { Plus } from "lucide-react";
+
+const WaiterDashboard = () => {
+  const [activeFilter, setActiveFilter] = useState("all");
   const [activeView, setActiveView] = useState("dashboard");
-  const { orders, markServed, removeOrder, fetchOrders, loading, updateOrder } =
-    useOrderContext();
+  const { orders, markServed, removeOrder, fetchOrders, loading, updateOrder } = useOrderContext();
   const [showOrderForm, setShowOrderForm] = useState(false);
-  const { isDark } = useTheme(); // Get theme state
-  // Use centralized notification context (Socket + Context API)
+  const { isDark } = useTheme();
   const {
     notifications,
     unreadCount,
@@ -39,8 +28,8 @@ import { Plus } from "lucide-react";
     markAllRead,
     setWaiterCallCount
   } = useNotifications();
-  // Socket.io for order refresh (notifications handled by context)
   const { subscribe } = useSocket();
+
   useEffect(() => {
     const prevBodyOverflow = document.body.style.overflow;
     const prevHtmlOverflow = document.documentElement.style.overflow;
@@ -51,38 +40,41 @@ import { Plus } from "lucide-react";
       document.documentElement.style.overflow = prevHtmlOverflow;
     };
   }, []);
-  // Subscribe to socket events for order data refresh only
-  // (Notifications are handled by NotificationContext)
+
+  useEffect(() => {
     if (!subscribe) return;
-    // Refresh orders when status changes
     const unsubscribeStatusUpdate = subscribe('order-status-updated', () => {
       fetchOrders({ silent: true });
     });
-    // Refresh orders when new order arrives
     const unsubscribeNewOrder = subscribe('new-order', () => {
+      fetchOrders({ silent: true });
+    });
+    return () => {
       unsubscribeStatusUpdate();
       unsubscribeNewOrder();
+    };
   }, [subscribe, fetchOrders]);
+
   const handleViewChange = (view) => {
     setActiveView(view);
   };
+
   const [selectedOrderId, setSelectedOrderId] = useState(null);
+
   const handleFilterByArea = (areaName) => {
-    // Switch to dashboard view and set filter to show orders for this area
-    setActiveFilter(`area:NPR {areaName}`);
+    setActiveFilter(`area:${areaName}`);
     setActiveView("dashboard");
-  // Handle notification click - navigate to that order in dashboard
+  };
+
   const handleNotificationClick = (notification) => {
     if (notification.orderId) {
       setSelectedOrderId(notification.orderId);
-      setActiveFilter("all"); // Show all orders to ensure the order is visible
+      setActiveFilter("all");
       setActiveView("dashboard");
-      // Scroll to the order after a short delay to allow view to render
       setTimeout(() => {
-        const orderElement = document.querySelector(`[data-order-id="NPR {notification.orderId}"]`);
+        const orderElement = document.querySelector(`[data-order-id="${notification.orderId}"]`);
         if (orderElement) {
           orderElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          // Add highlight effect
           orderElement.style.boxShadow = '0 0 0 3px #3B82F6';
           setTimeout(() => {
             orderElement.style.boxShadow = '';
@@ -91,7 +83,8 @@ import { Plus } from "lucide-react";
         setSelectedOrderId(null);
       }, 100);
     }
-  // Render main content based on active view
+  };
+
   const renderMainContent = () => {
     switch (activeView) {
       case "assignedTables":
@@ -104,96 +97,91 @@ import { Plus } from "lucide-react";
           />
         );
       case "notifications":
+        return (
           <NotificationPanel
             notifications={notifications.slice(0, 5)}
             onMarkRead={markRead}
             onMarkAllRead={markAllRead}
             onNotificationClick={handleNotificationClick}
+          />
+        );
       case "waiterCalls":
+        return (
           <WaiterCallsPanel
             onCallCountChange={setWaiterCallCount}
-      /* Order history view removed */
+          />
+        );
       default:
+        return (
           <DashboardContent
+            orders={orders}
             activeFilter={activeFilter}
             setActiveFilter={setActiveFilter}
-            onMarkServed={markServed}
-            onDeleteOrder={removeOrder}
-            onRefresh={fetchOrders}
-            isRefreshing={loading}
-            onUpdateOrder={updateOrder}
-    <div
-      style={{
-        backgroundColor: "var(--bg-secondary)",
-        color: "var(--text-primary)",
-      }}
-      className="min-h-screen lg:flex lg:h-screen lg:overflow-hidden"
-    >
-      <aside
-        className="hidden lg:block lg:w-[280px] lg:shrink-0 lg:h-full lg:border-r lg:overflow-y-auto"
-        style={{
-          backgroundColor: "var(--bg-primary)",
-          borderColor: "var(--border-color)",
-        }}
-      >
+            markServed={markServed}
+            removeOrder={removeOrder}
+            loading={loading}
+            selectedOrderId={selectedOrderId}
+            updateOrder={updateOrder}
+          />
+        );
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#F8F9FB] text-gray-900 lg:flex lg:h-screen lg:overflow-hidden">
+      <aside className="hidden lg:block lg:w-[280px] lg:shrink-0 lg:h-full lg:bg-white lg:border-r lg:border-gray-100 lg:overflow-y-auto">
         <Sidebar
           activeView={activeView}
           onViewChange={handleViewChange}
           notificationCount={unreadCount}
           waiterCallCount={waiterCallCount}
         />
-      <main className="flex-1 lg:h-full min-h-0 overflow-y-auto relative w-full">
-{/* Mobile Header */}
-        <header className="lg:hidden">
-          <MobileHeader />
-        </header>
-
-        {/* Dashboard Content */}
-        <DashboardContent
-          orders={orders}
-          activeFilter={activeFilter}
-          setActiveFilter={setActiveFilter}
-          onMarkServed={markServed}
-          onDeleteOrder={removeOrder}
-        />
-      </main>
-      {/* Right Panel - Hidden on mobile, visible flex item on desktop */}
-      <aside className="hidden lg:block lg:w-[380px] lg:shrink-0 lg:h-full lg:bg-white lg:border-l lg:border-gray-100 lg:overflow-y-auto">
-        <RightPanel />
       </aside>
-      {/* Mobile Bottom Navigation */}
-      <nav className="lg:hidden">
-        <MobileBottomNav />
-        {/* Main Content - switches based on activeView */}
+      <main className="flex-1 h-full overflow-y-auto relative w-full">
+        <MobileHeader
+          activeView={activeView}
+          onViewChange={handleViewChange}
+          unreadCount={unreadCount}
+          waiterCallCount={waiterCallCount}
+        />
         {renderMainContent()}
-      <aside
-        className="hidden lg:block lg:w-[380px] lg:shrink-0 lg:h-full min-h-0 lg:border-l lg:overflow-y-auto"
-        style={{
-          backgroundColor: "var(--bg-primary)",
-          borderColor: "var(--border-color)",
-        }}
-      >
-        <RightPanel orders={orders} />
-      {/* Mobile Floating Action Button - Only visible on mobile */}
-      <button
-        onClick={() => setShowOrderForm(true)}
-        className="lg:hidden fixed z-50 w-14 h-14 bg-emerald-500 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-emerald-600 active:scale-95 transition-all"
-          bottom: "80px",
-          right: "16px",
-          boxShadow: "0 4px 14px rgba(16, 185, 129, 0.4)",
-        <Plus size={28} strokeWidth={2.5} />
-      </button>
-      {/* Order Form Modal */}
-      {showOrderForm && (
-        <OrderFormModal onClose={() => setShowOrderForm(false)} />
-      )}
+        <RightPanel
+          activeView={activeView}
+          onViewChange={handleViewChange}
+          notifications={notifications}
+          onNotificationClick={handleNotificationClick}
+          markRead={markRead}
+          markAllRead={markAllRead}
+          waiterCallCount={waiterCallCount}
+          setWaiterCallCount={setWaiterCallCount}
+        />
         <MobileBottomNav
           activeView={activeView}
           onViewChange={handleViewChange}
-          notificationCount={unreadCount}
+          unreadCount={unreadCount}
           waiterCallCount={waiterCallCount}
         />
-</nav>
+        {showOrderForm && (
+          <OrderFormModal
+            onClose={() => setShowOrderForm(false)}
+            onOrderCreated={() => {
+              fetchOrders();
+              setShowOrderForm(false);
+            }}
+          />
+        )}
+        <button
+          onClick={() => setShowOrderForm(true)}
+          className="lg:hidden fixed z-50 w-14 h-14 bg-emerald-500 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-emerald-600 active:scale-95 transition-all"
+          style={{
+            bottom: "80px",
+            right: "16px",
+            boxShadow: "0 4px 14px rgba(16, 185, 129, 0.4)",
+          }}
+        >
+          <Plus size={28} strokeWidth={2.5} />
+        </button>
+      </main>
     </div>
   );
 };

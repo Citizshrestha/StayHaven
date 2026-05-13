@@ -1,12 +1,10 @@
-<<<<<<< HEAD
+ HEAD
 import { useState, useEffect, useCallback } from "react";
 import { OrderContext } from "./OrderContextDef";
 import { getActiveProperty, getOrders, createOrder } from "../api/staff";
-=======
+
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { OrderContext } from "./OrderContextDef";
-import { getActiveProperty, getOrders, createOrder, updateOrder as updateOrderApi, updateOrderStatus as updateOrderStatusApi } from "../api/staff";
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+import { getActiveProperty, getOrders, createOrder, updateOrder as updateOrderApi, updateOrderStatus as updateOrderStatusApi } from "../api/staff"; 18a7cad6072eb3da4257dc61533fafce0ecb2070
 
 // sample order data 
 const defaultOrders = [
@@ -215,17 +213,15 @@ export const OrderProvider = ({ children }) => {
   });
 
   // fetch orders from backend
-<<<<<<< HEAD
+ HEAD
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
-=======
+
   const fetchOrders = useCallback(async ({ silent = false } = {}) => {
-    try {
       if (!silent) {
         setLoading(true);
-      }
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+      } 18a7cad6072eb3da4257dc61533fafce0ecb2070
       const activeProperty = getActiveProperty();
       if (!activeProperty?._id) {
         setError("No active property found");
@@ -233,13 +229,13 @@ export const OrderProvider = ({ children }) => {
       }
 
       // fetch all order types and status
-<<<<<<< HEAD
+ HEAD
       const [dineInPending, dineInPreparing, dineInReady, roomPending] = await Promise.all([
         getOrders(activeProperty._id, "pending", "dineIn"),
         getOrders(activeProperty._id, "preparing", "dineIn"),
         getOrders(activeProperty._id, "ready", "dineIn"),
         getOrders(activeProperty._id, "pending", "roomService"),
-=======
+
       const [
         dineInPending,
         dineInPreparing,
@@ -254,9 +250,6 @@ export const OrderProvider = ({ children }) => {
         takeawayReady,
         takeawayDelivered,
       ] = await Promise.all([
-        getOrders(activeProperty._id, "pending", "dineIn"),
-        getOrders(activeProperty._id, "preparing", "dineIn"),
-        getOrders(activeProperty._id, "ready", "dineIn"),
         getOrders(activeProperty._id, "delivered", "dineIn"),
         getOrders(activeProperty._id, "pending", "roomService"),
         getOrders(activeProperty._id, "preparing", "roomService"),
@@ -265,8 +258,7 @@ export const OrderProvider = ({ children }) => {
         getOrders(activeProperty._id, "pending", "takeaway"),
         getOrders(activeProperty._id, "preparing", "takeaway"),
         getOrders(activeProperty._id, "ready", "takeaway"),
-        getOrders(activeProperty._id, "delivered", "takeaway"),
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+        getOrders(activeProperty._id, "delivered", "takeaway"), 18a7cad6072eb3da4257dc61533fafce0ecb2070
       ]);
 
       // merge all orders
@@ -274,9 +266,9 @@ export const OrderProvider = ({ children }) => {
         ...(dineInPending.orders || []),
         ...(dineInPreparing.orders || []),
         ...(dineInReady.orders || []),
-<<<<<<< HEAD
+ HEAD
         ...(roomPending.orders || []),
-=======
+
         ...(dineInDelivered.orders || []),
         ...(roomPending.orders || []),
         ...(roomPreparing.orders || []),
@@ -285,8 +277,7 @@ export const OrderProvider = ({ children }) => {
         ...(takeawayPending.orders || []),
         ...(takeawayPreparing.orders || []),
         ...(takeawayReady.orders || []),
-        ...(takeawayDelivered.orders || []),
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+        ...(takeawayDelivered.orders || []), 18a7cad6072eb3da4257dc61533fafce0ecb2070
       ];
 
       // transform backendOrders to match frontend format
@@ -301,11 +292,10 @@ export const OrderProvider = ({ children }) => {
         customerName: order.customerName || order.orderByName,
         time: getTimeAgo(order.createdAt),
         placedAt: order.createdAt,
-<<<<<<< HEAD
-=======
+ HEAD
+
         updatedAt: order.updatedAt,
-        deliveredAt: order.deliveredAt,
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+        deliveredAt: order.deliveredAt, 18a7cad6072eb3da4257dc61533fafce0ecb2070
         totalPrice: order.totalPrice,
         priority: order.priority,
         orderType: order.orderType,
@@ -325,34 +315,28 @@ export const OrderProvider = ({ children }) => {
       setRealOrders(transformedOrders);
     } catch (err) {
       setError(err.message);
-<<<<<<< HEAD
+ HEAD
     } finally {
       setLoading(false);
-=======
+
       console.error("Failed to fetch orders:", err);
-    } finally {
       if (!silent) {
         setLoading(false);
-      }
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+      } 18a7cad6072eb3da4257dc61533fafce0ecb2070
     }
   }, []);
 
   const removeOrder = (orderId) => {
     // Remove from real orders (fetched from backend)
-<<<<<<< HEAD
+ HEAD
     setRealOrders(prevOrders => 
       prevOrders.filter(order => order.id !== orderId && order._id !== orderId)
     );
     // Also remove from dummy orders if it exists there
     setOrders(prevOrders => 
-=======
+
     setRealOrders(prevOrders =>
-      prevOrders.filter(order => order.id !== orderId && order._id !== orderId)
-    );
-    // Also remove from dummy orders if it exists there
-    setOrders(prevOrders =>
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+    setOrders(prevOrders => 18a7cad6072eb3da4257dc61533fafce0ecb2070
       prevOrders.filter(order => order.id !== orderId && order._id !== orderId)
     );
   };
@@ -388,11 +372,10 @@ export const OrderProvider = ({ children }) => {
       });
 
       if (response.success) {
-<<<<<<< HEAD
+ HEAD
         await fetchOrders();
-=======
-        await fetchOrders({ silent: true });
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+        await fetchOrders({ silent: true }); 18a7cad6072eb3da4257dc61533fafce0ecb2070
         return response;
       } else {
         throw new Error(response.message || "Failed to create order");
@@ -404,19 +387,15 @@ export const OrderProvider = ({ children }) => {
       setLoading(false);
     }
   };
-<<<<<<< HEAD
-=======
+ HEAD
 
   const updateOrderStatus = async (orderId, newStatus) => {
-
     // Find the order to check if it's a real order
     const orderToUpdate = [...realOrders, ...orders].find(
       (order) => order.id === orderId || order._id === orderId
     );
-
     const now = new Date();
     const timeOptions = { hour: "numeric", minute: "2-digit", hour12: true };
-
     // If it's a real order, call the API
     if (orderToUpdate?.isReal) {
       try {
@@ -445,10 +424,8 @@ export const OrderProvider = ({ children }) => {
               timestamp: now.toLocaleTimeString("en-US", timeOptions),
               fullDate: now.toLocaleDateString(),
             };
-
             return {
               ...order,
-              status: newStatus,
               statusHistory: [...(order.statusHistory || []), historyEntry],
               ...(newStatus === "preparing" && {
                 startedPreparingAt: now.toISOString(),
@@ -460,32 +437,25 @@ export const OrderProvider = ({ children }) => {
               ...(newStatus === "ready" && {
                 readyAt: now.toISOString(),
                 readyAtDisplay: now.toLocaleTimeString("en-US", timeOptions),
-              }),
               ...(newStatus === "delivered" && {
                 deliveredAt: now.toISOString(),
                 completedAt: now.toLocaleTimeString("en-US", timeOptions), // Keep for backward compat with UI
                 servedAt: now.toLocaleTimeString("en-US", timeOptions),
-              }),
-            };
           }
           return order;
         })
       );
     }
   };
-
   const markServed = async (orderId) => {
     // Just delegate to updateOrderStatus with "delivered" status
     // This handles both real (API) and dummy (local) orders correctly now
     await updateOrderStatus(orderId, "delivered");
-  };
-
   // Update an order (for edit functionality)
   const updateOrder = async (updatedOrder) => {
     try {
       setLoading(true);
       const orderId = updatedOrder.id || updatedOrder._id;
-
       // Check if it's a real order (has isReal flag or came from backend)
       if (updatedOrder.isReal) {
         // Call API to update on backend
@@ -503,9 +473,7 @@ export const OrderProvider = ({ children }) => {
             }))
             : undefined,
         });
-
         // Refresh orders from backend
-        await fetchOrders({ silent: true });
       } else {
         // For dummy orders, update locally
         setOrders((prevOrders) =>
@@ -522,7 +490,6 @@ export const OrderProvider = ({ children }) => {
               : order
           )
         );
-      }
     } catch (err) {
       console.error("Failed to update order:", err);
       const message =
@@ -532,9 +499,6 @@ export const OrderProvider = ({ children }) => {
       throw new Error(message);
     } finally {
       setLoading(false);
-    }
-  };
-
   // Combine real orders with dummy orders
   // Real orders from DB take priority, sorted by newest first
   const allOrders = useMemo(() => {
@@ -547,7 +511,6 @@ export const OrderProvider = ({ children }) => {
       const isDuplicate = acc.some(existing => 
         existing.id === order.id || 
         (existing.isReal && !order.isReal && existing.table === order.table)
-      );
       
       // If it's a real order, always add. If dummy and no duplicate, add.
       if (order.isReal || !isDuplicate) {
@@ -557,13 +520,10 @@ export const OrderProvider = ({ children }) => {
           if (dummyIndex >= 0) {
             acc[dummyIndex] = order;
             return acc;
-          }
         }
         acc.push(order);
-      }
       return acc;
     }, []);
-    
     // Sort by newest first
     return uniqueOrders.sort((a, b) => {
       // Real orders first
@@ -575,38 +535,32 @@ export const OrderProvider = ({ children }) => {
       return dateB - dateA;
     });
   }, [realOrders, orders]);
-
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+ 18a7cad6072eb3da4257dc61533fafce0ecb2070
   // Save to localStorage when orders change AND dispatch custom event for same-tab updates
   useEffect(() => {
     localStorage.setItem("restaurant_orders", JSON.stringify(orders));
     window.dispatchEvent(new CustomEvent("ordersUpdated", { detail: orders }));
   }, [orders]);
 
-<<<<<<< HEAD
+ HEAD
   // fetch real orders when component mounts (only if logged in)
   useEffect(() => {
     const staffToken = localStorage.getItem("staffAccessToken");
     if (staffToken) {
       fetchOrders();
     }
-=======
+
   // fetch real orders when component mounts (only if logged in) AND poll every 5 seconds
-  useEffect(() => {
     const fetchRealOrders = async () => {
       const staffToken = localStorage.getItem("staffAccessToken");
       if (staffToken) {
         await fetchOrders({ silent: true });
       }
     };
-
     fetchRealOrders();
-
     // Poll for updates every 5 seconds
     const intervalId = setInterval(fetchRealOrders, 5000);
-
-    return () => clearInterval(intervalId);
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+    return () => clearInterval(intervalId); 18a7cad6072eb3da4257dc61533fafce0ecb2070
   }, [fetchOrders]);
 
   // Listen for changes from other tabs (storage event) AND same tab (custom event)
@@ -653,7 +607,7 @@ export const OrderProvider = ({ children }) => {
     };
   }, []);
 
-<<<<<<< HEAD
+ HEAD
   const updateOrderStatus = (orderId, newStatus) => {
     setOrders((prevOrders) =>
       prevOrders.map((order) => {
@@ -683,7 +637,6 @@ export const OrderProvider = ({ children }) => {
       })
     );
   };
-
   const markServed = (orderId) => {
     const now = new Date();
     const timeOptions = { hour: 'numeric', minute: '2-digit', hour12: true };
@@ -700,16 +653,13 @@ export const OrderProvider = ({ children }) => {
       )
     );
   };
-
   // combine: real orders first, then dummy orders, sorted by newest first
   const allOrders = [...realOrders, ...orders].sort((a, b) => {
     const dateA = new Date(a.placedAt || a.createdAt || 0);
     const dateB = new Date(b.placedAt || b.createdAt || 0);
     return dateB - dateA; // Newest first
   });
-
-=======
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+ 18a7cad6072eb3da4257dc61533fafce0ecb2070
   return (
     <OrderContext.Provider value={{
       orders: allOrders,
@@ -720,12 +670,11 @@ export const OrderProvider = ({ children }) => {
       markServed,
       addOrder,
       fetchOrders,
-<<<<<<< HEAD
+ HEAD
       removeOrder
-=======
+
       removeOrder,
-      updateOrder,
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+      updateOrder, 18a7cad6072eb3da4257dc61533fafce0ecb2070
     }}>
       {children}
     </OrderContext.Provider>

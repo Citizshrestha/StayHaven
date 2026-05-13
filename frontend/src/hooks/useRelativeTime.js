@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 ﻿import { useState, useEffect, useCallback, useRef } from 'react';
 
 const useRelativeTime = (dateInput, autoUpdate = false) => {
@@ -139,7 +138,3 @@ const useRelativeTime = (dateInput, autoUpdate = false) => {
 };
 
 export default useRelativeTime;
-=======
-// Re-export from canonical location
-export { default } from '../core/hooks/useRelativeTime';
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe

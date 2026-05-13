@@ -255,10 +255,9 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
   // Get the role of the user making this update
   const updaterRole = req.user?.role || 'staff';
   const updaterName = req.user?.fullname || 'Staff';
-<<<<<<< HEAD
-=======
+ HEAD
 
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
+ fdaae3dffdc7121130444a067ee3a87c420addbe
   // Emit real-time event for order status update
   // Different events based on status change
   const eventData = {
@@ -273,17 +272,13 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     updaterId: req.user?._id?.toString(), // For frontend to filter self-notifications
     updaterRole: updaterRole,
   };
-<<<<<<< HEAD
-  const location = order.orderType === 'roomService' 
-    ? `Room ${order.roomNumber}` 
-    : `Table ${order.tableNumber}`;
-=======
-
+ HEAD
   const location = order.orderType === 'roomService' 
     ? `Room ${order.roomNumber}` 
     : `Table ${order.tableNumber}`;
 
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
+    : `Table ${order.tableNumber}`;
+ fdaae3dffdc7121130444a067ee3a87c420addbe
   // Cross-role notifications only (no broadcast to everyone):
   // When chief/kitchen updates status -> notify ONLY waiters (not chiefs)
   if (updaterRole === 'chief' || updaterRole === 'kitchen') {
@@ -325,10 +320,9 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
 export const updateOrder = asyncHandler(async (req, res) => {
   const { orderId } = req.params;
   const { customerName, customerPhone, priority, notes, items } = req.body;
-<<<<<<< HEAD
-=======
+ HEAD
 
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
+ fdaae3dffdc7121130444a067ee3a87c420addbe
   const order = await Order.findById(orderId);
   if (!order) {
     return res.status(404).json({
@@ -336,10 +330,9 @@ export const updateOrder = asyncHandler(async (req, res) => {
       message: "Order not found",
     });
   }
-<<<<<<< HEAD
-=======
+ HEAD
 
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
+ fdaae3dffdc7121130444a067ee3a87c420addbe
   // Only allow editing pending or confirmed orders
   const editableStatuses = ["pending", "confirmed"];
   if (!editableStatuses.includes(order.status)) {
@@ -361,10 +354,9 @@ export const updateOrder = asyncHandler(async (req, res) => {
   if (items && Array.isArray(items) && items.length > 0) {
     let totalPrice = 0;
     const validatedItems = [];
-<<<<<<< HEAD
-=======
+ HEAD
 
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
+ fdaae3dffdc7121130444a067ee3a87c420addbe
     for (const item of items) {
       if (!item.name || !item.quantity || item.quantity < 1) {
         return res.status(400).json({
@@ -372,15 +364,12 @@ export const updateOrder = asyncHandler(async (req, res) => {
           message: "Each item must have a name and valid quantity (minimum 1)",
         });
       }
-<<<<<<< HEAD
-      const itemPrice = parseFloat(item.price) || 0;
-      totalPrice += itemPrice * item.quantity;
-=======
-
+ HEAD
       const itemPrice = parseFloat(item.price) || 0;
       totalPrice += itemPrice * item.quantity;
 
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
+      totalPrice += itemPrice * item.quantity;
+ fdaae3dffdc7121130444a067ee3a87c420addbe
       validatedItems.push({
         name: item.name,
         quantity: item.quantity,
@@ -388,19 +377,17 @@ export const updateOrder = asyncHandler(async (req, res) => {
         notes: item.notes || "",
       });
     }
-<<<<<<< HEAD
-=======
+ HEAD
 
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
+ fdaae3dffdc7121130444a067ee3a87c420addbe
     order.items = validatedItems;
     order.totalPrice = totalPrice;
   }
 
   await order.save();
-<<<<<<< HEAD
-=======
+ HEAD
 
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
+ fdaae3dffdc7121130444a067ee3a87c420addbe
   return res.status(200).json({
     success: true,
     message: "Order updated successfully",
@@ -527,20 +514,18 @@ export const deleteOrder = asyncHandler(async (req, res) => {
  * Send Bill to Customer
  * 
  * Sends the order bill to the customer via email or SMS
-<<<<<<< HEAD
-=======
- * 
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
+ HEAD
+
+ *  fdaae3dffdc7121130444a067ee3a87c420addbe
  * @route POST /api/orders/:orderId/send-bill
  * @access Private (Staff)
  */
 export const sendBillToCustomer = asyncHandler(async (req, res) => {
   const { orderId } = req.params;
   const { method, email, phone } = req.body;
-<<<<<<< HEAD
-=======
+ HEAD
 
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
+ fdaae3dffdc7121130444a067ee3a87c420addbe
   // Validate method
   if (!method || !['email', 'sms', 'whatsapp'].includes(method)) {
     return res.status(400).json({
@@ -548,10 +533,9 @@ export const sendBillToCustomer = asyncHandler(async (req, res) => {
       message: "Invalid send method. Use 'email', 'sms', or 'whatsapp'",
     });
   }
-<<<<<<< HEAD
-=======
+ HEAD
 
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
+ fdaae3dffdc7121130444a067ee3a87c420addbe
   // Find the order
   const order = await Order.findById(orderId).populate('hotel', 'name address phone');
   if (!order) {
@@ -560,10 +544,9 @@ export const sendBillToCustomer = asyncHandler(async (req, res) => {
       message: "Order not found",
     });
   }
-<<<<<<< HEAD
-=======
+ HEAD
 
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
+ fdaae3dffdc7121130444a067ee3a87c420addbe
   // Validate contact based on method
   if (method === 'email' && !email) {
     return res.status(400).json({
@@ -571,20 +554,18 @@ export const sendBillToCustomer = asyncHandler(async (req, res) => {
       message: "Email is required for email delivery",
     });
   }
-<<<<<<< HEAD
-=======
+ HEAD
 
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
+ fdaae3dffdc7121130444a067ee3a87c420addbe
   if ((method === 'sms' || method === 'whatsapp') && !phone) {
     return res.status(400).json({
       success: false,
       message: "Phone number is required for SMS/WhatsApp delivery",
     });
   }
-<<<<<<< HEAD
-=======
+ HEAD
 
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
+ fdaae3dffdc7121130444a067ee3a87c420addbe
   try {
     // Generate bill content
     const billData = {
@@ -606,18 +587,14 @@ export const sendBillToCustomer = asyncHandler(async (req, res) => {
       total: order.totalPrice,
       date: order.createdAt,
     };
-<<<<<<< HEAD
+ HEAD
     // For now, log the bill sending (integrate with actual email/SMS service later)
     console.log(`📧 Sending bill via ${method}:`, {
       to: method === 'email' ? email : phone,
-=======
 
-    // For now, log the bill sending (integrate with actual email/SMS service later)
-    console.log(`📧 Sending bill via ${method}:`, {
       to: method === 'email' ? email : phone,
       orderNumber: order.orderNumber,
-      total: order.totalPrice,
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
+      total: order.totalPrice, fdaae3dffdc7121130444a067ee3a87c420addbe
     });
 
     // Update order with bill sent info
@@ -629,18 +606,16 @@ export const sendBillToCustomer = asyncHandler(async (req, res) => {
       method,
     };
     await order.save();
-<<<<<<< HEAD
-=======
+ HEAD
 
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
+ fdaae3dffdc7121130444a067ee3a87c420addbe
     // TODO: Integrate with actual email/SMS service
     // For email: Use nodemailer (already configured in config/nodemailer.js)
     // For SMS: Integrate Twilio or similar service
     // For WhatsApp: Use WhatsApp Business API
-<<<<<<< HEAD
-=======
+ HEAD
 
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
+ fdaae3dffdc7121130444a067ee3a87c420addbe
     return res.status(200).json({
       success: true,
       message: `Bill sent successfully via ${method}`,
@@ -660,8 +635,7 @@ export const sendBillToCustomer = asyncHandler(async (req, res) => {
     });
   }
 });
-<<<<<<< HEAD
-=======
+ HEAD
 
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
+ fdaae3dffdc7121130444a067ee3a87c420addbe
 // Order history endpoint removed

@@ -12,10 +12,9 @@ import {
 } from "../utils/tokenUtils.js";
 import { validatePasswordStrength } from "../utils/passwordValidation.js";
 import { transporter } from "../config/nodemailer.js";
-<<<<<<< HEAD
-=======
-import { uploadToCloudinary } from "../middleware/upload.js";
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+ HEAD
+
+import { uploadToCloudinary } from "../middleware/upload.js"; 18a7cad6072eb3da4257dc61533fafce0ecb2070
 // import { JWT } from "google-auth-library";
 
 const getStaffInviteEmailTemplate = ({
@@ -27,11 +26,10 @@ const getStaffInviteEmailTemplate = ({
   expiresIn,
 }) => {
   // Ensure role is displayed properly
-<<<<<<< HEAD
+ HEAD
   const roleDisplay = String(role || 'Staff Member');
-=======
-  const roleDisplay = String(role || "Staff Member");
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+  const roleDisplay = String(role || "Staff Member"); 18a7cad6072eb3da4257dc61533fafce0ecb2070
 
   return `
     <!DOCTYPE html>
@@ -119,28 +117,24 @@ export const staffLogin = asyncHandler(async (req, res) => {
     });
   }
 
-<<<<<<< HEAD
+ HEAD
   // Find user with role
   const user = await User.findOne({ email: email.toLowerCase() })
-=======
-  const identifier = String(email).trim().toLowerCase();
 
+  const identifier = String(email).trim().toLowerCase();
   // Find user with role (allow login via email or username)
   const user = await User.findOne({
     $or: [{ email: identifier }, { username: identifier }],
-  })
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+  }) 18a7cad6072eb3da4257dc61533fafce0ecb2070
     .populate("role")
     .populate("company")
     .populate("assignedProperties");
 
-<<<<<<< HEAD
+ HEAD
   // console.log("🔍 DEBUG - User found:", user ? "Yes" : "No");
   // console.log("🔍 DEBUG - User role object:", user?.role);
   // console.log("🔍 DEBUG - User companyRole:", user?.companyRole);
-
-=======
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+ 18a7cad6072eb3da4257dc61533fafce0ecb2070
   if (!user) {
     return res.status(401).json({
       success: false,
@@ -159,9 +153,9 @@ export const staffLogin = asyncHandler(async (req, res) => {
 
   // Check if user has a staff role
   // Use companyRole as fallback if role.name is not available
-<<<<<<< HEAD
+ HEAD
   const allowedRoles = ["chief", "waiter", "manager", "admin", "owner", "receptionist"];
-=======
+
   const allowedRoles = [
     "chief",
     "waiter",
@@ -169,22 +163,20 @@ export const staffLogin = asyncHandler(async (req, res) => {
     "admin",
     "owner",
     "receptionist",
-  ];
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+  ]; 18a7cad6072eb3da4257dc61533fafce0ecb2070
   const userRoleName = user.role?.name || user.companyRole;
 
   console.log("🔍 DEBUG - Role name being checked:", userRoleName);
 
   // Make role check case-insensitive
-<<<<<<< HEAD
+ HEAD
   const isAllowedRole = userRoleName && allowedRoles.some(role => role.toLowerCase() === userRoleName.toLowerCase());
-=======
+
   const isAllowedRole =
     userRoleName &&
     allowedRoles.some(
       (role) => role.toLowerCase() === userRoleName.toLowerCase()
-    );
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+    ); 18a7cad6072eb3da4257dc61533fafce0ecb2070
 
   if (!isAllowedRole) {
     // console.log("❌ Access denied. User role:", userRoleName, "| Allowed roles:", allowedRoles);
@@ -224,38 +216,33 @@ export const staffLogin = asyncHandler(async (req, res) => {
   const accessToken = generateAccessToken(user._id);
   const refreshToken = generateRefreshToken(user._id);
 
-<<<<<<< HEAD
+ HEAD
   // Set access token cookie
   res.cookie("accessToken", accessToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "Strict",
     maxAge: 15 * 60 * 1000, // 15 minutes
-=======
+
   // Cookie options for cross-origin compatibility
   const isProduction = process.env.NODE_ENV === "production";
   const cookieOptions = {
-    httpOnly: true,
     secure: isProduction,
     sameSite: isProduction ? "None" : "Lax", // "None" for cross-origin in prod, "Lax" for dev
   };
-
   // Set access token cookie (1 hour for better UX)
-  res.cookie("accessToken", accessToken, {
     ...cookieOptions,
-    maxAge: 60 * 60 * 1000, // 1 hour
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+    maxAge: 60 * 60 * 1000, // 1 hour 18a7cad6072eb3da4257dc61533fafce0ecb2070
   });
 
   // Set refresh token cookie
   res.cookie("refreshToken", refreshToken, {
-<<<<<<< HEAD
+ HEAD
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "Strict",
-=======
-    ...cookieOptions,
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+    ...cookieOptions, 18a7cad6072eb3da4257dc61533fafce0ecb2070
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   });
 
@@ -264,14 +251,12 @@ export const staffLogin = asyncHandler(async (req, res) => {
   await user.save();
 
   // Determine redirect path based on role
-<<<<<<< HEAD
+ HEAD
   let redirectPath = "/";
   switch (user.role.name) {
-=======
+
   const roleForRouting = String(userRoleName || "").toLowerCase();
-  let redirectPath = "/";
-  switch (roleForRouting) {
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+  switch (roleForRouting) { 18a7cad6072eb3da4257dc61533fafce0ecb2070
     case "chief":
       redirectPath = "/kitchen-dashboard";
       break;
@@ -298,11 +283,10 @@ export const staffLogin = asyncHandler(async (req, res) => {
       username: user.username,
       email: user.email,
       profilePicture: user.profilePicture,
-<<<<<<< HEAD
+ HEAD
       role: user.role.name,
-=======
-      role: userRoleName,
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+      role: userRoleName, 18a7cad6072eb3da4257dc61533fafce0ecb2070
       company: {
         _id: user.company._id,
         name: user.company.name,
@@ -310,23 +294,22 @@ export const staffLogin = asyncHandler(async (req, res) => {
       assignedProperties: user.assignedProperties.map((prop) => ({
         _id: prop._id,
         name: prop.name,
-<<<<<<< HEAD
-=======
+ HEAD
+
         address: prop.location?.address || '',
         city: prop.location?.city || '',
         phone: prop.contact?.phone || '',
         email: prop.contact?.email || '',
-        website: prop.contact?.website || '',
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+        website: prop.contact?.website || '', 18a7cad6072eb3da4257dc61533fafce0ecb2070
       })),
       // Current active property (first one or selected)
       activeProperty: user.assignedProperties[0]
         ? {
-<<<<<<< HEAD
+ HEAD
           _id: user.assignedProperties[0]._id,
           name: user.assignedProperties[0].name,
         }
-=======
+
             _id: user.assignedProperties[0]._id,
             name: user.assignedProperties[0].name,
             address: user.assignedProperties[0].location?.address || '',
@@ -334,8 +317,7 @@ export const staffLogin = asyncHandler(async (req, res) => {
             phone: user.assignedProperties[0].contact?.phone || '',
             email: user.assignedProperties[0].contact?.email || '',
             website: user.assignedProperties[0].contact?.website || '',
-          }
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+          } 18a7cad6072eb3da4257dc61533fafce0ecb2070
         : null,
     },
     redirectPath,
@@ -367,15 +349,14 @@ export const getStaffProfile = asyncHandler(async (req, res) => {
       role: user.role?.name,
       company: user.company
         ? {
-<<<<<<< HEAD
+ HEAD
           _id: user.company._id,
           name: user.company.name,
         }
-=======
+
             _id: user.company._id,
             name: user.company.name,
-          }
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+          } 18a7cad6072eb3da4257dc61533fafce0ecb2070
         : null,
       assignedProperties:
         user.assignedProperties?.map((prop) => ({
@@ -474,14 +455,13 @@ export const registerStaff = asyncHandler(async (req, res) => {
 
   return res.status(201).json({
     success: true,
-<<<<<<< HEAD
+ HEAD
     message: `${role.charAt(0).toUpperCase() + role.slice(1)
       } staff registered successfully`,
-=======
+
     message: `${
       role.charAt(0).toUpperCase() + role.slice(1)
-    } staff registered successfully`,
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+    } staff registered successfully`, 18a7cad6072eb3da4257dc61533fafce0ecb2070
     staff: {
       _id: newStaff._id,
       fullname: newStaff.fullname,
@@ -592,27 +572,22 @@ export const staffLogout = asyncHandler(async (req, res) => {
       refreshToken: null,
     });
   }
-<<<<<<< HEAD
+ HEAD
   res.cookie("refreshToken", "", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "Strict",
     expires: new Date(0),
   });
-=======
 
   // Cookie options matching login for proper clearing
   const isProduction = process.env.NODE_ENV === "production";
   const cookieOptions = {
-    httpOnly: true,
     secure: isProduction,
     sameSite: isProduction ? "None" : "Lax",
-    expires: new Date(0),
   };
-
   res.cookie("refreshToken", "", cookieOptions);
-  res.cookie("accessToken", "", cookieOptions);
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+  res.cookie("accessToken", "", cookieOptions); 18a7cad6072eb3da4257dc61533fafce0ecb2070
 
   return res.status(200).json({
     success: true,
@@ -661,7 +636,7 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
   user.refreshToken = newRefreshToken;
   await user.save();
 
-<<<<<<< HEAD
+ HEAD
   // set new cookies
   res.cookie("accessToken", newAccessToken, {
     httpOnly: true,
@@ -669,31 +644,21 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
     sameSite: "Strict",
     maxAge: 15 * 60 * 1000, // 15 mins in milliseconds
   });
-
   res.cookie("refreshToken", newRefreshToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "Strict",
     maxAge: 7 * 24 * 60 * 60 * 1000, //7 days in milliseconds
-=======
+
   // Cookie options for cross-origin compatibility
   const isProduction = process.env.NODE_ENV === "production";
   const cookieOptions = {
-    httpOnly: true,
     secure: isProduction,
     sameSite: isProduction ? "None" : "Lax",
   };
-
-  // set new cookies
-  res.cookie("accessToken", newAccessToken, {
     ...cookieOptions,
     maxAge: 60 * 60 * 1000, // 1 hour
-  });
-
-  res.cookie("refreshToken", newRefreshToken, {
-    ...cookieOptions,
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days 18a7cad6072eb3da4257dc61533fafce0ecb2070
   });
 
   // return success response with new accessToken
@@ -836,14 +801,13 @@ export const inviteStaff = asyncHandler(async (req, res) => {
       from: `"${property.name} via StayHaven" <${process.env.SENDER_EMAIL}>`,
       replyTo: property.contact?.email || process.env.SENDER_EMAIL,
       to: email,
-<<<<<<< HEAD
+ HEAD
       subject: `You're Invited to Join as ${role.charAt(0).toUpperCase() + role.slice(1)
         } at ${property.name}`,
-=======
+
       subject: `You're Invited to Join as ${
         role.charAt(0).toUpperCase() + role.slice(1)
-      } at ${property.name}`,
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+      } at ${property.name}`, 18a7cad6072eb3da4257dc61533fafce0ecb2070
       html: emailTemplate,
     });
   } catch (emailError) {
@@ -883,19 +847,17 @@ export const verifyInviteToken = asyncHandler(async (req, res) => {
   // find user with matching token and 'invited' status
   const user = await User.findOne({
     inviteToken: hashedToken,
-<<<<<<< HEAD
+ HEAD
     accountStatus: 'invited',
   })
     .populate('role', 'name')  // get role name
     .populate('company', 'name') // get company name
     .populate('assignedProperties', 'name'); // get Property name
-=======
+
     accountStatus: "invited",
-  })
     .populate("role", "name") // get role name
     .populate("company", "name") // get company name
-    .populate("assignedProperties", "name"); // get Property name
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+    .populate("assignedProperties", "name"); // get Property name 18a7cad6072eb3da4257dc61533fafce0ecb2070
 
   // check if user found
   if (!user) {
@@ -908,16 +870,14 @@ export const verifyInviteToken = asyncHandler(async (req, res) => {
   if (user.inviteTokenExpireAt < new Date()) {
     return res.status(400).json({
       success: false,
-<<<<<<< HEAD
+ HEAD
       message: "Invite link has been expired. please ask your manager for a new one",
       expired: true, // frontend can show "Request new invite" button
     })
-=======
+
       message:
         "Invite link has been expired. please ask your manager for a new one",
-      expired: true, // frontend can show "Request new invite" button
-    });
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+    }); 18a7cad6072eb3da4257dc61533fafce0ecb2070
   }
 
   // token is valid now it can return info for onboarding form
@@ -929,29 +889,26 @@ export const verifyInviteToken = asyncHandler(async (req, res) => {
       email: user.email,
       role: user.role?.name || user.companyRole,
       company: user.company?.name,
-<<<<<<< HEAD
+ HEAD
       assignedProperties: user.assignedProperties?.map(prop => ({
         _id: prop._id,
         name: prop.name,
       })) || [],
-=======
+
       assignedProperties:
         user.assignedProperties?.map((prop) => ({
           _id: prop._id,
           name: prop.name,
-        })) || [],
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+        })) || [], 18a7cad6072eb3da4257dc61533fafce0ecb2070
     },
   });
 });
 
-<<<<<<< HEAD
-
+ HEAD
 export const completeOnBoarding = asyncHandler(async (req, res) => {
 
-=======
-export const completeOnBoarding = asyncHandler(async (req, res) => {
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+export const completeOnBoarding = asyncHandler(async (req, res) => { 18a7cad6072eb3da4257dc61533fafce0ecb2070
   // extract data from body
   const { token, password, username } = req.body;
 
@@ -963,10 +920,8 @@ export const completeOnBoarding = asyncHandler(async (req, res) => {
     });
   }
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+ HEAD
+ 18a7cad6072eb3da4257dc61533fafce0ecb2070
   // Validate password strength
   const passwordErrors = validatePasswordStrength(password);
 
@@ -984,19 +939,17 @@ export const completeOnBoarding = asyncHandler(async (req, res) => {
 
   const user = await User.findOne({
     inviteToken: hashedToken,
-<<<<<<< HEAD
+ HEAD
     accountStatus: 'invited',
   })
     .populate('role', 'name')
     .populate('company', 'name')
     .populate('assignedProperties', 'name');
-=======
+
     accountStatus: "invited",
-  })
     .populate("role", "name")
     .populate("company", "name")
-    .populate("assignedProperties", "name");
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+    .populate("assignedProperties", "name"); 18a7cad6072eb3da4257dc61533fafce0ecb2070
 
   if (!user) {
     return res.status(400).json({
@@ -1009,30 +962,27 @@ export const completeOnBoarding = asyncHandler(async (req, res) => {
   if (user.inviteTokenExpireAt < new Date()) {
     return res.status(400).json({
       success: false,
-<<<<<<< HEAD
+ HEAD
       message: "Invite link has been expired. please ask your manager for a new one",
-=======
+
       message:
-        "Invite link has been expired. please ask your manager for a new one",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+        "Invite link has been expired. please ask your manager for a new one", 18a7cad6072eb3da4257dc61533fafce0ecb2070
       expired: true,
     });
   }
 
-<<<<<<< HEAD
+ HEAD
   // check if username is taken 
-=======
-  // check if username is taken
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+  // check if username is taken 18a7cad6072eb3da4257dc61533fafce0ecb2070
   if (username) {
     const existingUsername = await User.findOne({
       username: username.toLowerCase(),
       _id: { $ne: user._id }, // exclude this user
-<<<<<<< HEAD
+ HEAD
     })
-=======
-    });
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+    }); 18a7cad6072eb3da4257dc61533fafce0ecb2070
 
     if (existingUsername) {
       return res.status(400).json({
@@ -1052,11 +1002,10 @@ export const completeOnBoarding = asyncHandler(async (req, res) => {
   user.inviteTokenExpireAt = null;
 
   // Change status from 'invited' to 'active'
-<<<<<<< HEAD
+ HEAD
   user.accountStatus = 'active';
-=======
-  user.accountStatus = "active";
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+  user.accountStatus = "active"; 18a7cad6072eb3da4257dc61533fafce0ecb2070
 
   // Enable login
   user.isActive = true;
@@ -1076,37 +1025,33 @@ export const completeOnBoarding = asyncHandler(async (req, res) => {
       username: user.username,
       role: user.role?.name || user.companyRole,
       company: user.company?.name,
-<<<<<<< HEAD
+ HEAD
       assignedProperties: user.assignedProperties?.map(prop => ({
         _id: prop._id,
         name: prop.name,
       })) || [],
-=======
+
       assignedProperties:
         user.assignedProperties?.map((prop) => ({
           _id: prop._id,
           name: prop.name,
-        })) || [],
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+        })) || [], 18a7cad6072eb3da4257dc61533fafce0ecb2070
     },
   });
 });
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+ HEAD
+ 18a7cad6072eb3da4257dc61533fafce0ecb2070
 //  Resend invite email to staff with expired token
 export const resendInvite = asyncHandler(async (req, res) => {
   // Get staff ID from URL parameter
   const { staffId } = req.params;
 
   // Only managers/admins/owners can resend invites
-<<<<<<< HEAD
+ HEAD
   const allowedRoles = ['manager', 'admin', 'owner'];
-=======
-  const allowedRoles = ["manager", "admin", "owner"];
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+  const allowedRoles = ["manager", "admin", "owner"]; 18a7cad6072eb3da4257dc61533fafce0ecb2070
   if (!req.user.role || !allowedRoles.includes(req.user.role.name)) {
     return res.status(403).json({
       success: false,
@@ -1116,13 +1061,12 @@ export const resendInvite = asyncHandler(async (req, res) => {
 
   //  Find the staff member
   const staff = await User.findById(staffId)
-<<<<<<< HEAD
+ HEAD
     .populate('assignedProperties', 'name contact')
     .populate('company', 'name');
-=======
+
     .populate("assignedProperties", "name contact")
-    .populate("company", "name");
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+    .populate("company", "name"); 18a7cad6072eb3da4257dc61533fafce0ecb2070
 
   if (!staff) {
     return res.status(404).json({
@@ -1141,11 +1085,10 @@ export const resendInvite = asyncHandler(async (req, res) => {
 
   //  Check status - can only resend for 'invited' accounts
   // If status is 'active', they already onboarded - no need to resend
-<<<<<<< HEAD
+ HEAD
   if (staff.accountStatus !== 'invited') {
-=======
-  if (staff.accountStatus !== "invited") {
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+  if (staff.accountStatus !== "invited") { 18a7cad6072eb3da4257dc61533fafce0ecb2070
     return res.status(400).json({
       success: false,
       message: "Can only resend invites for pending invitations",
@@ -1164,41 +1107,37 @@ export const resendInvite = asyncHandler(async (req, res) => {
   await staff.save();
 
   // Build invite link and send email
-<<<<<<< HEAD
+ HEAD
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-=======
-  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173"; 18a7cad6072eb3da4257dc61533fafce0ecb2070
   const inviteLink = `${frontendUrl}/staff/onboard?token=${newToken}`;
 
   const property = staff.assignedProperties[0];
   const emailTemplate = getStaffInviteEmailTemplate({
     staffName: staff.fullname,
-<<<<<<< HEAD
+ HEAD
     managerName: req.user.fullname || 'Your Manager',
     propertyName: property?.name || 'Property',
     role: staff.companyRole?.charAt(0).toUpperCase() + staff.companyRole?.slice(1),
     inviteLink: inviteLink,
     expiresIn: '48 hours',
-=======
+
     managerName: req.user.fullname || "Your Manager",
     propertyName: property?.name || "Property",
     role:
       staff.companyRole?.charAt(0).toUpperCase() + staff.companyRole?.slice(1),
-    inviteLink: inviteLink,
-    expiresIn: "48 hours",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+    expiresIn: "48 hours", 18a7cad6072eb3da4257dc61533fafce0ecb2070
   });
 
   try {
     await transporter.sendMail({
-<<<<<<< HEAD
+ HEAD
       from: `"${property?.name || 'StayHaven'} via StayHaven" <${process.env.SENDER_EMAIL}>`,
-=======
+
       from: `"${property?.name || "StayHaven"} via StayHaven" <${
         process.env.SENDER_EMAIL
-      }>`,
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+      }>`, 18a7cad6072eb3da4257dc61533fafce0ecb2070
       replyTo: property?.contact?.email,
       to: staff.email,
       subject: `[Reminder] You're invited to join as ${staff.companyRole}`,
@@ -1224,11 +1163,10 @@ export const resendInvite = asyncHandler(async (req, res) => {
 //  Get all pending invitations for manager's company
 export const getPendingInvites = asyncHandler(async (req, res) => {
   //  Authorization check
-<<<<<<< HEAD
+ HEAD
   const allowedRoles = ['manager', 'admin', 'owner'];
-=======
-  const allowedRoles = ["manager", "admin", "owner"];
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+  const allowedRoles = ["manager", "admin", "owner"]; 18a7cad6072eb3da4257dc61533fafce0ecb2070
   if (!req.user.role || !allowedRoles.includes(req.user.role.name)) {
     return res.status(403).json({
       success: false,
@@ -1239,33 +1177,30 @@ export const getPendingInvites = asyncHandler(async (req, res) => {
   //Get all pending invites for this company
   const pendingInvites = await User.find({
     company: req.user.company,
-<<<<<<< HEAD
+ HEAD
     accountStatus: 'invited',
   })
     .populate('assignedProperties', 'name')
     .populate('createdBy', 'fullname')  // Who invited them
     .select('fullname email companyRole assignedProperties invitedAt inviteTokenExpireAt createdBy')
     .sort({ invitedAt: -1 });  // Newest first
-=======
+
     accountStatus: "invited",
-  })
     .populate("assignedProperties", "name")
     .populate("createdBy", "fullname") // Who invited them
     .select(
       "fullname email companyRole assignedProperties invitedAt inviteTokenExpireAt createdBy"
     )
-    .sort({ invitedAt: -1 }); // Newest first
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+    .sort({ invitedAt: -1 }); // Newest first 18a7cad6072eb3da4257dc61533fafce0ecb2070
 
   //  Format and return response
   return res.status(200).json({
     success: true,
     count: pendingInvites.length,
-<<<<<<< HEAD
+ HEAD
     invites: pendingInvites.map(invite => ({
-=======
-    invites: pendingInvites.map((invite) => ({
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+    invites: pendingInvites.map((invite) => ({ 18a7cad6072eb3da4257dc61533fafce0ecb2070
       _id: invite._id,
       fullname: invite.fullname,
       email: invite.email,
@@ -1273,31 +1208,27 @@ export const getPendingInvites = asyncHandler(async (req, res) => {
       assignedProperties: invite.assignedProperties,
       invitedAt: invite.invitedAt,
       expiresAt: invite.inviteTokenExpireAt,
-<<<<<<< HEAD
+ HEAD
       isExpired: invite.inviteTokenExpireAt < new Date(),  // true/false
       invitedBy: invite.createdBy?.fullname || 'Unknown',
-=======
+
       isExpired: invite.inviteTokenExpireAt < new Date(), // true/false
-      invitedBy: invite.createdBy?.fullname || "Unknown",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+      invitedBy: invite.createdBy?.fullname || "Unknown", 18a7cad6072eb3da4257dc61533fafce0ecb2070
     })),
   });
 });
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+ HEAD
+ 18a7cad6072eb3da4257dc61533fafce0ecb2070
 // delete/cancel a pending staff invite
 export const deleteInvite = asyncHandler(async (req, res) => {
   const { staffId } = req.params;
 
   // Check permissions - consistent with other functions
-<<<<<<< HEAD
+ HEAD
   const allowedRoles = ['manager', 'admin', 'owner'];
-=======
-  const allowedRoles = ["manager", "admin", "owner"];
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+  const allowedRoles = ["manager", "admin", "owner"]; 18a7cad6072eb3da4257dc61533fafce0ecb2070
   if (!req.user.role || !allowedRoles.includes(req.user.role.name)) {
     return res.status(403).json({
       success: false,
@@ -1309,11 +1240,10 @@ export const deleteInvite = asyncHandler(async (req, res) => {
   if (!staff) {
     return res.status(404).json({
       success: false,
-<<<<<<< HEAD
+ HEAD
       message: "Staff invite not found"
-=======
-      message: "Staff invite not found",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+      message: "Staff invite not found", 18a7cad6072eb3da4257dc61533fafce0ecb2070
     });
   }
 
@@ -1329,60 +1259,50 @@ export const deleteInvite = asyncHandler(async (req, res) => {
   if (staff.accountStatus !== "invited") {
     return res.status(400).json({
       success: false,
-<<<<<<< HEAD
+ HEAD
       message: "Cannot delete invite for staff who have been already onboarded"
-=======
-      message: "Cannot delete invite for staff who have been already onboarded",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+      message: "Cannot delete invite for staff who have been already onboarded", 18a7cad6072eb3da4257dc61533fafce0ecb2070
     });
   }
 
   await User.findByIdAndDelete(staffId);
   res.status(200).json({
     success: true,
-<<<<<<< HEAD
+ HEAD
     message: "Invite deleted successfully"
-=======
-    message: "Invite deleted successfully",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+    message: "Invite deleted successfully", 18a7cad6072eb3da4257dc61533fafce0ecb2070
   });
 });
 
 export const changePassword = asyncHandler(async (req, res) => {
-<<<<<<< HEAD
-
-=======
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+ HEAD
+ 18a7cad6072eb3da4257dc61533fafce0ecb2070
   // extracting currentpassword and password from frontend request body
   const { currentPassword, newPassword } = req.body;
 
   if (!currentPassword || !newPassword) {
     return res.status(400).json({
       success: false,
-<<<<<<< HEAD
+ HEAD
       message: "Current Password and New Password are required"
     });
   }
-
   // find logged-in user 
-=======
-      message: "Current Password and New Password are required",
-    });
-  }
 
-  // find logged-in user
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+      message: "Current Password and New Password are required",
+  // find logged-in user 18a7cad6072eb3da4257dc61533fafce0ecb2070
   const user = req.user._id;
   const currentUser = await User.findById(user).select("+password");
 
   if (!currentUser) {
     return res.status(404).json({
       success: false,
-<<<<<<< HEAD
+ HEAD
       message: "User not found!"
-=======
-      message: "User not found!",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+      message: "User not found!", 18a7cad6072eb3da4257dc61533fafce0ecb2070
     });
   }
 
@@ -1428,10 +1348,8 @@ export const changePassword = asyncHandler(async (req, res) => {
   });
 });
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+ HEAD
+ 18a7cad6072eb3da4257dc61533fafce0ecb2070
 export const forgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
 
@@ -1442,13 +1360,12 @@ export const forgotPassword = asyncHandler(async (req, res) => {
     });
   }
 
-<<<<<<< HEAD
+ HEAD
   const user = await User.findOne({ email: email.toLowerCase() }).populate('role').populate('assignedProperties', "name");
-=======
+
   const user = await User.findOne({ email: email.toLowerCase() })
     .populate("role")
-    .populate("assignedProperties", "name");
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+    .populate("assignedProperties", "name"); 18a7cad6072eb3da4257dc61533fafce0ecb2070
 
   if (!user) {
     return res.status(404).json({
@@ -1457,9 +1374,9 @@ export const forgotPassword = asyncHandler(async (req, res) => {
     });
   }
 
-<<<<<<< HEAD
+ HEAD
   const staffRoles = ['chief', 'manager', 'waiter', 'receptionist', 'admin', 'owner'];
-=======
+
   const staffRoles = [
     "chief",
     "manager",
@@ -1467,25 +1384,20 @@ export const forgotPassword = asyncHandler(async (req, res) => {
     "receptionist",
     "admin",
     "owner",
-  ];
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+  ]; 18a7cad6072eb3da4257dc61533fafce0ecb2070
   const userRole = (user.role?.name || user.companyRole).toLowerCase();
 
   if (!userRole || !staffRoles.includes(userRole)) {
     return res.status(404).json({
       success: false,
       message: "User with this email and role not found!",
-<<<<<<< HEAD
+ HEAD
     })
   }
-
   // generate a secure random token 
-=======
-    });
-  }
 
-  // generate a secure random token
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+    });
+  // generate a secure random token 18a7cad6072eb3da4257dc61533fafce0ecb2070
   const resetToken = generateSecureToken();
 
   // Hashing the token before storing in db
@@ -1599,10 +1511,8 @@ export const forgotPassword = asyncHandler(async (req, res) => {
   });
 });
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+ HEAD
+ 18a7cad6072eb3da4257dc61533fafce0ecb2070
 // Reset Password - Complete the password reset with token
 export const resetPassword = asyncHandler(async (req, res) => {
   //Extract token and newPassword from request body
@@ -1641,12 +1551,11 @@ export const resetPassword = asyncHandler(async (req, res) => {
   if (!user) {
     return res.status(400).json({
       success: false,
-<<<<<<< HEAD
+ HEAD
       message: "Invalid or expired reset token. Please request a new reset link.",
-=======
+
       message:
-        "Invalid or expired reset token. Please request a new reset link.",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+        "Invalid or expired reset token. Please request a new reset link.", 18a7cad6072eb3da4257dc61533fafce0ecb2070
     });
   }
 
@@ -1666,16 +1575,14 @@ export const resetPassword = asyncHandler(async (req, res) => {
   // Return success response
   return res.status(200).json({
     success: true,
-<<<<<<< HEAD
+ HEAD
     message: "Password reset successfully. You can now login with your new password.",
   });
 });
-=======
+
     message:
       "Password reset successfully. You can now login with your new password.",
-  });
 });
-
 // update profilePic
 export const updateProfilePicture = asyncHandler(async (req, res) => {
   if (!req.file) {
@@ -1684,39 +1591,29 @@ export const updateProfilePicture = asyncHandler(async (req, res) => {
       message: "No image file provided",
     });
   }
-
   try {
     // Get staff details for folder structure
     const staffDetails = {
       role: req.user.companyRole || req.user.role?.name || 'staff',
       fullname: req.user.fullname || 'unknown'
     };
-
     // upload to cloudinary with staff-specific folder structure
     const result = await uploadToCloudinary(
       req.file.buffer,
       staffDetails
     );
-
     // update user in db
     const user = await User.findByIdAndUpdate(
       req.user._id,
       { profilePicture: result.secure_url },
       { new: true }
     ).select("-password");
-
     res.status(200).json({
       success: true,
       message: "Profile Picture Updated Successfully",
       profilePicture: result.secure_url,
       user,
-    });
   } catch (err) {
     console.error("Cloudinary upload error:", err);
     res.status(500).json({
-      success: false,
-      message: "Failed to upload image",
-    });
-  }
-});
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+      message: "Failed to upload image", 18a7cad6072eb3da4257dc61533fafce0ecb2070

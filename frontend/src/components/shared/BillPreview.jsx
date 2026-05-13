@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-﻿import { useRef } from "react";
-=======
-import { useRef } from "react";
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
+import React, { useRef } from "react";
 import { X, Printer, Send } from "lucide-react";
 import { toast } from "react-toastify";
 
@@ -45,7 +41,7 @@ const BillPreview = ({ order, onClose, isDarkMode = false, hotelInfo = {} }) => 
 
   // Format currency in Nepali Rupees
   const formatCurrency = (amount) => {
-    return `Rs. ${Number(amount).toLocaleString('en-NP', { 
+    return `NPR ${Number(amount).toLocaleString('en-NP', { 
       minimumFractionDigits: 2, 
       maximumFractionDigits: 2 
     })}`;

@@ -1,31 +1,26 @@
-<<<<<<< HEAD
+ HEAD
 import { ChefHat } from "lucide-react";
-=======
+
 import { useState } from "react";
-import { ChefHat, Settings, LogOut, Bell, LayoutDashboard } from "lucide-react";
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+import { ChefHat, Settings, LogOut, Bell, LayoutDashboard } from "lucide-react"; 18a7cad6072eb3da4257dc61533fafce0ecb2070
 import { useNavigate } from "react-router-dom";
 import { staffLogout } from "../../api/staff";
 import { toast } from "react-toastify";
 import { useStaffAuth } from "../../context/StaffAuthContext";
-<<<<<<< HEAD
-
+ HEAD
 const Sidebar = () => {
   const navigate = useNavigate();
   const { staffUser, logout } = useStaffAuth();
-=======
-import StaffSettings from "../shared/StaffSettings";
 
+import StaffSettings from "../shared/StaffSettings";
 const Sidebar = ({ 
   activeView, 
   onViewChange, 
   notificationCount = 0,
   isDarkMode = false
 }) => {
-  const navigate = useNavigate();
   const { staffUser, logout } = useStaffAuth();
   const [showSettings, setShowSettings] = useState(false);
-
   // Theme colors
   const colors = {
     bg: isDarkMode ? "#1E293B" : "white",
@@ -38,8 +33,7 @@ const Sidebar = ({
     cardTextSecondary: isDarkMode ? "#6EE7B7" : "#15803D",
     menuActive: isDarkMode ? "#334155" : "#F3F4F6",
     menuHover: isDarkMode ? "#475569" : "#F9FAFB",
-  };
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+  }; 18a7cad6072eb3da4257dc61533fafce0ecb2070
 
   const handleLogout = async () => {
     try {
@@ -48,7 +42,7 @@ const Sidebar = ({
       toast.success("Logged out successfully");
       navigate("/staff/login");
     } catch (err) {
-<<<<<<< HEAD
+ HEAD
       console.error("Logout error: ",err);
       toast.error("Logout Failed! Please try again");
     }
@@ -78,7 +72,6 @@ const Sidebar = ({
           <p style={{ fontSize: "14px", color: "#6B7280",textTransform: "capitalize" }}>{staffUser?.role ? `${staffUser.role} ` :'Chief'}</p>
         </div>
       </div>
-
       <div
         style={{
           padding: "16px",
@@ -91,8 +84,6 @@ const Sidebar = ({
         <div style={{ fontSize: "12px", color: "#15803D" }}>
           Accept orders & mark ready
         </div>
-
-
          <div
           style={{
             fontSize: "14px",
@@ -105,7 +96,6 @@ const Sidebar = ({
  
         </div>
       </div>
-
                <button
             onClick={handleLogout}
             style={{
@@ -116,27 +106,18 @@ const Sidebar = ({
               border: "none",
               cursor: "pointer",
             marginTop: "28rem",
-
             }}
           >
             Logout
           </button>
     </div>
-=======
-      console.error("Logout error: ", err);
-      toast.error("Logout Failed! Please try again");
-    }
-  };
 
+      console.error("Logout error: ", err);
   const menuItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "notifications", label: "Notifications", icon: Bell, badge: notificationCount },
   ];
-
-  return (
     <>
-      <div
-        style={{
           width: "280px",
           backgroundColor: colors.bg,
           borderRight: `1px solid ${colors.border}`,
@@ -145,8 +126,6 @@ const Sidebar = ({
           flexDirection: "column",
           height: "100%",
           transition: "background-color 0.3s ease",
-        }}
-      >
         {/* User Profile */}
         <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "24px" }}>
           <img
@@ -163,20 +142,14 @@ const Sidebar = ({
             </p>
             <p style={{ fontSize: "12px", color: "#10B981" }}>
               🏨 {staffUser?.hotelName || 'Hotel'}
-            </p>
           </div>
-        </div>
-
         {/* Kitchen Mode Card */}
         <div
-          style={{
             padding: "16px",
             backgroundColor: colors.cardBg,
             borderRadius: "12px",
             border: `1px solid ${colors.cardBorder}`,
             marginBottom: "24px",
-          }}
-        >
           <div style={{ 
             fontSize: "14px", 
             fontWeight: "600", 
@@ -184,12 +157,8 @@ const Sidebar = ({
             marginBottom: "4px" 
           }}>
             🔥 Kitchen Mode
-          </div>
           <div style={{ fontSize: "12px", color: colors.cardTextSecondary }}>
             Accept orders & mark ready
-          </div>
-        </div>
-
         {/* Menu Items */}
         <nav style={{ flex: 1 }}>
           {menuItems.map((item) => (
@@ -233,60 +202,28 @@ const Sidebar = ({
             </button>
           ))}
         </nav>
-
         {/* Bottom Actions */}
         <div style={{ borderTop: `1px solid ${colors.border}`, paddingTop: "16px" }}>
           {/* Settings Button */}
           <button
             onClick={() => setShowSettings(true)}
-            style={{
               display: "flex",
               alignItems: "center",
               gap: "12px",
               width: "100%",
               padding: "12px 16px",
-              borderRadius: "12px",
-              border: "none",
               backgroundColor: "transparent",
               color: colors.textSecondary,
-              cursor: "pointer",
               marginBottom: "8px",
               transition: "all 0.2s ease",
               fontSize: "14px",
-            }}
-          >
             <Settings size={20} />
             <span>Settings</span>
-          </button>
-
           {/* Logout Button */}
-          <button
-            onClick={handleLogout}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              width: "100%",
-              padding: "12px 16px",
-              borderRadius: "12px",
-              border: "none",
-              backgroundColor: "transparent",
-              color: colors.textSecondary,
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-              fontSize: "14px",
-            }}
-          >
             <LogOut size={20} />
             <span>Log Out</span>
-          </button>
-        </div>
-      </div>
-
       {/* Settings Modal */}
       {showSettings && (
-        <div
-          style={{
             position: "fixed",
             top: 0,
             left: 0,
@@ -297,20 +234,14 @@ const Sidebar = ({
             alignItems: "center",
             justifyContent: "center",
             zIndex: 1000,
-            padding: "16px",
-          }}
           onClick={() => setShowSettings(false)}
-        >
           <div onClick={(e) => e.stopPropagation()}>
             <StaffSettings
               onClose={() => setShowSettings(false)}
               variant="kitchen"
             />
-          </div>
-        </div>
       )}
-    </>
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+    </> 18a7cad6072eb3da4257dc61533fafce0ecb2070
   );
 };
 

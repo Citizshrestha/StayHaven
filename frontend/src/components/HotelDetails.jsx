@@ -1,6 +1,5 @@
-﻿import { useState } from 'react';
+﻿import { useState, useEffect } from 'react';
 // import { useParams, useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { getHotelById } from '../api/hotel';
 import Navbar from './Navbar';
@@ -276,18 +275,15 @@ const [showImageModal, setShowImageModal] = useState(false);
                 onClick={() => { setCurrentImageIndex(0); setShowImageModal(true); }}
               >
                 <img
-                  src={hotel.images[0]}
-                  alt="Sunset Valley Resort Main View"
                   src={activeHotel.images?.[0]}
-                  alt={`NPR {activeHotel.name} Main View`}
-className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  alt={`${activeHotel.name} Main View`}
+                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                 />
                 <div className="absolute inset-0  bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300"></div>
               </div>
 
               {/* Thumbnails grid - right side (2x2 layout) */}
               <div className="grid grid-cols-2 gap-2" style={{ height: '500px' }}>
-                {hotel.images.slice(1, 5).map((image, index) => (
                 {(activeHotel.images || []).slice(1, 5).map((image, index) => (
 <div 
                     key={index + 1}
@@ -312,11 +308,9 @@ className="w-full h-full object-cover transition-transform duration-300 group-ho
                 onClick={() => { setCurrentImageIndex(0); setShowImageModal(true); }}
               >
                 <img
-                  src={hotel.images[0]}
-                  alt="Sunset Valley Resort"
                   src={activeHotel.images?.[0]}
                   alt={activeHotel.name}
-className="w-full h-full object-cover"
+                  className="w-full h-full object-cover"
                 />
               </div>
             </div>
@@ -413,10 +407,9 @@ className="w-full h-full object-cover"
 
             {/* Desktop BookingSidebar */}
             <div className="hidden lg:block w-full lg:w-1/3">
-              <BookingSidebar 
-                pricePerNight={850}
+              <BookingSidebar
                 pricePerNight={activeHotel.price || hotel.price || 0}
-nights={3}
+                nights={3}
                 taxesAndFees={92}
                 guests="2 Adults, 1 Child"
               />

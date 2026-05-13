@@ -1,8 +1,7 @@
-<<<<<<< HEAD
+ HEAD
 import React, { useState } from 'react';
-=======
-import React, { useState, useEffect } from 'react';
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+import React, { useState, useEffect } from 'react'; 18a7cad6072eb3da4257dc61533fafce0ecb2070
 import './SuperadminDashboard.css';
 import { useNavigate } from 'react-router-dom';
 import UserManagement from './Usermanagement';
@@ -12,14 +11,13 @@ const SuperadminDashboard = () => {
   const [darkMode, setDarkMode] = useState(false);
   const [activeNav, setActiveNav] = useState('dashboard');
 
-<<<<<<< HEAD
-=======
+ HEAD
+
   // Scroll to top when component mounts
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
-
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+ 18a7cad6072eb3da4257dc61533fafce0ecb2070
   const navigationItems = [
     { id: 'dashboard', label: 'Dashboard', icon: 'dashboard',path: '/superadmindashboard', active: true },
     { id: 'users', label: 'User Management', icon: 'group', path: '/usermanagement' },

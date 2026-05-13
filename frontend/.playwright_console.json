@@ -1,0 +1,49 @@
+[
+  {
+    "type": "console",
+    "level": "debug",
+    "text": "[vite] connecting...",
+    "location": {
+      "url": "http://localhost:5174/@vite/client",
+      "lineNumber": 732,
+      "columnNumber": 8
+    }
+  },
+  {
+    "type": "console",
+    "level": "debug",
+    "text": "[vite] connected.",
+    "location": {
+      "url": "http://localhost:5174/@vite/client",
+      "lineNumber": 826,
+      "columnNumber": 11
+    }
+  },
+  {
+    "type": "console",
+    "level": "info",
+    "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold",
+    "location": {
+      "url": "http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=8223e26c",
+      "lineNumber": 20102,
+      "columnNumber": 53
+    }
+  },
+  {
+    "type": "console",
+    "level": "error",
+    "text": "Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s=\"%s\" or %s={value.toString()}. true jsx jsx true jsx",
+    "location": {
+      "url": "http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=8223e26c",
+      "lineNumber": 2468,
+      "columnNumber": 32
+    }
+  },
+  {
+    "type": "requestfailed",
+    "url": "https://images.unsplash.com/photo-1501117716987-c8e1ecb2107b?auto=format&fit=crop&w=800&q=80",
+    "failure": {
+      "errorText": "net::ERR_BLOCKED_BY_ORB"
+    }
+  }
+]

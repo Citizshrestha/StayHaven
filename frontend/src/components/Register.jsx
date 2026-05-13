@@ -4,7 +4,7 @@ import {  googleRegister, sendSignupOtp, verifySignupOtp, checkUserExists } from
 import { toast } from 'react-toastify';
 import { GoogleLogin } from '@react-oauth/google';
 import { jwtDecode } from 'jwt-decode';
-import GoogleConfirmModal from './GoogleConfirmModal';
+import GoogleConfirmModal from '../shared/ui/GoogleConfirmModal';
 
 const Register = () => {
    const navigate = useNavigate();

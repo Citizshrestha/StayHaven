@@ -8,11 +8,10 @@ import {
 } from "lucide-react";
 import OrderCard from "./order/OrderCard";
 
-<<<<<<< HEAD
+ HEAD
 const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed, onDeleteOrder }) => {
-=======
-const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed, onDeleteOrder, onRefresh, isRefreshing, onUpdateOrder }) => {
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed, onDeleteOrder, onRefresh, isRefreshing, onUpdateOrder }) => { 18a7cad6072eb3da4257dc61533fafce0ecb2070
   const [isMobile, setIsMobile] = useState(false);
   const [isTablet, setIsTablet] = useState(false);
 
@@ -22,28 +21,24 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
       setIsMobile(window.innerWidth < 640);
       setIsTablet(window.innerWidth >= 640 && window.innerWidth < 1024);
     };
-<<<<<<< HEAD
+ HEAD
     
-=======
 
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+ 18a7cad6072eb3da4257dc61533fafce0ecb2070
     checkScreenSize();
     window.addEventListener('resize', checkScreenSize);
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
-<<<<<<< HEAD
+ HEAD
   const filteredOrders =
     activeFilter === "all"
       ? orders
       : orders.filter((order) => order.status === activeFilter);
-
   const handleRefresh = () => {
     console.log("Refreshing orders...");
-=======
+
   const filteredOrders = (
-    activeFilter === "all"
-      ? orders
       : activeFilter.startsWith('area:')
       ? orders.filter((order) => {
           const areaName = activeFilter.replace('area:', '');
@@ -60,12 +55,9 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
     // If both are same type, sort by date (newest first)
     return new Date(b.placedAt) - new Date(a.placedAt);
   });
-
-  const handleRefresh = () => {
     if (onRefresh) {
       onRefresh();
-    }
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+    } 18a7cad6072eb3da4257dc61533fafce0ecb2070
   };
 
   const filters = [
@@ -73,23 +65,21 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
     { id: "new", label: "New", icon: BellIcon },
     { id: "preparing", label: "Preparing", icon: ChefHat },
     { id: "ready", label: "Ready for Pickup", icon: CheckCircle },
-<<<<<<< HEAD
+ HEAD
     { id: "completed", label: "Completed", icon: CheckCircle },
-=======
-    { id: "delivered", label: "Completed", icon: CheckCircle },
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+    { id: "delivered", label: "Completed", icon: CheckCircle }, 18a7cad6072eb3da4257dc61533fafce0ecb2070
   ];
 
   // Responsive Inline Styles
   const containerStyle = {
-<<<<<<< HEAD
+ HEAD
     minHeight: "100%",
     paddingBottom: isMobile ? "5rem" : "6rem",
     backgroundColor: "#F8F9FB", 
-=======
+
     paddingBottom: isMobile ? "5rem" : "0",
-    backgroundColor: "var(--bg-secondary)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+    backgroundColor: "var(--bg-secondary)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
     fontFamily: "'Nunito', sans-serif",
   };
 
@@ -97,11 +87,10 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
     position: "sticky",
     top: 0,
     zIndex: 20,
-<<<<<<< HEAD
+ HEAD
     backgroundColor: "#F8F9FB",
-=======
-    backgroundColor: "var(--bg-secondary)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+    backgroundColor: "var(--bg-secondary)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
     padding: isMobile ? "16px" : isTablet ? "24px 32px 20px 32px" : "32px 48px 24px 48px",
   };
 
@@ -117,11 +106,10 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
   const titleStyle = {
     fontSize: isMobile ? "28px" : isTablet ? "32px" : "40px",
     fontWeight: "800",
-<<<<<<< HEAD
+ HEAD
     color: "#111827",
-=======
-    color: "var(--text-primary)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+    color: "var(--text-primary)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
     marginBottom: "8px",
     letterSpacing: "-0.025em",
     lineHeight: "1.1",
@@ -129,11 +117,10 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
 
   const subtitleStyle = {
     fontSize: isMobile ? "14px" : "18px",
-<<<<<<< HEAD
+ HEAD
     color: "#6B7280",
-=======
-    color: "var(--text-secondary)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+    color: "var(--text-secondary)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
     fontWeight: "500",
   };
 
@@ -177,23 +164,21 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
     transition: "all 0.2s",
     border: "none",
     cursor: "pointer",
-<<<<<<< HEAD
+ HEAD
     backgroundColor: isActive ? "#D1FAE5" : "white",
     color: isActive ? "#059669" : "#6B7280",
-=======
+
     backgroundColor: isActive ? "var(--color-accent-light)" : "var(--bg-primary)",
-    color: isActive ? "var(--color-primary)" : "var(--text-tertiary)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+    color: isActive ? "var(--color-primary)" : "var(--text-tertiary)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
     boxShadow: isActive ? "none" : "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
     flexShrink: 0,
   });
 
   const ordersGridStyle = {
-<<<<<<< HEAD
+ HEAD
     padding: isMobile ? "0 16px 80px 16px" : isTablet ? "0 32px 48px 32px" : "0 48px 48px 48px",
-=======
-    padding: isMobile ? "0 16px 80px 16px" : isTablet ? "0 32px 32px 32px" : "0 48px 32px 48px",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+    padding: isMobile ? "0 16px 80px 16px" : isTablet ? "0 32px 32px 32px" : "0 48px 32px 48px", 18a7cad6072eb3da4257dc61533fafce0ecb2070
   };
 
   const ordersListStyle = {
@@ -214,11 +199,11 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
           </div>
 
           {/* Refresh Button */}
-<<<<<<< HEAD
+ HEAD
           <button onClick={handleRefresh} style={refreshButtonStyle}>
             <RefreshCw size={20} />
             <span>Refresh Orders</span>
-=======
+
           <button
             onClick={handleRefresh}
             style={{
@@ -229,8 +214,7 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
             disabled={isRefreshing}
           >
             <RefreshCw size={20} style={{ animation: isRefreshing ? 'spin 1s linear infinite' : 'none' }} />
-            <span>{isRefreshing ? 'Refreshing...' : 'Refresh Orders'}</span>
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+            <span>{isRefreshing ? 'Refreshing...' : 'Refresh Orders'}</span> 18a7cad6072eb3da4257dc61533fafce0ecb2070
           </button>
         </div>
 
@@ -258,11 +242,10 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
       <div style={ordersGridStyle}>
         <div style={ordersListStyle}>
           {filteredOrders.map((order) => {
-<<<<<<< HEAD
+ HEAD
             return <OrderCard key={order.id} order={order} onMarkServed={onMarkServed}  onDelete={onDeleteOrder} />;
-=======
-            return <OrderCard key={order.id} order={order} onMarkServed={onMarkServed} onDelete={onDeleteOrder} onUpdate={onUpdateOrder} />;
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+            return <OrderCard key={order.id} order={order} onMarkServed={onMarkServed} onDelete={onDeleteOrder} onUpdate={onUpdateOrder} />; 18a7cad6072eb3da4257dc61533fafce0ecb2070
           })}
         </div>
 

@@ -55,7 +55,6 @@ const App = () => {
       <Router>
         <StaffAuthProvider>
           <OrderProvider>
-            {/* Page Routes */}
             <div className="w-screen min-h-screen overflow-x-hidden">
               <Routes>
                 {/* Public Routes */}
@@ -77,10 +76,12 @@ const App = () => {
                 <Route path="/feedback" element={<Feedback />} />
                 <Route path="/footer" element={<Footer />} />
                 <Route path="/contactus" element={<ContactUs />} />
+
                 {/* Staff Routes */}
                 <Route path="/staff/login" element={<StaffLogin />} />
                 <Route path="/staff/forgot-password" element={<StaffForgotPassword />} />
                 <Route path="/staff/reset-password/:token" element={<StaffResetPassword />} />
+
                 {/* Protected staff dashboards */}
                 <Route
                   path="/waiter-dashboard"
@@ -98,25 +99,44 @@ const App = () => {
                     </ProtectedStaffRoute>
                   }
                 />
+
                 {/* Superadmin & Hotel Admin Routes */}
                 <Route path="/superadmindashboard" element={<SuperadminDashboard />} />
                 <Route path="/usermanagement" element={<UserManagement />} />
                 <Route path="/hotelmanagement" element={<HotelManagement />} />
                 <Route path="/addhotel" element={<AddHotel />} />
+
                 {/* Hotel Admin (dashboard + specific pages) */}
                 <Route path="/hoteladmin" element={<HoteladminDashboard />} />
                 <Route path="/hoteladmin/reports" element={<HotelReport />} />
                 <Route path="/hoteladmin/loyalty" element={<Loyaltypoints />} />
                 <Route path="/roommanagement" element={<RoomManagement />} />
                 <Route path="/restaurantmanagement" element={<RestaurantManagement />} />
-                <Route path="/feedback" element={<Feedback />} />
-                <Route path="/contactus" element={<ContactUs />} />
                 <Route path="/hotelreport" element={<HotelReport />} />
+
+                {/* Guest pages */}
+                <Route path="/guest-dashboard" element={<GuestDashboard />} />
+                <Route path="/guest/bookings" element={<Mybooking />} />
+                <Route path="/guest/food-order" element={<Foodorder />} />
+                <Route path="/guest/loyalty" element={<LoyaltyRewards />} />
+                <Route path="/guest/loyalty/redeem/:rewardId" element={<Redeem />} />
+                <Route path="/guest/notifications" element={<GuestNotification />} />
+
+                {/* Protected Routes */}
+                <Route
+                  path="/dashboard"
+                  element={
+                    <ProtectedRoute>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  }
+                />
               </Routes>
             </div>
           </OrderProvider>
         </StaffAuthProvider>
-        {/* Toast Container */}
+
+        {/* Single ToastContainer */}
         <ToastContainer
           position="top-right"
           autoClose={5000}
@@ -129,47 +149,6 @@ const App = () => {
           pauseOnHover
           theme="light"
         />
-      {/* Page Routes */}
-      <div className="w-screen min-h-screen overflow-x-hidden">
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/home" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/" element={<OffersPage />} />
-          {/* Guest pages */}
-          <Route path="/guest-dashboard" element={<GuestDashboard />} />
-          <Route path="/guest/bookings" element={<Mybooking />} />
-          <Route path="/guest/food-order" element={<Foodorder />} />
-          <Route path="/guest/loyalty" element={<LoyaltyRewards />} />
-          <Route path="/guest/loyalty/redeem/:rewardId" element={<Redeem />} />
-          <Route path="/guest/notifications" element={<GuestNotification />} />
-          <Route path="/hotel/:id" element={<HotelDetails />} />
-          
-          {/* Protected Routes */}
-          <Route path="/dashboard" element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          } />
-        </Routes>
-      </div>
-      
-      {/* Toast Container */}
-      <ToastContainer
-        position="top-right"
-        autoClose={5000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="light"
-      />
       </Router>
     </GoogleOAuthProvider>
   );

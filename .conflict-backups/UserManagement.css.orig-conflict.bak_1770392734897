@@ -31,11 +31,10 @@
   background-color: var(--background-light);
   color: var(--text-light);
   min-height: 100vh;
-<<<<<<< HEAD
-=======
+ HEAD
+
   height: 100vh;
-  overflow: hidden;
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+  overflow: hidden; 18a7cad6072eb3da4257dc61533fafce0ecb2070
 }
 
 .user-management.dark {
@@ -52,15 +51,14 @@
   display: none;
   flex-direction: column;
   justify-content: space-between;
-<<<<<<< HEAD
-=======
+ HEAD
+
   position: fixed;
   left: 0;
   top: 0;
   height: 100vh;
   overflow-y: auto;
-  z-index: 10;
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+  z-index: 10; 18a7cad6072eb3da4257dc61533fafce0ecb2070
 }
 
 @media (min-width: 1024px) {
@@ -181,11 +179,10 @@
 .main-content {
   flex: 1;
   padding: 2.5rem 2rem 2rem 1rem;
-<<<<<<< HEAD
-=======
+ HEAD
+
   height: 100vh;
-  overflow-y: auto;
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+  overflow-y: auto; 18a7cad6072eb3da4257dc61533fafce0ecb2070
 }
 
 @media (min-width: 640px) {
@@ -197,10 +194,9 @@
 @media (min-width: 1024px) {
   .main-content {
     padding: 2rem;
-<<<<<<< HEAD
-=======
-    margin-left: 12rem;
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+ HEAD
+
+    margin-left: 12rem; 18a7cad6072eb3da4257dc61533fafce0ecb2070
   }
 }
 

@@ -1,53 +1,39 @@
-<<<<<<< HEAD
+ HEAD
 import { useState, useEffect } from "react";
 import { X, Clock, MapPin, User, Trash2, MoreVertical, Edit, Copy, AlertTriangle } from "lucide-react";
 import ItemCarousel from "../../shared/ItemCarousel";
 import { deleteOrder } from "../../../api/staff";
 import { toast } from "react-toastify";
 import useClickOutside from "../../../hooks/useClickOutSide";
-
 const OrderCard = ({ order, onMarkServed, onDelete }) => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-=======
+
 import { useState, useEffect, useMemo } from "react";
 import { X, Clock, MapPin, User, Trash2, MoreVertical, Edit, Copy, AlertTriangle, Printer, Send } from "lucide-react";
-import ItemCarousel from "../../shared/ItemCarousel";
 import BillPreview from "../../shared/BillPreview";
-import { deleteOrder } from "../../../api/staff";
-import { toast } from "react-toastify";
-import useClickOutside from "../../../hooks/useClickOutSide";
 import useRelativeTime from "../../../hooks/useRelativeTime";
 import EditOrderModal from "./EditOrderModal";
 import { useStaffAuth } from "../../../context/StaffAuthContext";
-
-
 const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showBillPreview, setShowBillPreview] = useState(false);
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+  const [showBillPreview, setShowBillPreview] = useState(false); 18a7cad6072eb3da4257dc61533fafce0ecb2070
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const [isMobile, setIsMobile] = useState(false);
   const [isTablet, setIsTablet] = useState(false);
 
-<<<<<<< HEAD
+ HEAD
   // use custom hook for handling click outside
   const menuRef = useClickOutside(() => setShowMenu(false));
-=======
+
   // Get staff auth context for hotel info
   const { staffUser } = useStaffAuth();
-
-  // use custom hook for handling click outside
   const menuRef = useClickOutside(() => setShowMenu(false));
   const placedAtRelativeTime = useRelativeTime(order?.placedAt, true);
-
   const isHighPriority = (order?.priority || "").toLowerCase() === "high";
-
   // Prepare hotel info for bill
   const hotelInfo = useMemo(() => {
     const property = staffUser?.activeProperty;
@@ -62,7 +48,6 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
     } else if (property.city) {
       fullAddress = property.city;
     }
-    
     return {
       name: property.name || '',
       address: fullAddress,
@@ -71,22 +56,18 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
       website: property.website || '',
     };
   }, [staffUser?.activeProperty]);
-
   const getCompletionDate = (o) => {
     const raw = o?.deliveredAt || o?.servedAt || o?.updatedAt;
     if (!raw) return null;
     const d = raw instanceof Date ? raw : new Date(raw);
     return Number.isNaN(d.getTime()) ? null : d;
   };
-
   const formatCompletionTime = (o) => {
     const d = getCompletionDate(o);
     if (!d) return "";
-    
     const now = new Date();
     const diffMs = now - d;
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    
     // More than 48 hours - show exact date and time
     if (diffHours > 48) {
       const day = d.getDate();
@@ -94,18 +75,12 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
       const year = d.getFullYear();
       const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
       return `${day} ${month}, ${year} at ${time}`;
-    }
-    
     // More than 24 hours - show "Yesterday at [time]"
     if (diffHours > 24) {
-      const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
       return `Yesterday at ${time}`;
-    }
-    
     // Within 24 hours - show just the time
     return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  };
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+  }; 18a7cad6072eb3da4257dc61533fafce0ecb2070
 
   // Handle responsive breakpoints
   useEffect(() => {
@@ -113,11 +88,10 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
       setIsMobile(window.innerWidth < 640);
       setIsTablet(window.innerWidth >= 640 && window.innerWidth < 1024);
     };
-<<<<<<< HEAD
+ HEAD
     
-=======
 
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+ 18a7cad6072eb3da4257dc61533fafce0ecb2070
     checkScreenSize();
     window.addEventListener('resize', checkScreenSize);
     return () => window.removeEventListener('resize', checkScreenSize);
@@ -125,23 +99,21 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
 
 
 
-<<<<<<< HEAD
+ HEAD
   // Safety check - if no order, don't render (AFTER all hooks)
-=======
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+ 18a7cad6072eb3da4257dc61533fafce0ecb2070
   if (!order) {
     return null;
   }
 
-<<<<<<< HEAD
-=======
+ HEAD
+
   // Calculate order total from items
   const calculateOrderTotal = () => {
     if (!order.items || !Array.isArray(order.items)) return '0.00';
     return order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0).toFixed(2);
   };
-
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+ 18a7cad6072eb3da4257dc61533fafce0ecb2070
   const handleViewDetails = () => {
     setShowDetailsModal(true);
   };
@@ -150,10 +122,9 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
     onMarkServed(order.id);
   };
 
-<<<<<<< HEAD
-=======
+ HEAD
 
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+ 18a7cad6072eb3da4257dc61533fafce0ecb2070
   // Helper to get items display text (supports both old string and new array format)
   const getItemsDisplay = () => {
     if (Array.isArray(order.items)) {
@@ -172,7 +143,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
 
   const getStatusDuration = (order) => {
     const now = new Date();
-<<<<<<< HEAD
+ HEAD
     
     if (order.status === "preparing" && order.startedPreparingAt) {
       const startTime = new Date(order.startedPreparingAt);
@@ -187,9 +158,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
     }
     return order.time;
   };
-
   
-=======
 
     // Helper function to format duration nicely
     const formatDuration = (diffMins) => {
@@ -204,35 +173,19 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
       const remHours = hours % 24;
       return remHours > 0 ? `${days}d ${remHours}h` : `${days}d`;
     };
-
     // For "preparing" status, show how long it's been preparing
-    if (order.status === "preparing" && order.startedPreparingAt) {
-      const startTime = new Date(order.startedPreparingAt);
-      const diffMins = Math.floor((now - startTime) / 60000);
       const duration = formatDuration(diffMins);
       return duration === "Just now" ? `Preparing - Just now` : `Preparing for ${duration}`;
-    }
-
     // For "ready" status, show how long it's been ready
     else if (order.status === "ready" && order.readyAt) {
-      const readyTime = new Date(order.readyAt);
-      const diffMins = Math.floor((now - readyTime) / 60000);
-      const duration = formatDuration(diffMins);
       return duration === "Just now" ? `Ready - Just now` : `Ready for ${duration}`;
-    }
-
     // For "delivered" status, show completion time
     else if (order.status === "delivered") {
       const t = formatCompletionTime(order);
       return t ? `Served on ${t}` : "Completed";
-    }
-
     // For "new" or other status, use relative time
     return placedAtRelativeTime;
-  };
-
-
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+ 18a7cad6072eb3da4257dc61533fafce0ecb2070
 
   const getStatusStyles = (status) => {
     switch (status) {
@@ -254,20 +207,18 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
           color: "#059669",
           label: "Ready for Pickup",
         };
-<<<<<<< HEAD
+ HEAD
       case "completed":
         return {
           backgroundColor: "#E5E7EB",
           color: "#6B7280",
           label: "Completed ✓",
-=======
+
       case "delivered":
-        return {
           backgroundColor: "#D1FAE5",
           color: "#059669",
           label: "Delivered ✓",
-          isDelivered: true,
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+          isDelivered: true, 18a7cad6072eb3da4257dc61533fafce0ecb2070
         };
       default:
         return {
@@ -282,23 +233,21 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
 
   // Responsive Inline Styles
   const cardStyle = {
-<<<<<<< HEAD
+ HEAD
     backgroundColor: "white",
-=======
-    backgroundColor: "var(--card-bg)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+    backgroundColor: "var(--card-bg)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
     borderRadius: isMobile ? "16px" : "24px",
     padding: isMobile ? "16px" : "24px",
     display: "flex",
     flexDirection: isMobile ? "column" : "row",
     gap: isMobile ? "16px" : "24px",
-<<<<<<< HEAD
+ HEAD
     boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
     border: "1px solid #F3F4F6",
-=======
+
     boxShadow: "var(--shadow-sm)",
-    border: "1px solid var(--card-border)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+    border: "1px solid var(--card-border)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
   };
 
   const contentStyle = {
@@ -326,11 +275,10 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
   };
 
   const metaStyle = {
-<<<<<<< HEAD
+ HEAD
     color: "#6B7280",
-=======
-    color: "var(--text-tertiary)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+    color: "var(--text-tertiary)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
     fontSize: isMobile ? "12px" : "14px",
     fontWeight: "500",
   };
@@ -338,22 +286,20 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
   const titleStyle = {
     fontSize: isMobile ? "18px" : isTablet ? "20px" : "24px",
     fontWeight: "800",
-<<<<<<< HEAD
+ HEAD
     color: "#111827",
-=======
-    color: "var(--text-primary)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+    color: "var(--text-primary)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
     marginBottom: "8px",
     lineHeight: "1.2",
     wordBreak: "break-word",
   };
 
   const itemsStyle = {
-<<<<<<< HEAD
+ HEAD
     color: "#6B7280",
-=======
-    color: "var(--text-tertiary)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+    color: "var(--text-tertiary)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
     fontSize: isMobile ? "13px" : "14px",
     lineHeight: "1.5",
     marginBottom: isMobile ? "16px" : "24px",
@@ -385,13 +331,12 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
   const secondaryButtonStyle = {
     flex: isMobile ? "none" : 1,
     padding: isMobile ? "10px 16px" : "12px 24px",
-<<<<<<< HEAD
+ HEAD
     backgroundColor: "#E5E7EB",
     color: "#374151",
-=======
+
     backgroundColor: "var(--bg-tertiary)",
-    color: "var(--text-secondary)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+    color: "var(--text-secondary)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
     borderRadius: "9999px",
     fontWeight: "700",
     fontSize: isMobile ? "13px" : "14px",
@@ -433,11 +378,10 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
 
   const handleDelete = async () => {
     if (!order) return;
-<<<<<<< HEAD
+ HEAD
     
-=======
 
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+ 18a7cad6072eb3da4257dc61533fafce0ecb2070
     setIsDeleting(true);
     setDeleteError("");
     try {
@@ -488,10 +432,10 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
         openDeleteConfirm();
         break;
       case "edit":
-<<<<<<< HEAD
+ HEAD
         // TODO: Implement edit order
         console.log("Edit order:", order._id || order.id);
-=======
+
         // Backend only allows editing for pending/confirmed orders.
         // Frontend displays pending as "new".
         if (order?.isReal && !["new", "confirmed"].includes(order.status)) {
@@ -500,43 +444,38 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
           );
           return;
         }
-        setShowEditModal(true);
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+        setShowEditModal(true); 18a7cad6072eb3da4257dc61533fafce0ecb2070
         break;
       default:
         break;
     }
   };
 
-<<<<<<< HEAD
+ HEAD
   return (
     <div style={{ ...cardStyle, position: "relative" }}>
-=======
+
   const handleSaveOrder = async (updatedOrder) => {
     if (onUpdate) {
       await onUpdate(updatedOrder);
     }
     setShowEditModal(false);
   };
-
-  return (
     <div
       style={{ ...cardStyle, position: "relative" }}
       data-order-id={order._id}
-    >
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+    > 18a7cad6072eb3da4257dc61533fafce0ecb2070
       {/* Three-dot Menu Button */}
       <div ref={menuRef} style={{ position: "absolute", top: "16px", right: "16px", zIndex: 10 }}>
         <button
           onClick={() => setShowMenu(!showMenu)}
           style={{
-<<<<<<< HEAD
+ HEAD
             background: "white",
             border: "1px solid #E5E7EB",
-=======
+
             background: "var(--card-bg)",
-            border: "1px solid var(--border-color)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+            border: "1px solid var(--border-color)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
             borderRadius: "8px",
             padding: "8px",
             cursor: "pointer",
@@ -544,17 +483,14 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
             alignItems: "center",
             justifyContent: "center",
             transition: "all 0.2s",
-<<<<<<< HEAD
+ HEAD
             boxShadow: showMenu ? "0 2px 8px rgba(0,0,0,0.1)" : "none",
           }}
         >
           <MoreVertical size={18} color="#6B7280" />
-=======
+
             boxShadow: showMenu ? "var(--shadow-md)" : "none",
-          }}
-        >
-          <MoreVertical size={18} color="var(--text-tertiary)" />
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+          <MoreVertical size={18} color="var(--text-tertiary)" /> 18a7cad6072eb3da4257dc61533fafce0ecb2070
         </button>
 
         {/* Dropdown Menu */}
@@ -565,17 +501,15 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
               top: "100%",
               right: 0,
               marginTop: "4px",
-<<<<<<< HEAD
+ HEAD
               backgroundColor: "white",
               borderRadius: "12px",
               boxShadow: "0 10px 40px rgba(0,0,0,0.15)",
               border: "1px solid #E5E7EB",
-=======
+
               backgroundColor: "var(--card-bg)",
-              borderRadius: "12px",
               boxShadow: "var(--shadow-lg)",
-              border: "1px solid var(--border-color)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+              border: "1px solid var(--border-color)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
               minWidth: "180px",
               overflow: "hidden",
               zIndex: 100,
@@ -594,7 +528,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                 cursor: "pointer",
                 fontSize: "14px",
                 fontWeight: "500",
-<<<<<<< HEAD
+ HEAD
                 color: "#374151",
                 transition: "background 0.2s",
               }}
@@ -605,18 +539,11 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
               Edit Order
             </button>
             <div style={{ height: "1px", backgroundColor: "#E5E7EB", margin: "4px 0" }} />
-=======
+
                 color: "var(--text-secondary)",
-                transition: "background 0.2s",
-              }}
               onMouseEnter={(e) => e.target.style.backgroundColor = "var(--bg-tertiary)"}
-              onMouseLeave={(e) => e.target.style.backgroundColor = "transparent"}
-            >
               <Edit size={16} color="var(--text-tertiary)" />
-              Edit Order
-            </button>
-            <div style={{ height: "1px", backgroundColor: "var(--border-color)", margin: "4px 0" }} />
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+            <div style={{ height: "1px", backgroundColor: "var(--border-color)", margin: "4px 0" }} /> 18a7cad6072eb3da4257dc61533fafce0ecb2070
             <button
               onClick={() => handleMenuAction("delete")}
               style={{
@@ -660,12 +587,11 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
               🍽️ {getTotalItemCount()} items
             </span>
           )}
-<<<<<<< HEAD
+ HEAD
           {(() => {
             const now = new Date();
             const placedTime = new Date(order.placedAt);
             const diffMins = Math.floor((now - placedTime) / 60000);
-
             if (diffMins > 30 && order.status !== "completed") {
               return (
                 <span
@@ -684,7 +610,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
             }
             return null;
           })()}
-=======
+
           {isHighPriority ? (
             <span
               style={{
@@ -698,8 +624,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
             >
               Urgent
             </span>
-          ) : null}
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+          ) : null} 18a7cad6072eb3da4257dc61533fafce0ecb2070
           <span style={metaStyle}>
             {order.table} - {getStatusDuration(order)}
           </span>
@@ -713,24 +638,22 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
               alignItems: "center",
               gap: "10px",
               marginBottom: "12px",
-<<<<<<< HEAD
+ HEAD
              
-=======
 
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+ 18a7cad6072eb3da4257dc61533fafce0ecb2070
             }}
           >
             <User size={20} style={{ color: "#0284C7", flexShrink: 0 }} />
             <span
-<<<<<<< HEAD
+ HEAD
               style={{ 
                 fontSize: "16px", 
                 fontWeight: "800", 
-=======
+
               style={{
                 fontSize: "16px",
-                fontWeight: "800",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+                fontWeight: "800", 18a7cad6072eb3da4257dc61533fafce0ecb2070
                 letterSpacing: "0.01em",
                 color: "#0284C7"
               }}
@@ -751,17 +674,16 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
             borderLeft: "3px solid #F59E0B",
             maxWidth: "280px",
           }}>
-<<<<<<< HEAD
+ HEAD
             <div style={{ 
               fontSize: "11px", 
               fontWeight: "700", 
               color: "#B45309", 
-=======
+
             <div style={{
               fontSize: "11px",
               fontWeight: "700",
-              color: "#B45309",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+              color: "#B45309", 18a7cad6072eb3da4257dc61533fafce0ecb2070
               marginBottom: "4px",
               textTransform: "uppercase",
               letterSpacing: "0.5px",
@@ -769,13 +691,12 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
               📝 Special Instructions
             </div>
             {order.items.filter(item => item.notes).slice(0, 2).map(item => (
-<<<<<<< HEAD
+ HEAD
               <div key={item.id} style={{ 
                 fontSize: "11px", 
-=======
+
               <div key={item.id} style={{
-                fontSize: "11px",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+                fontSize: "11px", 18a7cad6072eb3da4257dc61533fafce0ecb2070
                 color: "#78350F",
                 marginBottom: "2px",
                 lineHeight: "1.3",
@@ -793,7 +714,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
         )}
 
         <div style={buttonsContainerStyle}>
-<<<<<<< HEAD
+ HEAD
           {order.status === "completed" ? (
             <div
               style={{
@@ -815,18 +736,14 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
               </div>
               <div style={{ fontSize: "14px", color: "#6B7280" }}>
                 Served at {order.servedAt}
-=======
+
           {order.status === "delivered" ? (
             <div style={{ width: "100%" }}>
-              <div
-                style={{
                   padding: "12px",
                   backgroundColor: "#D1FAE5",
                   borderRadius: "12px",
                   textAlign: "center",
                   marginBottom: "12px",
-                }}
-              >
                 <div
                   style={{
                     fontSize: "16px",
@@ -842,13 +759,10 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                     const t = formatCompletionTime(order);
                     return t ? `Served on ${t}` : "Completed";
                   })()}
-                </div>
-              </div>
               {/* Print Bill & Send Bill Buttons */}
               <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                 <button
                   onClick={() => setShowBillPreview(true)}
-                  style={{
                     flex: 1,
                     minWidth: isMobile ? "100%" : "120px",
                     padding: "10px 16px",
@@ -857,42 +771,19 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                     border: "none",
                     borderRadius: "10px",
                     fontSize: "13px",
-                    fontWeight: "700",
                     cursor: "pointer",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     gap: "6px",
                     transition: "all 0.2s",
-                  }}
-                >
                   <Printer size={16} />
                   Print Bill
                 </button>
-                <button
-                  onClick={() => setShowBillPreview(true)}
-                  style={{
-                    flex: 1,
-                    minWidth: isMobile ? "100%" : "120px",
-                    padding: "10px 16px",
                     backgroundColor: "#3B82F6",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "10px",
-                    fontSize: "13px",
-                    fontWeight: "700",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "6px",
-                    transition: "all 0.2s",
-                  }}
-                >
                   <Send size={16} />
                   Send Bill
-                </button>
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+                </button> 18a7cad6072eb3da4257dc61533fafce0ecb2070
               </div>
             </div>
           ) : order.status === "ready" ? (
@@ -942,26 +833,24 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
         </div>
       </div>
 
-<<<<<<< HEAD
+ HEAD
       
-=======
 
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+ 18a7cad6072eb3da4257dc61533fafce0ecb2070
 
       {/* Right Image Carousel */}
       <div style={imageContainerStyle}>
         {Array.isArray(order.items) && order.items.length > 0 ? (
-<<<<<<< HEAD
+ HEAD
           <ItemCarousel 
             items={order.items} 
             width={isMobile ? "100%" : isTablet ? 180 : 240} 
             height={isMobile ? 200 : 180} 
-=======
+
           <ItemCarousel
             items={order.items}
             width={isMobile ? "100%" : isTablet ? 180 : 240}
-            height={isMobile ? 200 : 180}
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+            height={isMobile ? 200 : 180} 18a7cad6072eb3da4257dc61533fafce0ecb2070
           />
         ) : (
           <img src={order.image} alt="Food" style={imageStyle} />
@@ -988,11 +877,10 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
         >
           <div
             style={{
-<<<<<<< HEAD
+ HEAD
               backgroundColor: "white",
-=======
-              backgroundColor: "var(--card-bg)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+              backgroundColor: "var(--card-bg)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
               borderRadius: "24px",
               maxWidth: "600px",
               width: "90%",
@@ -1005,17 +893,14 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
             <div
               style={{
                 padding: "24px",
-<<<<<<< HEAD
+ HEAD
                 borderBottom: "1px solid #F3F4F6",
                 position: "sticky",
                 top: 0,
                 backgroundColor: "white",
-=======
+
                 borderBottom: "1px solid var(--border-color)",
-                position: "sticky",
-                top: 0,
-                backgroundColor: "var(--card-bg)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+                backgroundColor: "var(--card-bg)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
                 borderTopLeftRadius: "24px",
                 borderTopRightRadius: "24px",
               }}
@@ -1029,11 +914,10 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                   background: "none",
                   border: "none",
                   cursor: "pointer",
-<<<<<<< HEAD
+ HEAD
                   color: "#6B7280",
-=======
-                  color: "var(--text-tertiary)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+                  color: "var(--text-tertiary)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
                   padding: "8px",
                   borderRadius: "50%",
                 }}
@@ -1045,10 +929,9 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                   fontSize: "24px",
                   fontWeight: "800",
                   marginBottom: "8px",
-<<<<<<< HEAD
-=======
-                  color: "var(--text-primary)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+ HEAD
+
+                  color: "var(--text-primary)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
                 }}
               >
                 Order #{order.orderNumber || order.id?.slice?.(-5)?.toUpperCase() || order.id}
@@ -1074,11 +957,10 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                   style={{
                     fontSize: "14px",
                     fontWeight: "700",
-<<<<<<< HEAD
+ HEAD
                     color: "#6B7280",
-=======
-                    color: "var(--text-tertiary)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+                    color: "var(--text-tertiary)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
                     textTransform: "uppercase",
                     letterSpacing: "0.05em",
                     marginBottom: "12px",
@@ -1086,10 +968,9 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                 >
                   Order Information
                 </h3>
-<<<<<<< HEAD
-=======
-                {/* Table/Room Location */}
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+ HEAD
+
+                {/* Table/Room Location */} 18a7cad6072eb3da4257dc61533fafce0ecb2070
                 <div
                   style={{
                     display: "flex",
@@ -1097,11 +978,10 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                     gap: "12px",
                     marginBottom: "12px",
                     padding: "12px",
-<<<<<<< HEAD
+ HEAD
                     backgroundColor: "#F9FAFB",
-=======
-                    backgroundColor: "var(--bg-tertiary)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+                    backgroundColor: "var(--bg-tertiary)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
                     borderRadius: "12px",
                   }}
                 >
@@ -1109,18 +989,15 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                     size={20}
                     style={{ color: "#10B981", flexShrink: 0 }}
                   />
-<<<<<<< HEAD
+ HEAD
                   <span style={{ fontSize: "15px", fontWeight: "600" }}>
                     {order.table}
                   </span>
                 </div>
-=======
+
                   <span style={{ fontSize: "15px", fontWeight: "600", color: "var(--text-primary)" }}>
-                    {order.table}
-                  </span>
                 </div>
-                {/* Time Placed */}
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+                {/* Time Placed */} 18a7cad6072eb3da4257dc61533fafce0ecb2070
                 <div
                   style={{
                     display: "flex",
@@ -1128,11 +1005,10 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                     gap: "12px",
                     marginBottom: "12px",
                     padding: "12px",
-<<<<<<< HEAD
+ HEAD
                     backgroundColor: "#F9FAFB",
-=======
-                    backgroundColor: "var(--bg-tertiary)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+                    backgroundColor: "var(--bg-tertiary)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
                     borderRadius: "12px",
                   }}
                 >
@@ -1140,39 +1016,35 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                     size={20}
                     style={{ color: "#10B981", flexShrink: 0 }}
                   />
-<<<<<<< HEAD
+ HEAD
                   <span style={{ fontSize: "15px", fontWeight: "600" }}>
                     Placed {order.time}
                   </span>
                 </div>
-=======
+
                   <span style={{ fontSize: "15px", fontWeight: "600", color: "var(--text-primary)" }}>
                     Placed {placedAtRelativeTime}
-                  </span>
                 </div>
-                {/* Customer Name */}
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+                {/* Customer Name */} 18a7cad6072eb3da4257dc61533fafce0ecb2070
                 <div
                   style={{
                     display: "flex",
                     alignItems: "center",
                     gap: "12px",
-<<<<<<< HEAD
+ HEAD
                     padding: "12px",
                     backgroundColor: "#F9FAFB",
-=======
+
                     marginBottom: "12px",
-                    padding: "12px",
-                    backgroundColor: "var(--bg-tertiary)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+                    backgroundColor: "var(--bg-tertiary)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
                     borderRadius: "12px",
                   }}
                 >
                   <User size={20} style={{ color: "#10B981", flexShrink: 0 }} />
-<<<<<<< HEAD
+ HEAD
                   <span style={{ fontSize: "15px", fontWeight: "600" }}>
                     Assigned to: Alex Miller
-=======
+
                   <span style={{ fontSize: "15px", fontWeight: "600", color: "var(--text-primary)" }}>
                     Customer: {order.customerName || "Walk-in Guest"}
                   </span>
@@ -1210,47 +1082,20 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                 >
                   <span style={{ fontSize: "20px", flexShrink: 0 }}>
                     {order.orderType === "roomService" ? "🛏️" : order.orderType === "takeaway" ? "🥡" : "🍽️"}
-                  </span>
-                  <span style={{ fontSize: "15px", fontWeight: "600", color: "var(--text-primary)" }}>
                     {order.orderType === "roomService" ? "Room Service" : order.orderType === "takeaway" ? "Takeaway" : "Dine-In"}
-                  </span>
-                </div>
                 {/* Priority - if high */}
                 {order.priority === "high" && (
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "12px",
-                      marginBottom: "12px",
-                      padding: "12px",
                       backgroundColor: "#FEE2E2",
-                      borderRadius: "12px",
-                    }}
-                  >
                     <span style={{ fontSize: "20px", flexShrink: 0 }}>🔥</span>
                     <span style={{ fontSize: "15px", fontWeight: "600", color: "#DC2626" }}>
                       High Priority Order
-                    </span>
-                  </div>
-                )}
                 {/* Total Price */}
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
                     justifyContent: "space-between",
-                    padding: "12px",
                     backgroundColor: "#ECFDF5",
-                    borderRadius: "12px",
-                  }}
-                >
                   <span style={{ fontSize: "15px", fontWeight: "600", color: "#059669" }}>
                     Total Amount
-                  </span>
                   <span style={{ fontSize: "18px", fontWeight: "800", color: "#059669" }}>
-                    Rs. {order.totalPrice?.toFixed?.(2) || calculateOrderTotal()}
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+                    NPR {order.totalPrice?.toFixed?.(2) || calculateOrderTotal()} 18a7cad6072eb3da4257dc61533fafce0ecb2070
                   </span>
                 </div>
               </div>
@@ -1260,11 +1105,10 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                   style={{
                     fontSize: "14px",
                     fontWeight: "700",
-<<<<<<< HEAD
+ HEAD
                     color: "#6B7280",
-=======
-                    color: "var(--text-tertiary)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+                    color: "var(--text-tertiary)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
                     textTransform: "uppercase",
                     letterSpacing: "0.05em",
                     marginBottom: "12px",
@@ -1279,11 +1123,10 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                         key={item.id}
                         style={{
                           padding: "12px",
-<<<<<<< HEAD
+ HEAD
                           backgroundColor: "#F9FAFB",
-=======
-                          backgroundColor: "var(--bg-tertiary)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+                          backgroundColor: "var(--bg-tertiary)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
                           borderRadius: "12px",
                           marginBottom: "8px",
                         }}
@@ -1294,11 +1137,10 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                           justifyContent: "space-between",
                           marginBottom: item.notes ? "8px" : "0",
                         }}>
-<<<<<<< HEAD
+ HEAD
                           <span style={{ fontSize: "15px", fontWeight: "600" }}>
-=======
-                          <span style={{ fontSize: "15px", fontWeight: "600", color: "var(--text-primary)" }}>
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+                          <span style={{ fontSize: "15px", fontWeight: "600", color: "var(--text-primary)" }}> 18a7cad6072eb3da4257dc61533fafce0ecb2070
                             {item.name}
                           </span>
                           <span style={{
@@ -1332,19 +1174,17 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                         key={index}
                         style={{
                           padding: "12px",
-<<<<<<< HEAD
+ HEAD
                           backgroundColor: "#F9FAFB",
-=======
-                          backgroundColor: "var(--bg-tertiary)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+                          backgroundColor: "var(--bg-tertiary)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
                           borderRadius: "12px",
                           marginBottom: "8px",
                           fontSize: "15px",
                           fontWeight: "600",
-<<<<<<< HEAD
-=======
-                          color: "var(--text-primary)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+ HEAD
+
+                          color: "var(--text-primary)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
                         }}
                       >
                         {item}
@@ -1359,11 +1199,10 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                   style={{
                     fontSize: "14px",
                     fontWeight: "700",
-<<<<<<< HEAD
+ HEAD
                     color: "#6B7280",
-=======
-                    color: "var(--text-tertiary)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+                    color: "var(--text-tertiary)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
                     textTransform: "uppercase",
                     letterSpacing: "0.05em",
                     marginBottom: "12px",
@@ -1372,17 +1211,16 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                   Order Images
                 </h3>
                 {Array.isArray(order.items) && order.items.length > 0 ? (
-<<<<<<< HEAD
+ HEAD
                   <div style={{ display: "flex", justifyContent: "center" }}>
                     <ItemCarousel items={order.items} width={400} height={250} />
-=======
+
                   <div style={{ display: "flex", justifyContent: "center", width: "100%" }}>
                     <ItemCarousel
                       items={order.items}
                       width={isMobile ? "100%" : isTablet ? 360 : 400}
                       height={isMobile ? 220 : 250}
-                    />
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+                    /> 18a7cad6072eb3da4257dc61533fafce0ecb2070
                   </div>
                 ) : (
                   <img
@@ -1405,11 +1243,10 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                     style={{
                       fontSize: "14px",
                       fontWeight: "700",
-<<<<<<< HEAD
+ HEAD
                       color: "#6B7280",
-=======
-                      color: "var(--text-tertiary)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+                      color: "var(--text-tertiary)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
                       textTransform: "uppercase",
                       letterSpacing: "0.05em",
                       marginBottom: "12px",
@@ -1428,11 +1265,10 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                         top: "8px",
                         bottom: "8px",
                         width: "2px",
-<<<<<<< HEAD
+ HEAD
                         backgroundColor: "#E5E7EB",
-=======
-                        backgroundColor: "var(--border-color)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+                        backgroundColor: "var(--border-color)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
                       }}
                     />
 
@@ -1457,13 +1293,12 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                             height: "16px",
                             borderRadius: "50%",
                             backgroundColor: "#10B981",
-<<<<<<< HEAD
+ HEAD
                             border: "3px solid white",
                             boxShadow: "0 0 0 1px #E5E7EB",
-=======
+
                             border: "3px solid var(--card-bg)",
-                            boxShadow: "0 0 0 1px var(--border-color)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+                            boxShadow: "0 0 0 1px var(--border-color)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
                           }}
                         />
 
@@ -1473,21 +1308,19 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                             style={{
                               fontSize: "14px",
                               fontWeight: "700",
-<<<<<<< HEAD
+ HEAD
                               color: "#111827",
-=======
-                              color: "var(--text-primary)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+                              color: "var(--text-primary)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
                             }}
                           >
                             {entry.status.charAt(0).toUpperCase() +
                               entry.status.slice(1)}
                           </div>
-<<<<<<< HEAD
+ HEAD
                           <div style={{ fontSize: "12px", color: "#6B7280" }}>
-=======
-                          <div style={{ fontSize: "12px", color: "var(--text-tertiary)" }}>
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+                          <div style={{ fontSize: "12px", color: "var(--text-tertiary)" }}> 18a7cad6072eb3da4257dc61533fafce0ecb2070
                             {entry.timestamp}
                           </div>
                         </div>
@@ -1521,20 +1354,18 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
         >
           <div
             style={{
-<<<<<<< HEAD
+ HEAD
               backgroundColor: "white",
-=======
-              backgroundColor: "var(--card-bg)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+              backgroundColor: "var(--card-bg)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
               borderRadius: "24px",
               padding: "32px",
               maxWidth: "400px",
               width: "90%",
-<<<<<<< HEAD
+ HEAD
               boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
-=======
-              boxShadow: "var(--shadow-lg)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+              boxShadow: "var(--shadow-lg)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
               animation: "fadeIn 0.2s ease-out",
             }}
             onClick={(e) => e.stopPropagation()}
@@ -1560,11 +1391,10 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
               style={{
                 fontSize: "20px",
                 fontWeight: "700",
-<<<<<<< HEAD
+ HEAD
                 color: "#111827",
-=======
-                color: "var(--text-primary)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+                color: "var(--text-primary)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
                 textAlign: "center",
                 marginBottom: "8px",
               }}
@@ -1576,11 +1406,10 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
             <p
               style={{
                 fontSize: "14px",
-<<<<<<< HEAD
+ HEAD
                 color: "#6B7280",
-=======
-                color: "var(--text-tertiary)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+                color: "var(--text-tertiary)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
                 textAlign: "center",
                 marginBottom: "8px",
                 lineHeight: "1.5",
@@ -1592,11 +1421,10 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
             {/* Order Info */}
             <div
               style={{
-<<<<<<< HEAD
+ HEAD
                 backgroundColor: "#F9FAFB",
-=======
-                backgroundColor: "var(--bg-tertiary)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+                backgroundColor: "var(--bg-tertiary)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
                 borderRadius: "12px",
                 padding: "16px",
                 marginBottom: "24px",
@@ -1606,21 +1434,19 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                 style={{
                   fontSize: "15px",
                   fontWeight: "600",
-<<<<<<< HEAD
+ HEAD
                   color: "#111827",
-=======
-                  color: "var(--text-primary)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+                  color: "var(--text-primary)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
                   marginBottom: "4px",
                 }}
               >
                 Order #{order?.orderNumber || order?.id?.slice?.(-5)?.toUpperCase() || order?.id || "Unknown"}
               </div>
-<<<<<<< HEAD
+ HEAD
               <div style={{ fontSize: "13px", color: "#6B7280" }}>
-=======
-              <div style={{ fontSize: "13px", color: "var(--text-tertiary)" }}>
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+              <div style={{ fontSize: "13px", color: "var(--text-tertiary)" }}> 18a7cad6072eb3da4257dc61533fafce0ecb2070
                 {order?.table || "Unknown table"} • {getItemsDisplay()?.substring(0, 50) || "No items"}
                 {(getItemsDisplay()?.length || 0) > 50 ? "..." : ""}
               </div>
@@ -1696,13 +1522,12 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                 style={{
                   flex: 1,
                   padding: "14px 24px",
-<<<<<<< HEAD
+ HEAD
                   backgroundColor: "#F3F4F6",
                   color: "#374151",
-=======
+
                   backgroundColor: "var(--bg-tertiary)",
-                  color: "var(--text-secondary)",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+                  color: "var(--text-secondary)", 18a7cad6072eb3da4257dc61533fafce0ecb2070
                   border: "none",
                   borderRadius: "12px",
                   fontSize: "15px",
@@ -1771,8 +1596,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
           to { transform: rotate(360deg); }
         }
       `}</style>
-<<<<<<< HEAD
-=======
+ HEAD
 
       {/* Edit Order Modal */}
       {showEditModal && (
@@ -1782,17 +1606,13 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
           onSave={handleSaveOrder}
         />
       )}
-
       {/* Bill Preview Modal */}
       {showBillPreview && (
         <BillPreview
-          order={order}
           onClose={() => setShowBillPreview(false)}
           isDarkMode={false}
           hotelInfo={hotelInfo}
-        />
-      )}
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+      )} 18a7cad6072eb3da4257dc61533fafce0ecb2070
     </div>
   );
 };

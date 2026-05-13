@@ -72,15 +72,14 @@ export const getActiveProperty = () => {
   return property ? JSON.parse(property) : null;
 };
 
-<<<<<<< HEAD
-=======
+ HEAD
+
 // Update order status (for cross-dashboard sync)
 export const updateOrderStatus = async (orderId, status) => {
   const response = await axiosClient.put(`/api/staff/orders/${orderId}/status`, { status });
   return response.data;
 };
-
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+ 18a7cad6072eb3da4257dc61533fafce0ecb2070
 
 // create order
 export const createOrder = async (orderData) => {
@@ -89,15 +88,13 @@ export const createOrder = async (orderData) => {
 };
 
 // get order
-<<<<<<< HEAD
+ HEAD
 export const getOrders = async (hotelId, status="pending", orderType="dineIn") => {
   const response = await axiosClient.get("/api/staff/orders", {
     params: {hotelId, status, orderType}
-=======
+
 export const getOrders = async (hotelId, status = "pending", orderType = "dineIn") => {
-  const response = await axiosClient.get("/api/staff/orders", {
-    params: { hotelId, status, orderType }
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+    params: { hotelId, status, orderType } 18a7cad6072eb3da4257dc61533fafce0ecb2070
   });
 
   return response.data;
@@ -110,48 +107,37 @@ export const deleteOrder = async (orderId) => {
 };
 
 export const changePassword = async (currentPassword, newPassword) => {
-<<<<<<< HEAD
+ HEAD
    const response = await axiosClient.post("/api/staff/change-password", { currentPassword, newPassword });
    return response.data;
 }
-
 export const forgotPassword = async (email) => {
   const response = await axiosClient.post("/api/staff/forgot-password", {email});
-=======
+
   const response = await axiosClient.put("/api/staff/change-password", { currentPassword, newPassword });
   return response.data;
-}
-
-export const forgotPassword = async (email) => {
-  const response = await axiosClient.post("/api/staff/forgot-password", { email });
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+  const response = await axiosClient.post("/api/staff/forgot-password", { email }); 18a7cad6072eb3da4257dc61533fafce0ecb2070
   return response.data;
 }
 
 export const resetPassword = async (token, newPassword) => {
-<<<<<<< HEAD
+ HEAD
   const response = await axiosClient.post("/api/staff/reset-password", {token, newPassword});
-=======
+
   const response = await axiosClient.post("/api/staff/reset-password", { token, newPassword });
   return response.data;
 }
-
 // Update an order
 export const updateOrder = async (orderId, orderData) => {
   const response = await axiosClient.put(`/api/staff/orders/${orderId}`, orderData);
-  return response.data;
-}
-
 export const updateProfilePicture = async (file) => {
   const formData = new FormData();
   formData.append("profilePicture", file);
-
   const response = await axiosClient.patch("/staff/profile-picture", formData, {
     headers: {
       "Content-Type" : "multipart/form-data",
     },
   });
-
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+ 18a7cad6072eb3da4257dc61533fafce0ecb2070
   return response.data;
 }

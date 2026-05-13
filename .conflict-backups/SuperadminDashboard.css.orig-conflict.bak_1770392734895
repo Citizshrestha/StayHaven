@@ -35,11 +35,10 @@
   background-color: var(--background-light);
   color: var(--text-light);
   min-height: 100vh;
-<<<<<<< HEAD
-=======
+ HEAD
+
   height: 100vh;
-  overflow: hidden;
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+  overflow: hidden; 18a7cad6072eb3da4257dc61533fafce0ecb2070
 }
 
 .superadmin-dashboard.dark {
@@ -55,15 +54,14 @@
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-<<<<<<< HEAD
-=======
+ HEAD
+
   position: fixed;
   left: 0;
   top: 0;
   height: 100vh;
   overflow-y: auto;
-  z-index: 10;
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+  z-index: 10; 18a7cad6072eb3da4257dc61533fafce0ecb2070
 }
 
 .dark .sidebar {
@@ -170,12 +168,11 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-<<<<<<< HEAD
-=======
+ HEAD
+
   margin-left: 16rem;
   height: 100vh;
-  overflow-y: auto;
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+  overflow-y: auto; 18a7cad6072eb3da4257dc61533fafce0ecb2070
 }
 
 /* Top Header Styles */

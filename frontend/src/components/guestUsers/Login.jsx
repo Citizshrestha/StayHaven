@@ -2,7 +2,7 @@
 import { useNavigate } from 'react-router-dom';
 import { login, googleLogin, googleRegister } from '../../api/auth';
 import { toast } from 'react-toastify';
-import GoogleConfirmModal from '../GoogleConfirmModal';
+import GoogleConfirmModal from '../../shared/ui/GoogleConfirmModal';
 import { GoogleLogin } from '@react-oauth/google';
 const Login = () => {
   const navigate = useNavigate();

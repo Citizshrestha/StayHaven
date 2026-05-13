@@ -19,13 +19,12 @@ const ItemCarousel = ({ items = [], width = 280, height = 200 }) => {
 
   // Handle width as number or "100%"
   const widthStyle = typeof width === 'number' ? `${width}px` : width;
-<<<<<<< HEAD
-=======
+ HEAD
+
   const isNarrow = widthStyle === "100%" || (typeof width === "number" && width <= 360);
   const arrowSize = isNarrow ? 28 : 32;
   const arrowInset = isNarrow ? 6 : 8;
-  const arrowIconSize = isNarrow ? 16 : 18;
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+  const arrowIconSize = isNarrow ? 16 : 18; 18a7cad6072eb3da4257dc61533fafce0ecb2070
 
   // Handle empty or invalid items
   if (!items || items.length === 0) {
@@ -52,11 +51,10 @@ const ItemCarousel = ({ items = [], width = 280, height = 200 }) => {
   if (items.length === 1) {
     const item = items[0];
     return (
-<<<<<<< HEAD
+ HEAD
       <div style={{ width: widthStyle, flexShrink: 0 }}>
-=======
-      <div style={{ width: widthStyle, maxWidth: "100%", flexShrink: 0 }}>
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+      <div style={{ width: widthStyle, maxWidth: "100%", flexShrink: 0 }}> 18a7cad6072eb3da4257dc61533fafce0ecb2070
         <div style={{ position: "relative" }}>
           <img
             src={item.image}
@@ -144,11 +142,10 @@ const ItemCarousel = ({ items = [], width = 280, height = 200 }) => {
   const currentItem = items[currentIndex];
 
   return (
-<<<<<<< HEAD
+ HEAD
     <div style={{ width: widthStyle, flexShrink: 0 }}>
-=======
-    <div style={{ width: widthStyle, maxWidth: "100%", flexShrink: 0 }}>
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+    <div style={{ width: widthStyle, maxWidth: "100%", flexShrink: 0 }}> 18a7cad6072eb3da4257dc61533fafce0ecb2070
       {/* Item counter badge */}
       <div
         style={{
@@ -198,23 +195,21 @@ const ItemCarousel = ({ items = [], width = 280, height = 200 }) => {
           onClick={goToPrevious}
           style={{
             position: "absolute",
-<<<<<<< HEAD
+ HEAD
             left: "8px",
-=======
-            left: `${arrowInset}px`,
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+            left: `${arrowInset}px`, 18a7cad6072eb3da4257dc61533fafce0ecb2070
             top: "50%",
             transform: "translateY(-50%)",
             backgroundColor: "rgba(255, 255, 255, 0.9)",
             border: "none",
             borderRadius: "50%",
-<<<<<<< HEAD
+ HEAD
             width: "32px",
             height: "32px",
-=======
+
             width: `${arrowSize}px`,
-            height: `${arrowSize}px`,
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+            height: `${arrowSize}px`, 18a7cad6072eb3da4257dc61533fafce0ecb2070
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -231,11 +226,10 @@ const ItemCarousel = ({ items = [], width = 280, height = 200 }) => {
             e.currentTarget.style.transform = "translateY(-50%) scale(1)";
           }}
         >
-<<<<<<< HEAD
+ HEAD
           <ChevronLeft size={18} style={{ color: "#374151" }} />
-=======
-          <ChevronLeft size={arrowIconSize} style={{ color: "#374151" }} />
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+          <ChevronLeft size={arrowIconSize} style={{ color: "#374151" }} /> 18a7cad6072eb3da4257dc61533fafce0ecb2070
         </button>
 
         {/* Right Arrow */}
@@ -243,23 +237,21 @@ const ItemCarousel = ({ items = [], width = 280, height = 200 }) => {
           onClick={goToNext}
           style={{
             position: "absolute",
-<<<<<<< HEAD
+ HEAD
             right: "8px",
-=======
-            right: `${arrowInset}px`,
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+            right: `${arrowInset}px`, 18a7cad6072eb3da4257dc61533fafce0ecb2070
             top: "50%",
             transform: "translateY(-50%)",
             backgroundColor: "rgba(255, 255, 255, 0.9)",
             border: "none",
             borderRadius: "50%",
-<<<<<<< HEAD
+ HEAD
             width: "32px",
             height: "32px",
-=======
+
             width: `${arrowSize}px`,
-            height: `${arrowSize}px`,
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+            height: `${arrowSize}px`, 18a7cad6072eb3da4257dc61533fafce0ecb2070
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -276,11 +268,10 @@ const ItemCarousel = ({ items = [], width = 280, height = 200 }) => {
             e.currentTarget.style.transform = "translateY(-50%) scale(1)";
           }}
         >
-<<<<<<< HEAD
+ HEAD
           <ChevronRight size={18} style={{ color: "#374151" }} />
-=======
-          <ChevronRight size={arrowIconSize} style={{ color: "#374151" }} />
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+          <ChevronRight size={arrowIconSize} style={{ color: "#374151" }} /> 18a7cad6072eb3da4257dc61533fafce0ecb2070
         </button>
 
         {/* Item info overlay */}

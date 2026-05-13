@@ -1,15 +1,12 @@
-<<<<<<< HEAD
+ HEAD
 import express from "express";
 import connectDB from "./config/db.js";
 import dotenv from "dotenv";
-=======
+
 import dotenv from "dotenv";
 dotenv.config();
-
-import express from "express";
 import { createServer } from "http";
-import connectDB from "./config/db.js";
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+import connectDB from "./config/db.js"; 18a7cad6072eb3da4257dc61533fafce0ecb2070
 import cors from "cors";
 import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
@@ -17,28 +14,25 @@ import hotelRoutes from "./routes/hotelRoutes.js";
 import companyRoutes from "./routes/companyRoutes.js";
 import { Role } from "./models/role.schema.js";
 import staffRoutes from "./routes/staffRoutes.js";
-<<<<<<< HEAD
+ HEAD
 import cookieParser from "cookie-parser";
-=======
+
 import notificationRoutes from "./routes/notificationRoutes.js";
 import cookieParser from "cookie-parser";
 import { initCloudinary } from "./config/cloudinary.js";
 import { initSocket } from "./config/socket.js";
-
 // Initialize cloudinary with env vars
-initCloudinary();
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+initCloudinary(); 18a7cad6072eb3da4257dc61533fafce0ecb2070
 
 const app = express();
 // Create HTTP server for Socket.io
 const httpServer = createServer(app);
 
-<<<<<<< HEAD
-=======
+ HEAD
+
 // Initialize Socket.io
 initSocket(httpServer);
-
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+ 18a7cad6072eb3da4257dc61533fafce0ecb2070
 // Connect to DB
 connectDB();
 
@@ -129,17 +123,14 @@ app.use("/api/user", userRoutes);
 app.use("/api/hotels", hotelRoutes);
 app.use("/api/company", companyRoutes);
 app.use("/api/staff", staffRoutes);
-<<<<<<< HEAD
-
+ HEAD
 // start server
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
-=======
-app.use("/api/notifications", notificationRoutes);
 
+app.use("/api/notifications", notificationRoutes);
 // start server - use httpServer instead of app for Socket.io support
 httpServer.listen(PORT, () => {
   console.log(`🚀 Server is running on port ${PORT}`);
-  console.log(`🔌 WebSocket server ready for connections`);
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+  console.log(`🔌 WebSocket server ready for connections`); 18a7cad6072eb3da4257dc61533fafce0ecb2070
 });

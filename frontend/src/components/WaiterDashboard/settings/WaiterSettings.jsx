@@ -15,7 +15,7 @@ const WaiterSettings = ({ onClose }) => {
     const { theme, setTheme } = useTheme();
     const [showChangePassword, setShowChangePassword] = useState(false);
     const [isUploadingPic, setIsUploadingPic] = useState(false);
-    const fileInputRef = useRef(null);
+    const fileInputRef = useRef(null); 
     const [passwordState, setPasswordState] = useState({
         currentPassword: "",
         newPassword: "",

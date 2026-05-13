@@ -1,17 +1,15 @@
-<<<<<<< HEAD
+ HEAD
 import { create, find, findByIdAndUpdate } from '../models/notification.schema';
-=======
-import { Notification } from '../models/notification.schema.js';
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+import { Notification } from '../models/notification.schema.js'; 18a7cad6072eb3da4257dc61533fafce0ecb2070
 
 // Create new notification
 export async function createNotification(req, res) {
   try {
-<<<<<<< HEAD
+ HEAD
     const notification = await create(req.body);
-=======
-    const notification = await Notification.create(req.body);
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+    const notification = await Notification.create(req.body); 18a7cad6072eb3da4257dc61533fafce0ecb2070
     res.status(201).json({ success: true, data: notification });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -21,11 +19,10 @@ export async function createNotification(req, res) {
 // Get all notifications for a user
 export async function getUserNotifications(req, res) {
   try {
-<<<<<<< HEAD
+ HEAD
     const notifications = await find({ recipient: req.params.userId })
-=======
-    const notifications = await Notification.find({ user: req.params.userId })
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+    const notifications = await Notification.find({ user: req.params.userId }) 18a7cad6072eb3da4257dc61533fafce0ecb2070
       .populate('sender', 'name')
       .sort({ createdAt: -1 });
     res.json({ success: true, data: notifications });
@@ -37,15 +34,13 @@ export async function getUserNotifications(req, res) {
 // Mark notification as read
 export async function markAsRead(req, res) {
   try {
-<<<<<<< HEAD
+ HEAD
     const notification = await findByIdAndUpdate(
       req.params.id,
       { isRead: true },
-=======
+
     const notification = await Notification.findByIdAndUpdate(
-      req.params.id,
-      { isRead: true, readAt: new Date() },
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+      { isRead: true, readAt: new Date() }, 18a7cad6072eb3da4257dc61533fafce0ecb2070
       { new: true }
     );
     res.json({ success: true, data: notification });

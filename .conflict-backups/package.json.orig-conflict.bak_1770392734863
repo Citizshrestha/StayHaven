@@ -13,10 +13,9 @@
   "type": "module",
   "dependencies": {
     "bcryptjs": "^3.0.2",
-<<<<<<< HEAD
-=======
-    "cloudinary": "^2.8.0",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+ HEAD
+
+    "cloudinary": "^2.8.0", 18a7cad6072eb3da4257dc61533fafce0ecb2070
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",

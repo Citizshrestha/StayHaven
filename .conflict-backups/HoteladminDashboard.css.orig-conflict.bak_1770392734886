@@ -12,7 +12,7 @@
   color: white;
   padding: 0;
   box-shadow: 2px 0 10px rgba(0, 0, 0, 0.08);
-<<<<<<< HEAD
+ HEAD
   display: flex;
   flex-direction: column;
   height: 100vh;
@@ -20,7 +20,6 @@
   top: 0;
   overflow-y: auto;
 }
-
 .sidebar-header {
   padding: 6px 12px;
   border-bottom: 1px solid #34495e;
@@ -28,12 +27,10 @@
   margin: 0;
   min-height: auto;
 }
-
 .admin-info {
   padding: 0;
   margin: 0;
 }
-
 .admin-info h2 {
   margin: 0;
   padding: 0;
@@ -41,32 +38,21 @@
   font-weight: 700;
   color: #ecf0f1;
   line-height: 1;
-=======
-}
 
-.sidebar-header {
   padding: 10px 12px;
-  border-bottom: 1px solid #34495e;
-  background: #2c3e50;
-}
-
-.admin-info h2 {
   margin: 0 0 2px 0;
   font-size: 1.05rem;
-  font-weight: 700;
-  color: #ecf0f1;
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+  color: #ecf0f1; 18a7cad6072eb3da4257dc61533fafce0ecb2070
 }
 
 .admin-role {
   margin: 0;
-<<<<<<< HEAD
+ HEAD
   padding: 0;
   color: #bdc3c7;
   font-size: 0.75rem;
   display: none;
 }
-
 .sidebar-nav {
   padding: 0;
   margin: 0;
@@ -74,14 +60,9 @@
   flex-direction: column;
   overflow-y: auto;
   flex: 0 1 auto;
-=======
-  color: #bdc3c7;
-  font-size: 0.82rem;
-}
 
-.sidebar-nav {
-  padding: 8px 0;
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+  font-size: 0.82rem;
+  padding: 8px 0; 18a7cad6072eb3da4257dc61533fafce0ecb2070
 }
 
 .nav-item {
@@ -90,24 +71,22 @@
   border: none;
   color: #ecf0f1;
   padding: 8px 16px;
-<<<<<<< HEAD
+ HEAD
   margin: 0;
-=======
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+ 18a7cad6072eb3da4257dc61533fafce0ecb2070
   text-align: left;
   cursor: pointer;
   transition: all 0.18s ease;
   display: flex;
   align-items: center;
   gap: 8px;
-<<<<<<< HEAD
+ HEAD
   font-size: 0.9rem;
   border-left: 4px solid transparent;
   line-height: 1.2;
-=======
+
   font-size: 0.96rem;
-  border-left: 4px solid transparent;
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+  border-left: 4px solid transparent; 18a7cad6072eb3da4257dc61533fafce0ecb2070
 }
 
 .nav-item:hover {

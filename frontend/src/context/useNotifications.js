@@ -1,13 +1,10 @@
-<<<<<<< HEAD
-﻿/**
+/**
  * useNotifications - Hook to access notification context
  * 
  * Separated from NotificationContext.jsx to satisfy React Fast Refresh requirements
  */
-
 import { useContext } from "react";
 import NotificationContext from "./NotificationContext";
-
 export const useNotifications = () => {
   const context = useContext(NotificationContext);
   
@@ -17,7 +14,6 @@ export const useNotifications = () => {
   
   return context;
 };
-
 // Notification types for consistent styling
 export const NOTIFICATION_TYPES = {
   NEW_ORDER: 'new_order',
@@ -27,10 +23,4 @@ export const NOTIFICATION_TYPES = {
   CHIEF_UPDATE: 'chief_update',
   WAITER_UPDATE: 'waiter_update',
 };
-
 export default useNotifications;
-=======
-// Re-export from canonical location to avoid duplicate module instances
-export { useNotifications, NOTIFICATION_TYPES } from '../core/context/useNotifications';
-export { default } from '../core/context/useNotifications';
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe

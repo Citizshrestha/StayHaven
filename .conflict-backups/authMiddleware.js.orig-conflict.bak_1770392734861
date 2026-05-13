@@ -24,10 +24,9 @@ export const protect = asyncHandler(async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
-<<<<<<< HEAD
+ HEAD
     console.log("Auth Middleware - Decoded Token:", decoded);
-=======
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+ 18a7cad6072eb3da4257dc61533fafce0ecb2070
 
     req.user = await User.findById(decoded.id).select('-password').populate('role');
 
@@ -49,10 +48,9 @@ export const protect = asyncHandler(async (req, res, next) => {
     throw error;
   }
 
-<<<<<<< HEAD
+ HEAD
   console.log("Auth Middleware - User found:", req.user._id, req.user.fullname);
-=======
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+ 18a7cad6072eb3da4257dc61533fafce0ecb2070
   next();
 });
 
@@ -60,11 +58,10 @@ export const authorize = (...roles) => {
   return asyncHandler(async (req, res, next) => {
     const userRole = req.user?.role?.name || req.user?.companyRole;
 
-<<<<<<< HEAD
+ HEAD
     console.log(`Authorize - User: ${req.user?._id}, Role: ${userRole}, Required: ${roles.join(',')}`);
-=======
 
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+ 18a7cad6072eb3da4257dc61533fafce0ecb2070
 
     if (!userRole || !roles.includes(userRole)) {
       throw Object.assign(new Error(`User role '${userRole || 'unknown'}' is not authorized`), {

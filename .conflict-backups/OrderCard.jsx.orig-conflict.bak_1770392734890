@@ -1,32 +1,25 @@
-<<<<<<< HEAD
+ HEAD
 import { useState } from "react";
 import { X, ChevronRight, Clock, User } from "lucide-react";
 import ItemCarousel from "../shared/ItemCarousel";
-
 const OrderCard = ({ order, onUpdateOrderStatus }) => {
   const [showStatusModal, setShowStatusModal] = useState(false);
-
   const handleUpdateStatus = () => {
-=======
+
 import { useState, useEffect } from "react";
 import { X, ChevronRight, Clock, User, Check } from "lucide-react";
-import ItemCarousel from "../shared/ItemCarousel";
 import useRelativeTime from "../../hooks/useRelativeTime";
 import OrderDetailsModal from "../WaiterDashboard/order/OrderDetailsModal";
-
 const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
-  const [showStatusModal, setShowStatusModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const placedAtRelativeTime = useRelativeTime(order?.placedAt, true);
-
   useEffect(() => {
     const checkScreenSize = () => setIsMobile(window.innerWidth < 768);
     checkScreenSize();
     window.addEventListener('resize', checkScreenSize);
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
-
   // Dark mode colors
   const colors = {
     card: isDarkMode ? "#1E293B" : "white",
@@ -38,16 +31,12 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
     notesText: isDarkMode ? "#FCD34D" : "#B45309",
     notesContent: isDarkMode ? "#FDE68A" : "#78350F",
   };
-
   const isHighPriority = (order?.priority || "").toLowerCase() === "high";
-
   const getCompletionDate = (o) => {
     const raw = o?.deliveredAt || o?.servedAt || o?.updatedAt;
     if (!raw) return null;
     const d = raw instanceof Date ? raw : new Date(raw);
     return Number.isNaN(d.getTime()) ? null : d;
-  };
-
   const formatCompletionTime = (o) => {
     const d = getCompletionDate(o);
     if (!d) return "";
@@ -55,7 +44,6 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
     const now = new Date();
     const diffMs = now - d;
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    
     // More than 48 hours - show exact date and time
     if (diffHours > 48) {
       const day = d.getDate();
@@ -64,20 +52,13 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
       const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
       return `${day} ${month}, ${year} at ${time}`;
     }
-    
     // More than 24 hours - show "Yesterday at [time]"
     if (diffHours > 24) {
-      const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
       return `Yesterday at ${time}`;
-    }
-    
     // Within 24 hours - show just the time
     return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  };
-
   const handleUpdateStatus = () => {
-    if (order?.status === "delivered") return;
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+    if (order?.status === "delivered") return; 18a7cad6072eb3da4257dc61533fafce0ecb2070
     setShowStatusModal(true);
   };
 
@@ -88,7 +69,7 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
   };
 
   const getStatusDuration = (order) => {
-<<<<<<< HEAD
+ HEAD
     const now = new Date();
     
     if (order.status === "preparing" && order.startedPreparingAt) {
@@ -105,7 +86,7 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
     const diffMins = Math.floor((now - placedTime) / 60000);
     return diffMins === 0 ? "Just now" : `${diffMins}m ago`;
   };
-=======
+
   const now = new Date();
   
   // Helper function to format duration nicely
@@ -116,12 +97,10 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
     const mins = diffMins % 60;
     if (hours < 24) {
       return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
-    }
     const days = Math.floor(hours / 24);
     const remHours = hours % 24;
     return remHours > 0 ? `${days}d ${remHours}h` : `${days}d`;
   };
-  
   // For "preparing" status, show how long it's been preparing
   if (order.status === "preparing" && order.startedPreparingAt) {
     const startTime = new Date(order.startedPreparingAt);
@@ -129,25 +108,19 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
     const duration = formatDuration(diffMins);
     return duration === "Just now" ? `Preparing - Just now` : `Preparing for ${duration}`;
   } 
-  
   // For "ready" status, show how long it's been ready
   else if (order.status === "ready" && order.readyAt) {
     const readyTime = new Date(order.readyAt);
     const diffMins = Math.floor((now - readyTime) / 60000);
-    const duration = formatDuration(diffMins);
     return duration === "Just now" ? `Ready - Just now` : `Ready for ${duration}`;
   }
-
   // For "delivered" status, show completion time
   else if (order.status === "delivered") {
     const t = formatCompletionTime(order);
     return t ? `Served at ${t}` : "Completed";
-  }
-  
   // For "new" or other status, use relative time
   return placedAtRelativeTime;
-};
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+}; 18a7cad6072eb3da4257dc61533fafce0ecb2070
 
   // Helper to get items display text (supports both old string and new array format)
   const getItemsDisplay = () => {
@@ -166,7 +139,7 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
   };
 
   const getStatusStyles = (status) => {
-<<<<<<< HEAD
+ HEAD
     switch (status) {
       case "new":
         return { backgroundColor: "#DBEAFE", color: "#2563EB", label: "New Order" };
@@ -176,49 +149,36 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
         return { backgroundColor: "#D1FAE5", color: "#059669", label: "Ready" };
       default:
         return { backgroundColor: "#F3F4F6", color: "#4B5563", label: status };
-=======
+
     // Status colors adjusted for dark mode
-    switch (status) {
-      case "new":
       case "pending":
         return { 
           backgroundColor: isDarkMode ? "rgba(37, 99, 235, 0.2)" : "#DBEAFE", 
           color: isDarkMode ? "#60A5FA" : "#2563EB", 
           label: "New Order" 
         };
-      case "preparing":
-        return { 
           backgroundColor: isDarkMode ? "rgba(217, 119, 6, 0.2)" : "#FEF3C7", 
           color: isDarkMode ? "#FBBF24" : "#D97706", 
           label: "Preparing" 
-        };
-      case "ready":
-        return { 
           backgroundColor: isDarkMode ? "rgba(5, 150, 105, 0.2)" : "#D1FAE5", 
           color: isDarkMode ? "#34D399" : "#059669", 
           label: "Ready" 
-        };
       case "delivered":
-        return { 
           backgroundColor: isDarkMode ? "rgba(5, 150, 105, 0.15)" : "#D1FAE5", 
           color: isDarkMode ? "#6EE7B7" : "#059669", 
           label: "Delivered",
           showCheck: true,
-        };
-      default:
-        return { 
           backgroundColor: isDarkMode ? "#334155" : "#F3F4F6", 
           color: isDarkMode ? "#94A3B8" : "#4B5563", 
           label: status 
-        };
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+        }; 18a7cad6072eb3da4257dc61533fafce0ecb2070
     }
   };
 
   const statusStyle = getStatusStyles(order.status);
 
   const cardStyle = {
-<<<<<<< HEAD
+ HEAD
     backgroundColor: "white",
     borderRadius: "24px",
     padding: "24px",
@@ -228,13 +188,11 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
     boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
     border: "1px solid #F3F4F6",
   };
-
   const badgeStyle = {
-=======
+
     backgroundColor: colors.card,
     borderRadius: isMobile ? "16px" : "24px",
     padding: isMobile ? "16px" : "24px",
-    display: "flex",
     flexDirection: isMobile ? "column" : "row",
     gap: isMobile ? "16px" : "24px",
     boxShadow: isDarkMode 
@@ -242,13 +200,10 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
       : "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
     border: `1px solid ${colors.cardBorder}`,
     transition: "all 0.2s ease",
-  };
-
   const badgeStyle = {
     display: "inline-flex",
     alignItems: "center",
-    gap: "4px",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+    gap: "4px", 18a7cad6072eb3da4257dc61533fafce0ecb2070
     padding: "4px 12px",
     borderRadius: "8px",
     fontSize: "12px",
@@ -268,13 +223,13 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
     cursor: "pointer",
   };
 
-<<<<<<< HEAD
+ HEAD
   return (
     <div style={cardStyle}>
       <div style={{ flex: 1 }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
           <span style={badgeStyle}>{statusStyle.label}</span>
-=======
+
   const secondaryButtonStyle = {
     padding: "12px 32px",
     backgroundColor: "#E5E7EB",
@@ -285,16 +240,11 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
     border: "none",
     cursor: "pointer",
   };
-
-  return (
     <div style={cardStyle} data-order-id={order._id}>
-      <div style={{ flex: 1 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
           <span style={badgeStyle}>
             {statusStyle.showCheck && <Check size={14} />}
             {statusStyle.label}
-          </span>
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+          </span> 18a7cad6072eb3da4257dc61533fafce0ecb2070
           {/* Item count badge */}
           {Array.isArray(order.items) && order.items.length > 1 && (
             <span style={{
@@ -302,18 +252,17 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
               borderRadius: "8px",
               fontSize: "11px",
               fontWeight: "700",
-<<<<<<< HEAD
+ HEAD
               backgroundColor: "#EDE9FE",
               color: "#7C3AED",
-=======
+
               backgroundColor: isDarkMode ? "rgba(124, 58, 237, 0.2)" : "#EDE9FE",
-              color: isDarkMode ? "#A78BFA" : "#7C3AED",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+              color: isDarkMode ? "#A78BFA" : "#7C3AED", 18a7cad6072eb3da4257dc61533fafce0ecb2070
             }}>
               🍽️ {getTotalItemCount()} items
             </span>
           )}
-<<<<<<< HEAD
+ HEAD
           {(() => {
             const now = new Date();
             const placedTime = new Date(order.placedAt);
@@ -334,7 +283,7 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
             }
           })()}
           <span style={{ color: "#6B7280", fontSize: "14px", fontWeight: "500" }}>
-=======
+
           {isHighPriority ? (
             <span
               style={{
@@ -349,17 +298,15 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
               Urgent
             </span>
           ) : null}
-          <span style={{ color: colors.textSecondary, fontSize: "14px", fontWeight: "500" }}>
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+          <span style={{ color: colors.textSecondary, fontSize: "14px", fontWeight: "500" }}> 18a7cad6072eb3da4257dc61533fafce0ecb2070
             {order.table} • {getStatusDuration(order)}
           </span>
         </div>
 
-<<<<<<< HEAD
+ HEAD
         <h3 style={{ fontSize: "24px", fontWeight: "800", color: "#111827", marginBottom: "8px" }}>
-=======
-        <h3 style={{ fontSize: isMobile ? "20px" : "24px", fontWeight: "800", color: colors.text, marginBottom: "8px" }}>
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+        <h3 style={{ fontSize: isMobile ? "20px" : "24px", fontWeight: "800", color: colors.text, marginBottom: "8px" }}> 18a7cad6072eb3da4257dc61533fafce0ecb2070
           Order #{order.orderNumber || order.id?.slice?.(-5)?.toUpperCase() || order.id}
         </h3>
         
@@ -377,11 +324,10 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
           </div>
         )}
 
-<<<<<<< HEAD
+ HEAD
         <p style={{ color: "#6B7280", fontSize: "14px", lineHeight: "1.5", marginBottom: "24px" }}>
-=======
-        <p style={{ color: colors.textSecondary, fontSize: "14px", lineHeight: "1.5", marginBottom: "24px" }}>
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+        <p style={{ color: colors.textSecondary, fontSize: "14px", lineHeight: "1.5", marginBottom: "24px" }}> 18a7cad6072eb3da4257dc61533fafce0ecb2070
           {getItemsDisplay()}
         </p>
 
@@ -390,25 +336,22 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
           <div style={{
             marginBottom: "16px",
             padding: "10px 14px",
-<<<<<<< HEAD
+ HEAD
             backgroundColor: "#FFFBEB",
             borderRadius: "10px",
             borderLeft: "3px solid #F59E0B",
-=======
+
             backgroundColor: colors.notesBg,
-            borderRadius: "10px",
-            borderLeft: `3px solid ${colors.notesBorder}`,
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+            borderLeft: `3px solid ${colors.notesBorder}`, 18a7cad6072eb3da4257dc61533fafce0ecb2070
             maxWidth: "360px",
           }}>
             <div style={{ 
               fontSize: "11px", 
               fontWeight: "700", 
-<<<<<<< HEAD
+ HEAD
               color: "#B45309", 
-=======
-              color: colors.notesText, 
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+              color: colors.notesText,  18a7cad6072eb3da4257dc61533fafce0ecb2070
               marginBottom: "6px",
               textTransform: "uppercase",
               letterSpacing: "0.5px",
@@ -418,26 +361,24 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
             {order.items.filter(item => item.notes).map(item => (
               <div key={item.id} style={{ 
                 fontSize: "12px", 
-<<<<<<< HEAD
+ HEAD
                 color: "#78350F",
-=======
-                color: colors.notesContent,
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+                color: colors.notesContent, 18a7cad6072eb3da4257dc61533fafce0ecb2070
                 marginBottom: "3px",
                 lineHeight: "1.4",
               }}>
                 <span style={{ fontWeight: "600" }}>{item.name}:</span>{" "}
-<<<<<<< HEAD
+ HEAD
                 <span style={{ color: "#92400E" }}>{item.notes}</span>
-=======
-                <span style={{ color: isDarkMode ? "#FCD34D" : "#92400E" }}>{item.notes}</span>
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+
+                <span style={{ color: isDarkMode ? "#FCD34D" : "#92400E" }}>{item.notes}</span> 18a7cad6072eb3da4257dc61533fafce0ecb2070
               </div>
             ))}
           </div>
         )}
 
-<<<<<<< HEAD
+ HEAD
         {order.status !== "ready" && (
           <button onClick={handleUpdateStatus} style={primaryButtonStyle}>
             {order.status === "new" ? "Accept & Start Cooking" : "Mark as Ready"}
@@ -445,7 +386,7 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
         )}
         
         {order.status === "ready" && (
-=======
+
         {order.status === "delivered" ? (
           <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
             <div
@@ -465,57 +406,43 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
                   const t = formatCompletionTime(order);
                   return t ? `Served at ${t}` : "Completed";
                 })()}
-              </div>
             </div>
-
             <button 
               onClick={() => setShowDetailsModal(true)} 
-              style={{
                 ...secondaryButtonStyle,
                 backgroundColor: isDarkMode ? "#334155" : "#E5E7EB",
                 color: isDarkMode ? "#F8FAFC" : "#374151",
-              }}
-            >
               View Details
             </button>
           </div>
         ) : order.status !== "ready" ? (
-          <button onClick={handleUpdateStatus} style={primaryButtonStyle}>
-            {order.status === "new" ? "Accept & Start Cooking" : "Mark as Ready"}
-          </button>
-        ) : (
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+        ) : ( 18a7cad6072eb3da4257dc61533fafce0ecb2070
           <div style={{
             display: "inline-flex",
             alignItems: "center",
             gap: "8px",
             padding: "10px 20px",
-<<<<<<< HEAD
+ HEAD
             backgroundColor: "#D1FAE5",
             borderRadius: "9999px",
             border: "1px solid #A7F3D0",
           }}>
             <span style={{ fontSize: "14px", fontWeight: "700", color: "#059669" }}>
-=======
+
             backgroundColor: isDarkMode ? "rgba(5, 150, 105, 0.15)" : "#D1FAE5",
-            borderRadius: "9999px",
             border: `1px solid ${isDarkMode ? "rgba(5, 150, 105, 0.3)" : "#A7F3D0"}`,
-          }}>
-            <span style={{ fontSize: "14px", fontWeight: "700", color: isDarkMode ? "#6EE7B7" : "#059669" }}>
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+            <span style={{ fontSize: "14px", fontWeight: "700", color: isDarkMode ? "#6EE7B7" : "#059669" }}> 18a7cad6072eb3da4257dc61533fafce0ecb2070
               ✓ Ready for Pickup
             </span>
             <span style={{ 
               fontSize: "12px", 
-<<<<<<< HEAD
+ HEAD
               color: "#6B7280",
               padding: "2px 8px",
               backgroundColor: "white",
-=======
+
               color: isDarkMode ? "#94A3B8" : "#6B7280",
-              padding: "2px 8px",
-              backgroundColor: isDarkMode ? "#334155" : "white",
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+              backgroundColor: isDarkMode ? "#334155" : "white", 18a7cad6072eb3da4257dc61533fafce0ecb2070
               borderRadius: "9999px",
             }}>
               Awaiting waiter
@@ -675,13 +602,11 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
           </div>
         </div>
       )}
-<<<<<<< HEAD
-=======
+ HEAD
 
       {showDetailsModal && (
         <OrderDetailsModal order={order} onClose={() => setShowDetailsModal(false)} isDarkMode={isDarkMode} />
-      )}
->>>>>>> 18a7cad6072eb3da4257dc61533fafce0ecb2070
+      )} 18a7cad6072eb3da4257dc61533fafce0ecb2070
     </div>
   );
 };

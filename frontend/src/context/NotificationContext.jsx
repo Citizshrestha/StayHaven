@@ -1,5 +1,4 @@
-<<<<<<< HEAD
-﻿/**
+/**
  * NotificationContext
  * 
  * Centralized notification management using Context API + Socket.io
@@ -13,21 +12,16 @@
  * Usage:
  * const { notifications, unreadCount, markRead, clearAll } = useNotifications();
  */
-
 import { createContext, useState, useEffect, useMemo, useCallback } from "react";
 import { useSocket } from "./SocketContext";
 import { useStaffAuth } from "./StaffAuthContext";
 import useNotificationSound from "../hooks/useNotificationSound";
 import { NOTIFICATION_TYPES } from "./useNotifications";
-
 const NotificationContext = createContext(null);
-
 // Note: NOTIFICATION_TYPES and useNotifications hook are in useNotifications.js
 // to satisfy React Fast Refresh requirements
-
 // localStorage key for persisting notifications
 const NOTIFICATIONS_STORAGE_KEY = 'waiter_notifications';
-
 // Load notifications from localStorage
 const loadNotificationsFromStorage = () => {
   try {
@@ -42,7 +36,6 @@ const loadNotificationsFromStorage = () => {
   }
   return [];
 };
-
 // Save notifications to localStorage
 const saveNotificationsToStorage = (notifications) => {
   try {
@@ -52,7 +45,6 @@ const saveNotificationsToStorage = (notifications) => {
     console.warn('Failed to save notifications to storage:', e);
   }
 };
-
 export const NotificationProvider = ({ children }) => {
   const [notifications, setNotifications] = useState(() => loadNotificationsFromStorage());
   const [waiterCallCount, setWaiterCallCount] = useState(0);
@@ -63,18 +55,15 @@ export const NotificationProvider = ({ children }) => {
   
   // Get current user ID for filtering self-notifications
   const currentUserId = staffUser?._id;
-
   // Persist notifications to localStorage whenever they change
   useEffect(() => {
     saveNotificationsToStorage(notifications);
   }, [notifications]);
-
   // Computed unread count
   const unreadCount = useMemo(
     () => notifications.filter((n) => !n.isRead).length,
     [notifications]
   );
-
   // Add a new notification (with duplicate prevention)
   const addNotification = useCallback((notification) => {
     const newNotification = {
@@ -101,37 +90,30 @@ export const NotificationProvider = ({ children }) => {
       return [newNotification, ...prev.slice(0, 99)]; // Keep max 100 notifications
     });
   }, []);
-
   // Mark single notification as read
   const markRead = useCallback((notificationId) => {
     setNotifications(prev =>
       prev.map(n => n.id === notificationId ? { ...n, isRead: true } : n)
     );
   }, []);
-
   // Mark all notifications as read
   const markAllRead = useCallback(() => {
     setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
   }, []);
-
   // Clear all notifications (also clears storage)
   const clearAll = useCallback(() => {
     setNotifications([]);
     localStorage.removeItem(NOTIFICATIONS_STORAGE_KEY);
   }, []);
-
   // Remove a specific notification
   const removeNotification = useCallback((notificationId) => {
     setNotifications(prev => prev.filter(n => n.id !== notificationId));
   }, []);
-
   // Subscribe to socket events
   useEffect(() => {
     if (!subscribe || !isAuthenticated) return;
-
     console.log(`📡 [NotificationContext] Setting up subscriptions for role: ${staffRole}`);
     const unsubscribers = [];
-
     // New order notification (skip if current user is the creator)
     unsubscribers.push(
       subscribe('new-order', (data) => {
@@ -158,7 +140,6 @@ export const NotificationProvider = ({ children }) => {
         });
       })
     );
-
     // Order ready notification (for waiters)
     unsubscribers.push(
       subscribe('order-ready', (data) => {
@@ -173,7 +154,6 @@ export const NotificationProvider = ({ children }) => {
         });
       })
     );
-
     // Order status updated (cross-role notification - only sent to the OTHER role)
     // Chiefs receive this when waiters update, waiters receive when chiefs update
     unsubscribers.push(
@@ -214,7 +194,6 @@ export const NotificationProvider = ({ children }) => {
         playWithVibration('notification');
       })
     );
-
     // Waiter call notifications (for waiters only)
     if (staffRole === 'waiter') {
       unsubscribers.push(
@@ -230,14 +209,12 @@ export const NotificationProvider = ({ children }) => {
           });
         })
       );
-
       unsubscribers.push(
         subscribe('waiter-call-resolved', () => {
           setWaiterCallCount(prev => Math.max(0, prev - 1));
         })
       );
     }
-
     // Cleanup subscriptions
     return () => {
       unsubscribers.forEach(unsub => {
@@ -245,7 +222,6 @@ export const NotificationProvider = ({ children }) => {
       });
     };
   }, [subscribe, isAuthenticated, staffRole, currentUserId, playWithVibration, addNotification]);
-
   const value = {
     // State
     notifications,
@@ -260,19 +236,11 @@ export const NotificationProvider = ({ children }) => {
     removeNotification,
     setWaiterCallCount,
   };
-
   return (
     <NotificationContext.Provider value={value}>
       {children}
     </NotificationContext.Provider>
   );
 };
-
 // useNotifications hook is exported from useNotifications.js to satisfy React Fast Refresh
-
 export default NotificationContext;
-=======
-// Re-export from canonical location to avoid duplicate module instances
-export { NotificationProvider } from '../core/context/NotificationContext';
-export { default } from '../core/context/NotificationContext';
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe

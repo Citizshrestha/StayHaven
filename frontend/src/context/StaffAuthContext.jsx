@@ -1,19 +1,14 @@
-<<<<<<< HEAD
-﻿/* eslint-disable react-refresh/only-export-components */
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import axios from "axios";
-
 // Create the context
 const StaffAuthContext = createContext(null);
-
 // Token refresh interval (refresh 5 minutes before expiry for 1-hour token)
 const TOKEN_REFRESH_INTERVAL = 55 * 60 * 1000; // 55 minutes
-
 export const StaffAuthProvider = ({ children }) => {
   const [staffUser, setStaffUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const refreshTimerRef = useRef(null);
-
   // Proactive token refresh function
   const refreshToken = useCallback(async () => {
     try {
@@ -22,7 +17,6 @@ export const StaffAuthProvider = ({ children }) => {
         {},
         { withCredentials: true }
       );
-
       if (data.success && data.accessToken) {
         localStorage.setItem("staffAccessToken", data.accessToken);
         console.log("🔄 Token refreshed proactively");
@@ -34,14 +28,12 @@ export const StaffAuthProvider = ({ children }) => {
       return false;
     }
   }, []);
-
   // Setup proactive token refresh timer
   const setupRefreshTimer = useCallback(() => {
     // Clear existing timer
     if (refreshTimerRef.current) {
       clearInterval(refreshTimerRef.current);
     }
-
     // Set up new timer for proactive refresh
     refreshTimerRef.current = setInterval(() => {
       const hasToken = localStorage.getItem("staffAccessToken");
@@ -50,7 +42,6 @@ export const StaffAuthProvider = ({ children }) => {
       }
     }, TOKEN_REFRESH_INTERVAL);
   }, [refreshToken]);
-
   // Check for existing session on mount
   useEffect(() => {
     const checkAuth = async () => {
@@ -58,11 +49,9 @@ export const StaffAuthProvider = ({ children }) => {
         const savedUser = localStorage.getItem("staffUser");
         const savedRole = localStorage.getItem("staffRole");
         const savedToken = localStorage.getItem("staffAccessToken");
-
         if (savedUser && savedRole && savedToken) {
           const user = JSON.parse(savedUser);
           setStaffUser(user);
-
           // Try to refresh token on mount to ensure it's valid
           const refreshed = await refreshToken();
           if (!refreshed) {
@@ -84,9 +73,7 @@ export const StaffAuthProvider = ({ children }) => {
         setIsLoading(false);
       }
     };
-
     checkAuth();
-
     // Cleanup timer on unmount
     return () => {
       if (refreshTimerRef.current) {
@@ -121,19 +108,16 @@ setStaffUser(null);
     localStorage.removeItem("staffAccessToken");
 localStorage.removeItem("restaurant_orders");
   };
-
   // Update user data (e.g., after profile update)
   const updateUser = (updatedData) => {
     const newUser = { ...staffUser, ...updatedData };
     setStaffUser(newUser);
     localStorage.setItem("staffUser", JSON.stringify(newUser));
   };
-
   // Computed values
   const isAuthenticated = !!staffUser;
   const staffRole = staffUser?.role || null;
   const activeProperty = staffUser?.activeProperty || null;
-
   const value = {
     staffUser,
     isAuthenticated,
@@ -144,14 +128,12 @@ localStorage.removeItem("restaurant_orders");
     logout,
     updateUser,
   };
-
   return (
     <StaffAuthContext.Provider value={value}>
       {children}
     </StaffAuthContext.Provider>
   );
 };
-
 /**
  * useStaffAuth - Custom hook to access staff auth context
  * 
@@ -167,10 +149,4 @@ export const useStaffAuth = () => {
   
   return context;
 };
-
 export default StaffAuthContext;
-=======
-// Re-export from canonical location to avoid duplicate module instances
-export { StaffAuthProvider, useStaffAuth } from '../core/context/StaffAuthContext';
-export { default } from '../core/context/StaffAuthContext';
->>>>>>> fdaae3dffdc7121130444a067ee3a87c420addbe
