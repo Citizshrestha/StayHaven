@@ -81,6 +81,11 @@ const HotelDetail = () => {
     };
   }, [id]);
 
+  // Scroll to top when component mounts or hotel ID changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [id]);
+
   const booking = useMemo(() => {
     const pricePerNight = hotel?.priceRange?.min ?? 0;
     const nights = 3;
