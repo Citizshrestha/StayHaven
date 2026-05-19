@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, ChevronRight, Clock, User, Check } from "lucide-react";
+import { X, ChevronRight, Clock, User, Check, CheckCircle2, Eye } from "lucide-react";
 import ItemCarousel from "../../../../components/shared/ItemCarousel";
 import useRelativeTime from "../../../../hooks/useRelativeTime";
 import OrderDetailsModal from "../../waiter/pages/order/OrderDetailsModal";
@@ -20,16 +20,20 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
   // Dark mode colors
   const colors = {
     card: isDarkMode ? "#1E293B" : "white",
-    cardBorder: isDarkMode ? "#334155" : "#F3F4F6",
+    cardBorder: isDarkMode ? "#334155" : "#E5E7EB",
     text: isDarkMode ? "#F8FAFC" : "#111827",
     textSecondary: isDarkMode ? "#94A3B8" : "#6B7280",
     notesBg: isDarkMode ? "#422006" : "#FFFBEB",
     notesBorder: isDarkMode ? "#F59E0B" : "#F59E0B",
     notesText: isDarkMode ? "#FCD34D" : "#B45309",
     notesContent: isDarkMode ? "#FDE68A" : "#78350F",
+    completedBg: isDarkMode ? "rgba(5, 150, 105, 0.1)" : "#ECFDF5",
+    completedBorder: isDarkMode ? "rgba(5, 150, 105, 0.3)" : "#A7F3D0",
+    completedText: isDarkMode ? "#6EE7B7" : "#059669",
   };
 
   const isHighPriority = (order?.priority || "").toLowerCase() === "high";
+  const isCompleted = order.status === "delivered";
 
   const getCompletionDate = (o) => {
     const raw = o?.deliveredAt || o?.servedAt || o?.updatedAt;
@@ -44,25 +48,47 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
 
     const now = new Date();
     const diffMs = now - d;
+    const diffMins = Math.floor(diffMs / (1000 * 60));
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-    // More than 48 hours - show exact date and time
-    if (diffHours > 48) {
-      const day = d.getDate();
-      const month = d.toLocaleString('en-US', { month: 'short' });
-      const year = d.getFullYear();
+    // Less than 1 minute
+    if (diffMins < 1) return "Just now";
+
+    // Less than 1 hour - show minutes
+    if (diffMins < 60) return `${diffMins} min${diffMins > 1 ? 's' : ''} ago`;
+
+    // Less than 24 hours - show hours
+    if (diffHours < 24) {
       const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-      return `${day} ${month}, ${year} at ${time}`;
+      return `Today at ${time}`;
     }
 
-    // More than 24 hours - show "Yesterday at [time]"
-    if (diffHours > 24) {
+    // Yesterday
+    if (diffDays === 1) {
       const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
       return `Yesterday at ${time}`;
     }
 
-    // Within 24 hours - show just the time
-    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    // Within a week - show day name
+    if (diffDays < 7) {
+      const dayName = d.toLocaleDateString('en-US', { weekday: 'long' });
+      const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      return `${dayName} at ${time}`;
+    }
+
+    // More than a week - show full date
+    const day = d.getDate();
+    const month = d.toLocaleString('en-US', { month: 'short' });
+    const year = d.getFullYear();
+    const currentYear = now.getFullYear();
+    const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    
+    // Only show year if it's different from current year
+    if (year !== currentYear) {
+      return `${day} ${month}, ${year} at ${time}`;
+    }
+    return `${day} ${month} at ${time}`;
   };
 
   const handleUpdateStatus = () => {
@@ -320,35 +346,93 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
         )}
 
         {order.status === "delivered" ? (
-          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            {/* Image Section - Moved to top for completed orders */}
+            <div style={{ width: "100%", marginTop: "8px" }}>
+              {Array.isArray(order.items) && order.items.length > 0 ? (
+                <ItemCarousel items={order.items} width="100%" height={isMobile ? 180 : 200} />
+              ) : order.image ? (
+                <img
+                  src={order.image}
+                  alt="Food"
+                  style={{
+                    width: "100%",
+                    height: isMobile ? "180px" : "200px",
+                    objectFit: "cover",
+                    borderRadius: "14px",
+                  }}
+                />
+              ) : null}
+            </div>
+
+            {/* Completion Status */}
             <div
               style={{
-                padding: "12px 16px",
-                backgroundColor: isDarkMode ? "rgba(5, 150, 105, 0.15)" : "#D1FAE5",
+                padding: "14px 18px",
+                backgroundColor: colors.completedBg,
                 borderRadius: "12px",
-                border: `1px solid ${isDarkMode ? "rgba(5, 150, 105, 0.3)" : "#A7F3D0"}`,
-                minWidth: "220px",
+                border: `1px solid ${colors.completedBorder}`,
               }}
             >
-              <div style={{ fontSize: "16px", fontWeight: "800", color: isDarkMode ? "#6EE7B7" : "#059669", marginBottom: "4px" }}>
-                ✓ Order Completed
+              <div style={{ 
+                fontSize: "15px", 
+                fontWeight: "800", 
+                color: colors.completedText, 
+                marginBottom: "4px",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+              }}>
+                <CheckCircle2 size={16} />
+                Order Completed
               </div>
-              <div style={{ fontSize: "13px", fontWeight: "700", color: colors.textSecondary }}>
-                {(() => {
-                  const t = formatCompletionTime(order);
-                  return t ? `Served at ${t}` : "Completed";
-                })()}
+              <div style={{ 
+                fontSize: "13px", 
+                fontWeight: "600", 
+                color: colors.textSecondary,
+              }}>
+                {formatCompletionTime(order)}
               </div>
             </div>
 
+            {/* View Details Button */}
             <button
               onClick={() => setShowDetailsModal(true)}
               style={{
-                ...secondaryButtonStyle,
-                backgroundColor: isDarkMode ? "#334155" : "#E5E7EB",
-                color: isDarkMode ? "#F8FAFC" : "#374151",
+                width: "100%",
+                padding: "12px 24px",
+                backgroundColor: isDarkMode ? "#059669" : "#10b981",
+                color: "#ffffff",
+                borderRadius: "12px",
+                fontWeight: "700",
+                fontSize: "14px",
+                border: "none",
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+                boxShadow: isDarkMode 
+                  ? "0 4px 6px -1px rgba(5, 150, 105, 0.3)" 
+                  : "0 4px 6px -1px rgba(16, 185, 129, 0.3)",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = isDarkMode ? "#047857" : "#059669";
+                e.currentTarget.style.transform = "translateY(-2px)";
+                e.currentTarget.style.boxShadow = isDarkMode 
+                  ? "0 10px 15px -3px rgba(5, 150, 105, 0.4)" 
+                  : "0 10px 15px -3px rgba(16, 185, 129, 0.4)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = isDarkMode ? "#059669" : "#10b981";
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = isDarkMode 
+                  ? "0 4px 6px -1px rgba(5, 150, 105, 0.3)" 
+                  : "0 4px 6px -1px rgba(16, 185, 129, 0.3)";
               }}
             >
+              <Eye size={16} />
               View Details
             </button>
           </div>
@@ -382,23 +466,25 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
         )}
       </div>
 
-      {/* Right side - Image Carousel */}
-      <div style={{ width: "280px", flexShrink: 0 }}>
-        {Array.isArray(order.items) && order.items.length > 0 ? (
-          <ItemCarousel items={order.items} width={280} height={200} />
-        ) : (
-          <img
-            src={order.image}
-            alt="Food"
-            style={{
-              width: "100%",
-              height: "200px",
-              objectFit: "cover",
-              borderRadius: "16px",
-            }}
-          />
-        )}
-      </div>
+      {/* Right side - Image Carousel (only for non-completed orders) */}
+      {order.status !== "delivered" && (
+        <div style={{ width: "280px", flexShrink: 0 }}>
+          {Array.isArray(order.items) && order.items.length > 0 ? (
+            <ItemCarousel items={order.items} width={280} height={200} />
+          ) : order.image ? (
+            <img
+              src={order.image}
+              alt="Food"
+              style={{
+                width: "100%",
+                height: "200px",
+                objectFit: "cover",
+                borderRadius: "16px",
+              }}
+            />
+          ) : null}
+        </div>
+      )}
 
       {showStatusModal && (
         <div

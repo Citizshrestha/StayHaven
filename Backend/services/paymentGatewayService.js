@@ -11,6 +11,7 @@
 
 import crypto from "crypto";
 import stripeLib from "stripe";
+import axios from "axios";
 
 // ═══════════════════════════════════════════════════════════════════════
 // CONFIGURATION
@@ -73,13 +74,48 @@ const getStripe = () => {
  */
 export async function initiateKhaltiPayment({ amount, orderId, orderName, customer }) {
   const secretKey = CONFIG.khalti.secretKey();
-  
+  const isDevelopment = process.env.NODE_ENV !== "production";
+
   // Check if using placeholder/invalid key
-  if (!secretKey || secretKey.includes("YOUR_ACTUAL") || secretKey.length < 20) {
-    throw new Error(
-      "Khalti is not properly configured. Please get your test API keys from https://test-admin.khalti.com and update KHALTI_SECRET_KEY in Backend/.env"
-    );
+  const isPlaceholderKey = !secretKey ||
+    secretKey.includes("YOUR_ACTUAL") ||
+    secretKey.includes("test_secret_key_<") ||
+    secretKey.length < 20;
+
+  if (isPlaceholderKey) {
+    if (isDevelopment) {
+      // Development mode without keys - use mock mode
+      console.log("⚠️  Khalti mock mode enabled (no API keys configured)");
+      console.log("To use real Khalti test API, add KHALTI_SECRET_KEY to Backend/.env");
+      console.log("Get test keys from: https://test-admin.khalti.com");
+
+      const amountInPaisa = Math.round(amount * 100);
+      const mockPidx = `mock_pidx_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
+      const serverUrl = process.env.SERVER_URL || 'http://localhost:3000';
+      const mockPaymentUrl = `${serverUrl}/api/v1/webhooks/khalti/verify?pidx=${mockPidx}&purchase_order_id=${orderId}&transaction_id=MOCK-${Date.now()}&amount=${amountInPaisa}&status=Completed`;
+
+      return {
+        pidx: mockPidx,
+        paymentUrl: mockPaymentUrl,
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+        expiresIn: 1800,
+        mock: true,
+      };
+    } else {
+      throw new Error(
+        "Khalti is not properly configured. Please get your API keys from https://admin.khalti.com and update KHALTI_SECRET_KEY in Backend/.env"
+      );
+    }
   }
+
+  // Real Khalti API integration (works with test keys in development)
+  console.log("🔐 Using Khalti API with configured secret key");
+  console.log("Initiating Khalti payment:", {
+    amount,
+    orderId,
+    orderName,
+    customer: { name: customer.name, email: customer.email }
+  });
 
   const amountInPaisa = Math.round(amount * 100);
   const baseUrl = CONFIG.khalti.baseUrl();
@@ -99,7 +135,7 @@ export async function initiateKhaltiPayment({ amount, orderId, orderName, custom
     },
   };
 
-  console.log("Khalti payment initiation:", {
+  console.log("Khalti API request:", {
     baseUrl,
     amount: amountInPaisa,
     orderId,
@@ -107,41 +143,54 @@ export async function initiateKhaltiPayment({ amount, orderId, orderName, custom
     customerInfo: payload.customer_info,
   });
 
-  const response = await fetch(`${baseUrl}/epayment/initiate/`, {
-    method: "POST",
-    headers: {
-      Authorization: `Key ${secretKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    console.error("Khalti initiate error:", {
-      status: response.status,
-      statusText: response.statusText,
-      data,
-      payload,
-      secretKeyPrefix: secretKey.substring(0, 15) + "...",
+  try {
+    const response = await fetch(`${baseUrl}/epayment/initiate/`, {
+      method: "POST",
+      headers: {
+        Authorization: `Key ${secretKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
     });
-    
-    // Provide helpful error messages
-    if (response.status === 400) {
-      const errorDetail = data?.detail || data?.message || JSON.stringify(data);
-      throw new Error(`Khalti API rejected the request: ${errorDetail}. Please check your API keys and ensure you're using valid test credentials from https://test-admin.khalti.com`);
-    }
-    
-    throw new Error(data?.detail || data?.message || `Khalti API error: ${response.status}`);
-  }
 
-  return {
-    pidx: data.pidx,
-    paymentUrl: data.payment_url,
-    expiresAt: data.expires_at,
-    expiresIn: data.expires_in,
-  };
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("Khalti initiate error:", {
+        status: response.status,
+        statusText: response.statusText,
+        data,
+        payload,
+        secretKeyPrefix: secretKey.substring(0, 15) + "...",
+      });
+
+      // Provide helpful error messages
+      if (response.status === 400) {
+        const errorDetail = data?.detail || data?.message || JSON.stringify(data);
+        throw new Error(`Khalti API rejected the request: ${errorDetail}`);
+      }
+
+      if (response.status === 401) {
+        throw new Error("Khalti authentication failed. Please check your KHALTI_SECRET_KEY in Backend/.env");
+      }
+
+      throw new Error(data?.detail || data?.message || `Khalti API error: ${response.status}`);
+    }
+
+    console.log("✅ Khalti payment initiated successfully");
+    console.log("Payment URL:", data.payment_url);
+    console.log("PIDX:", data.pidx);
+
+    return {
+      pidx: data.pidx,
+      paymentUrl: data.payment_url,
+      expiresAt: data.expires_at,
+      expiresIn: data.expires_in,
+    };
+  } catch (error) {
+    console.error("Khalti payment initiation failed:", error);
+    throw error;
+  }
 }
 
 /**

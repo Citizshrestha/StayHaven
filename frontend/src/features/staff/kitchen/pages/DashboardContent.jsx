@@ -1,12 +1,12 @@
 import { useMemo, useState, useEffect } from "react";
-import { Bell, ChefHat, CheckCircle2, ListFilter, RefreshCw } from "lucide-react";
+import { LayoutGrid, Bell, ChefHat, CheckCircle, Clock } from "lucide-react";
 import OrderCard from "./OrderCard";
 import "./KitchenDashboard.css";
 
-const DashboardContent = ({ 
-  orders, 
-  activeFilter, 
-  setActiveFilter, 
+const DashboardContent = ({
+  orders,
+  activeFilter,
+  setActiveFilter,
   onUpdateOrderStatus,
   onRefresh,
   isRefreshing,
@@ -32,30 +32,65 @@ const DashboardContent = ({
   };
 
   const recentlyCompleted = useMemo(() => {
-    const now = Date.now();
-    const windowMs = 60 * 60 * 1000; // last 60 minutes
-
+    // Show all completed orders, not just from the last 60 minutes
     return orders
       .filter((o) => o.status === "delivered")
       .map((o) => ({ order: o, completedAt: getCompletionDate(o) }))
-      .filter((x) => x.completedAt && now - x.completedAt.getTime() <= windowMs)
+      .filter((x) => x.completedAt) // Only filter out orders without completion date
       .sort((a, b) => b.completedAt.getTime() - a.completedAt.getTime())
-      .slice(0, 20)
+      .slice(0, 50) // Show up to 50 completed orders
       .map((x) => x.order);
   }, [orders]);
 
   const filters = [
-    { id: "all", label: "All", count: activeOrders.length, Icon: ListFilter },
-    { id: "new", label: "New", count: activeOrders.filter((o) => o.status === "new" || o.status === "pending").length, Icon: Bell },
-    { id: "preparing", label: "Preparing", count: activeOrders.filter((o) => o.status === "preparing").length, Icon: ChefHat },
-    { id: "ready", label: "Ready", count: activeOrders.filter((o) => o.status === "ready").length, Icon: CheckCircle2 },
-    { id: "completed", label: "Done", count: recentlyCompleted.length, Icon: CheckCircle2 },
+    {
+      id: "all",
+      label: "All",
+      count: activeOrders.length,
+      Icon: LayoutGrid,
+      activeColor: "#6c63ff",
+      activeBg: "#6c63ff",
+    },
+    {
+      id: "new",
+      label: "New",
+      count: activeOrders.filter((o) => o.status === "new" || o.status === "pending").length,
+      Icon: Bell,
+      activeColor: "#f59e0b",
+      activeBg: "#f59e0b",
+    },
+    {
+      id: "preparing",
+      label: "Cooking",
+      count: activeOrders.filter((o) => o.status === "preparing").length,
+      Icon: ChefHat,
+      activeColor: "#3b82f6",
+      activeBg: "#3b82f6",
+    },
+    {
+      id: "ready",
+      label: "Ready",
+      count: activeOrders.filter((o) => o.status === "ready").length,
+      Icon: CheckCircle,
+      activeColor: "#10b981",
+      activeBg: "#10b981",
+    },
+    {
+      id: "completed",
+      label: "Done",
+      count: recentlyCompleted.length,
+      Icon: Clock,
+      activeColor: "#ffffff",
+      activeBg: "#10b981",
+    },
   ];
 
   const filteredOrders = (activeFilter === "all"
     ? activeOrders
     : activeFilter === "new"
     ? activeOrders.filter((order) => order.status === "new" || order.status === "pending")
+    : activeFilter === "completed"
+    ? []
     : activeOrders.filter((order) => order.status === activeFilter)
   ).sort((a, b) => {
     if (a.isReal && !b.isReal) return -1;
@@ -70,118 +105,82 @@ const DashboardContent = ({
     text: isDarkMode ? "#F8FAFC" : "#111827",
     textSecondary: isDarkMode ? "#94A3B8" : "#6B7280",
     border: isDarkMode ? "#334155" : "#E5E7EB",
-    filterActive: "#10B981",
-    filterInactive: isDarkMode ? "#334155" : "#F3F4F6",
-    filterTextInactive: isDarkMode ? "#94A3B8" : "#6B7280",
   };
 
   return (
     <div style={{ minHeight: "100%" }}>
-      {/* Header */}
-      <div style={{ 
-        display: "flex", 
-        justifyContent: "space-between", 
-        alignItems: "flex-start",
-        marginBottom: isMobile ? "20px" : "32px",
-        flexWrap: "wrap",
-        gap: "16px"
+      {/* Filter Tabs - Redesigned */}
+      <div style={{
+        display: "flex",
+        gap: "8px",
+        marginBottom: "24px",
+        overflowX: "auto",
+        paddingBottom: "4px",
+        paddingLeft: "16px",
+        paddingRight: "16px",
+        marginLeft: "-16px",
+        marginRight: "-16px",
+        WebkitOverflowScrolling: "touch",
+        scrollbarWidth: "none",
+        msOverflowStyle: "none",
       }}>
-        <div>
-          <h1 style={{ 
-            fontSize: isMobile ? "24px" : "32px", 
-            fontWeight: "800", 
-            color: colors.text, 
-            marginBottom: "8px" 
-          }}>
-            🍳 Kitchen Orders
-          </h1>
-          <p style={{ fontSize: isMobile ? "14px" : "16px", color: colors.textSecondary }}>
-            Manage and track cooking orders
-          </p>
-        </div>
-        
-        {/* Actions */}
-        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-          {/* Refresh Button */}
-          {onRefresh && (
+        <style>{`
+          div::-webkit-scrollbar {
+            display: none;
+          }
+        `}</style>
+        {filters.map((filter) => {
+          const isActive = activeFilter === filter.id;
+          return (
             <button
-              onClick={() => onRefresh()}
-              disabled={isRefreshing}
+              key={filter.id}
+              onClick={() => setActiveFilter(filter.id)}
               style={{
-                padding: "10px",
-                borderRadius: "12px",
-                border: `1px solid ${colors.border}`,
-                backgroundColor: colors.card,
-                color: colors.text,
-                cursor: isRefreshing ? "not-allowed" : "pointer",
-                display: "flex",
+                padding: "7px 14px",
+                borderRadius: "20px",
+                border: "none",
+                cursor: "pointer",
+                fontWeight: "500",
+                fontSize: "13px",
+                backgroundColor: isActive ? filter.activeBg : (isDarkMode ? "#1E293B" : "white"),
+                color: isActive ? "white" : "#64748b",
+                transition: "all 0.2s ease",
+                whiteSpace: "nowrap",
+                display: "inline-flex",
                 alignItems: "center",
-                justifyContent: "center",
+                gap: "6px",
+                flexShrink: 0,
+                boxShadow: isActive
+                  ? `0 4px 12px ${filter.activeColor}4D`
+                  : "none",
+                border: isActive ? "none" : `1px solid ${isDarkMode ? "#334155" : "#E5E7EB"}`,
               }}
             >
-              <RefreshCw 
-                size={20} 
-                style={{ 
-                  animation: isRefreshing ? "spin 1s linear infinite" : "none" 
-                }} 
-              />
+              <filter.Icon size={14} />
+              <span>{filter.label}</span>
+              {filter.count > 0 && (
+                <span style={{
+                  backgroundColor: isActive
+                    ? "rgba(255,255,255,0.25)"
+                    : "#e2e8f0",
+                  color: isActive ? "white" : "#64748b",
+                  padding: "1px 7px",
+                  borderRadius: "10px",
+                  fontSize: "11px",
+                  fontWeight: "700",
+                  minWidth: "20px",
+                  textAlign: "center",
+                }}>
+                  {filter.count}
+                </span>
+              )}
             </button>
-          )}
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div style={{ 
-        display: "flex", 
-        gap: isMobile ? "8px" : "12px", 
-        marginBottom: isMobile ? "20px" : "32px", 
-        overflowX: "auto",
-        paddingBottom: "8px",
-        WebkitOverflowScrolling: "touch",
-      }}>
-        {filters.map((filter) => (
-          <button
-            key={filter.id}
-            onClick={() => setActiveFilter(filter.id)}
-            className="filter-btn"
-            style={{
-              padding: isMobile ? "10px 14px" : "12px 18px",
-              borderRadius: "14px",
-              border: "none",
-              cursor: "pointer",
-              fontWeight: "700",
-              fontSize: isMobile ? "12px" : "14px",
-              backgroundColor: activeFilter === filter.id ? colors.filterActive : colors.filterInactive,
-              color: activeFilter === filter.id ? "white" : colors.filterTextInactive,
-              transition: "all 0.2s",
-              whiteSpace: "nowrap",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: isMobile ? "6px" : "10px",
-              flexShrink: 0,
-            }}
-          >
-            <filter.Icon size={isMobile ? 16 : 18} />
-            <span>{filter.label}</span>
-            {filter.count > 0 && (
-              <span style={{
-                backgroundColor: activeFilter === filter.id 
-                  ? "rgba(255,255,255,0.25)" 
-                  : isDarkMode ? "#475569" : "#E5E7EB",
-                padding: "2px 8px",
-                borderRadius: "8px",
-                fontSize: isMobile ? "10px" : "11px",
-                fontWeight: "800",
-              }}>
-                {filter.count}
-              </span>
-            )}
-          </button>
-        ))}
+          );
+        })}
       </div>
 
       {/* Order Cards Grid */}
-      <div style={{ 
+      <div style={{
         display: "grid",
         gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(400px, 1fr))",
         gap: isMobile ? "12px" : "16px",
@@ -197,7 +196,7 @@ const DashboardContent = ({
               gridColumn: "1 / -1",
             }}>
               <p style={{ fontSize: "16px", color: colors.textSecondary, fontWeight: "600" }}>
-                No completed orders in the last 60 minutes
+                No completed orders yet
               </p>
             </div>
           ) : (
@@ -234,14 +233,6 @@ const DashboardContent = ({
           ))
         )}
       </div>
-
-      {/* CSS for spin animation */}
-      <style>{`
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 };

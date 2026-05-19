@@ -10,6 +10,9 @@ import { User } from "../models/user.schema.js";
 import { Role } from "../models/role.schema.js";
 import { PaymentTransaction } from "../models/paymentTransaction.schema.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { createLogger } from "../utils/logger.js";
+
+const logger = createLogger('PublicBookingController');
 import {
   initiateKhaltiPayment,
   generateEsewaPaymentData,
@@ -270,14 +273,14 @@ export const createBookingWithPayment = asyncHandler(async (req, res) => {
 
     try {
       if (paymentMethod === "khalti") {
-        // Khalti redirect payment
+        // Khalti redirect payment (supports mock mode in development)
         paymentResult = await initiateKhaltiPayment({
           amount: totalAmount,
           orderId: booking._id.toString(),
           orderName: `Booking at ${hotel.name}`,
           customer: {
-            name: guestName,
-            email: guestEmail || "guest@stayhaven.com",
+            name: finalGuestName,
+            email: finalGuestEmail || "guest@stayhaven.com",
             phone: cleanPhone,
           },
         });
@@ -288,9 +291,19 @@ export const createBookingWithPayment = asyncHandler(async (req, res) => {
 
         await session.commitTransaction();
 
+        logger.debug('Khalti payment initiated:', {
+          bookingId: booking._id,
+          pidx: paymentResult.pidx,
+          amount: totalAmount,
+          paymentUrl: paymentResult.paymentUrl,
+          isMock: !!paymentResult.mock
+        });
+
         return res.status(200).json({
           success: true,
-          message: "Booking created. Redirecting to Khalti for payment...",
+          message: paymentResult.mock
+            ? "Booking created. Redirecting to Khalti test payment page..."
+            : "Booking created. Redirecting to Khalti for payment...",
           requiresRedirect: true,
           redirectType: "url",
           paymentUrl: paymentResult.paymentUrl,

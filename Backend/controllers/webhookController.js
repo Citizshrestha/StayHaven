@@ -34,13 +34,34 @@ export const handleKhaltiCallback = async (req, res) => {
       });
     }
 
-    // Verify payment with Khalti API
-    const verification = await verifyKhaltiPayment(pidx);
+    // Check if this is a mock payment (development mode)
+    const isMockPayment = pidx.startsWith('mock_pidx_');
+    let verification;
 
-    logger.info('Khalti verification result', {
-      status: verification.status,
-      transactionId: verification.transactionId
-    });
+    if (isMockPayment) {
+      // Mock payment - simulate successful verification without calling Khalti API
+      logger.info('Processing mock Khalti payment (development mode)', { pidx, purchase_order_id });
+
+      verification = {
+        status: 'Completed',
+        transactionId: transaction_id || `KHALTI-MOCK-${Date.now()}`,
+        pidx: pidx,
+        totalAmount: amount ? parseFloat(amount) / 100 : 0, // Convert from paisa to NPR
+        fee: 0,
+        refunded: false,
+        mock: true,
+      };
+
+      logger.info('Mock Khalti verification successful', verification);
+    } else {
+      // Real payment - verify with Khalti API
+      verification = await verifyKhaltiPayment(pidx);
+
+      logger.info('Khalti verification result', {
+        status: verification.status,
+        transactionId: verification.transactionId
+      });
+    }
 
     // Check if payment was successful
     if (verification.status !== 'Completed') {
@@ -84,7 +105,7 @@ export const handleKhaltiCallback = async (req, res) => {
       // Update booking status
       booking.status = 'Confirmed';
       booking.paymentStatus = 'paid';
-      booking.paymentMethod = 'khalti';
+      booking.paymentMethod = isMockPayment ? 'khalti-mock' : 'khalti';
       booking.paidAt = new Date();
       booking.paidAmount = verification.totalAmount;
       await booking.save({ session });
@@ -99,7 +120,7 @@ export const handleKhaltiCallback = async (req, res) => {
         type: 'capture',
         amount: verification.totalAmount,
         currency: 'NPR',
-        method: 'khalti',
+        method: isMockPayment ? 'khalti-mock' : 'khalti',
         reference: pidx,
         status: 'captured',
         processedAt: new Date(),

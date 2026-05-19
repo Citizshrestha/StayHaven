@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import KitchenMobileHeader from "./KitchenMobileHeader";
@@ -40,6 +40,11 @@ const KitchenDashboard = () => {
   }, [staffUser, navigate]);
 
   const { orders, updateOrderStatus, fetchOrders, loading } = useOrderContext();
+
+  // Calculate active order count for header
+  const activeOrderCount = useMemo(() => {
+    return orders.filter((o) => o.status !== "delivered").length;
+  }, [orders]);
 
   // Use centralized notification context (Socket + Context API)
   const {
@@ -223,6 +228,9 @@ const KitchenDashboard = () => {
           <KitchenMobileHeader
             isDarkMode={isDarkMode}
             onToggleDarkMode={toggleDarkMode}
+            activeOrderCount={activeOrderCount}
+            onRefresh={fetchOrders}
+            isRefreshing={loading}
           />
         </header>
 
