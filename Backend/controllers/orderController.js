@@ -375,9 +375,11 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     updaterRole: updaterRole,
   };
 
-  const location = order.orderType === 'roomService' 
-    ? `Room ${order.roomNumber}` 
-    : `Table ${order.tableNumber}`;
+  const location = order.orderType === 'takeaway'
+    ? 'Takeaway'
+    : order.orderType === 'roomService'
+      ? `Room ${order.roomNumber}`
+      : `Table ${order.tableNumber}`;
 
   // Cross-role notifications only (no broadcast to everyone):
   // When chief/kitchen updates status -> notify ONLY waiters (not chiefs)

@@ -334,15 +334,37 @@ export const placeOrder = asyncHandler(async (req, res) => {
 
   // Emit real-time events to kitchen and waiters
   try {
-    emitToHotel(hotelId, "new-order", {
+    console.log('🔔 Emitting new-order event:', {
+      hotelId: hotelId.toString(),
+      orderNumber: order.orderNumber,
+      orderType,
+      rooms: [
+        `hotel-${hotelId}`,
+        `hotel-${hotelId}-chiefs`,
+        `hotel-${hotelId}-kitchens`,
+        orderType !== 'roomService' ? `hotel-${hotelId}-waiters` : null
+      ].filter(Boolean)
+    });
+
+    emitToHotel(hotelId.toString(), "new-order", {
       order: order.toObject(),
       message: `New ${orderType === "roomService" ? "room service" : "dine-in"} order #${order.orderNumber}`,
     });
-    emitToKitchen(hotelId, "new-order", { order: order.toObject() });
-    if (orderType !== "roomService") {
-      emitToWaiters(hotelId, "new-order", { order: order.toObject() });
-    }
+
+    emitToKitchen(hotelId.toString(), "new-order", {
+      order: order.toObject(),
+      message: `New order #${order.orderNumber} from guest`
+    });
+
+    // Always emit to waiters for all order types (room service needs delivery too)
+    emitToWaiters(hotelId.toString(), "new-order", {
+      order: order.toObject(),
+      message: `New ${orderType} order #${order.orderNumber}`
+    });
+
+    console.log('✅ Socket events emitted successfully');
   } catch (socketError) {
+    console.error('❌ Socket emission error:', socketError);
     Sentry.captureException(socketError, { tags: { feature: "guest-order-socket" } });
   }
 
