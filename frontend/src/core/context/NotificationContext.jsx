@@ -342,6 +342,26 @@ export const NotificationProvider = ({ children }) => {
       );
     }
 
+    // ── Real-time in-app notifications from backend (messages, alerts, etc.) ──
+    // The backend emits "notification" directly to user-<id> personal room
+    // whenever a channel message or DM is sent.
+    unsubscribers.push(
+      subscribe('notification', (data) => {
+        console.log('🔔 [NotificationContext] Socket notification received:', data);
+        playWithVibration('notification');
+        addNotification({
+          id: data._id || `notif-${Date.now()}`,
+          type: data.type || NOTIFICATION_TYPES.MESSAGE,
+          title: data.title,
+          message: data.message,
+          priority: data.priority || 'medium',
+          isRead: false,
+          createdAt: new Date(data.createdAt || Date.now()),
+          payload: data.payload,
+        });
+      })
+    );
+
     // Cleanup subscriptions
     return () => {
       unsubscribers.forEach(unsub => {

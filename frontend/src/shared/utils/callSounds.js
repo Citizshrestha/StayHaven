@@ -15,10 +15,12 @@ let audioCtx = null;
 let dialState = null;
 let ringState = null;
 let _autoUnlockBound = false;
+let _userHasInteracted = false;
 
 // Auto-unlock AudioContext on the very first user interaction so ring tones
 // can play for the callee even before they explicitly touch the call UI.
 function _autoUnlock() {
+    _userHasInteracted = true;
     try { unlockAudio(); } catch { /* */ }
     const events = ['pointerdown', 'keydown', 'click', 'touchstart'];
     events.forEach(e => document.removeEventListener(e, _autoUnlock, true));
@@ -33,10 +35,12 @@ if (typeof document !== 'undefined' && !_autoUnlockBound) {
 }
 
 function getCtx() {
+    // Only create AudioContext after user interaction to avoid browser warnings
     if (!audioCtx || audioCtx.state === 'closed') {
+        // If no user interaction yet, create in suspended state (will be resumed on first interaction)
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
-    if (audioCtx.state === 'suspended') {
+    if (audioCtx.state === 'suspended' && _userHasInteracted) {
         audioCtx.resume().catch(() => { });
     }
     return audioCtx;

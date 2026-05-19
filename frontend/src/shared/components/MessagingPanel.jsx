@@ -111,7 +111,7 @@ const ContactAvatar = ({ contact, size = 42 }) => {
  * MessageBubble - Individual message display
  * Shows timestamp on every message, blue double-tick for read, gray check for sent
  */
-const MessageBubble = ({ message, isSent }) => {
+const MessageBubble = ({ message, isSent, isChannel = false }) => {
     if (message.messageType === 'call_request') {
         const iconClass = message.callStatus === 'missed' || message.callStatus === 'declined'
             ? 'missed'
@@ -163,6 +163,18 @@ const MessageBubble = ({ message, isSent }) => {
                 </div>
             )}
             <div>
+                {/* Show sender name in channel group chats (not in DMs, not for own messages) */}
+                {isChannel && !isSent && message.sender?.fullname && (
+                    <div style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: getAvatarColor(message.sender.fullname),
+                        marginBottom: 2,
+                        marginLeft: 2,
+                    }}>
+                        {message.sender.fullname}
+                    </div>
+                )}
                 <div className="msg-bubble">
                     {message.content}
                 </div>
@@ -345,6 +357,7 @@ const MessagingPanel = ({
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [activeConvMenu, setActiveConvMenu] = useState(null); // Track which conversation menu is open
     const [mutedConversations, setMutedConversations] = useState(new Set()); // Track muted conversations
+    const [channelTypingUsers, setChannelTypingUsers] = useState({}); // { channelId: [{ userId, fullname }] }
 
     const messagesEndRef = useRef(null);
     const inputRef = useRef(null);
@@ -501,14 +514,14 @@ const MessagingPanel = ({
                         if (prev.some(m => m._id === msg._id)) return prev;
                         return [...prev, msg];
                     });
-                    // Mark as read immediately
+                    // Mark as read immediately (only messages from others)
                     if (msg.sender?._id !== currentUserId) {
                         messagingApi.markMessagesRead({ messageIds: [msg._id], hotelId }).catch(() => { });
                     }
                     return;
                 }
             }
-            // Otherwise increment unread and update conversations
+            // Otherwise increment unread and update conversations (only for messages from others)
             if (msg.sender?._id !== currentUserId) {
                 setUnreadCount(prev => prev + 1);
             }
@@ -525,17 +538,34 @@ const MessagingPanel = ({
             }
         });
 
-        const unsubTyping = subscribe('user-typing', ({ userId, fullname }) => {
+        const unsubTyping = subscribe('user-typing', ({ userId, fullname, channel }) => {
             if (userId !== currentUserId) {
-                setTypingUsers(prev => {
-                    if (prev.some(u => u.userId === userId)) return prev;
-                    return [...prev, { userId, fullname }];
-                });
+                if (channel && channel !== 'direct') {
+                    // Channel typing: track per-channel
+                    setChannelTypingUsers(prev => {
+                        const existing = prev[channel] || [];
+                        if (existing.some(u => u.userId === userId)) return prev;
+                        return { ...prev, [channel]: [...existing, { userId, fullname }] };
+                    });
+                } else {
+                    // DM typing
+                    setTypingUsers(prev => {
+                        if (prev.some(u => u.userId === userId)) return prev;
+                        return [...prev, { userId, fullname }];
+                    });
+                }
             }
         });
 
-        const unsubStopTyping = subscribe('user-stop-typing', ({ userId }) => {
-            setTypingUsers(prev => prev.filter(u => u.userId !== userId));
+        const unsubStopTyping = subscribe('user-stop-typing', ({ userId, channel }) => {
+            if (channel && channel !== 'direct') {
+                setChannelTypingUsers(prev => {
+                    const existing = prev[channel] || [];
+                    return { ...prev, [channel]: existing.filter(u => u.userId !== userId) };
+                });
+            } else {
+                setTypingUsers(prev => prev.filter(u => u.userId !== userId));
+            }
         });
 
         const unsubIncomingCall = subscribe('incoming-call', (data) => {
@@ -987,28 +1017,69 @@ const MessagingPanel = ({
         return all;
     }, [contacts, searchQuery]);
 
-    // Filter conversations by search
+    // Channel definitions
+    const channels = useMemo(() => [
+        { id: 'waiter',       label: 'Waiters',    icon: '🍽️',  desc: 'Message all waiters' },
+        { id: 'chef',         label: 'Kitchen',    icon: '👨‍🍳', desc: 'Message all kitchen staff' },
+        { id: 'receptionist', label: 'Reception',  icon: '🏨',  desc: 'Message all receptionists' },
+        { id: 'all',          label: 'Broadcast',  icon: '📢',  desc: 'Message all hotel staff' },
+    ], []);
+
+    // Filter conversations by search and merge static channels
     const filteredConversations = useMemo(() => {
-        if (!searchQuery) return conversations;
+        // staffUser.role is the canonical field (from StaffAuthContext)
+        const userRole = staffUser?.role || staffUser?.companyRole || '';
+        const relevantStaticChannels = [];
+        if (userRole === 'waiter') relevantStaticChannels.push('waiter', 'all');
+        else if (userRole === 'chief' || userRole === 'kitchen') relevantStaticChannels.push('chef', 'waiter', 'all');
+        else if (userRole === 'receptionist') relevantStaticChannels.push('waiter', 'chef', 'receptionist', 'all');
+        else if (userRole === 'manager' || userRole === 'owner' || userRole === 'admin') relevantStaticChannels.push('waiter', 'chef', 'receptionist', 'all');
+        else relevantStaticChannels.push('all');
+
+        const staticConvs = relevantStaticChannels.map(chId => {
+            const chDef = channels.find(c => c.id === chId) || { id: chId, label: chId, icon: '💬', desc: '' };
+            return {
+                isChannel: true,
+                channel: chId,
+                partner: {
+                    _id: chId,
+                    fullname: chDef.label,
+                    companyRole: 'channel',
+                    icon: chDef.icon
+                },
+                lastMessage: null,
+                unreadCount: 0
+            };
+        });
+
+        // Merge static channels into conversations if they don't exist
+        const merged = [...conversations];
+        staticConvs.forEach(sc => {
+            if (!merged.some(c => (c.isChannel || c.channel) && (c.channel === sc.channel || c.partner?._id === sc.partner._id))) {
+                merged.push(sc);
+            }
+        });
+
+        // Sort: active conversations first (by date), then inactive static channels
+        merged.sort((a, b) => {
+            const timeA = a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt).getTime() : 0;
+            const timeB = b.lastMessage?.createdAt ? new Date(b.lastMessage.createdAt).getTime() : 0;
+            return timeB - timeA;
+        });
+
+        if (!searchQuery) return merged;
         const q = searchQuery.toLowerCase();
-        return conversations.filter(c =>
+        return merged.filter(c =>
             c.partner?.fullname?.toLowerCase().includes(q) ||
-            c.partner?.companyRole?.toLowerCase().includes(q)
+            c.partner?.companyRole?.toLowerCase().includes(q) ||
+            (c.isChannel && c.channel?.toLowerCase().includes(q))
         );
-    }, [conversations, searchQuery]);
+    }, [conversations, searchQuery, staffUser, channels]);
 
     // Check if a specific user is typing
     const isPartnerTyping = useCallback((partnerId) => {
         return typingUsers.some(u => u.userId === partnerId);
     }, [typingUsers]);
-
-    // Channel definitions
-    const channels = [
-        { id: 'waiter', label: 'Waiters', icon: '🍽️' },
-        { id: 'chef', label: 'Kitchen', icon: '👨‍🍳' },
-        { id: 'receptionist', label: 'Reception', icon: '🏨' },
-        { id: 'all', label: 'Broadcast', icon: '📢' },
-    ];
 
     // Handle key press in input
     const handleKeyDown = (e) => {
@@ -1057,7 +1128,13 @@ const MessagingPanel = ({
                                 className={`msg-contact-item ${activeChat?.contact?._id === partnerId && !isChannel ? 'active' : ''} ${activeChat?.channel === conv.channel && isChannel ? 'active' : ''}`}
                                 onClick={() => isChannel ? openChannelChat(conv.channel) : openDirectChat(conv.partner)}
                             >
-                                <ContactAvatar contact={conv.partner} />
+                                {isChannel ? (
+                                    <div className="msg-contact-avatar" style={{ width: 42, height: 42, background: '#6366f1', fontSize: 20 }}>
+                                        {channels.find(c => c.id === conv.channel)?.icon || conv.partner?.icon || '💬'}
+                                    </div>
+                                ) : (
+                                    <ContactAvatar contact={conv.partner} />
+                                )}
                                 <div className="msg-contact-info">
                                     <span className="msg-contact-name">
                                         {isMuted && <BellOff size={12} style={{ marginRight: 4, opacity: 0.5, verticalAlign: 'middle' }} />}
@@ -1231,9 +1308,7 @@ const MessagingPanel = ({
                     </div>
                     <div className="msg-contact-info">
                         <span className="msg-contact-name">{ch.label}</span>
-                        <span className="msg-contact-role">
-                            {ch.id === 'all' ? 'Message all hotel staff' : `Message all ${ch.label.toLowerCase()}`}
-                        </span>
+                        <span className="msg-contact-role">{ch.desc}</span>
                     </div>
                 </button>
             ))}
@@ -1250,6 +1325,11 @@ const MessagingPanel = ({
         const partnerTyping = activeChat?.type === 'direct'
             ? isPartnerTyping(activeChat.contact?._id)
             : false;
+
+        // For channels: check channel-scoped typing
+        const channelTypers = activeChat?.type === 'channel'
+            ? (channelTypingUsers[activeChat.channel] || [])
+            : [];
 
         return (
             <div className="msg-chat">
@@ -1269,9 +1349,11 @@ const MessagingPanel = ({
 
                     <div className="msg-chat-user-info">
                         <span className="msg-chat-user-name">{chatName}</span>
-                        {partnerTyping ? (
+                        {(partnerTyping || channelTypers.length > 0) ? (
                             <span className="msg-chat-user-status" style={{ color: '#6366f1', fontWeight: 600 }}>
-                                typing...
+                                {channelTypers.length > 0
+                                    ? `${channelTypers[0].fullname.split(' ')[0]} is typing...`
+                                    : 'typing...'}
                             </span>
                         ) : (
                             <span className={`msg-chat-user-status ${isConnected ? '' : 'offline'}`}>
@@ -1329,6 +1411,7 @@ const MessagingPanel = ({
                                         <MessageBubble
                                             message={msg}
                                             isSent={isSent}
+                                            isChannel={activeChat?.type === 'channel'}
                                         />
                                     </React.Fragment>
                                 );
@@ -1337,11 +1420,16 @@ const MessagingPanel = ({
                     )}
 
                     {/* Typing indicator in messages area */}
-                    {typingUsers.length > 0 && (
+                    {(typingUsers.length > 0 || channelTypers.length > 0) && (
                         <div className="msg-typing">
                             <div className="msg-typing-dots">
                                 <span /><span /><span />
                             </div>
+                            {channelTypers.length > 0 && (
+                                <span style={{ fontSize: 11, opacity: 0.7, marginLeft: 6 }}>
+                                    {channelTypers[0].fullname.split(' ')[0]}
+                                </span>
+                            )}
                         </div>
                     )}
 

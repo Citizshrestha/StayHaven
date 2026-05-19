@@ -25,6 +25,7 @@ export const NOTIFICATION_TYPES = {
   WAITER_CALL: 'waiter_call',
   CHIEF_UPDATE: 'chief_update',
   WAITER_UPDATE: 'waiter_update',
+  MESSAGE: 'message',
 };
 
 export default useNotifications;
