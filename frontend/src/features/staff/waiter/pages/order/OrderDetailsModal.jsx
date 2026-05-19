@@ -129,13 +129,15 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false, onMarkReady, on
     >
       <div
         style={{
-          backgroundColor: colors.bg,
+          backgroundColor: isDarkMode ? "#0F172A" : colors.bg,
           borderRadius: "24px",
           width: "100%",
           maxWidth: "620px",
           maxHeight: "88vh",
           overflow: "hidden",
-          boxShadow: "0 25px 80px rgba(0,0,0,0.18)",
+          boxShadow: isDarkMode
+            ? "0 25px 80px rgba(0,0,0,0.5)"
+            : "0 25px 80px rgba(0,0,0,0.18)",
           display: "flex",
           flexDirection: "column",
           animation: "modalIn 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
@@ -341,20 +343,20 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false, onMarkReady, on
                   alignItems: "center",
                   gap: "14px",
                   padding: "14px 16px",
-                  background: "#F8FAFB",
+                  background: isDarkMode ? "#1E293B" : "#F8FAFB",
                   borderRadius: "14px",
-                  border: "1px solid #E0E7EB",
+                  border: isDarkMode ? "1px solid #334155" : "1px solid #E0E7EB",
                   marginBottom: "10px",
                   transition: "all 0.2s ease",
                   animation: `slideIn 0.3s ease ${index * 0.05}s backwards`,
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(0,191,166,0.25)";
-                  e.currentTarget.style.background = "#F0FDFB";
+                  e.currentTarget.style.borderColor = isDarkMode ? "rgba(0,191,166,0.4)" : "rgba(0,191,166,0.25)";
+                  e.currentTarget.style.background = isDarkMode ? "#0F172A" : "#F0FDFB";
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = "#E0E7EB";
-                  e.currentTarget.style.background = "#F8FAFB";
+                  e.currentTarget.style.borderColor = isDarkMode ? "#334155" : "#E0E7EB";
+                  e.currentTarget.style.background = isDarkMode ? "#1E293B" : "#F8FAFB";
                 }}
               >
                 {/* Item Image */}
@@ -381,7 +383,7 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false, onMarkReady, on
                     style={{
                       fontSize: "0.95rem",
                       fontWeight: "600",
-                      color: "#263238",
+                      color: isDarkMode ? "#F1F5F9" : "#263238",
                       fontFamily: "'Poppins', sans-serif",
                       marginBottom: item.notes ? "4px" : "0",
                     }}
@@ -393,8 +395,8 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false, onMarkReady, on
                       style={{
                         fontSize: "0.8rem",
                         fontStyle: "italic",
-                        color: "#CA8A04",
-                        background: "#FEF9C3",
+                        color: isDarkMode ? "#FCD34D" : "#CA8A04",
+                        background: isDarkMode ? "#422006" : "#FEF9C3",
                         padding: "3px 10px",
                         borderRadius: "6px",
                         display: "inline-flex",
@@ -436,7 +438,7 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false, onMarkReady, on
                       style={{
                         fontSize: "0.9rem",
                         fontWeight: "600",
-                        color: "#263238",
+                        color: isDarkMode ? "#E2E8F0" : "#263238",
                       }}
                     >
                       Rs. {item.price}
@@ -456,7 +458,7 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false, onMarkReady, on
                   fontWeight: "700",
                   letterSpacing: "0.1em",
                   textTransform: "uppercase",
-                  color: "#94A3B8",
+                  color: isDarkMode ? "#94A3B8" : "#94A3B8",
                   marginBottom: "12px",
                   fontFamily: "'Poppins', sans-serif",
                 }}
@@ -465,8 +467,12 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false, onMarkReady, on
               </div>
               <div
                 style={{
-                  background: "linear-gradient(135deg, #F0FDFB, #E6FEFA)",
-                  border: "1.5px solid rgba(0,191,166,0.2)",
+                  background: isDarkMode
+                    ? "linear-gradient(135deg, #1E293B, #0F172A)"
+                    : "linear-gradient(135deg, #F0FDFB, #E6FEFA)",
+                  border: isDarkMode
+                    ? "1.5px solid rgba(0,191,166,0.3)"
+                    : "1.5px solid rgba(0,191,166,0.2)",
                   borderRadius: "16px",
                   padding: "20px",
                 }}
@@ -476,7 +482,7 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false, onMarkReady, on
                     display: "flex",
                     justifyContent: "space-between",
                     fontSize: "0.9rem",
-                    color: "#546E7A",
+                    color: isDarkMode ? "#E2E8F0" : "#546E7A",
                     padding: "6px 0",
                   }}
                 >
@@ -488,7 +494,7 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false, onMarkReady, on
                     display: "flex",
                     justifyContent: "space-between",
                     fontSize: "0.9rem",
-                    color: "#546E7A",
+                    color: isDarkMode ? "#E2E8F0" : "#546E7A",
                     padding: "6px 0",
                   }}
                 >
@@ -501,7 +507,7 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false, onMarkReady, on
                       display: "flex",
                       justifyContent: "space-between",
                       fontSize: "0.9rem",
-                      color: "#546E7A",
+                      color: isDarkMode ? "#E2E8F0" : "#546E7A",
                       padding: "6px 0",
                     }}
                   >
@@ -512,7 +518,9 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false, onMarkReady, on
                 <div
                   style={{
                     height: "1px",
-                    background: "rgba(0,191,166,0.2)",
+                    background: isDarkMode
+                      ? "rgba(0,191,166,0.3)"
+                      : "rgba(0,191,166,0.2)",
                     margin: "10px 0",
                   }}
                 />
@@ -522,13 +530,13 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false, onMarkReady, on
                     justifyContent: "space-between",
                     fontSize: "1.1rem",
                     fontWeight: "700",
-                    color: "#263238",
+                    color: isDarkMode ? "#F1F5F9" : "#263238",
                     paddingTop: "4px",
                     fontFamily: "'Poppins', sans-serif",
                   }}
                 >
                   <span>TOTAL</span>
-                  <span style={{ color: "#00BFA6", fontSize: "1.2rem" }}>
+                  <span style={{ color: isDarkMode ? "#34D399" : "#00BFA6", fontSize: "1.2rem" }}>
                     Rs. {total.toFixed(0)}
                   </span>
                 </div>
@@ -557,8 +565,8 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false, onMarkReady, on
                   borderRadius: "16px",
                   overflow: "hidden",
                   position: "relative",
-                  background: "#F8FAFB",
-                  border: "1px solid #E0E7EB",
+                  background: isDarkMode ? "#1E293B" : "#F8FAFB",
+                  border: isDarkMode ? "1px solid #334155" : "1px solid #E0E7EB",
                 }}
               >
                 <img
@@ -613,6 +621,9 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false, onMarkReady, on
                         alignItems: "center",
                         justifyContent: "center",
                         transition: "all 0.2s",
+                        color: "#1F2937",
+                        fontSize: "16px",
+                        fontWeight: "bold",
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.background = "#FFFFFF";
@@ -643,6 +654,9 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false, onMarkReady, on
                         alignItems: "center",
                         justifyContent: "center",
                         transition: "all 0.2s",
+                        color: "#1F2937",
+                        fontSize: "16px",
+                        fontWeight: "bold",
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.background = "#FFFFFF";
@@ -693,10 +707,10 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false, onMarkReady, on
         <div
           style={{
             padding: "16px 28px",
-            borderTop: "1px solid #E0E7EB",
+            borderTop: isDarkMode ? "1px solid #334155" : "1px solid #E0E7EB",
             display: "flex",
             gap: "12px",
-            background: "#FFFFFF",
+            background: isDarkMode ? "#1E293B" : "#FFFFFF",
             borderRadius: "0 0 24px 24px",
           }}
         >
@@ -708,12 +722,12 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false, onMarkReady, on
             style={{
               flex: 1,
               padding: "12px",
-              border: "1.5px solid #E0E7EB",
+              border: "none",
               borderRadius: "12px",
               fontSize: "0.9rem",
               fontWeight: "600",
-              color: "#546E7A",
-              background: "transparent",
+              color: "#ffffff",
+              background: isDarkMode ? "#059669" : "#10b981",
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
@@ -721,14 +735,23 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false, onMarkReady, on
               gap: "6px",
               transition: "all 0.2s",
               fontFamily: "'Poppins', sans-serif",
+              boxShadow: isDarkMode 
+                ? "0 2px 4px rgba(5, 150, 105, 0.2)" 
+                : "0 2px 4px rgba(16, 185, 129, 0.2)",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = "#00BFA6";
-              e.currentTarget.style.color = "#00BFA6";
+              e.currentTarget.style.backgroundColor = isDarkMode ? "#047857" : "#059669";
+              e.currentTarget.style.transform = "translateY(-1px)";
+              e.currentTarget.style.boxShadow = isDarkMode 
+                ? "0 6px 12px rgba(5, 150, 105, 0.3)" 
+                : "0 6px 12px rgba(16, 185, 129, 0.3)";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = "#E0E7EB";
-              e.currentTarget.style.color = "#546E7A";
+              e.currentTarget.style.backgroundColor = isDarkMode ? "#059669" : "#10b981";
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = isDarkMode 
+                ? "0 2px 4px rgba(5, 150, 105, 0.2)" 
+                : "0 2px 4px rgba(16, 185, 129, 0.2)";
             }}
           >
             <Printer size={16} />
@@ -742,12 +765,12 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false, onMarkReady, on
             style={{
               flex: 1,
               padding: "12px",
-              border: "1.5px solid #E0E7EB",
+              border: "none",
               borderRadius: "12px",
               fontSize: "0.9rem",
               fontWeight: "600",
-              color: "#546E7A",
-              background: "transparent",
+              color: "#ffffff",
+              background: isDarkMode ? "#0891b2" : "#06b6d4",
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
@@ -755,14 +778,23 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false, onMarkReady, on
               gap: "6px",
               transition: "all 0.2s",
               fontFamily: "'Poppins', sans-serif",
+              boxShadow: isDarkMode 
+                ? "0 2px 4px rgba(8, 145, 178, 0.2)" 
+                : "0 2px 4px rgba(6, 182, 212, 0.2)",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = "#00BFA6";
-              e.currentTarget.style.color = "#00BFA6";
+              e.currentTarget.style.backgroundColor = isDarkMode ? "#0e7490" : "#0891b2";
+              e.currentTarget.style.transform = "translateY(-1px)";
+              e.currentTarget.style.boxShadow = isDarkMode 
+                ? "0 6px 12px rgba(8, 145, 178, 0.3)" 
+                : "0 6px 12px rgba(6, 182, 212, 0.3)";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = "#E0E7EB";
-              e.currentTarget.style.color = "#546E7A";
+              e.currentTarget.style.backgroundColor = isDarkMode ? "#0891b2" : "#06b6d4";
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = isDarkMode 
+                ? "0 2px 4px rgba(8, 145, 178, 0.2)" 
+                : "0 2px 4px rgba(6, 182, 212, 0.2)";
             }}
           >
             <Send size={16} />

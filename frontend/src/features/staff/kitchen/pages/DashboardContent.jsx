@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import { LayoutGrid, Bell, ChefHat, CheckCircle, Clock } from "lucide-react";
+import { LayoutGrid, Bell, ChefHat, CheckCircle, Clock, RefreshCw } from "lucide-react";
 import OrderCard from "./OrderCard";
 import "./KitchenDashboard.css";
 
@@ -109,21 +109,28 @@ const DashboardContent = ({
 
   return (
     <div style={{ minHeight: "100%" }}>
-      {/* Filter Tabs - Redesigned */}
+      {/* Header Area */}
       <div style={{
         display: "flex",
-        gap: "8px",
+        alignItems: "center",
+        justifyContent: "space-between",
         marginBottom: "24px",
-        overflowX: "auto",
-        paddingBottom: "4px",
-        paddingLeft: "16px",
-        paddingRight: "16px",
-        marginLeft: "-16px",
-        marginRight: "-16px",
-        WebkitOverflowScrolling: "touch",
-        scrollbarWidth: "none",
-        msOverflowStyle: "none",
       }}>
+        {/* Filter Tabs - Redesigned */}
+        <div style={{
+          display: "flex",
+          gap: "8px",
+          overflowX: "auto",
+          paddingBottom: "4px",
+          paddingLeft: "16px",
+          paddingRight: isMobile ? "16px" : "8px",
+          marginLeft: "-16px",
+          marginRight: isMobile ? "-16px" : "0",
+          WebkitOverflowScrolling: "touch",
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+          flex: 1,
+        }}>
         <style>{`
           div::-webkit-scrollbar {
             display: none;
@@ -138,7 +145,6 @@ const DashboardContent = ({
               style={{
                 padding: "7px 14px",
                 borderRadius: "20px",
-                border: "none",
                 cursor: "pointer",
                 fontWeight: "500",
                 fontSize: "13px",
@@ -177,6 +183,37 @@ const DashboardContent = ({
             </button>
           );
         })}
+        </div>
+
+        {/* Desktop Refresh Button */}
+        {!isMobile && (
+          <button
+            onClick={onRefresh}
+            disabled={isRefreshing}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "8px 16px",
+              borderRadius: "20px",
+              backgroundColor: isDarkMode ? "#1E293B" : "white",
+              color: colors.text,
+              border: `1px solid ${colors.border}`,
+              cursor: isRefreshing ? "not-allowed" : "pointer",
+              opacity: isRefreshing ? 0.7 : 1,
+              fontWeight: "500",
+              fontSize: "13px",
+              boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+              flexShrink: 0,
+            }}
+          >
+            <RefreshCw 
+              size={14} 
+              className={isRefreshing ? "animate-spin" : ""}
+            />
+            <span>Refresh</span>
+          </button>
+        )}
       </div>
 
       {/* Order Cards Grid */}

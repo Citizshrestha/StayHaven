@@ -588,19 +588,7 @@ const NotificationCard = ({ notification, style, colors, index, onClick, onMarkR
                 }),
             }}
         >
-            {/* Unread dot indicator */}
-            {!notification.isRead && (
-                <div style={{
-                    width: '8px',
-                    height: '8px',
-                    borderRadius: '50%',
-                    background: colors.primary,
-                    position: 'absolute',
-                    top: '18px',
-                    right: '18px',
-                    animation: 'pulse 2s infinite',
-                }} />
-            )}
+            {/* No pulsing dot — unread state is communicated via the left border + background */}
 
             {/* Icon Circle (Squircle) - Using Lucide React Icons */}
             <div style={{
@@ -634,8 +622,13 @@ const NotificationCard = ({ notification, style, colors, index, onClick, onMarkR
                     gap: '8px',
                     flexWrap: 'wrap',
                 }}>
-                    <span>📍 {getLocation(notification)}</span>
-                    <span>•</span>
+                    {/* Only show location for order-related notifications, not for messages */}
+                    {notification.type !== 'message' && (
+                        <>
+                            <span>📍 {getLocation(notification)}</span>
+                            <span>•</span>
+                        </>
+                    )}
                     <span style={{
                         background: style.bg,
                         color: style.text,

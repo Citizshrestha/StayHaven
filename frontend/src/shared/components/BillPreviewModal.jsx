@@ -113,8 +113,15 @@ const BillPreviewModal = ({
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ backgroundColor: 'rgba(255, 255, 255, 0.95)' }}>
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border-2 border-gray-200">
+    <div
+      className="fixed inset-0 flex items-center justify-center z-50 p-4"
+      style={{ backgroundColor: 'transparent' }}
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border-2 border-gray-200"
+        onClick={(event) => event.stopPropagation()}
+      >
         {/* Header */}
         <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between z-10">
           <h2 className="text-2xl font-bold text-gray-900">Bill Preview</h2>
@@ -161,7 +168,11 @@ const BillPreviewModal = ({
               <div className="flex justify-between">
                 <span className="text-gray-600">Location:</span>
                 <span className="font-semibold">
-                  {order.orderType === 'roomService' ? `Room ${order.roomNumber}` : `Table ${order.tableNumber}`}
+                  {order.orderType === 'takeaway'
+                    ? 'Takeaway'
+                    : order.orderType === 'roomService'
+                      ? `Room ${order.roomNumber}`
+                      : `Table ${order.tableNumber}`}
                 </span>
               </div>
               <div className="flex justify-between">

@@ -34,7 +34,12 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
           // support different property names that might hold table/room info
           const table = order.tableNumber || order.table || order.table_no || '';
           const room = order.roomNumber || order.room || '';
-          return String(table) === String(areaName) || String(room) === String(areaName) || String(`${order.orderType === 'roomService' ? `Room ${order.roomNumber}` : `Table ${order.tableNumber}`}`) === String(areaName) || String(areaName).toLowerCase().includes(String(table).toLowerCase());
+          const location = order.orderType === 'takeaway'
+            ? 'Takeaway'
+            : order.orderType === 'roomService'
+              ? `Room ${order.roomNumber}`
+              : `Table ${order.tableNumber}`;
+          return String(table) === String(areaName) || String(room) === String(areaName) || String(location) === String(areaName) || String(areaName).toLowerCase().includes(String(table).toLowerCase());
         })
       : orders.filter((order) => order.status === activeFilter)
   ).sort((a, b) => {
