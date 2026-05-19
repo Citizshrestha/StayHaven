@@ -162,7 +162,7 @@ async function createTestGuestBooking() {
         { name: 'French Fries', category: 'Snacks', price: 180, description: 'Crispy golden fries', image: 'https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=400' },
         { name: 'Chicken Sandwich', category: 'Snacks', price: 320, description: 'Grilled chicken sandwich with fresh vegetables', image: 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=400' },
         { name: 'Mango Lassi', category: 'Drinks', price: 200, description: 'Sweet mango yogurt drink', image: 'https://images.unsplash.com/photo-1623065422902-30a2d299bbe4?w=400' },
-        { name: 'Masala Tea', category: 'Drinks', price: 100, description: 'Spiced milk tea', image: 'https://images.unsplash.com/photo-1597318181274-7d0cd1e8f4f6?w=400' },
+        { name: 'Masala Tea', category: 'Drinks', price: 100, description: 'Spiced milk tea', image: 'https://images.unsplash.com/photo-1571934811356-5cc061b6821f?w=400&h=300&fit=crop' },
         { name: 'Fresh Lime Soda', category: 'Drinks', price: 150, description: 'Refreshing lime soda with mint', image: 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=400' },
         { name: 'Chocolate Cake Slice', category: 'Dessert', price: 280, description: 'Rich chocolate layer cake', image: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=400' },
         { name: 'Gulab Jamun (2 pcs)', category: 'Dessert', price: 180, description: 'Sweet milk dumplings in sugar syrup', image: 'https://images.unsplash.com/photo-1589119908995-c6c8f7d7e3b7?w=400' },

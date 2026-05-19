@@ -277,7 +277,7 @@ const MENU_ITEMS = [
     name: "Masala Chai",
     description: "Traditional spiced milk tea with cardamom and ginger",
     category: "Drinks", price: 60,
-    image: "https://images.unsplash.com/photo-1561336313-0bd5e0b27ec8?w=400&h=300&fit=crop",
+    image: "https://images.unsplash.com/photo-1571934811356-5cc061b6821f?w=400&h=300&fit=crop",
     isAvailable: true, preparationTime: 8,
   },
   {
