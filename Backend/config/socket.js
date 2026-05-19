@@ -61,6 +61,7 @@ export const initSocket = (httpServer) => {
     // and always join their personal room for direct notifications.
     socket.on("join-role", ({ hotelId, role, userId, fullname }) => {
       if (!role || !userId) {
+        logger.warn(`❌ join-role failed: missing role or userId`, { role, userId });
         return;
       }
 
@@ -70,10 +71,20 @@ export const initSocket = (httpServer) => {
       socket.userRole = role;
       socket.fullname = fullname;
 
+      logger.info(`✅ User joined personal room: user-${userId}`, { role, fullname });
+
       if (hotelId) {
         // Join role-specific room (e.g., "hotel-123-waiters")
-        socket.join(`hotel-${hotelId}-${role}s`);
+        const roleRoom = `hotel-${hotelId}-${role}s`;
+        socket.join(roleRoom);
         socket.hotelId = hotelId;
+
+        logger.info(`✅ User joined role room: ${roleRoom}`, {
+          userId,
+          role,
+          fullname,
+          hotelId
+        });
 
         // Add to online users only when hotel context exists
         onlineUsers.set(userId, {
@@ -101,9 +112,13 @@ export const initSocket = (httpServer) => {
 
         socket.emit("online-users", onlineUsersInHotel);
 
-        logger.debug(`Socket ${socket.id} joined as ${role} in hotel-${hotelId}`, { userId, onlineCount: onlineUsersInHotel.length });
+        logger.info(`📊 Socket ${socket.id} joined as ${role} in hotel-${hotelId}`, {
+          userId,
+          onlineCount: onlineUsersInHotel.length,
+          rooms: Array.from(socket.rooms)
+        });
       } else {
-        logger.debug(`Socket ${socket.id} joined personal room user-${userId} as ${role}`);
+        logger.info(`📍 Socket ${socket.id} joined personal room user-${userId} as ${role} (no hotel context)`);
       }
     });
 
@@ -120,15 +135,26 @@ export const initSocket = (httpServer) => {
     });
 
     // ── Messaging events ──
+    // Helper: resolve channel name → actual socket room(s)
+    const getChannelRooms = (hotelId, channel) => {
+      switch (channel) {
+        case 'waiter':        return [`hotel-${hotelId}-waiters`, `hotel-${hotelId}-chiefs`, `hotel-${hotelId}-receptionists`];
+        case 'chef':          return [`hotel-${hotelId}-chiefs`, `hotel-${hotelId}-waiters`, `hotel-${hotelId}-receptionists`];
+        case 'receptionist':  return [`hotel-${hotelId}-receptionists`, `hotel-${hotelId}-managers`];
+        case 'all':           return [`hotel-${hotelId}`];
+        default:              return [`hotel-${hotelId}-${channel}s`];
+      }
+    };
+
     // Typing indicator
     socket.on("typing", ({ hotelId, channel, userId, fullname, recipientId }) => {
       if (channel === "direct" && recipientId) {
         // For DMs, emit to the recipient's personal room
         socket.to(`user-${recipientId}`).emit("user-typing", { userId, fullname, channel });
       } else if (channel !== "direct") {
-        // For channels, emit to the channel room
-        const room = `hotel-${hotelId}-${channel}s`;
-        socket.to(room).emit("user-typing", { userId, fullname, channel });
+        // For channels, emit to the correct role room(s)
+        const rooms = getChannelRooms(hotelId, channel);
+        rooms.forEach(room => socket.to(room).emit("user-typing", { userId, fullname, channel }));
       }
     });
 
@@ -136,8 +162,8 @@ export const initSocket = (httpServer) => {
       if (channel === "direct" && recipientId) {
         socket.to(`user-${recipientId}`).emit("user-stop-typing", { userId, channel });
       } else if (channel !== "direct") {
-        const room = `hotel-${hotelId}-${channel}s`;
-        socket.to(room).emit("user-stop-typing", { userId, channel });
+        const rooms = getChannelRooms(hotelId, channel);
+        rooms.forEach(room => socket.to(room).emit("user-stop-typing", { userId, channel }));
       }
     });
 
@@ -232,7 +258,14 @@ export const getIO = () => {
  */
 export const emitToHotel = (hotelId, event, data) => {
   if (io) {
-    io.to(`hotel-${hotelId}`).emit(event, data);
+    const room = `hotel-${hotelId}`;
+    logger.info(`📤 Emitting "${event}" to room: ${room}`, {
+      hotelId,
+      dataKeys: Object.keys(data || {})
+    });
+    io.to(room).emit(event, data);
+  } else {
+    logger.warn(`⚠️ Cannot emit "${event}" - Socket.io not initialized`);
   }
 };
 
@@ -244,7 +277,14 @@ export const emitToHotel = (hotelId, event, data) => {
  */
 export const emitToWaiters = (hotelId, event, data) => {
   if (io) {
-    io.to(`hotel-${hotelId}-waiters`).emit(event, data);
+    const room = `hotel-${hotelId}-waiters`;
+    logger.info(`📤 Emitting "${event}" to waiters room: ${room}`, {
+      hotelId,
+      dataKeys: Object.keys(data || {})
+    });
+    io.to(room).emit(event, data);
+  } else {
+    logger.warn(`⚠️ Cannot emit "${event}" to waiters - Socket.io not initialized`);
   }
 };
 
@@ -257,9 +297,17 @@ export const emitToWaiters = (hotelId, event, data) => {
  */
 export const emitToKitchen = (hotelId, event, data) => {
   if (io) {
+    const chiefsRoom = `hotel-${hotelId}-chiefs`;
+    const kitchensRoom = `hotel-${hotelId}-kitchens`;
+    logger.info(`📤 Emitting "${event}" to kitchen rooms: ${chiefsRoom}, ${kitchensRoom}`, {
+      hotelId,
+      dataKeys: Object.keys(data || {})
+    });
     // Emit to both 'chiefs' and 'kitchens' rooms (different role names, same function)
-    io.to(`hotel-${hotelId}-chiefs`).emit(event, data);
-    io.to(`hotel-${hotelId}-kitchens`).emit(event, data);
+    io.to(chiefsRoom).emit(event, data);
+    io.to(kitchensRoom).emit(event, data);
+  } else {
+    logger.warn(`⚠️ Cannot emit "${event}" to kitchen - Socket.io not initialized`);
   }
 };
 

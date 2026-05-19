@@ -1,8 +1,67 @@
 import { Message } from "../models/message.schema.js";
 import { User } from "../models/user.schema.js";
-import { Notification } from "../models/notification.schema.js";
+import { createNotificationInternal } from "./notificationController.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { getIO } from "../config/socket.js";
+
+/**
+ * Internal helper: map channel name to the companyRoles that receive it.
+ * Used for notification targeting.
+ */
+const getChannelTargetRoles = (channel) => {
+    switch (channel) {
+        case "waiter":       return ["waiter", "chief", "receptionist"];  // kitchen needs to see waiter requests
+        case "chef":         return ["chief", "waiter", "receptionist"];  // waiters need to see kitchen updates
+        case "receptionist": return ["receptionist", "manager"];
+        case "guest":        return ["receptionist"];
+        case "all":          return ["waiter", "chief", "receptionist", "manager", "owner", "admin"];
+        default:             return [];
+    }
+};
+
+/**
+ * Internal helper: push in-app notifications to all target users for a channel message.
+ * Runs async in the background — does NOT block the HTTP response.
+ */
+const notifyChannelRecipients = async ({ hotelId, senderId, senderName, channel, content, messageId }) => {
+    try {
+        const roles = getChannelTargetRoles(channel);
+        if (!roles.length) return;
+
+        // Find all active staff in this hotel who are in the target roles (excluding sender)
+        const recipients = await User.find({
+            assignedProperties: hotelId,
+            companyRole: { $in: roles },
+            isActive: true,
+            _id: { $ne: senderId },
+        }).select("_id");
+
+        if (!recipients.length) return;
+
+        const channelLabel = {
+            waiter: "Waiters", chef: "Kitchen", receptionist: "Reception",
+            guest: "Guest", all: "Broadcast",
+        }[channel] || channel;
+
+        const io = getIO();
+        const preview = content.length > 60 ? content.slice(0, 60) + "..." : content;
+
+        // Create notifications for each recipient
+        await Promise.all(recipients.map(r => 
+            createNotificationInternal({
+                userId: r._id,
+                senderId,
+                type: "message",
+                title: `${senderName} in #${channelLabel}`,
+                message: preview,
+                priority: "medium",
+                payload: { channel, messageId: String(messageId) }
+            })
+        ));
+    } catch (err) {
+        console.error("[notifyChannelRecipients] Failed:", err.message);
+    }
+};
 
 /**
  * Send a message (text, alert, or call request)
@@ -64,36 +123,72 @@ export const sendMessage = asyncHandler(async (req, res) => {
             createdAt: message.createdAt,
         };
 
-        // Broadcast to appropriate room based on channel
-        switch (channel) {
-            case "waiter":
-                io.to(`hotel-${hotelId}-waiters`).emit("new-message", payload);
-                io.to(`hotel-${hotelId}-receptionists`).emit("new-message", payload);
-                break;
-            case "chef":
-                io.to(`hotel-${hotelId}-chiefs`).emit("new-message", payload);
-                io.to(`hotel-${hotelId}-receptionists`).emit("new-message", payload);
-                break;
-            case "guest":
-                // For guest channel, broadcast to receptionists and the specific guest if connected
-                io.to(`hotel-${hotelId}-receptionists`).emit("new-message", payload);
-                if (recipientId) {
-                    io.to(`user-${recipientId}`).emit("new-message", payload);
-                }
-                break;
-            case "all":
-                io.to(`hotel-${hotelId}`).emit("new-message", payload);
-                break;
-            case "direct":
-                if (recipientId) {
-                    io.to(`user-${recipientId}`).emit("new-message", payload);
-                }
-                // Also send to sender's personal room so other devices get it
-                io.to(`user-${req.user._id}`).emit("new-message", payload);
-                break;
-            default:
-                io.to(`hotel-${hotelId}`).emit("new-message", payload);
+        // Helper: map channel name to the socket rooms that should receive the message
+        const getChannelRooms = (hotelId, channel) => {
+            switch (channel) {
+                case "waiter":
+                    // Waiter channel: waiters + kitchen (chiefs) + receptionists
+                    return [`hotel-${hotelId}-waiters`, `hotel-${hotelId}-chiefs`, `hotel-${hotelId}-receptionists`];
+                case "chef":
+                    // Kitchen channel: chiefs + waiters + receptionists
+                    return [`hotel-${hotelId}-chiefs`, `hotel-${hotelId}-waiters`, `hotel-${hotelId}-receptionists`];
+                case "receptionist":
+                    // Reception channel: all receptionists + managers
+                    return [`hotel-${hotelId}-receptionists`, `hotel-${hotelId}-managers`];
+                case "guest":
+                    // Guest channel: receptionists only
+                    return [`hotel-${hotelId}-receptionists`];
+                case "all":
+                    // Broadcast: entire hotel
+                    return [`hotel-${hotelId}`];
+                default:
+                    return [`hotel-${hotelId}`];
+            }
+        };
+
+        // Broadcast to appropriate rooms based on channel
+        if (channel === "direct") {
+            // Direct messages: only between the two users
+            if (recipientId) {
+                io.to(`user-${recipientId}`).emit("new-message", payload);
+            }
+            // Also send to sender's personal room so other devices get it
+            io.to(`user-${req.user._id}`).emit("new-message", payload);
+        } else if (channel === "guest" && recipientId) {
+            // Guest channel with specific recipient
+            io.to(`hotel-${hotelId}-receptionists`).emit("new-message", payload);
+            io.to(`user-${recipientId}`).emit("new-message", payload);
+        } else {
+            const rooms = getChannelRooms(hotelId, channel);
+            rooms.forEach(room => io.to(room).emit("new-message", payload));
         }
+    }
+
+    // ── Create in-app notifications for recipients ──────────────────────
+    if (channel !== "direct") {
+        // Channel message: notify all staff in the target role(s)
+        notifyChannelRecipients({
+            hotelId,
+            senderId: req.user._id,
+            senderName: message.sender.fullname,
+            channel,
+            content: message.content,
+            messageId: message._id,
+        });
+    } else if (recipientId) {
+        // Direct message: single notification for the recipient
+        const preview = message.content.length > 60
+            ? message.content.slice(0, 60) + "..."
+            : message.content;
+        await createNotificationInternal({
+            userId: recipientId,
+            senderId: req.user._id,
+            type: "message",
+            title: `New message from ${message.sender.fullname}`,
+            message: preview,
+            priority: "medium",
+            payload: { channel: "direct", messageId: String(message._id) }
+        });
     }
 
     return res.status(201).json({
@@ -733,11 +828,16 @@ export const getConversations = asyncHandler(async (req, res) => {
     // Determine which channels this user should see
     const userRole = req.user.companyRole || "";
     const relevantChannels = [];
-    if (userRole === "waiter") relevantChannels.push("waiter");
-    else if (userRole === "chief" || userRole === "kitchen") relevantChannels.push("chef");
-    else if (userRole === "receptionist") relevantChannels.push("waiter", "chef", "guest");
-    else if (userRole === "manager") relevantChannels.push("waiter", "chef", "guest");
-    // All roles can see the "all" channel
+    if (userRole === "waiter") {
+        relevantChannels.push("waiter");
+    } else if (userRole === "chief" || userRole === "kitchen") {
+        relevantChannels.push("chef");
+    } else if (userRole === "receptionist") {
+        relevantChannels.push("waiter", "chef", "guest", "receptionist");
+    } else if (userRole === "manager") {
+        relevantChannels.push("waiter", "chef", "guest", "receptionist");
+    }
+    // All roles can see the "all" broadcast channel
     relevantChannels.push("all");
 
     let channelConversations = [];
@@ -922,8 +1022,8 @@ export const editMessage = asyncHandler(async (req, res) => {
             const roomName = message.channel === "waiter"
                 ? `hotel-${message.hotel}-waiters`
                 : message.channel === "chef"
-                ? `hotel-${message.hotel}-chiefs`
-                : `hotel-${message.hotel}`;
+                    ? `hotel-${message.hotel}-chiefs`
+                    : `hotel-${message.hotel}`;
             io.to(roomName).emit("message-edited", payload);
         }
     }
@@ -1000,8 +1100,8 @@ export const deleteMessage = asyncHandler(async (req, res) => {
             const roomName = message.channel === "waiter"
                 ? `hotel-${message.hotel}-waiters`
                 : message.channel === "chef"
-                ? `hotel-${message.hotel}-chiefs`
-                : `hotel-${message.hotel}`;
+                    ? `hotel-${message.hotel}-chiefs`
+                    : `hotel-${message.hotel}`;
             io.to(roomName).emit("message-deleted", payload);
         }
     }

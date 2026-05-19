@@ -27,6 +27,7 @@ const notificationSchema = new mongoose.Schema({
       'order_delivered',
       'waiter_call',
       'waiter_call_resolved',
+      'message',
       'system',
       'promotional',
       'account',
