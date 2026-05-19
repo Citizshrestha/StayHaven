@@ -5,17 +5,16 @@ import {
   Bell,
   CalendarDays,
   ChevronRight,
-  CircleAlert,
-  Clock3,
-  Coffee,
-  ConciergeBell,
+  Clock,
   CreditCard,
   Loader2,
   Phone,
-  ReceiptText,
-  Sparkles,
+  RefreshCw,
+  ShoppingBag,
   UtensilsCrossed,
-  Waves,
+  BookOpen,
+  AlertTriangle,
+  Wrench,
 } from 'lucide-react';
 import { useSocket } from '../../../../core/context/SocketContext';
 import { useTheme } from '../../../../core/hooks/useTheme';
@@ -28,27 +27,7 @@ import {
 import ExtendStayModal from '../../../../shared/components/ExtendStayModal';
 import CancelOrderModal from '../../../../shared/components/CancelOrderModal';
 import notificationSoundService from '../../../../services/notificationSoundService';
-
-const LIGHT_BRAND = {
-  primary: '#00BFA6',
-  primaryDark: '#00A896',
-  background: '#F8FAFB',
-  card: '#FFFFFF',
-  textPrimary: '#263238',
-  textSecondary: '#546E7A',
-  border: '#E0E7EB',
-};
-
-const DARK_BRAND = {
-  primary: '#2DD4BF',
-  primaryDark: '#14B8A6',
-  background: '#020617',
-  card: '#0F172A',
-  textPrimary: '#E2E8F0',
-  textSecondary: '#94A3B8',
-  border: '#1E293B',
-};
-
+import styles from './DashboardView.module.css';
 
 const formatMoney = (value = 0) => {
   const numeric = Number(value) || 0;
@@ -85,15 +64,15 @@ const formatRelativeTime = (value) => {
   const now = Date.now();
   const diffMs = now - target;
   const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
-  const diffMinutes = Math.round(diffMs / 60000);
+  const diffMinutes = Math.floor(diffMs / 60000);
 
   if (Math.abs(diffMinutes) < 1) return 'just now';
   if (Math.abs(diffMinutes) < 60) return rtf.format(-diffMinutes, 'minute');
 
-  const diffHours = Math.round(diffMinutes / 60);
+  const diffHours = Math.floor(diffMinutes / 60);
   if (Math.abs(diffHours) < 24) return rtf.format(-diffHours, 'hour');
 
-  const diffDays = Math.round(diffHours / 24);
+  const diffDays = Math.floor(diffHours / 24);
   return rtf.format(-diffDays, 'day');
 };
 
@@ -106,72 +85,27 @@ const normalizeStatusLabel = (status) => {
 };
 
 const statusStyles = {
-  pending: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
-  confirmed: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-  preparing: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
-  ready: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300',
-  delivered: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
-  cancelled: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300',
-  paid: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
-  open: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
-  inprogress: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-  resolved: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
-};
-
-const formatUpdatedTimeAgo = (dateValue, nowValue) => {
-  if (!dateValue) return 'Updated recently';
-  const target = new Date(dateValue).getTime();
-  if (Number.isNaN(target)) return 'Updated recently';
-
-  const diffMs = nowValue - target;
-  if (Math.abs(diffMs) < 15000) return 'Updated just now';
-
-  const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
-  const diffMinutes = Math.round(diffMs / 60000);
-
-  if (Math.abs(diffMinutes) < 60) {
-    return `Updated ${rtf.format(-diffMinutes, 'minute')}`;
-  }
-
-  const diffHours = Math.round(diffMinutes / 60);
-  if (Math.abs(diffHours) < 24) {
-    return `Updated ${rtf.format(-diffHours, 'hour')}`;
-  }
-
-  const diffDays = Math.round(diffHours / 24);
-  if (Math.abs(diffDays) < 7) {
-    return `Updated ${rtf.format(-diffDays, 'day')}`;
-  }
-
-  return `Updated ${new Date(target).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-  })}`;
-};
-
-const getOrderProgress = (status) => {
-  if (status === 'pending') return 25;
-  if (status === 'confirmed') return 40;
-  if (status === 'preparing') return 70;
-  if (status === 'ready') return 90;
-  if (status === 'delivered') return 100;
-  return 0;
+  pending: { bg: '#fef3c7', color: '#d97706' },
+  confirmed: { bg: '#dbeafe', color: '#2563eb' },
+  preparing: { bg: '#fed7aa', color: '#ea580c' },
+  ready: { bg: '#e0f2fe', color: '#0284c7' },
+  delivered: { bg: '#d1fae5', color: '#059669' },
+  cancelled: { bg: '#fee2e2', color: '#dc2626' },
+  paid: { bg: '#d1fae5', color: '#059669' },
+  open: { bg: '#fef3c7', color: '#d97706' },
+  inprogress: { bg: '#dbeafe', color: '#2563eb' },
+  resolved: { bg: '#d1fae5', color: '#059669' },
 };
 
 const DashboardView = () => {
   const navigate = useNavigate();
   const { subscribe, isConnected } = useSocket();
   const { isDark } = useTheme();
-  const BRAND = isDark ? DARK_BRAND : LIGHT_BRAND;
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [now, setNow] = useState(Date.now());
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const [realtimeNotifications, setRealtimeNotifications] = useState([]);
   const [billingExpanded, setBillingExpanded] = useState(true);
-  const notificationsPanelRef = useRef(null);
   const [showExtendModal, setShowExtendModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -225,29 +159,9 @@ const DashboardView = () => {
     return () => window.clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth <= 768);
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  useEffect(() => {
-    const onOpen = () => setShowNotifications(true);
-    window.addEventListener('guest:openNotifications', onOpen);
-    return () => window.removeEventListener('guest:openNotifications', onOpen);
-  }, []);
-
   const refreshDashboard = useCallback(() => {
     loadDashboard(true);
   }, [loadDashboard]);
-
-  const pushRealtimeNotification = useCallback((notification) => {
-    setRealtimeNotifications((prev) => {
-      const next = [notification, ...prev].slice(0, 10);
-      return next;
-    });
-  }, []);
 
   const applyOrderRealtimeUpdate = useCallback((payload) => {
     if (!payload?.orderId && !payload?.orderNumber) {
@@ -300,47 +214,23 @@ const DashboardView = () => {
 
   const onRealtimeOrderPlaced = useCallback((payload) => {
     toast.success(`Order #${payload?.orderNumber || '--'} placed successfully`);
-    notificationSoundService.play('order'); // Play notification sound
-    pushRealtimeNotification({
-      id: `rt-order-placed-${payload?.orderId || payload?._id || payload?.orderNumber || Date.now()}`,
-      title: `Order #${payload?.orderNumber || '--'} has been placed`,
-      subtitle: 'We sent it to the kitchen.',
-      time: payload?.createdAt || new Date().toISOString(),
-      category: 'order',
-      unread: true,
-    });
+    notificationSoundService.play('order');
     applyOrderRealtimeUpdate(payload);
     refreshDashboard();
-  }, [applyOrderRealtimeUpdate, pushRealtimeNotification, refreshDashboard]);
+  }, [applyOrderRealtimeUpdate, refreshDashboard]);
 
   const onRealtimeOrderStatus = useCallback((payload) => {
     const statusLabel = normalizeStatusLabel(payload?.status || 'updated');
     toast.info(`Order #${payload?.orderNumber || '--'} is now ${statusLabel}`);
-    notificationSoundService.play('notification'); // Play notification sound
-    pushRealtimeNotification({
-      id: `rt-order-status-${payload?.orderId || payload?.orderNumber || Date.now()}-${payload?.updatedAt || Date.now()}`,
-      title: `Order #${payload?.orderNumber || '--'} is ${statusLabel}`,
-      subtitle: payload?.updatedBy ? `Updated by ${payload.updatedBy}` : 'Status changed in real time',
-      time: payload?.updatedAt || new Date().toISOString(),
-      category: 'status',
-      unread: true,
-    });
+    notificationSoundService.play('notification');
     applyOrderRealtimeUpdate(payload);
-  }, [applyOrderRealtimeUpdate, pushRealtimeNotification]);
+  }, [applyOrderRealtimeUpdate]);
 
   const onRealtimePayment = useCallback((payload) => {
     toast.success(`Payment confirmed • ${payload?.transactionId || 'success'}`);
-    notificationSoundService.play('notification'); // Play notification sound
-    pushRealtimeNotification({
-      id: `rt-payment-${payload?.transactionId || Date.now()}`,
-      title: 'Payment confirmed',
-      subtitle: payload?.amount ? `${formatMoney(payload.amount)} received` : 'Your payment was successful',
-      time: new Date().toISOString(),
-      category: 'payment',
-      unread: true,
-    });
+    notificationSoundService.play('notification');
     refreshDashboard();
-  }, [pushRealtimeNotification, refreshDashboard]);
+  }, [refreshDashboard]);
 
   const onRealtimeBillReceived = useCallback((payload) => {
     const orderNum = payload?.orderNumber || '--';
@@ -348,17 +238,9 @@ const DashboardView = () => {
     toast.info(`📄 Bill received for Order #${orderNum}`, {
       autoClose: 5000,
     });
-    notificationSoundService.play('notification'); // Play notification sound
-    pushRealtimeNotification({
-      id: `rt-bill-${payload?.orderId || Date.now()}`,
-      title: `Bill Ready - Order #${orderNum}`,
-      subtitle: `Total: Rs. ${total.toLocaleString()} • Please make payment`,
-      time: new Date().toISOString(),
-      category: 'billing',
-      unread: true,
-    });
+    notificationSoundService.play('notification');
     refreshDashboard();
-  }, [pushRealtimeNotification, refreshDashboard]);
+  }, [refreshDashboard]);
 
   useEffect(() => {
     if (!subscribe || !isConnected) return;
@@ -376,561 +258,420 @@ const DashboardView = () => {
     };
   }, [subscribe, isConnected, onRealtimeOrderPlaced, onRealtimeOrderStatus, onRealtimePayment, onRealtimeBillReceived]);
 
-  useEffect(() => {
-    if (!showNotifications) return;
-
-    const handleOutsideClick = (event) => {
-      if (isMobile) return;
-      if (notificationsPanelRef.current && !notificationsPanelRef.current.contains(event.target)) {
-        setShowNotifications(false);
-      }
-    };
-
-    const handleEscape = (event) => {
-      if (event.key === 'Escape') {
-        setShowNotifications(false);
-      }
-    };
-
-    window.addEventListener('mousedown', handleOutsideClick);
-    window.addEventListener('keydown', handleEscape);
-    return () => {
-      window.removeEventListener('mousedown', handleOutsideClick);
-      window.removeEventListener('keydown', handleEscape);
-    };
-  }, [showNotifications, isMobile]);
-
   const overview = dashboardData.overview || {};
   const activeBooking = overview.activeBooking;
   const upcomingBookings = overview.upcomingBookings || [];
   const orders = dashboardData.orders;
   const invoices = dashboardData.invoices;
-  const requests = dashboardData.requests;
 
   const activeOrders = useMemo(
     () => orders.filter((order) => !['delivered', 'cancelled'].includes(order.status)).slice(0, 5),
     [orders]
   );
 
-  const notifications = useMemo(() => {
-    const liveNotifications = realtimeNotifications.map((item) => ({
-      id: item.id,
-      title: item.title,
-      subtitle: item.subtitle,
-      time: item.time,
-      unread: item.unread,
-      category: item.category,
-      source: 'live',
-    }));
-
-    const orderNotifications = orders.slice(0, 3).map((order) => ({
-      id: `order-${order._id}`,
-      title: `Order #${order.orderNumber} is ${normalizeStatusLabel(order.status)}`,
-      subtitle: `${order.items?.length || 0} item${(order.items?.length || 0) === 1 ? '' : 's'} • ${formatMoney(order.totalPrice)}`,
-      time: order.updatedAt || order.createdAt,
-      unread: ['pending', 'confirmed', 'preparing', 'ready'].includes(order.status),
-      category: 'order',
-      source: 'snapshot',
-    }));
-
-    const requestNotifications = requests.slice(0, 2).map((request) => ({
-      id: `request-${request._id}`,
-      title: `${request.category} request is ${normalizeStatusLabel(request.status)}`,
-      subtitle: request.description || 'Guest request update',
-      time: request.updatedAt || request.createdAt,
-      unread: request.status !== 'resolved',
-      category: 'request',
-      source: 'snapshot',
-    }));
-
-    const merged = [...liveNotifications, ...orderNotifications, ...requestNotifications]
-      .sort((a, b) => new Date(b.time || 0).getTime() - new Date(a.time || 0).getTime())
-      .reduce((acc, item) => {
-        if (!acc.some((existing) => existing.id === item.id)) {
-          acc.push(item);
-        }
-        return acc;
-      }, []);
-
-    return merged.slice(0, 8);
-  }, [orders, realtimeNotifications, requests]);
-
-  const unreadNotifications = notifications.filter((item) => item.unread).length;
-
-  const stayCountdownText = activeBooking?.nightsLeft
-    ? `Check-out in ${activeBooking.nightsLeft} day${activeBooking.nightsLeft > 1 ? 's' : ''}`
-    : 'No active booking';
-
-  const quickActions = [
-    { label: 'Order Food', icon: UtensilsCrossed, onClick: () => navigate('/guest-dashboard/room-service') },
-    { label: 'View Menu', icon: Coffee, onClick: () => navigate('/guest-dashboard/room-service') },
-    { label: 'Billing', icon: CreditCard, onClick: () => navigate('/guest-dashboard/billing') },
-    { label: 'My Bookings', icon: CalendarDays, onClick: () => navigate('/guest-dashboard/bookings') },
-  ];
-
-  const serviceTiles = [
-    { label: 'Menu', icon: UtensilsCrossed, action: () => navigate('/guest-dashboard/room-service') },
-    { label: 'Housekeeping', icon: Sparkles, action: () => navigate('/guest-dashboard/requests') },
-    { label: 'Valet Parking', icon: ConciergeBell, action: () => navigate('/guest-dashboard/requests') },
-    { label: 'Spa Booking', icon: Waves, action: () => navigate('/guest-dashboard/bookings') },
-    { label: 'Pool & Gym', icon: Coffee, action: () => navigate('/guest-dashboard/bookings') },
-    { label: 'Concierge', icon: Phone, action: () => navigate('/guest-dashboard/requests') },
-  ];
+  const nightsLeft = activeBooking?.nightsLeft || 0;
+  const isUrgent = nightsLeft <= 1;
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: BRAND.background }}>
-        <Loader2 className="w-10 h-10 animate-spin" style={{ color: BRAND.primary }} />
+      <div className={styles.loading}>
+        <Loader2 className={styles.loadingSpinner} />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen pb-24 md:pb-8" style={{ background: BRAND.background }}>
-      <div className="max-w-7xl mx-auto px-4 md:px-6 py-5 md:py-8 space-y-6">
-        <section
-          className="rounded-2xl p-5 md:p-7 text-white shadow-lg relative overflow-hidden"
-          style={{
-            background: 'linear-gradient(135deg, #00BFA6, #00E5CC)',
-          }}
-        >
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold drop-shadow-sm">
-                Welcome back, {activeBooking?.hotel?.name || 'Guest'} 👋
-              </h1>
-              <p className="text-sm md:text-base text-white/90 mt-1">
-                Enjoy your stay • Room {activeBooking?.room?.roomNumber || '--'} • {stayCountdownText}
-              </p>
-            </div>
+    <div className={styles.container}>
+      <div className={styles.content}>
+        {/* SECTION 1 — HERO WELCOME CARD */}
+        <section className={styles.heroCard}>
+          <div className={styles.heroContent}>
+            <div className={styles.heroTop}>
+              <div>
+                <p className={styles.heroGreeting}>Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'},</p>
+                <h1 className={styles.heroName}>{activeBooking?.hotel?.name || 'Guest'}</h1>
+                <p className={styles.heroStayInfo}>
+                  Room {activeBooking?.room?.roomNumber || '--'} • {nightsLeft > 0 ? `Check-out in ${nightsLeft} day${nightsLeft > 1 ? 's' : ''}` : 'No active booking'}
+                  {isUrgent && nightsLeft > 0 && (
+                    <span className={styles.countdownPill}>
+                      ⚠ {nightsLeft} day left
+                    </span>
+                  )}
+                </p>
+              </div>
 
-            <div className="relative hidden md:block">
+              {/* Refresh Button */}
               <button
                 type="button"
-                onClick={() => setShowNotifications((prev) => !prev)}
-                className="h-11 w-11 rounded-full bg-white/20 backdrop-blur-md border border-white/40 flex items-center justify-center hover:bg-white/30 transition"
+                onClick={refreshDashboard}
+                disabled={refreshing}
+                title={`Last updated ${Math.floor((now - Date.now()) / 60000) === 0 ? 'just now' : `${Math.floor((Date.now() - now) / 60000)} min ago`}`}
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '50%',
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  backdropFilter: 'blur(8px)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  display: 'grid',
+                  placeItems: 'center',
+                  cursor: refreshing ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s ease',
+                  flexShrink: 0,
+                }}
+                onMouseEnter={(e) => {
+                  if (!refreshing) {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+                }}
               >
-                <Bell size={19} />
+                <RefreshCw
+                  size={18}
+                  color="white"
+                  style={{
+                    animation: refreshing ? 'spin 1s linear infinite' : 'none',
+                  }}
+                />
               </button>
-              {unreadNotifications > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-5 h-5 rounded-full px-1 text-[11px] bg-rose-500 text-white flex items-center justify-center">
-                  {unreadNotifications}
-                </span>
-              )}
-
-              {showNotifications && (
-                <div
-                  ref={notificationsPanelRef}
-                  className={`absolute right-0 top-14 w-92 max-h-112 overflow-hidden rounded-2xl shadow-2xl z-30 border backdrop-blur-sm ${isDark ? 'bg-slate-900/95 text-slate-200 border-slate-700' : 'bg-white/95 text-slate-700 border-slate-200'}`}
-                >
-                  <div className={`px-4 py-3 border-b flex items-center justify-between ${isDark ? 'border-slate-700 bg-slate-800/60' : 'border-slate-200 bg-linear-to-r from-teal-50 to-cyan-50'}`}>
-                    <div>
-                      <p className="font-semibold text-sm">Notifications</p>
-                      <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                        {unreadNotifications} unread • live updates enabled
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setRealtimeNotifications((prev) => prev.map((item) => ({ ...item, unread: false })));
-                      }}
-                      className="text-xs text-teal-600 font-medium"
-                    >
-                      Mark all
-                    </button>
-                  </div>
-                  <div className="max-h-88 overflow-y-auto">
-                    {notifications.length === 0 ? (
-                      <p className={`px-4 py-8 text-sm text-center ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>No notifications yet.</p>
-                    ) : (
-                      notifications.map((item) => (
-                        <div
-                          key={item.id}
-                          className={`px-4 py-3 border-b transition flex items-start gap-3 ${isDark ? 'border-slate-800 hover:bg-slate-800/60' : 'border-slate-100 hover:bg-slate-50'}`}
-                        >
-                          <div className="pt-0.5">
-                            {item.unread ? <span className="w-2.5 h-2.5 rounded-full bg-teal-500 block shadow" /> : <span className="w-2.5 h-2.5 rounded-full bg-slate-300/40 block" />}
-                          </div>
-
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-start justify-between gap-2">
-                              <p className={`text-sm leading-5 ${item.unread ? 'font-semibold' : 'font-medium'}`}>{item.title}</p>
-                              <span className={`text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full shrink-0 ${isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-500'}`}>
-                                {item.category || 'update'}
-                              </span>
-                            </div>
-
-                            {item.subtitle && (
-                              <p className={`text-xs mt-0.5 line-clamp-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                                {item.subtitle}
-                              </p>
-                            )}
-
-                            <p className={`text-[11px] mt-1.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
-                              {formatRelativeTime(item.time)} • {formatDateTime(item.time)}
-                            </p>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
-          </div>
 
-          <div className="grid grid-cols-3 md:grid-cols-4 gap-3 mt-6">
-            <GlassInfo title="Check-in" value={formatDate(activeBooking?.checkIn)} />
-            <GlassInfo title="Check-out" value={formatDate(activeBooking?.checkOut)} />
-            <GlassInfo title="Nights" value={String(activeBooking?.nightsLeft || 0)} />
+            <div className={styles.dateCardsRow}>
+              <div className={styles.dateCard}>
+                <p className={styles.dateLabel}>Check-in</p>
+                <p className={styles.dateValue}>{formatDate(activeBooking?.checkIn)}</p>
+              </div>
+              <div className={styles.dateCard}>
+                <p className={styles.dateLabel}>Check-out</p>
+                <p className={styles.dateValue}>{formatDate(activeBooking?.checkOut)}</p>
+              </div>
+              <div className={styles.dateCard}>
+                <p className={styles.dateLabel}>Nights</p>
+                <p className={styles.dateValue}>{nightsLeft || 0}</p>
+              </div>
+            </div>
+
             <button
               type="button"
               onClick={() => setShowExtendModal(true)}
-              className="rounded-xl bg-white text-teal-700 font-semibold text-sm h-21 hover:bg-teal-50 transition border border-white/50"
+              className={`${styles.extendButton} ${isUrgent ? styles.urgent : ''}`}
             >
               Extend Stay
             </button>
           </div>
         </section>
 
-        <div className="space-y-4 md:space-y-6">
-          {/* 2. Active Orders (mobile priority) */}
-          <SectionCard
-            title="Active Orders"
-            brand={BRAND}
-            rightAction={
-              <button
-                type="button"
-                className="text-sm text-teal-600 font-medium hover:underline"
-                onClick={() => navigate('/guest-dashboard/room-service')}
-              >
-                View All
-              </button>
-            }
-          >
-            {activeOrders.length === 0 ? (
-              <EmptyState text="No active orders right now." brand={BRAND} />
-            ) : (
-              <div className="space-y-3">
-                {activeOrders.map((order) => {
-                  const status = order.status?.toLowerCase();
-                  const progress = getOrderProgress(status);
-                  const updatedAgoText = formatUpdatedTimeAgo(order.updatedAt || order.createdAt, now);
-                  return (
-                    <div
-                      key={order._id}
-                      className="rounded-xl border p-4"
-                      style={{ borderColor: BRAND.border, background: BRAND.card }}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="font-semibold text-sm" style={{ color: BRAND.textPrimary }}>
-                            Order #{order.orderNumber} • {formatMoney(order.totalPrice)}
-                          </p>
-                          <p className="text-xs mt-1" style={{ color: BRAND.textSecondary }}>
-                            {order.orderType === 'roomService' ? 'Room Service' : order.orderType} • {order.items?.length || 0} items
-                          </p>
-                        </div>
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold capitalize ${statusStyles[status] || 'bg-slate-100 text-slate-600'}`}>
-                          {status}
-                        </span>
-                      </div>
-
-                      {(status === 'preparing' || status === 'confirmed' || status === 'pending') && (
-                        <div className="mt-3">
-                          <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-                            <div
-                              className="h-full rounded-full transition-all duration-500"
-                              style={{ width: `${progress}%`, background: 'linear-gradient(90deg,#00BFA6,#00E5CC)' }}
-                            />
-                          </div>
-                          <p className={`text-xs mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{updatedAgoText}</p>
-                        </div>
-                      )}
-
-                      <div className="mt-3 flex items-center gap-4 text-xs">
-                        <button
-                          type="button"
-                          className="text-teal-600 font-semibold hover:underline"
-                          onClick={() => navigate('/guest-dashboard/room-service')}
-                        >
-                          Track Order
-                        </button>
-                        {(status === 'pending' || status === 'confirmed') && (
-                          <button
-                            type="button"
-                            className="text-rose-600 font-semibold hover:underline"
-                            onClick={() => {
-                              setSelectedOrder(order);
-                              setShowCancelModal(true);
-                            }}
-                          >
-                            Cancel Order
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </SectionCard>
-
-          {/* 3. Quick Actions */}
-          <SectionCard title="Quick Actions" brand={BRAND}>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-              {quickActions.map((action) => (
-                <QuickActionCard
-                  key={action.label}
-                  label={action.label}
-                  icon={action.icon}
-                  brand={BRAND}
-                  onClick={action.onClick}
-                />
-              ))}
-            </div>
-          </SectionCard>
-
-          {/* 4. Stats Cards (mobile swipe) */}
-          <section className="md:grid md:grid-cols-3 md:gap-4">
-            <div className="flex md:grid overflow-x-auto md:overflow-visible gap-3 md:gap-4 pb-1 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide snap-x snap-mandatory">
-              <div className="min-w-40 md:min-w-0 snap-start">
-                <StatsCard
-                  icon={UtensilsCrossed}
-                  title="Menu Orders"
-                  value={overview.pendingOrdersCount || 0}
-                  subtitle="Pending"
-                  tone="text-teal-600"
-                  cta="View All"
-                  brand={BRAND}
-                  onClick={() => navigate('/guest-dashboard/room-service')}
-                />
-              </div>
-              <div className="min-w-40 md:min-w-0 snap-start">
-                <StatsCard
-                  icon={CalendarDays}
-                  title="My Bookings"
-                  value={upcomingBookings.length}
-                  subtitle="Upcoming"
-                  tone="text-blue-600"
-                  cta="Manage"
-                  brand={BRAND}
-                  onClick={() => navigate('/guest-dashboard/bookings')}
-                />
-              </div>
-              <div className="min-w-40 md:min-w-0 snap-start">
-                <StatsCard
-                  icon={Clock3}
-                  title="Total Stays"
-                  value={overview.pastBookingsCount || 0}
-                  subtitle="Completed"
-                  tone="text-violet-600"
-                  cta="History"
-                  brand={BRAND}
-                  onClick={() => navigate('/guest-dashboard/bookings')}
-                />
+        {/* SECTION 2 — STAT CARDS ROW */}
+        <div className={styles.statsGrid}>
+          <div className={styles.statCard} onClick={() => navigate('/guest-dashboard/room-service')}>
+            <div className={styles.statTop}>
+              <span className={styles.statLabel}>Menu Orders</span>
+              <div className={`${styles.statIcon} ${styles.teal}`}>
+                <UtensilsCrossed size={16} />
               </div>
             </div>
-          </section>
+            <p className={`${styles.statNumber} ${styles.teal}`}>{overview.pendingOrdersCount || 0}</p>
+            <p className={styles.statSubtitle}>Pending</p>
+            <span className={styles.statLink}>
+              View All →
+            </span>
+          </div>
 
-          {/* 5. Upcoming Reservations (mobile swipe) */}
-          <SectionCard title="Upcoming Reservations" brand={BRAND}>
-            {upcomingBookings.length === 0 ? (
-              <EmptyState text="No upcoming reservations." brand={BRAND} />
-            ) : (
-              <div className="flex overflow-x-auto gap-3 -mx-4 px-4 md:mx-0 md:px-0 pb-1 scrollbar-hide snap-x snap-mandatory">
-                {upcomingBookings.map((booking) => (
-                  <div
-                    key={booking._id}
-                    className="min-w-65 md:min-w-0 snap-start rounded-xl border p-3"
-                    style={{ borderColor: BRAND.border, background: BRAND.card }}
-                  >
-                    <p className="text-sm font-semibold" style={{ color: BRAND.textPrimary }}>
-                      {booking.hotel?.name || 'Reservation'}
-                    </p>
-                    <p className="text-xs mt-1" style={{ color: BRAND.textSecondary }}>
-                      {formatDate(booking.checkIn)} → {formatDate(booking.checkOut)} • Room {booking.room?.roomNumber || '--'}
-                    </p>
-                    <div className="flex gap-3 mt-2 text-xs text-teal-600 font-medium">
-                      <button type="button" onClick={() => navigate('/guest-dashboard/bookings')} className="hover:underline">View</button>
-                      <button type="button" onClick={() => navigate('/guest-dashboard/bookings')} className="hover:underline">Modify</button>
-                    </div>
-                  </div>
-                ))}
+          <div className={styles.statCard} onClick={() => navigate('/guest-dashboard/bookings')}>
+            <div className={styles.statTop}>
+              <span className={styles.statLabel}>My Bookings</span>
+              <div className={`${styles.statIcon} ${styles.purple}`}>
+                <CalendarDays size={16} />
               </div>
-            )}
-          </SectionCard>
+            </div>
+            <p className={`${styles.statNumber} ${styles.purple}`}>{upcomingBookings.length}</p>
+            <p className={styles.statSubtitle}>Upcoming</p>
+            <span className={styles.statLink}>
+              Manage →
+            </span>
+          </div>
 
-          {/* 6. Billing (mobile header tap) */}
-          <div
-            className="rounded-2xl p-4 md:p-5 border shadow-sm"
-            style={{
-              background: BRAND.card,
-              borderColor: BRAND.border,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-            }}
-          >
+          <div className={styles.statCard} onClick={() => navigate('/guest-dashboard/bookings')}>
+            <div className={styles.statTop}>
+              <span className={styles.statLabel}>Total Stays</span>
+              <div className={`${styles.statIcon} ${styles.blue}`}>
+                <Clock size={16} />
+              </div>
+            </div>
+            <p className={`${styles.statNumber} ${styles.blue}`}>{overview.pastBookingsCount || 0}</p>
+            <p className={styles.statSubtitle}>Completed</p>
+            <span className={styles.statLink}>
+              History →
+            </span>
+          </div>
+        </div>
+
+        {/* SECTION 3 — QUICK ACTIONS */}
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>Quick Actions</h2>
+          <div className={styles.quickActionsGrid}>
+            <div className={styles.actionCard} onClick={() => navigate('/guest-dashboard/room-service')}>
+              <div className={`${styles.actionIcon} ${styles.teal}`}>
+                <UtensilsCrossed size={24} />
+              </div>
+              <p className={styles.actionLabel}>Order Food</p>
+            </div>
+
+            <div className={styles.actionCard} onClick={() => navigate('/guest-dashboard/room-service')}>
+              <div className={`${styles.actionIcon} ${styles.orange}`}>
+                <BookOpen size={24} />
+              </div>
+              <p className={styles.actionLabel}>View Menu</p>
+            </div>
+
+            <div className={styles.actionCard} onClick={() => navigate('/guest-dashboard/billing')}>
+              <div className={`${styles.actionIcon} ${styles.green}`}>
+                <CreditCard size={24} />
+              </div>
+              <p className={styles.actionLabel}>Billing</p>
+            </div>
+
+            <div className={styles.actionCard} onClick={() => navigate('/guest-dashboard/bookings')}>
+              <div className={`${styles.actionIcon} ${styles.purple}`}>
+                <CalendarDays size={24} />
+              </div>
+              <p className={styles.actionLabel}>My Bookings</p>
+            </div>
+          </div>
+        </section>
+
+        {/* SECTION 4 — ACTIVE ORDERS */}
+        <section className={`${styles.card} ${styles.section}`}>
+          <div className={styles.cardHeader}>
+            <h2 className={styles.cardTitle}>Active Orders</h2>
             <button
               type="button"
-              onClick={() => setBillingExpanded((prev) => !prev)}
-              className="w-full flex items-center justify-between gap-2 mb-4 select-none"
+              className={styles.viewAllLink}
+              onClick={() => navigate('/guest-dashboard/room-service')}
             >
-              <div className="text-left">
-                <h2 className="text-lg font-semibold" style={{ color: BRAND.textPrimary }}>Your Bill</h2>
-                <p className="text-xs mt-0.5" style={{ color: BRAND.textSecondary }}>
-                  Tap to {billingExpanded ? 'collapse' : 'expand'}
-                </p>
-              </div>
-              <span className="text-sm text-teal-600 font-semibold">{billingExpanded ? '▾' : '▸'}</span>
+              View All
             </button>
-
-            <p className="text-2xl font-bold mb-3" style={{ color: BRAND.textPrimary }}>
-              {formatMoney(dashboardData.outstandingBalance)}
-            </p>
-            {billingExpanded && (
-              <div className="space-y-2 text-sm">
-                {invoices.length === 0 ? (
-                  <EmptyState text="No invoice data available." compact brand={BRAND} />
-                ) : (
-                  invoices.slice(0, 3).map((invoice) => (
-                    <div key={invoice._id} className="flex items-center justify-between" style={{ color: BRAND.textSecondary }}>
-                      <span>{invoice.invoiceId || 'Invoice'}</span>
-                      <span>{formatMoney(invoice.balance || invoice.paid || 0)}</span>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-            <div className="grid grid-cols-2 gap-2 mt-4">
-              <button
-                type="button"
-                className="h-10 rounded-lg border text-sm font-semibold"
-                style={{ borderColor: BRAND.border, color: BRAND.primaryDark }}
-                onClick={() => navigate('/guest-dashboard/billing')}
-              >
-                View Bill
-              </button>
-              <button
-                type="button"
-                className="h-10 rounded-lg text-sm font-semibold text-white"
-                style={{ background: BRAND.primary }}
-                onClick={() => navigate('/guest-dashboard/billing')}
-              >
-                Pay Now
-              </button>
-            </div>
           </div>
 
-          {/* 7. Help (hide directory list on mobile) */}
-          <SectionCard title="Need Help?" brand={BRAND}>
-            <div className="hidden md:block space-y-2 text-sm" style={{ color: BRAND.textSecondary }}>
-              <p>📞 Front Desk: Ext 0</p>
-              <p>🍽️ Room Service: Ext 5</p>
-              <p>🔧 Maintenance: Ext 8</p>
-              <p>🚨 Emergency: Ext 9</p>
-            </div>
-            <div className="grid grid-cols-2 gap-2 mt-1 md:mt-4">
+          {activeOrders.length === 0 ? (
+            <div className={styles.emptyState}>
+              <ShoppingBag className={styles.emptyIcon} />
+              <p className={styles.emptyTitle}>No active orders</p>
+              <p className={styles.emptySubtitle}>Order food or request services below</p>
               <button
                 type="button"
-                className="h-10 rounded-lg border text-sm font-semibold"
-                style={{ borderColor: BRAND.border, color: BRAND.primaryDark }}
-                onClick={() => navigate('/guest-dashboard/requests')}
+                className={styles.emptyButton}
+                onClick={() => navigate('/guest-dashboard/room-service')}
               >
-                Front Desk
-              </button>
-              <button
-                type="button"
-                className="h-10 rounded-lg text-sm font-semibold text-white"
-                style={{ background: BRAND.primary }}
-                onClick={() => navigate('/guest-dashboard/requests')}
-              >
-                Live Chat
+                Order Food
               </button>
             </div>
-          </SectionCard>
-        </div>
-
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={refreshDashboard}
-            disabled={refreshing}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-semibold disabled:opacity-60"
-            style={{ borderColor: BRAND.border, color: BRAND.primaryDark, background: BRAND.card }}
-          >
-            {refreshing ? <Loader2 size={16} className="animate-spin" /> : <ReceiptText size={16} />}
-            Refresh dashboard
-          </button>
-        </div>
-      </div>
-
-      {/* Mobile Notifications Sheet */}
-      <button
-        type="button"
-        aria-label="Close notifications"
-        onClick={() => setShowNotifications(false)}
-        className={`md:hidden fixed inset-0 bg-black/40 backdrop-blur-[2px] z-499 transition-opacity ${
-          showNotifications ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-        }`}
-      />
-      <div
-        className={`md:hidden fixed bottom-0 left-0 right-0 h-[80vh] bg-white dark:bg-slate-900 rounded-t-3xl z-500 transition-transform duration-300 ${
-          showNotifications ? 'translate-y-0' : 'translate-y-full'
-        }`}
-        role="dialog"
-        aria-modal="true"
-      >
-        <div className="py-3">
-          <div className="w-9 h-1 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto" />
-        </div>
-        <div className="px-4 flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
-          <div>
-            <p className="font-semibold text-sm text-slate-900 dark:text-white">Notifications</p>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">{unreadNotifications} unread • live updates enabled</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              setRealtimeNotifications((prev) => prev.map((item) => ({ ...item, unread: false })));
-            }}
-            className="text-sm text-teal-600 font-semibold"
-          >
-            Mark all
-          </button>
-        </div>
-        <div className="h-[calc(80vh-72px)] overflow-y-auto px-4 py-3 pb-24">
-          {notifications.length === 0 ? (
-            <p className="px-2 py-8 text-sm text-center text-slate-500 dark:text-slate-400">No notifications yet.</p>
           ) : (
-            <div className="space-y-2">
-              {notifications.map((item) => (
-                <div
-                  key={item.id}
-                  className={`rounded-2xl border p-4 ${item.unread ? 'bg-teal-50/60 dark:bg-teal-900/10' : 'bg-white dark:bg-slate-900'}`}
-                  style={{ borderColor: BRAND.border }}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <p className={`text-sm leading-5 ${item.unread ? 'font-semibold' : 'font-medium'}`} style={{ color: BRAND.textPrimary }}>
-                      {item.title}
-                    </p>
-                    <span className={`text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full shrink-0 ${isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-500'}`}>
-                      {item.category || 'update'}
-                    </span>
+            <div className={styles.ordersList}>
+              {activeOrders.map((order) => {
+                const status = order.status?.toLowerCase();
+                const statusStyle = statusStyles[status] || { bg: '#f1f5f9', color: '#64748b' };
+                return (
+                  <div key={order._id} className={styles.orderCard}>
+                    <div className={styles.orderTop}>
+                      <div className={styles.orderInfo}>
+                        <p className={styles.orderTitle}>
+                          Order #{order.orderNumber} • {formatMoney(order.totalPrice)}
+                        </p>
+                        <p className={styles.orderMeta}>
+                          {order.orderType === 'roomService' ? 'Room Service' : order.orderType} • {order.items?.length || 0} items
+                        </p>
+                      </div>
+                      <span
+                        className={styles.statusBadge}
+                        style={{ background: statusStyle.bg, color: statusStyle.color }}
+                      >
+                        {status}
+                      </span>
+                    </div>
+
+                    <div className={styles.orderActions}>
+                      <button
+                        type="button"
+                        className={`${styles.orderActionBtn} ${styles.primary}`}
+                        onClick={() => navigate('/guest-dashboard/room-service')}
+                      >
+                        Track Order
+                      </button>
+                      {(status === 'pending' || status === 'confirmed') && (
+                        <button
+                          type="button"
+                          className={`${styles.orderActionBtn} ${styles.danger}`}
+                          onClick={() => {
+                            setSelectedOrder(order);
+                            setShowCancelModal(true);
+                          }}
+                        >
+                          Cancel Order
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  {item.subtitle && (
-                    <p className="text-xs mt-1 line-clamp-2" style={{ color: BRAND.textSecondary }}>
-                      {item.subtitle}
-                    </p>
-                  )}
-                  <p className="text-[11px] mt-2" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>
-                    {formatRelativeTime(item.time)} • {formatDateTime(item.time)}
-                  </p>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        {/* SECTION 5 — YOUR BILL */}
+        <section className={`${styles.billCard} ${styles.section}`}>
+          <div className={styles.billHeader} onClick={() => setBillingExpanded((prev) => !prev)}>
+            <div className={styles.billHeaderLeft}>
+              <h2 className={styles.billTitle}>Your Bill</h2>
+              <p className={styles.billSubtitle}>Tap to {billingExpanded ? 'collapse' : 'expand'}</p>
+            </div>
+            <span className={`${styles.billChevron} ${billingExpanded ? styles.expanded : ''}`}>▾</span>
+          </div>
+
+          <p className={styles.billAmount}>{formatMoney(dashboardData.outstandingBalance)}</p>
+
+          {billingExpanded && (
+            <div className={styles.billItems}>
+              {invoices.length === 0 ? (
+                <p className={styles.billItem}>No invoice data available.</p>
+              ) : (
+                invoices.slice(0, 3).map((invoice) => (
+                  <div key={invoice._id} className={styles.billItem}>
+                    <span>{invoice.invoiceId || 'Invoice'}</span>
+                    <span>{formatMoney(invoice.balance || invoice.paid || 0)}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          <div className={styles.billButtons}>
+            <button
+              type="button"
+              className={`${styles.billButton} ${styles.outline}`}
+              onClick={() => navigate('/guest-dashboard/billing')}
+            >
+              View Bill
+            </button>
+            <button
+              type="button"
+              className={`${styles.billButton} ${styles.primary}`}
+              onClick={() => navigate('/guest-dashboard/billing')}
+            >
+              Pay Now
+            </button>
+          </div>
+        </section>
+
+        {/* SECTION 6 — UPCOMING RESERVATIONS */}
+        <section className={`${styles.card} ${styles.section}`}>
+          <div className={styles.cardHeader}>
+            <h2 className={styles.cardTitle}>Upcoming Reservations</h2>
+          </div>
+
+          {upcomingBookings.length === 0 ? (
+            <div className={styles.emptyState}>
+              <CalendarDays className={styles.emptyIcon} />
+              <p className={styles.emptyTitle}>No upcoming reservations</p>
+            </div>
+          ) : (
+            <div className={styles.reservationsList}>
+              {upcomingBookings.map((booking) => (
+                <div key={booking._id} className={styles.reservationCard}>
+                  <p className={styles.reservationName}>{booking.hotel?.name || 'Reservation'}</p>
+                  <div className={styles.reservationDates}>
+                    <span>{formatDate(booking.checkIn)} → {formatDate(booking.checkOut)}</span>
+                    <span className={styles.roomBadge}>Room {booking.room?.roomNumber || 'TBA'}</span>
+                  </div>
+                  <div className={styles.reservationActions}>
+                    <button
+                      type="button"
+                      className={`${styles.reservationBtn} ${styles.primary}`}
+                      onClick={() => navigate('/guest-dashboard/bookings')}
+                    >
+                      View
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.reservationBtn} ${styles.secondary}`}
+                      onClick={() => navigate('/guest-dashboard/bookings')}
+                    >
+                      Modify
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
           )}
-        </div>
+        </section>
+
+        {/* SECTION 7 — NEED HELP */}
+        <section className={`${styles.card} ${styles.section}`}>
+          <div className={styles.cardHeader}>
+            <h2 className={styles.cardTitle}>Need Help?</h2>
+          </div>
+
+          <div className={styles.helpList}>
+            <div className={styles.helpItem}>
+              <div className={`${styles.helpIcon} ${styles.teal}`}>
+                <Phone size={16} />
+              </div>
+              <div className={styles.helpInfo}>
+                <p className={styles.helpLabel}>Front Desk</p>
+                <p className={styles.helpExt}>Ext 0</p>
+              </div>
+            </div>
+
+            <div className={styles.helpItem}>
+              <div className={`${styles.helpIcon} ${styles.orange}`}>
+                <UtensilsCrossed size={16} />
+              </div>
+              <div className={styles.helpInfo}>
+                <p className={styles.helpLabel}>Room Service</p>
+                <p className={styles.helpExt}>Ext 5</p>
+              </div>
+            </div>
+
+            <div className={styles.helpItem}>
+              <div className={`${styles.helpIcon} ${styles.blue}`}>
+                <Wrench size={16} />
+              </div>
+              <div className={styles.helpInfo}>
+                <p className={styles.helpLabel}>Maintenance</p>
+                <p className={styles.helpExt}>Ext 8</p>
+              </div>
+            </div>
+
+            <div className={styles.helpItem}>
+              <div className={`${styles.helpIcon} ${styles.red}`}>
+                <AlertTriangle size={16} />
+              </div>
+              <div className={styles.helpInfo}>
+                <p className={styles.helpLabel}>Emergency</p>
+                <p className={styles.helpExt}>Ext 9</p>
+              </div>
+            </div>
+          </div>
+
+          <div className={styles.helpButtons}>
+            <button
+              type="button"
+              className={`${styles.helpButton} ${styles.outline}`}
+              onClick={() => navigate('/guest-dashboard/requests')}
+            >
+              Front Desk
+            </button>
+            <button
+              type="button"
+              className={`${styles.helpButton} ${styles.primary}`}
+              onClick={() => navigate('/guest-dashboard/requests')}
+            >
+              Live Chat
+            </button>
+          </div>
+        </section>
       </div>
 
       {/* Extend Stay Modal */}
@@ -960,80 +701,5 @@ const DashboardView = () => {
     </div>
   );
 };
-
-const GlassInfo = ({ title, value }) => (
-  <div className="h-21 rounded-xl bg-white/15 border border-white/35 backdrop-blur-sm px-3 py-2.5">
-    <p className="text-xs text-white/80">{title}</p>
-    <p className="text-lg font-semibold mt-2">{value}</p>
-  </div>
-);
-
-const SectionCard = ({ title, rightAction, children, brand }) => (
-  <div
-    className="rounded-2xl p-4 md:p-5 border shadow-sm"
-    style={{
-      background: brand.card,
-      borderColor: brand.border,
-      boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-    }}
-  >
-    <div className="flex items-center justify-between gap-2 mb-4">
-      <h2 className="text-lg font-semibold" style={{ color: brand.textPrimary }}>{title}</h2>
-      {rightAction || null}
-    </div>
-    {children}
-  </div>
-);
-
-const StatsCard = ({ icon: Icon, title, value, subtitle, tone, cta, onClick, brand }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className="w-full text-left rounded-2xl border p-5 transition-all hover:-translate-y-1 md:hover:-translate-y-1"
-    style={{
-      background: brand.card,
-      borderColor: brand.border,
-      boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
-    }}
-  >
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-sm font-semibold" style={{ color: brand.textPrimary }}>{title}</p>
-        <p className="text-4xl font-bold mt-2" style={{ color: brand.primary }}>{value}</p>
-        <p className="text-sm mt-1" style={{ color: brand.textSecondary }}>{subtitle}</p>
-      </div>
-      <div className={`w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center ${tone}`}>
-        {React.createElement(Icon, { size: 22 })}
-      </div>
-    </div>
-    <span className="text-xs text-teal-600 font-semibold inline-flex items-center gap-1 mt-4">
-      {cta} <ChevronRight size={14} />
-    </span>
-  </button>
-);
-
-const QuickActionCard = ({ label, icon: Icon, onClick, brand }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className="h-30 md:h-35 rounded-2xl border p-3 md:p-4 flex flex-col items-center justify-center gap-3 transition-all group hover:-translate-y-1 hover:shadow-xl"
-    style={{
-      borderColor: brand.border,
-      background: brand.card,
-    }}
-  >
-    <div className="w-14 h-14 rounded-full bg-linear-to-br from-teal-500 to-cyan-400 text-white flex items-center justify-center group-hover:rotate-6 group-hover:scale-110 transition-all duration-300">
-      {React.createElement(Icon, { size: 24 })}
-    </div>
-    <p className="text-sm font-semibold text-center" style={{ color: brand.textPrimary }}>{label}</p>
-  </button>
-);
-
-const EmptyState = ({ text, compact = false, brand }) => (
-  <div className={`rounded-xl border border-dashed flex items-center gap-2 ${compact ? 'p-3' : 'p-4'}`} style={{ borderColor: brand.border }}>
-    <CircleAlert size={16} className="text-slate-400" />
-    <p className="text-sm" style={{ color: brand.textSecondary }}>{text}</p>
-  </div>
-);
 
 export default DashboardView;

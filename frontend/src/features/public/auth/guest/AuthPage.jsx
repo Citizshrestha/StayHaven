@@ -130,6 +130,7 @@ const AuthPage = () => {
           }
         }
 
+        // Redirect based on user role
         if (response.role === 'admin') {
           navigate('/dashboard');
         } else {
@@ -260,6 +261,7 @@ const AuthPage = () => {
             }
           }
 
+          // Redirect based on user role
           if (result.role === 'admin') {
             navigate('/dashboard');
           } else {

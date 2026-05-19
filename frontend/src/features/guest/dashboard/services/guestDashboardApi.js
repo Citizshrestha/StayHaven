@@ -1,89 +1,48 @@
 /**
- * Guest Dashboard API Service
- * Centralized API calls for authenticated guest portal
- * Exports are re-exported from this service for components to import
+ * @deprecated This module is a thin compatibility shim.
+ *
+ * The original implementation here duplicated the guest-portal API client and
+ * used a `guestToken` localStorage key that is never actually set anywhere in
+ * the codebase, which caused requests made through it to silently fall back to
+ * unauthenticated mode.
+ *
+ * All exports now forward to the canonical client at
+ *   `features/guest/dashboard/guestDashboardApi.js`
+ * which uses the shared `axiosClient` (correct `accessToken` auth, CSRF,
+ * token-refresh interceptors, and the proper `/api/v1/guest/portal` base path).
+ *
+ * 👉 New code should import directly from `../guestDashboardApi`.
+ *    This file can be deleted once any external/legacy importers are gone.
  */
 
-import axios from 'axios';
-import { setupCsrfInterceptor } from '../../../../utils/csrf';
-import { getApiUrl } from '../../../../utils/apiConfig';
+// Re-export everything from the canonical client. The named aliases below are
+// kept so the historical surface (`getBookings`, `getMenu`, `getOrders`, etc.)
+// stays compatible with anything that may still import from this path.
+export * from '../guestDashboardApi';
 
-const api = axios.create({
-  baseURL: getApiUrl(),
-  withCredentials: true,
-});
+import {
+  getGuestBookings,
+  getGuestMenu,
+  getGuestOrders,
+  getGuestInvoices,
+  getGuestRequests,
+  getUserProfile,
+  updateUserProfile,
+  getDashboardOverview,
+} from '../guestDashboardApi';
 
-// Add auth token to requests
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('guestToken');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-// Setup CSRF token interceptor
-setupCsrfInterceptor(api);
-
-// ────────────────────────────────
-// Dashboard Overview
-// ────────────────────────────────
-export const getDashboardOverview = () => api.get('/guest/portal/dashboard');
-export const getGuestDashboard = getDashboardOverview; // alias
-
-// ────────────────────────────────
-// Bookings
-// ────────────────────────────────
-export const getBookings = (params = {}) =>
-  api.get('/guest/portal/bookings', { params });
-export const getGuestBookings = getBookings; // alias
-export const modifyBooking = (bookingId, data) =>
-  api.patch(`/bookings/${bookingId}/modify`, data);
-export const cancelBooking = (bookingId, data) =>
-  api.post(`/bookings/${bookingId}/cancel`, data);
-export const requestRefund = (bookingId, data) =>
-  api.post(`/bookings/${bookingId}/refund`, data);
-
-// ────────────────────────────────
-// Menu & Orders
-// ────────────────────────────────
-export const getMenu = (params = {}) => api.get('/guest/portal/menu', { params });
-export const getGuestMenu = getMenu; // alias
-export const placeOrder = (data) => api.post('/guest/portal/order', data);
-export const getOrders = (params = {}) =>
-  api.get('/guest/portal/orders', { params });
-export const getGuestOrders = getOrders; // alias
-
-// ────────────────────────────────
-// Billing & Invoices
-// ────────────────────────────────
-export const getInvoices = (params = {}) =>
-  api.get('/guest/portal/invoices', { params });
-export const getGuestInvoices = getInvoices; // alias
-export const payForOrder = (orderId, data) =>
-  api.post(`/guest/portal/orders/${orderId}/pay`, data);
-export const payOrder = payForOrder; // alias
-export const confirmPayment = (paymentIntentId, orderId) =>
-  api.post('/guest/portal/payments/confirm', { paymentIntentId, orderId });
-
-// ────────────────────────────────
-// Requests (Service Requests)
-// ────────────────────────────────
-export const getRequests = (params = {}) =>
-  api.get('/guest/portal/requests', { params });
-export const getGuestRequests = getRequests; // alias
-export const submitRequest = (data) =>
-  api.post('/guest/portal/request', data);
-
-// ────────────────────────────────
-// Profile
-// ────────────────────────────────
-export const getProfile = () => api.get('/guest/portal/profile');
-export const getUserProfile = getProfile; // alias
-export const updateProfile = (data) =>
-  api.put('/guest/portal/profile', data);
-export const updateUserProfile = updateProfile; // alias
-
-// Re-export axios for any custom calls
-export { api };
-export default api;
+// ──────────────────────────────────────────────────────────────────────
+// Legacy aliases — kept for backwards compatibility only.
+// `export *` above already forwards every canonical name; the lines below
+// add the original non-prefixed names this shim used to expose.
+// ──────────────────────────────────────────────────────────────────────
+export const getGuestDashboard = getDashboardOverview;
+export const getBookings       = getGuestBookings;
+export const getMenu           = getGuestMenu;
+export const getOrders         = getGuestOrders;
+export const getInvoices       = getGuestInvoices;
+export const getRequests       = getGuestRequests;
+export const getProfile        = getUserProfile;
+export const updateProfile     = updateUserProfile;
+// `payForOrder` was the historical name for `payOrder`; re-export under both.
+export { payOrder as payForOrder } from '../guestDashboardApi';

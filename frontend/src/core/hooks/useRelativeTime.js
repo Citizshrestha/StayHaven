@@ -82,32 +82,33 @@ const useRelativeTime = (dateInput, autoUpdate = false) => {
       return `${diffHours}h ago`;
     }
     
-    // 1 day to 6 days
-    if (diffDays < 7) {
-      // Check if it was yesterday (for exact 24-48 hour range)
-      const yesterday = new Date(now);
-      yesterday.setDate(yesterday.getDate() - 1);
-      
-      if (target.getDate() === yesterday.getDate() && 
-          target.getMonth() === yesterday.getMonth() && 
-          target.getFullYear() === yesterday.getFullYear()) {
-        return 'Yesterday';
-      }
-      
-      return `${diffDays}d ago`;
-    }
-    
     // More than 7 days - show exact date with year
-    if (diffDays > 7) {
+    if (diffDays >= 7) {
       const day = target.getDate();
       const month = target.toLocaleString('en-US', { month: 'short' });
       const targetYear = target.getFullYear();
-      
+
       return `${day} ${month}, ${targetYear}`;
     }
-    
-    // 1 week (exactly 7 days)
-    return `${diffDays}d ago`;
+
+    // 1 day to 6 days - ensure integer display
+    if (diffDays >= 1) {
+      // Check if it was yesterday (for exact 24-48 hour range)
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+
+      if (target.getDate() === yesterday.getDate() &&
+          target.getMonth() === yesterday.getMonth() &&
+          target.getFullYear() === yesterday.getFullYear()) {
+        return 'Yesterday';
+      }
+
+      // Always use Math.floor to ensure whole numbers
+      return `${Math.floor(diffDays)}d ago`;
+    }
+
+    // Fallback - ensure integer
+    return `${Math.floor(diffDays)}d ago`;
   }, []);
 
   useEffect(() => {

@@ -140,7 +140,7 @@ export const OrderProvider = ({ children }) => {
     if (diffMins < 1) return "Just now";
     if (diffHours < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
-    return `${diffHours / 24}d ago`;
+    return `${Math.floor(diffHours / 24)}d ago`;
 
   };
 

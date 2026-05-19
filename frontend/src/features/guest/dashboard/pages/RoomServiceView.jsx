@@ -48,117 +48,10 @@ const DARK_BRAND = {
   border: '#1E293B',
 };
 
-// Sample menu items with placeholder images (these would come from API in production)
-const SAMPLE_MENU_ITEMS = [
-  {
-    _id: 'sample-1',
-    name: 'Margherita Pizza',
-    description: 'Classic pizza with fresh mozzarella, tomato sauce, and basil',
-    price: 450,
-    category: 'Pizza',
-    image: 'https://images.unsplash.com/photo-1604382355076-af4b0eb60143?w=400&h=300&fit=crop',
-    isPopular: true,
-  },
-  {
-    _id: 'sample-2',
-    name: 'Grilled Salmon',
-    description: 'Fresh Atlantic salmon with lemon butter sauce and seasonal vegetables',
-    price: 890,
-    category: 'Seafood',
-    image: 'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=400&h=300&fit=crop',
-    isPopular: true,
-  },
-  {
-    _id: 'sample-3',
-    name: 'Chicken Tikka Masala',
-    description: 'Tender chicken in creamy tomato curry served with basmati rice',
-    price: 520,
-    category: 'Main Course',
-    image: 'https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=400&h=300&fit=crop',
-    isPopular: true,
-  },
-  {
-    _id: 'sample-4',
-    name: 'Caesar Salad',
-    description: 'Crisp romaine lettuce with parmesan, croutons, and Caesar dressing',
-    price: 280,
-    category: 'Salads',
-    image: 'https://images.unsplash.com/photo-1546793665-c74683f339c1?w=400&h=300&fit=crop',
-    isPopular: false,
-  },
-  {
-    _id: 'sample-5',
-    name: 'Beef Burger Deluxe',
-    description: 'Juicy beef patty with cheese, bacon, lettuce, and special sauce',
-    price: 380,
-    category: 'Burgers',
-    image: 'https://images.unsplash.com/photo-1568901346375-23d925a3f0af?w=400&h=300&fit=crop',
-    isPopular: true,
-  },
-  {
-    _id: 'sample-6',
-    name: 'Pad Thai',
-    description: 'Stir-fried rice noodles with shrimp, tofu, peanuts, and lime',
-    price: 420,
-    category: 'Asian',
-    image: 'https://images.unsplash.com/photo-1559314809-0d155014e292?w=400&h=300&fit=crop',
-    isPopular: false,
-  },
-  {
-    _id: 'sample-7',
-    name: 'Chocolate Lava Cake',
-    description: 'Warm chocolate cake with molten center, served with vanilla ice cream',
-    price: 320,
-    category: 'Desserts',
-    image: 'https://images.unsplash.com/photo-1624353365286-3f8c62dafd30?w=400&h=300&fit=crop',
-    isPopular: true,
-  },
-  {
-    _id: 'sample-8',
-    name: 'Fresh Spring Rolls',
-    description: 'Vietnamese-style rolls with shrimp, vermicelli, and peanut sauce',
-    price: 260,
-    category: 'Starters',
-    image: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=400&h=300&fit=crop',
-    isPopular: false,
-  },
-  {
-    _id: 'sample-9',
-    name: 'Grilled Lamb Chops',
-    description: 'New Zealand lamb with rosemary jus and roasted vegetables',
-    price: 980,
-    category: 'Main Course',
-    image: 'https://images.unsplash.com/photo-1544576568-0f09c5a446c2?w=400&h=300&fit=crop',
-    isPopular: false,
-  },
-  {
-    _id: 'sample-10',
-    name: 'Tiramisu',
-    description: 'Classic Italian dessert with mascarpone, espresso, and cocoa',
-    price: 290,
-    category: 'Desserts',
-    image: 'https://images.unsplash.com/photo-1571877227200-a0d983a6693f?w=400&h=300&fit=crop',
-    isPopular: true,
-  },
-  {
-    _id: 'sample-11',
-    name: 'Butter Chicken',
-    description: 'Creamy tomato-based curry with tender chicken and naan bread',
-    price: 480,
-    category: 'Main Course',
-    image: 'https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?w=400&h=300&fit=crop',
-    isPopular: true,
-  },
-  {
-    _id: 'sample-12',
-    name: 'Sushi Platter',
-    description: 'Assorted nigiri and maki rolls with wasabi and pickled ginger',
-    price: 750,
-    category: 'Seafood',
-    image: 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=400&h=300&fit=crop',
-    isPopular: true,
-  },
-];
+// NOTE: Menu items are loaded exclusively from the backend, which scopes them
+// to the hotel of the guest's active booking. We intentionally do NOT keep a
+// hardcoded sample-menu fallback here, because rendering items that don't
+// belong to the guest's current hotel would break tenant isolation.
 
 const RoomServiceView = () => {
   const navigate = useNavigate();
@@ -342,17 +235,16 @@ const RoomServiceView = () => {
   };
 
   // Filter menu items
+  // SECURITY/ISOLATION: Only show items returned by the backend for the user's
+  // *current* hotel (resolved server-side from their active booking). We never
+  // fall back to hardcoded sample items, because those would leak dishes that
+  // do not belong to the hotel the guest is checked into.
   const filteredItems = React.useMemo(() => {
-    if (!menuData) return SAMPLE_MENU_ITEMS;
+    if (!menuData) return [];
     let items = menuData.menuItems || menuData.data || [];
 
     if (menuData.groupedByCategory && items.length === 0) {
       items = Object.values(menuData.groupedByCategory).flat();
-    }
-
-    // Merge with sample items if no items from API
-    if (items.length === 0) {
-      items = SAMPLE_MENU_ITEMS;
     }
 
     if (selectedCategory !== 'all') {
@@ -366,7 +258,9 @@ const RoomServiceView = () => {
     return items;
   }, [menuData, selectedCategory, searchQuery]);
 
-  const categories = menuData?.categories || ['Pizza', 'Seafood', 'Main Course', 'Salads', 'Burgers', 'Asian', 'Desserts', 'Starters'];
+  // Categories are sourced strictly from the backend response so the filter
+  // pills reflect only the current hotel's menu. No hardcoded fallback.
+  const categories = menuData?.categories || [];
 
   return (
     <div className="min-h-screen pb-24 md:pb-8" style={{ background: BRAND.background }}>
@@ -465,7 +359,24 @@ const RoomServiceView = () => {
         {filteredItems.length === 0 && !menuLoading && (
           <div className="text-center py-12">
             <UtensilsCrossed className="w-12 h-12 mx-auto mb-4 opacity-30" style={{ color: BRAND.textSecondary }} />
-            <p style={{ color: BRAND.textSecondary }}>No menu items found</p>
+            {!menuData?.hotel?._id ? (
+              <>
+                <p className="font-medium mb-1" style={{ color: BRAND.textPrimary }}>
+                  Menu unavailable
+                </p>
+                <p className="text-sm" style={{ color: BRAND.textSecondary }}>
+                  We couldn't find an active booking to load a hotel menu for.
+                </p>
+              </>
+            ) : searchQuery || selectedCategory !== 'all' ? (
+              <p style={{ color: BRAND.textSecondary }}>
+                No items match your search at {menuData.hotel.name || 'this hotel'}.
+              </p>
+            ) : (
+              <p style={{ color: BRAND.textSecondary }}>
+                {menuData.hotel.name || 'Your hotel'} hasn't added any menu items yet.
+              </p>
+            )}
           </div>
         )}
       </div>

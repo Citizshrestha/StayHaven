@@ -126,7 +126,7 @@ const StaffLogin = () => {
 
           {/* Bottom Content - Features */}
           <div style={{ marginTop: "20rem", }}>
-            <div style={{ marginBottom: "24px" }}>
+            <div style={{ marginBottom: "24px", marginTop: "45px" }}>
               <h1
                 className="text-white font-bold"
                 style={{ fontFamily: "Nunito", color: "#FFF", fontSize: "32px", marginRight: "30rem" }}

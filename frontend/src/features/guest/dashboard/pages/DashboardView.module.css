@@ -1,0 +1,885 @@
+/* ═══════════════════════════════════════════════════
+   StayHaven Guest Portal Dashboard - CSS Module
+   Mobile-first: 390px → 768px → 1024px
+   Brand: Teal #0ea5a0
+   ═══════════════════════════════════════════════════ */
+
+:root {
+  --teal: #0ea5a0;
+  --teal-dark: #0d9488;
+  --teal-light: rgba(14, 165, 160, 0.08);
+  --purple: #6c63ff;
+  --purple-light: rgba(108, 99, 255, 0.08);
+  --ink: #1e293b;
+  --ink-60: #64748b;
+  --ink-30: #94a3b8;
+  --border: rgba(0, 0, 0, 0.07);
+  --card-shadow: 0 2px 16px rgba(0, 0, 0, 0.06);
+  --page-bg: #f8fafc;
+  --card-bg: #ffffff;
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
+}
+
+/* ═══════════════════════════════════════════════════
+   ANIMATIONS
+   ═══════════════════════════════════════════════════ */
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 20px 60px rgba(14, 165, 160, 0.35);
+  }
+  50% {
+    box-shadow: 0 20px 60px rgba(14, 165, 160, 0.55);
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   LAYOUT
+   ═══════════════════════════════════════════════════ */
+
+.container {
+  min-height: 100vh;
+  background: var(--page-bg);
+  padding: 16px;
+  padding-bottom: 80px;
+}
+
+@media (min-width: 768px) {
+  .container {
+    padding: 24px;
+    padding-bottom: 24px;
+  }
+}
+
+.content {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* ═══════════════════════════════════════════════════
+   SECTION 1 — HERO WELCOME CARD
+   ═══════════════════════════════════════════════════ */
+
+.heroCard {
+  background: linear-gradient(135deg, #0ea5a0 0%, #0d9488 40%, #0f766e 100%);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 20px 60px rgba(14, 165, 160, 0.35);
+  position: relative;
+  overflow: hidden;
+  animation: fadeUp 0.4s ease-out;
+}
+
+.heroCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+                    radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+  background-size: 30px 30px;
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+.heroContent {
+  position: relative;
+  z-index: 1;
+}
+
+.heroTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.heroGreeting {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.75);
+  margin: 0 0 4px 0;
+}
+
+.heroName {
+  font-size: 22px;
+  font-weight: 700;
+  color: white;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.heroStayInfo {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.8);
+  margin-top: 4px;
+}
+
+.countdownPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(251, 191, 36, 0.2);
+  color: #fbbf24;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: 8px;
+}
+
+.dateCardsRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.dateCard {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 12px 14px;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dateLabel {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.65);
+  margin: 0 0 4px 0;
+}
+
+.dateValue {
+  font-size: 16px;
+  font-weight: 700;
+  color: white;
+  margin: 0;
+}
+
+.extendButton {
+  width: 100%;
+  background: white;
+  color: var(--teal);
+  border: none;
+  border-radius: 12px;
+  padding: 13px;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 16px;
+}
+
+.extendButton:hover {
+  background: rgba(255, 255, 255, 0.92);
+  transform: scale(0.98);
+}
+
+.extendButton:active {
+  transform: scale(0.96);
+}
+
+/* Pulse glow animation when checkout <= 1 day */
+.extendButton.urgent {
+  animation: pulseGlow 4s infinite;
+}
+
+/* ═══════════════════════════════════════════════════
+   SECTION 2 — STAT CARDS ROW
+   ═══════════════════════════════════════════════════ */
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+  animation: fadeUp 0.4s ease-out 0.05s backwards;
+}
+
+.statCard {
+  background: var(--card-bg);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  box-shadow: var(--card-shadow);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.statCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.statCard:active {
+  transform: scale(0.97);
+}
+
+.statTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.statLabel {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-30);
+}
+
+.statIcon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.statIcon.teal {
+  background: rgba(14, 165, 160, 0.1);
+  color: var(--teal);
+}
+
+.statIcon.purple {
+  background: rgba(108, 99, 255, 0.1);
+  color: var(--purple);
+}
+
+.statIcon.blue {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+.statNumber {
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0 0 4px 0;
+}
+
+.statNumber.teal {
+  color: var(--teal);
+}
+
+.statNumber.purple {
+  color: var(--purple);
+}
+
+.statNumber.blue {
+  color: #3b82f6;
+}
+
+.statSubtitle {
+  font-size: 12px;
+  color: var(--ink-30);
+  margin: 0 0 8px 0;
+}
+
+.statLink {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--teal);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.statLink:hover {
+  text-decoration: underline;
+}
+
+/* ═══════════════════════════════════════════════════
+   SECTION 3 — QUICK ACTIONS
+   ═══════════════════════════════════════════════════ */
+
+.section {
+  margin-bottom: 20px;
+  animation: fadeUp 0.4s ease-out 0.1s backwards;
+}
+
+.sectionTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 12px 0;
+}
+
+.quickActionsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+@media (min-width: 768px) {
+  .quickActionsGrid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.actionCard {
+  background: var(--card-bg);
+  border-radius: var(--radius-md);
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.actionCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.actionCard:active {
+  transform: scale(0.96);
+}
+
+.actionIcon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+}
+
+.actionIcon.teal {
+  background: rgba(14, 165, 160, 0.1);
+  color: var(--teal);
+}
+
+.actionIcon.orange {
+  background: rgba(249, 115, 22, 0.1);
+  color: #f97316;
+}
+
+.actionIcon.green {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.actionIcon.purple {
+  background: rgba(108, 99, 255, 0.1);
+  color: var(--purple);
+}
+
+.actionLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  text-align: center;
+  margin: 0;
+}
+
+/* ═══════════════════════════════════════════════════
+   SECTION 4 — ACTIVE ORDERS
+   ═══════════════════════════════════════════════════ */
+
+.card {
+  background: var(--card-bg);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  box-shadow: var(--card-shadow);
+  animation: fadeUp 0.4s ease-out 0.15s backwards;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.cardTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0;
+}
+
+.viewAllLink {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--teal);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.viewAllLink:hover {
+  text-decoration: underline;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.emptyIcon {
+  width: 40px;
+  height: 40px;
+  color: #e2e8f0;
+  margin-bottom: 12px;
+}
+
+.emptyTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-60);
+  margin: 0 0 4px 0;
+}
+
+.emptySubtitle {
+  font-size: 12px;
+  color: var(--ink-30);
+  margin: 0 0 16px 0;
+}
+
+.emptyButton {
+  background: transparent;
+  border: 1.5px solid var(--teal);
+  color: var(--teal);
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.emptyButton:hover {
+  background: var(--teal);
+  color: white;
+}
+
+.ordersList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.orderCard {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--teal);
+  border-radius: 12px;
+  padding: 14px;
+  background: rgba(14, 165, 160, 0.02);
+  transition: all 0.2s ease;
+}
+
+.orderCard:hover {
+  background: rgba(14, 165, 160, 0.04);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.orderTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.orderInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.orderTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 4px 0;
+}
+
+.orderMeta {
+  font-size: 12px;
+  color: var(--ink-60);
+  margin: 0;
+}
+
+.statusBadge {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.orderActions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 12px;
+  font-size: 12px;
+}
+
+.orderActionBtn {
+  background: none;
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.2s ease;
+}
+
+.orderActionBtn.primary {
+  color: var(--teal);
+}
+
+.orderActionBtn.danger {
+  color: #ef4444;
+}
+
+.orderActionBtn:hover {
+  text-decoration: underline;
+}
+
+/* ═══════════════════════════════════════════════════
+   SECTION 5 — YOUR BILL
+   ═══════════════════════════════════════════════════ */
+
+.billCard {
+  background: var(--card-bg);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  box-shadow: var(--card-shadow);
+  animation: fadeUp 0.4s ease-out 0.2s backwards;
+}
+
+.billHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  margin-bottom: 16px;
+}
+
+.billHeaderLeft {
+  flex: 1;
+}
+
+.billTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 4px 0;
+}
+
+.billSubtitle {
+  font-size: 12px;
+  color: var(--ink-60);
+  margin: 0;
+}
+
+.billChevron {
+  font-size: 14px;
+  color: var(--teal);
+  font-weight: 600;
+  transition: transform 0.2s ease;
+}
+
+.billChevron.expanded {
+  transform: rotate(180deg);
+}
+
+.billAmount {
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--ink);
+  margin: 0 0 16px 0;
+}
+
+.billItems {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.billItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--ink-60);
+}
+
+.billButtons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.billButton {
+  padding: 13px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.billButton.outline {
+  background: white;
+  border: 1.5px solid rgba(0, 0, 0, 0.1);
+  color: var(--teal);
+}
+
+.billButton.outline:hover {
+  background: rgba(14, 165, 160, 0.05);
+}
+
+.billButton.primary {
+  background: linear-gradient(135deg, var(--teal), var(--teal-dark));
+  color: white;
+  box-shadow: 0 4px 16px rgba(14, 165, 160, 0.3);
+}
+
+.billButton.primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(14, 165, 160, 0.4);
+}
+
+.billButton:active {
+  transform: scale(0.97);
+}
+
+/* ═══════════════════════════════════════════════════
+   SECTION 6 — UPCOMING RESERVATIONS
+   ═══════════════════════════════════════════════════ */
+
+.reservationsList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.reservationCard {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--teal);
+  border-radius: 12px;
+  padding: 14px;
+  background: rgba(14, 165, 160, 0.04);
+}
+
+.reservationName {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 6px 0;
+}
+
+.reservationDates {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--ink-60);
+  margin-bottom: 10px;
+}
+
+.roomBadge {
+  background: rgba(14, 165, 160, 0.15);
+  color: var(--teal);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.reservationActions {
+  display: flex;
+  gap: 16px;
+}
+
+.reservationBtn {
+  background: none;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.reservationBtn.primary {
+  color: var(--teal);
+}
+
+.reservationBtn.secondary {
+  color: var(--ink-60);
+}
+
+.reservationBtn:hover {
+  text-decoration: underline;
+}
+
+/* ═══════════════════════════════════════════════════
+   SECTION 7 — NEED HELP
+   ═══════════════════════════════════════════════════ */
+
+.helpList {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-bottom: 16px;
+}
+
+.helpItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  min-height: 44px;
+}
+
+.helpItem:last-child {
+  border-bottom: none;
+}
+
+.helpIcon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.helpIcon.teal {
+  background: rgba(14, 165, 160, 0.1);
+  color: var(--teal);
+}
+
+.helpIcon.orange {
+  background: rgba(249, 115, 22, 0.1);
+  color: #f97316;
+}
+
+.helpIcon.blue {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+.helpIcon.red {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.helpInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.helpLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0 0 2px 0;
+}
+
+.helpExt {
+  font-size: 12px;
+  color: var(--ink-60);
+  margin: 0;
+}
+
+.helpButtons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.helpButton {
+  padding: 13px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.helpButton.outline {
+  background: white;
+  border: 1.5px solid rgba(0, 0, 0, 0.1);
+  color: var(--ink);
+}
+
+.helpButton.outline:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.helpButton.primary {
+  background: linear-gradient(135deg, var(--teal), var(--teal-dark));
+  color: white;
+}
+
+.helpButton.primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(14, 165, 160, 0.3);
+}
+
+.helpButton:active {
+  transform: scale(0.97);
+}
+
+/* ═══════════════════════════════════════════════════
+   LOADING STATE
+   ═══════════════════════════════════════════════════ */
+
+.loading {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--page-bg);
+}
+
+.loadingSpinner {
+  width: 40px;
+  height: 40px;
+  color: var(--teal);
+  animation: spin 1s linear infinite;
+}

@@ -53,6 +53,31 @@ export const checkExtensionAvailability = (bookingId, nights = 7) =>
 export const extendBooking = (bookingId, additionalNights) =>
   axiosClient.post(`${BASE}/bookings/${bookingId}/extend`, { additionalNights }).then((r) => r.data);
 
+/**
+ * Modify an existing booking (dates, guest count, etc.)
+ * Hits the shared booking management endpoint (not the portal namespace).
+ * @param {string} bookingId
+ * @param {object} data  – { checkIn?, checkOut?, numGuests?, ... }
+ */
+export const modifyBooking = (bookingId, data) =>
+  axiosClient.patch(`/api/v1/bookings/${bookingId}/modify`, data).then((r) => r.data);
+
+/**
+ * Cancel a booking.
+ * @param {string} bookingId
+ * @param {object} data  – { reason? }
+ */
+export const cancelBooking = (bookingId, data = {}) =>
+  axiosClient.post(`/api/v1/bookings/${bookingId}/cancel`, data).then((r) => r.data);
+
+/**
+ * Request a refund for a cancelled/eligible booking.
+ * @param {string} bookingId
+ * @param {object} data
+ */
+export const requestRefund = (bookingId, data = {}) =>
+  axiosClient.post(`/api/v1/bookings/${bookingId}/refund`, data).then((r) => r.data);
+
 /* ════════════════════════════════════════════
    RESTAURANT / ROOM SERVICE
    ════════════════════════════════════════════ */

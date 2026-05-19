@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { getGuestBookings, modifyBooking, cancelBooking, requestRefund } from "../services/guestDashboardApi";
+import { getGuestBookings, modifyBooking, cancelBooking, requestRefund } from "../guestDashboardApi";
 import { useTheme } from '../../../../core/hooks/useTheme';
 import { toast } from 'react-toastify';
 import {
