@@ -10,6 +10,7 @@ import {
   updateHotelStatus,
   toggleFeatured,
 } from '../controllers/hotelController.js';
+import { getAdminHotels } from '../controllers/adminController.js';
 import { protect, authorize } from '../middleware/authMiddleware.js';
 import { writeOperationLimiter } from '../middleware/rateLimiter.js';
 import { sanitizeAll } from '../middleware/sanitization.js';
@@ -21,6 +22,7 @@ router.use(sanitizeAll());
 
 // Public routes
 router.get('/', getAllHotels);
+router.get('/admin/all', protect, authorize('admin'), getAdminHotels);
 router.get('/:id', getHotelById);
 
 // Protected routes - Hotel Owners

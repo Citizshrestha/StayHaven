@@ -68,6 +68,10 @@ export const authorize = (...roles) => {
   return asyncHandler(async (req, res, next) => {
     const userRole = req.user?.role?.name || req.user?.companyRole;
 
+    if (userRole === 'superadmin') {
+      return next();
+    }
+
 
 
     if (!userRole || !roles.includes(userRole)) {

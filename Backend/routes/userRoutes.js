@@ -1,8 +1,9 @@
 import express from 'express';
-import {protect} from '../middleware/authMiddleware.js';
+import { protect, authorize } from '../middleware/authMiddleware.js';
 import { writeOperationLimiter } from '../middleware/rateLimiter.js';
 import { sanitizeAll } from '../middleware/sanitization.js';
 import { addToCart, clearCart, getCart, getWishList, removeFromCart, toggleWishList, updateCart } from '../controllers/userController.js';
+import { deleteUser, getAdminUsers, getUserById, resetUserPassword, updateUser, updateUserStatus } from '../controllers/adminController.js';
 
 const router = express.Router();
 
@@ -10,6 +11,14 @@ const router = express.Router();
 router.use(sanitizeAll());
 
 router.use(protect);
+
+// Admin user management routes
+router.get("/admin/all", authorize("admin"), getAdminUsers);
+router.get("/admin/:id", authorize("admin"), getUserById);
+router.patch("/admin/:id", authorize("admin"), writeOperationLimiter, updateUser);
+router.put("/admin/:id/status", authorize("admin"), writeOperationLimiter, updateUserStatus);
+router.post("/admin/:id/reset-password", authorize("admin"), writeOperationLimiter, resetUserPassword);
+router.delete("/admin/:id", authorize("admin"), writeOperationLimiter, deleteUser);
 
 // wishList Routes
 router.get("/wishlist", getWishList);

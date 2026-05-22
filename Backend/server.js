@@ -19,6 +19,7 @@ import userRoutes from "./routes/userRoutes.js";
 import hotelRoutes from "./routes/hotelRoutes.js";
 import companyRoutes from "./routes/companyRoutes.js";
 import { Role } from "./models/role.schema.js";
+import { User } from "./models/user.schema.js";
 import staffRoutes from "./routes/staffRoutes.js";
 import tableRoutes from "./routes/tableRoutes.js";
 import roomRoutes from "./routes/roomRoutes.js";
@@ -75,6 +76,7 @@ const seedRoles = async () => {
     "receptionist",
     "housekeeping",
     "maintenance",
+    "superadmin",
   ];
   try {
     for (let roleName of roles) {
@@ -84,8 +86,39 @@ const seedRoles = async () => {
       }
     }
     logger.info("All roles seeded successfully");
+    await seedSuperAdmin();
   } catch (err) {
     logger.error("Error seeding roles", { error: err.message });
+  }
+};
+
+const seedSuperAdmin = async () => {
+  try {
+    const superadminRole = await Role.findOne({ name: "superadmin" });
+    if (!superadminRole) {
+      logger.error("superadmin role not found during superadmin seeding");
+      return;
+    }
+
+    const email = "superadmin@stayhaven.com";
+    let superadminUser = await User.findOne({ email });
+    if (!superadminUser) {
+      superadminUser = new User({
+        fullname: "StayHaven Super Admin",
+        username: "superadmin",
+        email: email,
+        password: "Superadmin@1234",
+        role: superadminRole._id,
+        accountStatus: "active",
+        isActive: true
+      });
+      await superadminUser.save();
+      logger.info("Default superadmin user seeded successfully");
+    } else {
+      logger.debug("Superadmin user already exists");
+    }
+  } catch (err) {
+    logger.error("Error seeding superadmin", { error: err.message });
   }
 };
 seedRoles();
@@ -231,6 +264,7 @@ app.use("/health", healthRoutes);
 
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/user", userRoutes);
+app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/hotels", hotelRoutes);
 app.use("/api/v1/company", companyRoutes);
 app.use("/api/v1/staff", staffRoutes);

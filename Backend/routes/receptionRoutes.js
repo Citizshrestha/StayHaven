@@ -16,7 +16,7 @@ import {
   maintenanceValidation,
   queryValidation,
 } from "../middleware/validation.js";
-import { bookingSanitization, paymentSanitization, sanitizeAll } from "../middleware/sanitization.js";
+import { paymentSanitization, sanitizeAll } from "../middleware/sanitization.js";
 import {
   // Dashboard
   getDashboardSummary,
@@ -106,12 +106,11 @@ import {
   createPaymentIntent,
   confirmPayment,
   processRefund,
-  approveRefund,
   getPendingRefunds,
   getPaymentSummary,
   handleStripeWebhook,
 } from "../controllers/paymentController.js";
-import { checkRoomAvailability, preventDoubleCheckIn } from "../middleware/conflictResolution.js";
+import { preventDoubleCheckIn } from "../middleware/conflictResolution.js";
 
 const router = Router();
 

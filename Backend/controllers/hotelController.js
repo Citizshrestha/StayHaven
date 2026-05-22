@@ -207,11 +207,15 @@ export const getMyHotels = asyncHandler(async (req, res) => {
 // @route   PUT /api/hotels/:id
 // @access  Private (Hotel Owner)
 export const updateHotel = asyncHandler(async (req, res) => {
-  // Query-scoped by owner for security
-  const hotel = await Hotel.findOne({
-    _id: req.params.id,
-    owner: req.user._id
-  });
+  const userRole = req.user?.role?.name || req.user?.companyRole;
+  const isPrivileged = userRole === 'admin' || userRole === 'superadmin';
+
+  const hotel = isPrivileged
+    ? await Hotel.findById(req.params.id)
+    : await Hotel.findOne({
+        _id: req.params.id,
+        owner: req.user._id
+      });
 
   if (!hotel) {
     return res.status(404).json({
@@ -250,11 +254,15 @@ export const updateHotel = asyncHandler(async (req, res) => {
 // @route   DELETE /api/hotels/:id
 // @access  Private (Hotel Owner)
 export const deleteHotel = asyncHandler(async (req, res) => {
-  // Query-scoped by owner for security
-  const hotel = await Hotel.findOne({
-    _id: req.params.id,
-    owner: req.user._id
-  });
+  const userRole = req.user?.role?.name || req.user?.companyRole;
+  const isPrivileged = userRole === 'admin' || userRole === 'superadmin';
+
+  const hotel = isPrivileged
+    ? await Hotel.findById(req.params.id)
+    : await Hotel.findOne({
+        _id: req.params.id,
+        owner: req.user._id
+      });
 
   if (!hotel) {
     return res.status(404).json({
