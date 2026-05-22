@@ -13,20 +13,23 @@
 
 /* CSS Variables */
 :root {
-  --sa-primary: #14B8A6;
-  --sa-bg-light: #F9FAFB;
-  --sa-bg-dark: #111827;
+  --sa-primary: #3B82F6; /* Royal Blue */
+  --sa-primary-light: #60A5FA; /* Electric Blue */
+  --sa-bg-light: #F8FAFC;
+  --sa-bg-dark: #0F172A; /* Deep Slate */
   --sa-card-light: #FFFFFF;
-  --sa-card-dark: #1F2937;
-  --sa-text-light: #111827;
-  --sa-text-dark: #F9FAFB;
-  --sa-text-secondary-light: #6B7280;
-  --sa-text-secondary-dark: #9CA3AF;
-  --sa-border-light: #E5E7EB;
-  --sa-border-dark: #374151;
+  --sa-card-dark: #1E293B; /* Slate Blue */
+  --sa-text-light: #0F172A;
+  --sa-text-dark: #F8FAFC;
+  --sa-text-secondary-light: #64748B;
+  --sa-text-secondary-dark: #94A3B8;
+  --sa-border-light: #E2E8F0;
+  --sa-border-dark: #334155; /* Border Gray */
   --sa-success: #10B981;
   --sa-warning: #F59E0B;
   --sa-error: #EF4444;
+  --sa-purple: #8B5CF6;
+  --sa-teal: #14B8A6;
 }
 
 /* Base Layout */
@@ -70,7 +73,7 @@
 }
 
 .sa-layout.dark .sa-sidebar {
-  background-color: var(--sa-card-dark);
+  background-color: var(--sa-bg-dark); /* Deep Slate */
   border-right-color: var(--sa-border-dark);
 }
 
@@ -133,6 +136,65 @@
 
 .sa-nav-section.bottom {
   margin-top: auto;
+}
+
+/* Sidebar profile card */
+.sa-sidebar-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  margin-bottom: 1rem;
+}
+
+.sa-layout.light .sa-sidebar-profile {
+  background-color: rgba(0, 0, 0, 0.02);
+  border-color: rgba(0, 0, 0, 0.05);
+}
+
+.sa-profile-avatar {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  background-size: cover;
+  background-position: center;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sa-layout.light .sa-profile-avatar {
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+.sa-profile-info {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sa-profile-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sa-profile-email {
+  font-size: 0.72rem;
+  color: var(--sa-text-secondary-dark);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sa-layout.light .sa-profile-email {
+  color: var(--sa-text-secondary-light);
 }
 
 .sa-nav-item {

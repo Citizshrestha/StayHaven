@@ -7,6 +7,15 @@ import * as paymentService from '../../core/api/services/payment.service'; // En
 // Initialize Stripe (Load asynchronously)
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
+const formatNrs = (value = 0) => {
+  const numeric = Number(value) || 0;
+  const formatted = new Intl.NumberFormat('en-NP', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(numeric);
+  return `Nrs ${formatted}`;
+};
+
 /**
  * StripePaymentModal Component
  * Handles the creation of PaymentIntent via backend and wraps the Stripe Elements.
@@ -25,7 +34,7 @@ const StripePaymentModal = ({ isOpen, onClose, invoice, onSuccess }) => {
       // Create Payment Intent on the server
       paymentService.createPaymentIntent({
         amount: invoice.balance,
-        currency: 'usd', // Match your backend logic
+        currency: 'npr',
         bookingId: invoice.bookingId || invoice._id,
       })
         .then((response) => {
@@ -96,7 +105,7 @@ const StripePaymentModal = ({ isOpen, onClose, invoice, onSuccess }) => {
           <div className="flex justify-between items-end mb-6">
             <div>
               <p className="text-sm text-gray-500 mb-1">Amount to Pay</p>
-              <p className="text-3xl font-bold text-gray-900 dark:text-white">${invoice.balance?.toFixed(2)}</p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-white">{formatNrs(invoice.balance)}</p>
             </div>
             <div className="text-right">
               <p className="text-xs text-gray-400 uppercase tracking-wider">Invoice Ref</p>
@@ -211,7 +220,7 @@ const CheckoutForm = ({ amount, onSuccess, onClose }) => {
         ) : (
           <>
             <CreditCard size={18} />
-            Pay ${amount.toFixed(2)}
+            Pay {formatNrs(amount)}
           </>
         )}
       </button>

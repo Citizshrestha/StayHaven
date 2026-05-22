@@ -1,325 +1,443 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { toast } from 'react-toastify';
+import SuperAdminLayout from './SuperAdminLayout';
+import { getAdminUsers, updateUserStatus } from '../../../../core/api/services/user.service';
+import UserActionModals from '../components/UserActionModals';
 import './UserManagement.css';
 
+const PAGE_SIZE = 10;
+
+const roleOptions = [
+  { label: 'All Roles', value: 'all' },
+  { label: 'Guest', value: 'guest' },
+  { label: 'Owner', value: 'owner' },
+  { label: 'Waiter', value: 'waiter' },
+  { label: 'Kitchen', value: 'kitchen' },
+  { label: 'Admin', value: 'admin' },
+  { label: 'SuperAdmin', value: 'superadmin' },
+];
+
+const statusOptions = [
+  { label: 'All Statuses', value: 'all' },
+  { label: 'Active', value: 'active' },
+  { label: 'Suspended', value: 'suspended' },
+];
+
+// Role color mapping for avatars and badges
+const roleColors = {
+  superadmin: { bg: '#8B5CF6', badge: '#8B5CF6', border: '#8B5CF6' },
+  admin: { bg: '#3B82F6', badge: '#3B82F6', border: '#3B82F6' },
+  owner: { bg: '#3B82F6', badge: '#3B82F6', border: '#3B82F6' },
+  manager: { bg: '#6366F1', badge: '#6366F1', border: '#6366F1' },
+  guest: { bg: '#00BFA6', badge: '#00BFA6', border: '#00BFA6' },
+  waiter: { bg: '#F59E0B', badge: '#F59E0B', border: '#F59E0B' },
+  kitchen: { bg: '#EF4444', badge: '#EF4444', border: '#EF4444' },
+  staff: { bg: '#6B7280', badge: '#6B7280', border: '#6B7280' },
+};
+
 const UserManagement = () => {
-  const [darkMode, _setDarkMode] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeNav, setActiveNav] = useState('user-management');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [users, setUsers] = useState([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
 
-  // Scroll to top when component mounts
+  // Modal state
+  const [modalType, setModalType] = useState(null); // 'view' | 'edit' | 'delete' | null
+  const [selectedUser, setSelectedUser] = useState(null);
+
   useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 350);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
-  const navigationItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', path: '/superadmindashboard' },
-    { id: 'bookings', label: 'Bookings', icon: 'calendar_month', path: '/bookings' },
-    { id: 'user-management', label: 'User Management', icon: 'group', path: '/usermanagement' },
-    { id: 'settings', label: 'Settings', icon: 'settings', path: '/settings' },
-  ];
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, roleFilter, statusFilter, pageSize]);
 
-  const bottomNavItems = [
-    { id: 'support', label: 'Support', icon: 'support_agent', path: '/support' },
-    { id: 'logout', label: 'Logout', icon: 'logout' },
-  ];
+  useEffect(() => {
+    const fetchUsers = async () => {
+      setLoading(true);
+      try {
+        const params = {
+          page,
+          limit: pageSize,
+          sort: '-createdAt',
+        };
 
-  const stats = [
-    { label: 'Total Users', value: '1,250', trend: '+1.5%', trendUp: true },
-    { label: 'Active Users', value: '1,180', trend: '+2.1%', trendUp: true },
-    { label: 'Suspended Users', value: '52', trend: '-0.5%', trendUp: false },
-    { label: 'New Users (30d)', value: '18', trend: '+8.0%', trendUp: true },
-  ];
+        if (debouncedSearch) params.search = debouncedSearch;
+        if (roleFilter !== 'all') params.role = roleFilter;
+        if (statusFilter !== 'all') params.status = statusFilter;
 
-  const users = [
-    {
-      id: 1,
-      name: 'Alex Johnson',
-      email: 'alex.j@example.com',
-      phone: '(555) 123-4567',
-      role: 'Admin',
-      status: 'Active',
-      createdAt: '2023-01-15',
-      avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD9wQ4dR16M5dsNlwVXQ3XkdikBOuCSEiV3JKEh0roEUXDzcr-yOEwPa1puDR6OdjUsi5wlUBK5LssBlT8NSjByWMwHK055ofQsR_3n0bkir5g2V6E2WxVYOJsaPvVNm4W3gzcm_LdkWYtHFmE4B4UpYk-UR6PfC4sRfepmiitIr3C8RX1kAasYF_2glzJx9KfgHneg3QaAHaDjwukdRVnokycMXXAcyRV68d3U5sJuM7p6A-KdlA_HialKXP67tbtKDF3Vyg2y_Q',
-      roleColor: 'blue',
-      statusColor: 'green'
-    },
-    {
-      id: 2,
-      name: 'Maria Garcia',
-      email: 'maria.g@example.com',
-      phone: '(555) 987-6543',
-      role: 'Manager',
-      status: 'Active',
-      createdAt: '2023-02-20',
-      avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDGNZyuHPtn4eKXZiYK7KZ5Gt0nwzS-JIAsgRABM3GzZXyeGcSznFKgjrsqRrFlK8rG1SvZVdWhvI-KHOwbsjdKF2Ej91ak-97TL59hqCr_VfzJZ4zOB_sgBe2oG1ib2Zm3k9a3jmJ7nEdyKFtQIB1GGbeDAjicMoLbzFVAaT-L1TiHIzSxod6G5ohspLbN53Ej8i93V9hZQsBH6ExLQdwntPjpPkCyxwEixFZzCLZ1W51ZmXAqgBrd6Hgq2ignwa3wL4K09BNXSw',
-      roleColor: 'purple',
-      statusColor: 'green'
-    },
-    {
-      id: 3,
-      name: 'Chris Lee',
-      email: 'chris.l@example.com',
-      phone: '(555) 234-5678',
-      role: 'User',
-      status: 'Suspended',
-      createdAt: '2023-03-10',
-      avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuADPegGXI1FK4RMUhQAImsxO0XuE34eUkIIq_fZnVdCwpqMTT6pgshfWzsUm7KPhVo-NcjEgjcvzZxFVwyYp9QUMjFNZHAHzLbZXTDjYUOiCnplUr9QDdxInkwslRUF-12dwxyWMOP3wed1Sa5uSXvOukBjFRqZHXN6DYdl9uSFWdzH-LEGgaQd3MmhMHXmxOkeFB99szDVflbeIw3I2dtlDSAQO-slLu-DiUvbioS0LpAYFenAUlWjJ16zFIWuPiGjkU6yrHXokQ',
-      roleColor: 'gray',
-      statusColor: 'red'
-    },
-    {
-      id: 4,
-      name: 'Patricia Wilson',
-      email: 'pat.w@example.com',
-      phone: '(555) 345-6789',
-      role: 'User',
-      status: 'Pending',
-      createdAt: '2023-04-05',
-      avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCzIt97zqX8CfhqN1mvwAg7ug_wgSeP6Uc9mG1DmTMHinKvxwNsyBIyQ8HFGj5wUIdDUIz5FcmWCnWmYHQYm72H2RuU2Up_0YvRudlRUfjkNWZnXLpg2NQb1qvsXOJxakFqeNRr17mj85mVZzfL5I8Cf0F_4NXnOq899Zq0DrWCbpLH4ZcjMNi1mmnnbq7RZEip5jMgJCoS4RNZy7IOF6i6P0j0ytl4wj6VjwvGcwouiwn3xntRPai7j1pYJYfF30OriAWpYoAbVA',
-      roleColor: 'gray',
-      statusColor: 'yellow'
+        const response = await getAdminUsers(params);
+        setUsers(response.users || []);
+        setTotal(response.total || 0);
+        setTotalPages(response.totalPages || 1);
+      } catch (error) {
+        toast.error(error?.message || 'Failed to load users');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, [page, debouncedSearch, roleFilter, statusFilter, pageSize]);
+
+  const stats = useMemo(() => {
+    const activeUsers = users.filter((user) => user.isActive).length;
+    const suspendedUsers = users.filter((user) => !user.isActive).length;
+    const now = Date.now();
+    const newUsers = users.filter((user) => {
+      if (!user.createdAt) return false;
+      const createdAt = new Date(user.createdAt).getTime();
+      const diffDays = (now - createdAt) / (1000 * 60 * 60 * 24);
+      return diffDays <= 30;
+    }).length;
+
+    return [
+      {
+        label: 'Total Users',
+        value: total.toLocaleString(),
+        icon: 'group',
+        gradient: 'linear-gradient(135deg, #06B6D4 0%, #0D9488 100%)',
+        borderColor: '#06B6D4'
+      },
+      {
+        label: 'Active Users',
+        value: activeUsers.toLocaleString(),
+        icon: 'check_circle',
+        gradient: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+        borderColor: '#10B981'
+      },
+      {
+        label: 'Suspended',
+        value: suspendedUsers.toLocaleString(),
+        icon: 'block',
+        gradient: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)',
+        borderColor: '#EF4444'
+      },
+      {
+        label: 'New (30d)',
+        value: newUsers.toLocaleString(),
+        icon: 'person_add',
+        gradient: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
+        borderColor: '#8B5CF6'
+      },
+    ];
+  }, [users, total]);
+
+  const handleToggleStatus = async (user) => {
+    try {
+      const nextStatus = !user.isActive;
+      await updateUserStatus(user._id, nextStatus);
+      setUsers((prev) =>
+        prev.map((item) =>
+          item._id === user._id ? { ...item, isActive: nextStatus } : item
+        )
+      );
+      toast.success(`User ${nextStatus ? 'activated' : 'suspended'} successfully`);
+    } catch (error) {
+      toast.error(error?.message || 'Failed to update status');
     }
-  ];
-
-  const getStatusIcon = (status) => {
-    return status === 'Suspended' ? 'toggle_on' : 'toggle_off';
   };
 
-  const getStatusIconColor = (status) => {
-    return status === 'Suspended' ? 'green' : '';
+  const handleOpenModal = (type, user) => {
+    setModalType(type);
+    setSelectedUser(user);
   };
+
+  const handleCloseModal = () => {
+    setModalType(null);
+    setSelectedUser(null);
+  };
+
+  const handleModalSuccess = () => {
+    // Refresh the user list after successful action
+    const fetchUsers = async () => {
+      setLoading(true);
+      try {
+        const params = {
+          page,
+          limit: pageSize,
+          sort: '-createdAt',
+        };
+
+        if (debouncedSearch) params.search = debouncedSearch;
+        if (roleFilter !== 'all') params.role = roleFilter;
+        if (statusFilter !== 'all') params.status = statusFilter;
+
+        const response = await getAdminUsers(params);
+        setUsers(response.users || []);
+        setTotal(response.total || 0);
+        setTotalPages(response.totalPages || 1);
+      } catch (error) {
+        toast.error(error?.message || 'Failed to load users');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUsers();
+  };
+
+  const getInitials = (user) => {
+    const name = user.fullname || user.username || 'U';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  const getRoleColor = (roleName) => {
+    return roleColors[roleName?.toLowerCase()] || roleColors.staff;
+  };
+
+  const pageStart = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const pageEnd = total === 0 ? 0 : Math.min(page * pageSize, total);
 
   return (
-    <div className={`user-management ${darkMode ? 'dark' : 'light'}`}>
-      <div className="layout-wrapper">
-        {/* SideNavBar */}
-        <aside className="sidebar">
-          <div className="sidebar-content">
-            <div className="sidebar-header">
-              <div 
-                className="logo-image"
-                style={{
-                  backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuDcoENhDYUoWhV-xqjj9glmiPHGV0nzuTRCaBlTKCud3qPoZI4N8Nq4YZKD-naqga1zX3AQhTbItXoNjVCWXqTHcxaNIQM-5gQRoHfwNQr37VIC8ZPtQx-xOOvz8ei8twvCGG4mxXqgNxGxhRXzbXJd3D40tNHnDXOofNC79CXmo-tss5zEHVEhOS_DU1N2UoVzDY1P6H2kbfx-OHqEWiF8x3qA29qOphcQ0GG1fdXVunY-K4zBqHIKcWPi154X001_d5RbVlWeaA")'
-                }}
-              ></div>
-              <div className="user-info">
-                <h1>Olivia Rhye</h1>
-                <p>Super Admin</p>
+    <SuperAdminLayout pageTitle="User Management">
+      <div className="um-container">
+
+        {/* Premium Stats Grid */}
+        <div className="um-stats-grid">
+          {stats.map((stat, index) => (
+            <div key={index} className="um-stat-card" style={{ animationDelay: `${index * 0.05}s` }}>
+              <div className="um-stat-icon-wrapper" style={{ background: stat.gradient }}>
+                <span className="material-symbols-outlined">{stat.icon}</span>
               </div>
+              <div className="um-stat-info">
+                <p className="um-stat-label">{stat.label}</p>
+                <h3 className="um-stat-value">{stat.value}</h3>
+              </div>
+              <div className="um-stat-border" style={{ backgroundColor: stat.borderColor }}></div>
+            </div>
+          ))}
+        </div>
+
+        {/* Premium Toolbar */}
+        <div className="um-toolbar">
+          <div className="um-toolbar-left">
+            <div className="um-search-wrapper">
+              <span className="material-symbols-outlined um-search-icon">search</span>
+              <input
+                type="text"
+                className="um-search-input"
+                placeholder="Search users by name, email..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
 
-            <nav className="main-nav">
-              {navigationItems.map((item) => (
-                <NavButton
-                  key={item.id}
-                  item={item}
-                  activeNav={activeNav}
-                  setActiveNav={setActiveNav}
-                />
+            <select
+              className="um-filter-select"
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+            >
+              {roleOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
               ))}
-            </nav>
+            </select>
+
+            <select
+              className="um-filter-select"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              {statusOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </div>
 
-          <div className="bottom-nav">
-            {bottomNavItems.map((item) => (
-              <button
-                key={item.id}
-                className="nav-item"
-                onClick={() => setActiveNav(item.id)}
-              >
-                <span className="material-symbols-outlined">{item.icon}</span>
-                <p>{item.label}</p>
-              </button>
-            ))}
-          </div>
-        </aside>
+          <button className="um-invite-btn">
+            <span className="material-symbols-outlined">person_add</span>
+            Invite User
+          </button>
+        </div>
 
-        {/* Main Content */}
-        <main className="main-content">
-          <div className="container">
-            {/* Page Heading */}
-            <header className="page-header">
-              <div className="header-text">
-                <h1>User Management</h1>
-                <p>Manage platform users and roles</p>
-              </div>
-              
-              <div className="header-actions">
-                <div className="search-container">
-                  <div className="search-input-wrapper">
-                    <div className="search-icon-container">
-                      <span className="material-symbols-outlined">search</span>
-                    </div>
-                    <input
-                      className="search-input"
-                      placeholder="Search users..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      type="text"
-                    />
-                  </div>
-                </div>
-                
-                <button className="add-user-btn">
-                  <span>Add New User</span>
-                </button>
-              </div>
-            </header>
-
-            {/* Stats */}
-            <section className="stats-section">
-              <div className="stats-grid">
-                {stats.map((stat, index) => (
-                  <div key={index} className="stat-card">
-                    <p className="stat-label">{stat.label}</p>
-                    <p className="stat-value">{stat.value}</p>
-                    <p className={`stat-trend ${stat.trendUp ? 'positive' : 'negative'}`}>
-                      <span className="material-symbols-outlined">
-                        {stat.trendUp ? 'arrow_upward' : 'arrow_downward'}
-                      </span>
-                      {stat.trend}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            {/* User Table Section */}
-            <section className="table-section">
-              {/* ToolBar */}
-              <div className="table-toolbar">
-                <div className="toolbar-filters">
-                  <button className="filter-btn">
-                    <span>Role: All</span>
-                    <span className="material-symbols-outlined">expand_more</span>
-                  </button>
-                  <button className="filter-btn">
-                    <span>Status: All</span>
-                    <span className="material-symbols-outlined">expand_more</span>
-                  </button>
-                  <button className="filter-btn">
-                    <span>Sort by: Date Created</span>
-                    <span className="material-symbols-outlined">expand_more</span>
-                  </button>
-                </div>
-                
-                <button className="export-btn">
-                  <span className="material-symbols-outlined">download</span>
-                  <span>Export</span>
-                </button>
-              </div>
-
-              {/* Table */}
-              <div className="table-container">
-                <table className="users-table">
-                  <thead>
-                    <tr>
-                      <th>User</th>
-                      <th>Email</th>
-                      <th>Phone</th>
-                      <th>Role</th>
-                      <th>Status</th>
-                      <th>Created At</th>
-                      <th className="text-right">Actions</th>
+        {/* Premium Data Table */}
+        <div className="um-table-card">
+          <div className="um-table-wrapper">
+            <table className="um-table">
+              <thead>
+                <tr>
+                  <th>User</th>
+                  <th>Email</th>
+                  <th>Phone</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th>Created</th>
+                  <th className="um-actions-header">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  // Loading skeleton
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <tr key={i} className="um-skeleton-row">
+                      <td colSpan="7">
+                        <div className="um-skeleton-shimmer"></div>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {users.map((user) => (
-                      <tr key={user.id}>
-                        <td className="user-cell">
-                          <div className="user-info-cell">
-                            <img 
-                              className="user-avatar" 
-                              src={user.avatar} 
-                              alt={`${user.name} avatar`}
-                            />
-                            <div>{user.name}</div>
+                  ))
+                ) : users.length === 0 ? (
+                  // Empty state
+                  <tr>
+                    <td colSpan="7" className="um-empty-cell">
+                      <div className="um-empty-state">
+                        <span className="material-symbols-outlined um-empty-icon">group_off</span>
+                        <h3>No users found</h3>
+                        <p>Try adjusting your search or filters.</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  users.map((user, index) => {
+                    const roleName = user.role?.name || user.companyRole || 'guest';
+                    const roleColor = getRoleColor(roleName);
+                    const initials = getInitials(user);
+
+                    return (
+                      <tr key={user._id} className="um-table-row" style={{ animationDelay: `${index * 0.05}s` }}>
+                        <td>
+                          <div className="um-user-cell">
+                            <div
+                              className="um-avatar"
+                              style={{ backgroundColor: roleColor.bg }}
+                            >
+                              {user.profilePicture ? (
+                                <img src={user.profilePicture} alt={user.fullname || user.username} />
+                              ) : (
+                                <span>{initials}</span>
+                              )}
+                            </div>
+                            <div className="um-user-info">
+                              <div className="um-user-name">{user.fullname || user.username}</div>
+                              <div className="um-user-username">@{user.username}</div>
+                            </div>
                           </div>
                         </td>
-                        <td>{user.email}</td>
-                        <td>{user.phone}</td>
+                        <td className="um-email">{user.email}</td>
+                        <td className="um-phone">{user.contact || '—'}</td>
                         <td>
-                          <span className={`role-badge ${user.roleColor}`}>
-                            {user.role}
+                          <span
+                            className="um-role-badge"
+                            style={{
+                              backgroundColor: `${roleColor.badge}15`,
+                              color: roleColor.badge,
+                              borderColor: `${roleColor.badge}30`
+                            }}
+                          >
+                            {roleName}
                           </span>
                         </td>
                         <td>
-                          <span className={`status-badge ${user.statusColor}`}>
-                            {user.status}
-                          </span>
+                          <button
+                            className={`um-status-toggle ${user.isActive ? 'active' : 'inactive'}`}
+                            onClick={() => handleToggleStatus(user)}
+                            title={user.isActive ? 'Click to suspend' : 'Click to activate'}
+                          >
+                            <span className="um-toggle-slider"></span>
+                          </button>
                         </td>
-                        <td>{user.createdAt}</td>
-                        <td className="actions-cell">
-                          <div className="actions-buttons">
-                            <button className="action-btn">
+                        <td className="um-date">
+                          {user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric'
+                          }) : '—'}
+                        </td>
+                        <td className="um-actions-cell">
+                          <div className="um-actions">
+                            <button
+                              className="um-action-btn um-view"
+                              onClick={() => handleOpenModal('view', user)}
+                              title="View details"
+                            >
                               <span className="material-symbols-outlined">visibility</span>
                             </button>
-                            <button className="action-btn">
+                            <button
+                              className="um-action-btn um-edit"
+                              onClick={() => handleOpenModal('edit', user)}
+                              title="Edit user"
+                            >
                               <span className="material-symbols-outlined">edit</span>
                             </button>
-                            <button className="action-btn">
-                              <span 
-                                className={`material-symbols-outlined ${getStatusIconColor(user.status)}`}
-                              >
-                                {getStatusIcon(user.status)}
-                              </span>
-                            </button>
-                            <button className="action-btn">
-                              <span className="material-symbols-outlined red">delete</span>
+                            <button
+                              className="um-action-btn um-delete"
+                              onClick={() => handleOpenModal('delete', user)}
+                              title="Delete user"
+                            >
+                              <span className="material-symbols-outlined">delete</span>
                             </button>
                           </div>
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Pagination */}
-              <nav className="pagination">
-                <span className="pagination-info">
-                  Showing <span className="font-semibold">1-4</span> of <span className="font-semibold">100</span>
-                </span>
-                <ul className="pagination-buttons">
-                  <li>
-                    <button className="pagination-btn prev-next">
-                      Previous
-                    </button>
-                  </li>
-                  <li>
-                    <button className="pagination-btn prev-next">
-                      Next
-                    </button>
-                  </li>
-                </ul>
-              </nav>
-            </section>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
           </div>
-        </main>
+
+          {/* Premium Pagination */}
+          <div className="um-pagination">
+            <div className="um-pagination-info">
+              Showing <strong>{pageStart}</strong>–<strong>{pageEnd}</strong> of <strong>{total.toLocaleString()}</strong> users
+            </div>
+
+            <div className="um-pagination-controls">
+              <select
+                className="um-page-size-select"
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+              >
+                <option value={10}>10 per page</option>
+                <option value={25}>25 per page</option>
+                <option value={50}>50 per page</option>
+                <option value={100}>100 per page</option>
+              </select>
+
+              <div className="um-pagination-buttons">
+                <button
+                  className="um-page-btn"
+                  onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                  disabled={page === 1}
+                >
+                  <span className="material-symbols-outlined">chevron_left</span>
+                  Previous
+                </button>
+                <button
+                  className="um-page-btn"
+                  onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+                  disabled={page >= totalPages}
+                >
+                  Next
+                  <span className="material-symbols-outlined">chevron_right</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
-    </div>
+
+      {/* User Action Modals Portal */}
+      <UserActionModals
+        modalType={modalType}
+        selectedUser={selectedUser}
+        onClose={handleCloseModal}
+        onSuccess={handleModalSuccess}
+      />
+    </SuperAdminLayout>
   );
 };
 
 export default UserManagement;
-
-// Small helper component placed at end of file to keep sidebar navigation behavior consistent
-const NavButton = ({ item, activeNav, setActiveNav }) => {
-  const navigate = useNavigate();
-
-  const handleClick = () => {
-    setActiveNav(item.id);
-    if (item.path) navigate(item.path);
-  };
-
-  return (
-    <button
-      className={`nav-item ${activeNav === item.id ? 'active' : ''}`}
-      onClick={handleClick}
-    >
-      <span className="material-symbols-outlined">{item.icon}</span>
-      <p>{item.label}</p>
-    </button>
-  );
-};

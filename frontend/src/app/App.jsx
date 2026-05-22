@@ -96,7 +96,6 @@ import ReceptionDashboard from "../features/staff/reception/pages/ReceptionDashb
 import SuperadminDashboard from "../features/staff/superadmin/pages/SuperadminDashboard";
 import UserManagement from "../features/staff/superadmin/pages/UserManagement";
 import HotelManagement from "../features/staff/superadmin/pages/HotelManagement";
-import AddHotel from "../features/staff/superadmin/pages/AddHotel";
 
 // ============================================
 // FEATURES - Staff Dashboards (Hotel Admin)
@@ -137,7 +136,6 @@ const Layout = ({ children }) => {
     '/superadmindashboard',
     '/usermanagement',
     '/hotelmanagement',
-    '/addhotel',
     '/hoteladmin-dashboard',
     '/roommanagement',
     '/restaurantmanagement',
@@ -261,10 +259,30 @@ const App = () => {
                       />
 
                       {/* Super Admin Dashboard */}
-                      <Route path="/superadmindashboard" element={<SuperadminDashboard />} />
-                      <Route path="/usermanagement" element={<UserManagement />} />
-                      <Route path="/hotelmanagement" element={<HotelManagement />} />
-                      <Route path="/addhotel" element={<AddHotel />} />
+                      <Route
+                        path="/superadmindashboard"
+                        element={
+                          <ProtectedStaffRoute allowedRoles={["superadmin"]}>
+                            <SuperadminDashboard />
+                          </ProtectedStaffRoute>
+                        }
+                      />
+                      <Route
+                        path="/usermanagement"
+                        element={
+                          <ProtectedStaffRoute allowedRoles={["superadmin"]}>
+                            <UserManagement />
+                          </ProtectedStaffRoute>
+                        }
+                      />
+                      <Route
+                        path="/hotelmanagement"
+                        element={
+                          <ProtectedStaffRoute allowedRoles={["superadmin"]}>
+                            <HotelManagement />
+                          </ProtectedStaffRoute>
+                        }
+                      />
 
                       {/* Hotel Admin Dashboard */}
                       <Route path="/hoteladmin-dashboard" element={<HoteladminDashboard />} />

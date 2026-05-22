@@ -547,7 +547,7 @@ const GuestTableView = () => {
           onClick={handlePlaceOrder}
           disabled={actionLoading || cart.length === 0}
         >
-          {actionLoading ? 'Placing Order...' : `Place Order • Rs. ${getCartTotal()}`}
+          {actionLoading ? 'Placing Order...' : `Place Order • Nrs ${getCartTotal()}`}
         </button>
       </div>
     );

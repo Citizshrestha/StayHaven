@@ -143,7 +143,6 @@ export const ROUTE_ACCESS = {
     '/superadmindashboard': [ROLES.SUPER_ADMIN],
     '/usermanagement': [ROLES.SUPER_ADMIN],
     '/hotelmanagement': [ROLES.SUPER_ADMIN],
-    '/addhotel': [ROLES.SUPER_ADMIN],
 
     '/hoteladmin-dashboard': [ROLES.HOTEL_ADMIN],
     '/roommanagement': [ROLES.HOTEL_ADMIN],

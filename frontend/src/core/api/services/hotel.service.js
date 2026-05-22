@@ -2,6 +2,16 @@ import axiosClient from '../client';
 
 const BASE = '/api/v1/hotels';
 
+const getAuthToken = () =>
+  sessionStorage.getItem('staffAccessToken') ||
+  localStorage.getItem('staffAccessToken') ||
+  localStorage.getItem('accessToken');
+
+const getAuthHeaders = () => {
+  const token = getAuthToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
 // Get all hotels (public - with filters)
 export const getAllHotels = async (filters = {}) => {
   try {
@@ -28,9 +38,8 @@ export const getHotelById = async (hotelId) => {
 // Get owner's hotels (protected - owner only)
 export const getMyHotels = async () => {
   try {
-    const token = localStorage.getItem('accessToken');
     const response = await axiosClient.get(`${BASE}/owner/my-hotels`, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: getAuthHeaders()
     });
     return response.data;
   } catch (error) {
@@ -42,9 +51,8 @@ export const getMyHotels = async () => {
 // Create new hotel (protected - owner only)
 export const createHotel = async (hotelData) => {
   try {
-    const token = localStorage.getItem('accessToken');
     const response = await axiosClient.post(BASE, hotelData, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: getAuthHeaders()
     });
     return response.data;
   } catch (error) {
@@ -56,9 +64,8 @@ export const createHotel = async (hotelData) => {
 // Update hotel (protected - owner only)
 export const updateHotel = async (hotelId, hotelData) => {
   try {
-    const token = localStorage.getItem('accessToken');
     const response = await axiosClient.put(`${BASE}/${hotelId}`, hotelData, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: getAuthHeaders()
     });
     return response.data;
   } catch (error) {
@@ -70,9 +77,8 @@ export const updateHotel = async (hotelId, hotelData) => {
 // Delete hotel (protected - owner only)
 export const deleteHotel = async (hotelId) => {
   try {
-    const token = localStorage.getItem('accessToken');
     const response = await axiosClient.delete(`${BASE}/${hotelId}`, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: getAuthHeaders()
     });
     return response.data;
   } catch (error) {
@@ -84,9 +90,8 @@ export const deleteHotel = async (hotelId) => {
 // Toggle hotel active status (protected - owner only)
 export const toggleHotelStatus = async (hotelId) => {
   try {
-    const token = localStorage.getItem('accessToken');
     const response = await axiosClient.patch(`${BASE}/${hotelId}/toggle-status`, {}, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: getAuthHeaders()
     });
     return response.data;
   } catch (error) {
@@ -98,9 +103,8 @@ export const toggleHotelStatus = async (hotelId) => {
 // Get hotel statistics (protected - owner only)
 export const getHotelStats = async (hotelId) => {
   try {
-    const token = localStorage.getItem('accessToken');
     const response = await axiosClient.get(`${BASE}/${hotelId}/stats`, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: getAuthHeaders()
     });
     return response.data;
   } catch (error) {
@@ -127,6 +131,34 @@ export const getFeaturedHotels = async () => {
     return response.data;
   } catch (error) {
     console.error('Error fetching featured hotels:', error);
+    throw error.response?.data || error;
+  }
+};
+
+// =========================
+// Super Admin - Hotel Management
+// =========================
+export const getAdminHotels = async (filters = {}) => {
+  try {
+    const queryParams = new URLSearchParams(filters).toString();
+    const response = await axiosClient.get(`${BASE}/admin/all${queryParams ? `?${queryParams}` : ''}`, {
+      headers: getAuthHeaders()
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching admin hotels:', error);
+    throw error.response?.data || error;
+  }
+};
+
+export const updateHotelStatus = async (hotelId, status, reason) => {
+  try {
+    const response = await axiosClient.patch(`${BASE}/${hotelId}/status`, { status, reason }, {
+      headers: getAuthHeaders()
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error updating hotel status:', error);
     throw error.response?.data || error;
   }
 };

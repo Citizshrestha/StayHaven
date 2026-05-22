@@ -5,6 +5,7 @@ import axiosClient from "../../core/api/client";
 import { getWishlist, getCart } from "../../core/api/services/user.service";
 import { Button } from "../ui/button";
 import { createLogger } from "../../core/utils/logger.js";
+import NoBookingsModal from "../components/NoBookingsModal";
 import './Navbar.css';
 
 const logger = createLogger('Navbar');
@@ -15,6 +16,7 @@ const Navbar = () => {
   const [wishlistCount, setWishlistCount] = useState(0);
   const [cartCount, setCartCount] = useState(0);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const [showNoBookingsModal, setShowNoBookingsModal] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const dropdownRef = useRef(null);
@@ -162,6 +164,31 @@ const Navbar = () => {
     if (e.key === 'Enter') handleSearch();
   };
 
+  const handleDashboardClick = async () => {
+    try {
+      // Check if user has bookings
+      const response = await axiosClient.get('/api/v1/guest/portal/dashboard');
+      const overview = response.data?.data;
+
+      const hasNoBookings =
+        !overview?.activeBooking &&
+        (!overview?.upcomingBookings || overview.upcomingBookings.length === 0) &&
+        (overview?.pastBookingsCount === 0 || !overview?.pastBookingsCount);
+
+      if (hasNoBookings) {
+        // Show modal on current page
+        setShowNoBookingsModal(true);
+      } else {
+        // Navigate to dashboard
+        navigate('/guest-dashboard');
+      }
+    } catch (error) {
+      console.error('Error checking bookings:', error);
+      // If error, still navigate to dashboard (it will handle the error)
+      navigate('/guest-dashboard');
+    }
+  };
+
   const navLinks = [
     { label: 'HOME', path: '/' },
     { label: 'ABOUT US', path: '/about' },
@@ -281,7 +308,7 @@ const Navbar = () => {
                       <button
                         onClick={() => {
                           setIsProfileDropdownOpen(false);
-                          navigate('/guest-dashboard');
+                          handleDashboardClick();
                         }}
                         className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
                       >
@@ -488,7 +515,7 @@ const Navbar = () => {
                     <Button
                       onClick={() => {
                         setIsMobileMenuOpen(false);
-                        navigate('/guest-dashboard');
+                        handleDashboardClick();
                       }}
                       variant="outline"
                       className="w-full rounded-xl py-6 font-semibold border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-teal-600 bg-white flex items-center justify-center gap-2"
@@ -534,6 +561,12 @@ const Navbar = () => {
           </div>
         </div>
       )}
+
+      {/* No Bookings Modal */}
+      <NoBookingsModal
+        isOpen={showNoBookingsModal}
+        onClose={() => setShowNoBookingsModal(false)}
+      />
     </nav>
   );
 };

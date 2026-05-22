@@ -574,7 +574,7 @@ const GuestRoomView = () => {
           disabled={actionLoading || cart.length === 0}
           style={{ background: 'linear-gradient(135deg, #059669 0%, #047857 100%)' }}
         >
-          {actionLoading ? 'Placing Order...' : `Order Room Service • Rs. ${getCartTotal()}`}
+          {actionLoading ? 'Placing Order...' : `Order Room Service • Nrs ${getCartTotal()}`}
         </button>
       </div>
     );

@@ -1,96 +1,169 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { toast } from 'react-toastify';
 import './AddHotel.css';
 
+const defaultHotelData = {
+  name: '',
+  category: 'Hotel',
+  description: '',
+  streetAddress: '',
+  city: '',
+  state: '',
+  zipCode: '',
+  starRating: 4,
+  minPrice: '',
+  maxPrice: '',
+  contactPhone: '',
+  contactEmail: '',
+  contactWebsite: '',
+  amenities: [],
+  images: [],
+};
+
+const amenitiesList = [
+  'Free Wi-Fi',
+  'Swimming Pool',
+  'Gym',
+  'Parking',
+  'Restaurant',
+  'Pet Friendly',
+  'Spa',
+  'Room Service',
+];
+
+const categoryOptions = ['Hotel', 'Resort', 'Villa', 'Apartment', 'Guest House', 'Hostel'];
+
 const AddHotel = ({ isOpen, onClose, onSave, editHotel }) => {
-  const [hotelData, setHotelData] = useState({
-    hotelName: editHotel?.hotelName || '',
-    hotelType: editHotel?.hotelType || '',
-    streetAddress: editHotel?.streetAddress || '',
-    city: editHotel?.city || '',
-    state: editHotel?.state || '',
-    zipCode: editHotel?.zipCode || '',
-    description: editHotel?.description || '',
-    amenities: editHotel?.amenities || [],
-    images: editHotel?.images || []
-  });
+  const [hotelData, setHotelData] = useState(defaultHotelData);
+  const [imageUrlInput, setImageUrlInput] = useState('');
 
-  const [dragOver, setDragOver] = useState(false);
+  useEffect(() => {
+    if (!editHotel) {
+      setHotelData(defaultHotelData);
+      setImageUrlInput('');
+      return;
+    }
 
-  const amenitiesList = [
-    'Free Wi-Fi',
-    'Swimming Pool',
-    'Gym',
-    'Parking',
-    'Restaurant',
-    'Pet Friendly',
-    'Spa',
-    'Room Service'
-  ];
+    setHotelData({
+      name: editHotel.name || '',
+      category: editHotel.category || 'Hotel',
+      description: editHotel.description || '',
+      streetAddress: editHotel.location?.address || '',
+      city: editHotel.location?.city || '',
+      state: '',
+      zipCode: '',
+      starRating: editHotel.starRating || 4,
+      minPrice: editHotel.priceRange?.min || '',
+      maxPrice: editHotel.priceRange?.max || '',
+      contactPhone: editHotel.contact?.phone || '',
+      contactEmail: editHotel.contact?.email || '',
+      contactWebsite: editHotel.contact?.website || '',
+      amenities: editHotel.amenities || [],
+      images: editHotel.images || [],
+    });
+    setImageUrlInput('');
+  }, [editHotel]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setHotelData(prev => ({
+    setHotelData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
   const handleAmenityChange = (amenity) => {
-    setHotelData(prev => ({
+    setHotelData((prev) => ({
       ...prev,
       amenities: prev.amenities.includes(amenity)
-        ? prev.amenities.filter(a => a !== amenity)
-        : [...prev.amenities, amenity]
+        ? prev.amenities.filter((item) => item !== amenity)
+        : [...prev.amenities, amenity],
     }));
   };
 
-  const handleImageUpload = (e) => {
-    const files = Array.from(e.target.files);
-    const newImages = files.map(file => ({
-      file,
-      preview: URL.createObjectURL(file)
-    }));
-    setHotelData(prev => ({
+  const addImageUrl = () => {
+    if (!imageUrlInput.trim()) return;
+    const urls = imageUrlInput
+      .split(/\s*,\s*|\n/)
+      .map((url) => url.trim())
+      .filter(Boolean);
+
+    if (urls.length === 0) return;
+
+    setHotelData((prev) => ({
       ...prev,
-      images: [...prev.images, ...newImages]
+      images: [...prev.images, ...urls],
     }));
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    setDragOver(true);
-  };
-
-  const handleDragLeave = (e) => {
-    e.preventDefault();
-    setDragOver(false);
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setDragOver(false);
-    const files = Array.from(e.dataTransfer.files);
-    const newImages = files.map(file => ({
-      file,
-      preview: URL.createObjectURL(file)
-    }));
-    setHotelData(prev => ({
-      ...prev,
-      images: [...prev.images, ...newImages]
-    }));
+    setImageUrlInput('');
   };
 
   const removeImage = (index) => {
-    setHotelData(prev => ({
+    setHotelData((prev) => ({
       ...prev,
-      images: prev.images.filter((_, i) => i !== index)
+      images: prev.images.filter((_, i) => i !== index),
     }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave(hotelData);
-    onClose();
+
+    if (!hotelData.name || !hotelData.category || !hotelData.city || !hotelData.streetAddress) {
+      toast.error('Please fill in all required hotel details.');
+      return;
+    }
+
+    if (!hotelData.description) {
+      toast.error('Please provide a hotel description.');
+      return;
+    }
+
+    if (!hotelData.minPrice || !hotelData.maxPrice) {
+      toast.error('Please provide a price range.');
+      return;
+    }
+
+    if (Number(hotelData.minPrice) > Number(hotelData.maxPrice)) {
+      toast.error('Minimum price cannot be higher than maximum price.');
+      return;
+    }
+
+    if (!hotelData.contactEmail || !hotelData.contactPhone) {
+      toast.error('Contact email and phone are required.');
+      return;
+    }
+
+    if (hotelData.images.length === 0) {
+      toast.error('Please add at least one image URL.');
+      return;
+    }
+
+    const addressParts = [hotelData.streetAddress, hotelData.state, hotelData.zipCode]
+      .filter(Boolean)
+      .join(', ');
+
+    const payload = {
+      name: hotelData.name,
+      description: hotelData.description,
+      category: hotelData.category,
+      location: {
+        city: hotelData.city,
+        address: addressParts || hotelData.streetAddress,
+      },
+      starRating: Number(hotelData.starRating),
+      priceRange: {
+        min: Number(hotelData.minPrice),
+        max: Number(hotelData.maxPrice),
+      },
+      images: hotelData.images,
+      amenities: hotelData.amenities,
+      contact: {
+        phone: hotelData.contactPhone,
+        email: hotelData.contactEmail,
+        website: hotelData.contactWebsite || undefined,
+      },
+    };
+
+    onSave(payload);
   };
 
   if (!isOpen) return null;
@@ -104,7 +177,6 @@ const AddHotel = ({ isOpen, onClose, onSave, editHotel }) => {
         </div>
 
         <form onSubmit={handleSubmit}>
-          {/* Basic Info Section */}
           <div className="form-section">
             <h3>Basic Info</h3>
             <div className="form-row">
@@ -112,28 +184,68 @@ const AddHotel = ({ isOpen, onClose, onSave, editHotel }) => {
                 <label>Hotel Name</label>
                 <input
                   type="text"
-                  name="hotelName"
-                  value={hotelData.hotelName}
+                  name="name"
+                  value={hotelData.name}
                   onChange={handleInputChange}
                   placeholder="The Grand Coastal Resort"
                   required
                 />
               </div>
               <div className="form-group">
-                <label>Hotel Type</label>
-                <input
-                  type="text"
-                  name="hotelType"
-                  value={hotelData.hotelType}
+                <label>Category</label>
+                <select
+                  name="category"
+                  value={hotelData.category}
                   onChange={handleInputChange}
-                  placeholder="Boutique"
+                  required
+                >
+                  {categoryOptions.map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Star Rating</label>
+                <select
+                  name="starRating"
+                  value={hotelData.starRating}
+                  onChange={handleInputChange}
+                  required
+                >
+                  {[5, 4, 3, 2, 1].map((rating) => (
+                    <option key={rating} value={rating}>{rating} Star</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Min Price</label>
+                <input
+                  type="number"
+                  name="minPrice"
+                  value={hotelData.minPrice}
+                  onChange={handleInputChange}
+                  placeholder="120"
+                  min="0"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Max Price</label>
+                <input
+                  type="number"
+                  name="maxPrice"
+                  value={hotelData.maxPrice}
+                  onChange={handleInputChange}
+                  placeholder="250"
+                  min="0"
                   required
                 />
               </div>
             </div>
           </div>
 
-          {/* Address Section */}
           <div className="form-section">
             <h3>Address</h3>
             <div className="form-group">
@@ -167,7 +279,6 @@ const AddHotel = ({ isOpen, onClose, onSave, editHotel }) => {
                   value={hotelData.state}
                   onChange={handleInputChange}
                   placeholder="California"
-                  required
                 />
               </div>
               <div className="form-group">
@@ -178,17 +289,53 @@ const AddHotel = ({ isOpen, onClose, onSave, editHotel }) => {
                   value={hotelData.zipCode}
                   onChange={handleInputChange}
                   placeholder="90210"
-                  required
                 />
               </div>
             </div>
           </div>
 
-          {/* Amenities Section */}
+          <div className="form-section">
+            <h3>Contact</h3>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Phone</label>
+                <input
+                  type="text"
+                  name="contactPhone"
+                  value={hotelData.contactPhone}
+                  onChange={handleInputChange}
+                  placeholder="+1 555 123 4567"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Email</label>
+                <input
+                  type="email"
+                  name="contactEmail"
+                  value={hotelData.contactEmail}
+                  onChange={handleInputChange}
+                  placeholder="hotel@stayhaven.com"
+                  required
+                />
+              </div>
+            </div>
+            <div className="form-group">
+              <label>Website</label>
+              <input
+                type="url"
+                name="contactWebsite"
+                value={hotelData.contactWebsite}
+                onChange={handleInputChange}
+                placeholder="https://hotel.com"
+              />
+            </div>
+          </div>
+
           <div className="form-section">
             <h3>Amenities</h3>
             <div className="amenities-grid">
-              {amenitiesList.map(amenity => (
+              {amenitiesList.map((amenity) => (
                 <label key={amenity} className="amenity-checkbox">
                   <input
                     type="checkbox"
@@ -202,7 +349,6 @@ const AddHotel = ({ isOpen, onClose, onSave, editHotel }) => {
             </div>
           </div>
 
-          {/* Description Section */}
           <div className="form-section">
             <h3>Description</h3>
             <div className="form-group">
@@ -217,21 +363,17 @@ const AddHotel = ({ isOpen, onClose, onSave, editHotel }) => {
             </div>
           </div>
 
-          {/* Divider */}
           <div className="section-divider"></div>
 
-          {/* Upload Images Section */}
           <div className="form-section">
-            <h3>Upload Images</h3>
-            
-            {/* Image Preview Grid */}
+            <h3>Image URLs</h3>
             {hotelData.images.length > 0 && (
               <div className="image-preview-grid">
-                {hotelData.images.map((image, index) => (
+                {hotelData.images.map((url, index) => (
                   <div key={index} className="image-preview-item">
-                    <img src={image.preview} alt={`Preview ${index + 1}`} />
-                    <button 
-                      type="button" 
+                    <img src={url} alt={`Preview ${index + 1}`} />
+                    <button
+                      type="button"
                       className="remove-image-btn"
                       onClick={() => removeImage(index)}
                     >
@@ -242,35 +384,19 @@ const AddHotel = ({ isOpen, onClose, onSave, editHotel }) => {
               </div>
             )}
 
-            {/* Upload Area */}
-            <div 
-              className={`upload-area ${dragOver ? 'drag-over' : ''}`}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-            >
-              <div className="upload-icon">
-                <span className="material-symbols-outlined">cloud_upload</span>
-              </div>
-              <div className="upload-text">
-                <p className="upload-title">Drag & drop files here</p>
-                <p className="upload-subtitle">or</p>
-              </div>
+            <div className="image-url-input">
               <input
-                type="file"
-                id="hotel-images"
-                multiple
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="file-input"
+                type="text"
+                value={imageUrlInput}
+                onChange={(e) => setImageUrlInput(e.target.value)}
+                placeholder="Paste image URLs separated by commas"
               />
-              <label htmlFor="hotel-images" className="browse-btn">
-                Browse Files
-              </label>
+              <button type="button" className="add-image-btn" onClick={addImageUrl}>
+                Add
+              </button>
             </div>
           </div>
 
-          {/* Action Buttons */}
           <div className="modal-actions">
             <button type="button" className="cancel-btn" onClick={onClose}>
               Cancel

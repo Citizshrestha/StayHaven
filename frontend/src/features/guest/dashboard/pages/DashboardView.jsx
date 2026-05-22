@@ -26,16 +26,16 @@ import {
 } from '../guestDashboardApi';
 import ExtendStayModal from '../../../../shared/components/ExtendStayModal';
 import CancelOrderModal from '../../../../shared/components/CancelOrderModal';
+import NoBookingsModal from '../../../../shared/components/NoBookingsModal';
 import notificationSoundService from '../../../../services/notificationSoundService';
 import styles from './DashboardView.module.css';
 
 const formatMoney = (value = 0) => {
   const numeric = Number(value) || 0;
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
+  const formatted = new Intl.NumberFormat('en-NP', {
     maximumFractionDigits: 0,
   }).format(numeric);
+  return `Nrs ${formatted}`;
 };
 
 const formatDate = (value) => {
@@ -108,6 +108,7 @@ const DashboardView = () => {
   const [billingExpanded, setBillingExpanded] = useState(true);
   const [showExtendModal, setShowExtendModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showNoBookingsModal, setShowNoBookingsModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [dashboardData, setDashboardData] = useState({
     overview: null,
@@ -697,6 +698,12 @@ const DashboardView = () => {
           toast.success('Order cancelled successfully!');
           refreshDashboard();
         }}
+      />
+
+      {/* No Bookings Modal */}
+      <NoBookingsModal
+        isOpen={showNoBookingsModal}
+        onClose={() => setShowNoBookingsModal(false)}
       />
     </div>
   );

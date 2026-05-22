@@ -32,15 +32,15 @@
 /* Base Styles */
 .hotel-management {
   font-family: 'Inter', sans-serif;
-  background-color: var(--background-light);
+  background-color: transparent;
   color: var(--text-light);
-  min-height: 100vh;
-  height: 100vh;
-  overflow: hidden;
+  min-height: 100%;
+  height: auto;
+  overflow: visible;
 }
 
 .hotel-management.dark {
-  background-color: var(--background-dark);
+  background-color: transparent;
   color: var(--text-dark);
 }
 
@@ -523,6 +523,19 @@
   height: 2.5rem;
 }
 
+.filter-summary {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  font-size: 0.875rem;
+  color: var(--text-secondary-light);
+  padding: 0 0.25rem;
+}
+
+.hotel-management.dark .filter-summary {
+  color: var(--text-secondary-dark);
+}
+
 .hotel-management.dark .filter-select {
   background-color: var(--card-dark);
   border-color: var(--border-dark);
@@ -682,6 +695,16 @@
   color: var(--error);
 }
 
+.status-subtext {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary-light);
+}
+
+.hotel-management.dark .status-subtext {
+  color: var(--text-secondary-dark);
+}
+
 /* Actions Cell */
 .actions-cell {
   text-align: right;
@@ -702,6 +725,16 @@
   cursor: pointer;
   transition: background-color 0.3s;
   color: var(--text-secondary-light);
+}
+
+.action-btn.approve:hover {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: var(--success);
+}
+
+.action-btn.reject:hover {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: var(--error);
 }
 
 .action-btn:hover {

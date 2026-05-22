@@ -25,6 +25,11 @@ const BillingView = () => {
   const [outstandingBalance, setOutstandingBalance] = useState(0);
   const [processingPayment, setProcessingPayment] = useState(null);
 
+  const formatNrs = useCallback((amount) => {
+    const safeAmount = Number.isFinite(amount) ? amount : 0;
+    return `Nrs ${safeAmount.toFixed(2)}`;
+  }, []);
+
   useEffect(() => {
     loadInvoices();
   }, []);
@@ -86,7 +91,7 @@ const BillingView = () => {
       // Real Stripe payment
       const res = await payOrder(invoice._id, {
         amount: invoice.balance,
-        currency: 'usd',
+        currency: 'npr',
       });
 
       if (!res?.success) {
@@ -147,7 +152,7 @@ const BillingView = () => {
             {outstandingBalance > 0 && (
               <div className="bg-linear-to-r from-red-500 to-pink-500 text-white px-6 py-3 rounded-xl shadow-lg">
                 <p className="text-sm">Outstanding Balance</p>
-                <p className="text-2xl font-bold">${outstandingBalance.toFixed(2)}</p>
+                <p className="text-2xl font-bold">{formatNrs(outstandingBalance)}</p>
               </div>
             )}
           </div>
@@ -161,7 +166,7 @@ const BillingView = () => {
                style={{ borderColor: isDark ? 'rgba(148,163,184,0.18)' : 'rgba(2,6,23,0.08)' }}>
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Outstanding</p>
-              <p className="text-xl font-bold text-gray-900 dark:text-gray-100">${outstandingBalance.toFixed(2)}</p>
+              <p className="text-xl font-bold text-gray-900 dark:text-gray-100">{formatNrs(outstandingBalance)}</p>
             </div>
             <span className={`px-3 py-1.5 rounded-full text-xs font-semibold ${outstandingBalance > 0 ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/20 dark:text-rose-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300'}`}>
               {outstandingBalance > 0 ? 'Due' : 'All clear'}
@@ -182,6 +187,7 @@ const BillingView = () => {
                 invoice={invoice}
                 onPay={() => handlePayNow(invoice)}
                 processing={processingPayment === invoice._id}
+                formatNrs={formatNrs}
               />
             ))}
           </div>
@@ -195,7 +201,7 @@ const BillingView = () => {
 // Sub-components
 // ─────────────────────────────────────────
 
-const InvoiceCard = ({ invoice, onPay, processing }) => {
+const InvoiceCard = ({ invoice, onPay, processing, formatNrs }) => {
   const statusColors = {
     paid: 'bg-green-100 text-green-700',
     pending: 'bg-yellow-100 text-yellow-700',
@@ -224,11 +230,11 @@ const InvoiceCard = ({ invoice, onPay, processing }) => {
         </div>
         <div>
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Amount</p>
-          <p className="font-bold text-lg text-gray-900 dark:text-gray-100">${totalCharges.toFixed(2)}</p>
+          <p className="font-bold text-lg text-gray-900 dark:text-gray-100">{formatNrs(totalCharges)}</p>
         </div>
         <div>
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Balance</p>
-          <p className="font-bold text-lg text-red-600">${(invoice.balance ?? 0).toFixed(2)}</p>
+          <p className="font-bold text-lg text-red-600">{formatNrs(invoice.balance ?? 0)}</p>
         </div>
         <div className="flex items-center justify-end">
           <span

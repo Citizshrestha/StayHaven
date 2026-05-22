@@ -1,362 +1,328 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
+import SuperAdminLayout from './SuperAdminLayout';
 import './SuperadminDashboard.css';
-import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-toastify';
 
 const SuperadminDashboard = () => {
-  const [darkMode, setDarkMode] = useState(false);
-  const [activeNav, setActiveNav] = useState('dashboard');
-
-  // Scroll to top when component mounts
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
-
-  const navigationItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: 'dashboard',path: '/superadmindashboard', active: true },
-    { id: 'users', label: 'User Management', icon: 'group', path: '/usermanagement' },
-    { id: 'hotels', label: 'Hotel Management', icon: 'apartment' , path: '/hotelmanagement'},
-    { id: 'bookings', label: 'Booking Management', icon: 'book_online' },
-    { id: 'finance', label: 'Finance', icon: 'payments' },
-    { id: 'reviews', label: 'Review Moderation', icon: 'rate_review' },
-    { id: 'content', label: 'Content Management', icon: 'wysiwyg' },
-    { id: 'config', label: 'System Configuration', icon: 'tune' },
-  ];
-
-  const bottomNavItems = [
-    { id: 'analytics', label: 'Analytics', icon: 'analytics' },
-    { id: 'logout', label: 'Logout', icon: 'logout' },
-  ];
-
+  const [timeFilter, setTimeFilter] = useState('7d');
+  
+  // Real-time statistics derived from the design prompt
   const stats = [
-    { label: 'Total Revenue', value: '$1,250,450', trend: '+2.5%', trendUp: true },
-    { label: 'New Bookings Today', value: '152', trend: '+5.1%', trendUp: true },
-    { label: 'Active Users', value: '12,345', trend: '-0.2%', trendUp: false },
-    { label: 'Hotels Awaiting Approval', value: '8', trend: 'Pending', trendUp: null },
+    { 
+      label: 'Total Revenue', 
+      value: '$1,250,450', 
+      trend: '+2.5%', 
+      trendUp: true, 
+      desc: 'vs. previous period',
+      icon: 'payments',
+      gradient: 'linear-gradient(135deg, #06B6D4 0%, #0D9488 100%)' // Teal gradient
+    },
+    { 
+      label: 'Commission Earned', 
+      value: '$187,567', 
+      trend: '+5.1%', 
+      trendUp: true, 
+      desc: 'Average 15% rate',
+      icon: 'percent',
+      gradient: 'linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%)' // Premium blue/purple
+    },
+    { 
+      label: 'Active Users', 
+      value: '12,345', 
+      trend: '-0.2%', 
+      trendUp: false, 
+      desc: 'Guests & staff active',
+      icon: 'group',
+      gradient: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)' // Indigo
+    },
+    { 
+      label: 'Pending Approvals', 
+      value: '8 Hotels', 
+      trend: '23 Reviews', 
+      trendUp: null, 
+      desc: 'Requires moderation',
+      icon: 'pending_actions',
+      gradient: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)' // Warning Amber
+    },
   ];
 
   const recentBookings = [
-    { guest: 'John Doe', hotel: 'The Grand Hyatt', date: '2023-10-26', amount: '$450.00', status: 'Paid', statusType: 'success' },
-    { guest: 'Jane Smith', hotel: 'Sunset Resort', date: '2023-10-25', amount: '$1200.50', status: 'Pending', statusType: 'warning' },
-    { guest: 'Mike Johnson', hotel: 'Ocean View Inn', date: '2023-10-24', amount: '$320.00', status: 'Paid', statusType: 'success' },
-    { guest: 'Sarah Wilson', hotel: 'City Center Hotel', date: '2023-10-23', amount: '$180.75', status: 'Cancelled', statusType: 'error' },
+    { guest: 'John Doe', email: 'john@example.com', hotel: 'Hotel Annapurna', date: 'May 20, 2026', amount: '$450.00', commission: '$67.50', status: 'Paid', statusType: 'success' },
+    { guest: 'Jane Smith', email: 'jane@example.com', hotel: 'Soaltee Crown Plaza', date: 'May 19, 2026', amount: '$1,200.50', commission: '$180.00', status: 'Pending', statusType: 'warning' },
+    { guest: 'Mike Johnson', email: 'mike@example.com', hotel: 'Hyatt Regency', date: 'May 18, 2026', amount: '$320.00', commission: '$48.00', status: 'Paid', statusType: 'success' },
+    { guest: 'Sarah Wilson', email: 'sarah@example.com', hotel: 'Hotel Annapurna', date: 'May 17, 2026', amount: '$180.75', commission: '$27.11', status: 'Cancelled', statusType: 'error' },
   ];
 
-  const revenueData = [
-    { type: 'Luxury', percentage: 75 },
-    { type: 'Boutique', percentage: 55 },
-    { type: 'Resort', percentage: 40 },
-    { type: 'Budget', percentage: 25 },
+  const commissionBreakdown = [
+    { type: 'Luxury Hotels', percentage: 75, rate: '15%' },
+    { type: 'Boutique Hotels', percentage: 55, rate: '12%' },
+    { type: 'Resort Hotels', percentage: 40, rate: '10%' },
+    { type: 'Budget Hotels', percentage: 25, rate: '8%' },
   ];
 
-  const weeklyAnalyticsLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const pendingActions = [
+    { text: '8 Hotels awaiting verification', type: 'hotel', count: 8, severity: 'warning' },
+    { text: '23 Guest reviews pending moderation', type: 'review', count: 23, severity: 'info' },
+    { text: '3 Hotel payouts due for processing', type: 'payout', count: 3, severity: 'danger' }
+  ];
 
-  const navigate = useNavigate();
-
-  const handleNavigation = (item) => {
-    setActiveNav(item.id);
-    if (item.path) {
-      navigate(item.path);
-    }
-  };
-
-  const handleLogout = useCallback(() => {
-    // Clear any stored auth tokens
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('user');
-    sessionStorage.clear();
-    toast.success('Logged out successfully');
-    navigate('/login');
-  }, [navigate]);
-
-  // Handle dark mode toggle with localStorage persistence
-  const toggleDarkMode = useCallback(() => {
-    setDarkMode(prev => {
-      const newMode = !prev;
-      localStorage.setItem('superadmin-dark-mode', JSON.stringify(newMode));
-      return newMode;
-    });
-  }, []);
-
-  // Initialize dark mode from localStorage
-  useEffect(() => {
-    const savedMode = localStorage.getItem('superadmin-dark-mode');
-    if (savedMode !== null) {
-      setDarkMode(JSON.parse(savedMode));
-    }
-  }, []);
+  const activityFeed = [
+    { time: '10 min ago', action: 'New booking confirmed', detail: 'John Doe booked Deluxe Room at Hotel Annapurna', badge: 'Booking', status: 'success' },
+    { time: '45 min ago', action: 'Hotel registered', detail: 'StayHaven Resort Pokhara submitted verification documents', badge: 'Hotel', status: 'warning' },
+    { time: '2 hours ago', action: 'Payout processed', detail: '$4,520 paid to Soaltee Crown Plaza', badge: 'Payout', status: 'success' },
+    { time: '4 hours ago', action: 'Negative review flagged', detail: 'Guest flagged review #1289 for inappropriate language', badge: 'Review', status: 'danger' }
+  ];
 
   return (
-    <div className={`superadmin-dashboard ${darkMode ? 'dark' : 'light'}`}>
-      <div className="dashboard-layout">
-        {/* SideNavBar */}
-        <aside className="sidebar">
-          <div className="sidebar-header">
-            <div className="logo-icon">
-              <span className="material-symbols-outlined">holiday_village</span>
-            </div>
-            <div className="logo-text">
-              <h1>StayHaven</h1>
-              <p>Super Admin</p>
-            </div>
-          </div>
-          
-          <div className="sidebar-content">
-            <div className="nav-section">
-              {navigationItems.map((item) => (
-                <button
-                  key={item.id}
-                  className={`nav-item ${activeNav === item.id ? 'active' : ''}`}
-                  onClick={() => handleNavigation(item)}
-                >
-                  <span className={`material-symbols-outlined ${activeNav === item.id ? 'fill' : ''}`}>
-                    {item.icon}
+    <SuperAdminLayout pageTitle="Dashboard Overview">
+      <div className="sad-container">
+        
+        {/* Top Metrics Row */}
+        <div className="sad-stats-grid">
+          {stats.map((stat, index) => (
+            <div key={index} className="sad-stat-card">
+              <div className="sad-stat-icon-wrapper" style={{ background: stat.gradient }}>
+                <span className="material-symbols-outlined">{stat.icon}</span>
+              </div>
+              <div className="sad-stat-info">
+                <p className="sad-stat-label">{stat.label}</p>
+                <h3 className="sad-stat-value">{stat.value}</h3>
+                <div className="sad-stat-footer">
+                  <span className={`sad-stat-trend ${stat.trendUp === true ? 'positive' : stat.trendUp === false ? 'negative' : 'neutral'}`}>
+                    <span className="material-symbols-outlined text-sm">
+                      {stat.trendUp === true ? 'trending_up' : stat.trendUp === false ? 'trending_down' : 'sync'}
+                    </span>
+                    {stat.trend}
                   </span>
-                  <p>{item.label}</p>
-                </button>
-              ))}
+                  <span className="sad-stat-desc">{stat.desc}</span>
+                </div>
+              </div>
             </div>
-            
-            <div className="nav-section bottom">
-              {bottomNavItems.map((item) => (
-                  <button
-                    key={item.id}
-                    className="nav-item"
-                    onClick={() => {
-                      if (item.id === 'logout') return handleLogout();
-                      handleNavigation(item);
-                    }}
+          ))}
+        </div>
+
+        {/* Charts and Distribution Grid */}
+        <div className="sad-charts-grid">
+          
+          {/* Sales Analytics Chart (Large Panel) */}
+          <div className="sad-card sad-chart-panel">
+            <div className="sad-card-header">
+              <div>
+                <h3 className="sad-card-title">Sales Analytics</h3>
+                <p className="sad-card-subtitle">Platform revenue & booking trends</p>
+              </div>
+              <div className="sad-filters">
+                {['24h', '7d', '30d', '90d'].map((f) => (
+                  <button 
+                    key={f}
+                    className={`sad-filter-btn ${timeFilter === f ? 'active' : ''}`}
+                    onClick={() => setTimeFilter(f)}
                   >
-                    <span className="material-symbols-outlined">{item.icon}</span>
-                    <p>{item.label}</p>
+                    {f.toUpperCase()}
                   </button>
                 ))}
+              </div>
+            </div>
+
+            <div className="sad-chart-stats">
+              <div className="sad-c-stat">
+                <span className="sad-c-value">$84,250</span>
+                <span className="sad-c-label">Net Sales</span>
+              </div>
+              <div className="sad-c-stat">
+                <span className="sad-c-value positive">+12.4%</span>
+                <span className="sad-c-label">Growth Rate</span>
+              </div>
+              <div className="sad-c-stat">
+                <span className="sad-c-value">$12,637</span>
+                <span className="sad-c-label">Platform Fee</span>
+              </div>
+            </div>
+
+            <div className="sad-svg-chart-container">
+              <svg className="sad-svg-chart" viewBox="0 0 600 220" preserveAspectRatio="none">
+                {/* Grid Lines */}
+                <line x1="0" y1="40" x2="600" y2="40" stroke="rgba(255,255,255,0.05)" strokeDasharray="3" />
+                <line x1="0" y1="90" x2="600" y2="90" stroke="rgba(255,255,255,0.05)" strokeDasharray="3" />
+                <line x1="0" y1="140" x2="600" y2="140" stroke="rgba(255,255,255,0.05)" strokeDasharray="3" />
+                <line x1="0" y1="190" x2="600" y2="190" stroke="rgba(255,255,255,0.1)" />
+
+                {/* Area Gradient Fill */}
+                <path 
+                  d="M0,160 Q80,140 160,80 T320,110 T480,50 T600,70 L600,190 L0,190 Z"
+                  fill="url(#premium_chart_fill)"
+                />
+                
+                {/* Line Path */}
+                <path 
+                  d="M0,160 Q80,140 160,80 T320,110 T480,50 T600,70"
+                  fill="none"
+                  stroke="url(#premium_chart_stroke)"
+                  strokeWidth="4"
+                  strokeLinecap="round"
+                />
+
+                {/* Dots / Points */}
+                <circle cx="160" cy="80" r="6" fill="#8B5CF6" stroke="#FFFFFF" strokeWidth="2" />
+                <circle cx="320" cy="110" r="6" fill="#3B82F6" stroke="#FFFFFF" strokeWidth="2" />
+                <circle cx="480" cy="50" r="6" fill="#10B981" stroke="#FFFFFF" strokeWidth="2" />
+
+                <defs>
+                  {/* Gradients */}
+                  <linearGradient id="premium_chart_fill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#8B5CF6" stopOpacity="0.4" />
+                    <stop offset="50%" stopColor="#3B82F6" stopOpacity="0.15" />
+                    <stop offset="100%" stopColor="#3B82F6" stopOpacity="0.0" />
+                  </linearGradient>
+                  
+                  <linearGradient id="premium_chart_stroke" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#8B5CF6" />
+                    <stop offset="50%" stopColor="#3B82F6" />
+                    <stop offset="100%" stopColor="#10B981" />
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+
+            <div className="sad-chart-labels">
+              <span>Mon</span>
+              <span>Tue</span>
+              <span>Wed</span>
+              <span>Thu</span>
+              <span>Fri</span>
+              <span>Sat</span>
+              <span>Sun</span>
             </div>
           </div>
-        </aside>
 
-        {/* Main Content */}
-        <main className="main-content">
-          {/* TopNavBar */}
-          <header className="top-header">
-            <div className="header-left">
-              <h2>Dashboard Overview</h2>
-            </div>
-            
-            <div className="header-right">
-              <div className="search-container">
-                <span className="search-icon material-symbols-outlined">search</span>
-                <input 
-                  className="search-input"
-                  placeholder="Search..." 
-                  type="search"
-                />
+          {/* Revenue Breakdown */}
+          <div className="sad-card sad-breakdown-panel">
+            <div className="sad-card-header">
+              <div>
+                <h3 className="sad-card-title">Commission Rates</h3>
+                <p className="sad-card-subtitle">By Hotel Accommodation Type</p>
               </div>
-              
-              <button 
-                className="icon-button"
-                onClick={toggleDarkMode}
-                aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-              >
-                <span className="material-symbols-outlined">
-                  {darkMode ? 'light_mode' : 'dark_mode'}
-                </span>
-              </button>
-              
-              <button className="icon-button notification-button">
-                <span className="material-symbols-outlined">notifications</span>
-                <span className="notification-dot"></span>
-              </button>
-              
-              <div 
-                className="user-avatar"
-                style={{
-                  backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuCZvaTAK0pLOwTlSZAtXxrKZFqJcKsMaAGUVG9YLsRPyvenQdBwFRf3_6kDT_FEDpAHCwizUawssQVHa4_2rFJ0ABxWFklBT9zE7xH8ZNsgWAHJp1s6VJNyLdI787vXlTtEalvyviaUgooZvh0mQ7rUHMKxcmJIwzwJfFpKmjn3qGX5sRbJwFwRYfbqvO4PpmHNK7-Sp_nYQhVHwKpZTN08lsdO1NTyx-FwuxGORNKJgV4q0ZCDCa8sYdXAIKW2d_oyCv49QyFiug")'
-                }}
-              ></div>
             </div>
-          </header>
 
-          {/* Page Content */}
-          <div style={{padding: "24px 32px"}} className="bg-gray-50 dark:bg-gray-900 min-h-[calc(100vh-64px)]">
-            {/* Stats Grid */}
-            <div style={{gap: "24px", marginBottom: "32px"}} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-              {stats.map((stat, index) => (
-                <div 
-                  key={index} 
-                  style={{padding: "24px"}}
-                  className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
-                >
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{stat.label}</p>
-                  <p style={{marginTop: "8px"}} className="text-3xl font-bold text-gray-900 dark:text-white">{stat.value}</p>
-                  <div style={{marginTop: "12px"}} className={`flex items-center text-sm font-semibold
-                    ${stat.trendUp === true ? 'text-emerald-500' : stat.trendUp === false ? 'text-red-500' : 'text-amber-500'}`}
-                  >
-                    <span className="material-symbols-outlined text-base">
-                      {stat.trendUp === true ? 'trending_up' : 
-                       stat.trendUp === false ? 'trending_down' : 'sync'}
-                    </span>
-                    <span>{stat.trend}</span>
+            <div className="sad-breakdown-content">
+              {commissionBreakdown.map((item, index) => (
+                <div key={index} className="sad-progress-item">
+                  <div className="sad-progress-header">
+                    <span className="sad-progress-label">{item.type}</span>
+                    <span className="sad-progress-val font-mono">{item.rate} ({item.percentage}%)</span>
+                  </div>
+                  <div className="sad-progress-track">
+                    <div 
+                      className="sad-progress-bar"
+                      style={{ 
+                        width: `${item.percentage}%`,
+                        background: index === 0 ? 'var(--sa-purple)' : index === 1 ? 'var(--sa-primary)' : index === 2 ? 'var(--sa-teal)' : 'var(--sa-success)'
+                      }}
+                    ></div>
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* Charts Grid */}
-            <div style={{gap: "24px", marginBottom: "32px"}} className="grid grid-cols-1 lg:grid-cols-3">
-              {/* Sales Analytics Chart */}
-              <div style={{padding: "24px"}} className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-                <div className="flex items-start justify-between mb-6">
-                  <div>
-                    <h3 className="text-2xl font-semibold text-gray-900 dark:text-white">Sales Analytics</h3>
-                    <p className="text-base text-gray-500 dark:text-gray-400 mt-1">Weekly overview</p>
+            <div className="sad-pending-box">
+              <h4 className="sad-pending-title">Pending Actions</h4>
+              <div className="sad-pending-list">
+                {pendingActions.map((action, i) => (
+                  <div key={i} className={`sad-pending-item ${action.severity}`}>
+                    <span className="material-symbols-outlined">
+                      {action.type === 'hotel' ? 'corporate_fare' : action.type === 'review' ? 'reviews' : 'account_balance_wallet'}
+                    </span>
+                    <p>{action.text}</p>
                   </div>
-                  <button className="icon-button" aria-label="More analytics options">
-                    <span className="material-symbols-outlined">more_vert</span>
-                  </button>
-                </div>
-
-                <div className="flex items-end gap-4 mb-2">
-                  <span className="text-5xl font-bold tracking-tight text-gray-900 dark:text-white">Rs. 12,50,000</span>
-                  <div className="flex items-center gap-1 text-emerald-500 text-2xl font-semibold pb-1">
-                    <span className="material-symbols-outlined text-2xl">north</span>
-                    <span>+15%</span>
-                  </div>
-                </div>
-
-                <p className="text-2xl text-gray-500 dark:text-gray-400 mb-6">Compared to last week</p>
-
-                <div className="h-44">
-                  <svg className="w-full h-full" viewBox="0 0 600 180" preserveAspectRatio="none" aria-label="Weekly sales analytics chart">
-                    <path 
-                      d="M10 130C56 124 74 110 98 98C126 84 152 66 186 64C212 62 242 75 276 84C304 92 334 101 364 96C392 92 420 72 442 50C468 25 500 24 528 46C552 66 572 84 590 92V170H10V130Z"
-                      fill="url(#sales_analytics_fill)"
-                    />
-                    <path 
-                      d="M10 130C56 124 74 110 98 98C126 84 152 66 186 64C212 62 242 75 276 84C304 92 334 101 364 96C392 92 420 72 442 50C468 25 500 24 528 46C552 66 572 84 590 92"
-                      stroke="#6366F1"
-                      strokeWidth="4"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    <defs>
-                      <linearGradient id="sales_analytics_fill" x1="300" x2="300" y1="24" y2="170">
-                        <stop stopColor="#6366F1" stopOpacity="0.34" />
-                        <stop offset="1" stopColor="#6366F1" stopOpacity="0.02" />
-                      </linearGradient>
-                    </defs>
-                  </svg>
-                </div>
-
-                <div className="grid grid-cols-7 mt-5 text-base text-gray-500 dark:text-gray-400">
-                  {weeklyAnalyticsLabels.map((day) => (
-                    <span key={day} className="text-center">{day}</span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Revenue by Hotel Type */}
-              <div style={{padding: "24px"}} className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-                <div style={{marginBottom: "24px"}} className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Revenue by Hotel Type</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Distribution breakdown</p>
-                  </div>
-                </div>
-                <div className="flex items-baseline gap-3 mb-2">
-                  <span className="text-3xl font-bold text-gray-900 dark:text-white">$320,890</span>
-                </div>
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="flex items-center gap-1 text-emerald-500 text-sm font-semibold">
-                    <span className="material-symbols-outlined text-base">arrow_upward</span>
-                    <span>+8.2%</span>
-                  </div>
-                  <span className="text-sm text-gray-500 dark:text-gray-400">vs last month</span>
-                </div>
-                <div className="space-y-5">
-                  {revenueData.map((item, index) => (
-                    <div key={index} className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600 dark:text-gray-400 font-medium">{item.type}</span>
-                        <span className="font-semibold text-gray-900 dark:text-white">{item.percentage}%</span>
-                      </div>
-                      <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-linear-to-r from-teal-500 to-teal-400 rounded-full transition-all duration-500"
-                          style={{ width: `${item.percentage}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Recent Bookings Table */}
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-              <div style={{padding: "20px 24px"}} className="border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Bookings</h2>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Latest booking activities</p>
-                </div>
-                <button className="text-sm text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 font-semibold flex items-center gap-1 transition-colors">
-                  View All
-                  <span className="material-symbols-outlined text-base">chevron_right</span>
-                </button>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 dark:bg-gray-700/50">
-                    <tr>
-                      <th style={{padding: "16px 24px"}} className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Guest</th>
-                      <th style={{padding: "16px 24px"}} className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Hotel</th>
-                      <th style={{padding: "16px 24px"}} className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">Date</th>
-                      <th style={{padding: "16px 24px"}} className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
-                      <th style={{padding: "16px 24px"}} className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
-                      <th style={{padding: "16px 24px"}} className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                    {recentBookings.map((booking, index) => (
-                      <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
-                        <td style={{padding: "16px 24px"}}>
-                          <span className="font-medium text-gray-900 dark:text-white">{booking.guest}</span>
-                        </td>
-                        <td style={{padding: "16px 24px"}} className="text-gray-600 dark:text-gray-400">{booking.hotel}</td>
-                        <td style={{padding: "16px 24px"}} className="text-gray-600 dark:text-gray-400 hidden md:table-cell">{booking.date}</td>
-                        <td style={{padding: "16px 24px"}} className="font-semibold text-gray-900 dark:text-white">{booking.amount}</td>
-                        <td style={{padding: "16px 24px"}}>
-                          <span className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold
-                            ${booking.statusType === 'success' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' : ''}
-                            ${booking.statusType === 'warning' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400' : ''}
-                            ${booking.statusType === 'error' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400' : ''}
-                          `}>
-                            {booking.status}
-                          </span>
-                        </td>
-                        <td style={{padding: "16px 24px"}}>
-                          <button style={{padding: "8px 16px"}} className="text-sm text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/30 rounded-lg font-semibold transition-colors">
-                            View
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {/* Table Footer */}
-              <div style={{padding: "16px 24px"}} className="border-t border-gray-100 dark:border-gray-700 flex items-center justify-between bg-gray-50 dark:bg-gray-700/30">
-                <span className="text-sm text-gray-500 dark:text-gray-400">Showing 4 of 152 bookings</span>
-                <div className="flex items-center gap-2">
-                  <button className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors">Previous</button>
-                  <button className="px-4 py-2 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-lg transition-colors">Next</button>
-                </div>
+                ))}
               </div>
             </div>
           </div>
-        </main>
+
+        </div>
+
+        {/* Bottom Booking & Activity Grid */}
+        <div className="sad-bottom-grid">
+          
+          {/* Recent Bookings Table */}
+          <div className="sad-card sad-table-panel">
+            <div className="sad-card-header">
+              <div>
+                <h3 className="sad-card-title">Recent Bookings</h3>
+                <p className="sad-card-subtitle">Latest guest reservation actions</p>
+              </div>
+              <button className="sad-text-link">View All Bookings</button>
+            </div>
+
+            <div className="sad-table-wrapper">
+              <table className="sad-table">
+                <thead>
+                  <tr>
+                    <th>Guest</th>
+                    <th>Hotel</th>
+                    <th>Date</th>
+                    <th>Total</th>
+                    <th>Commission</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentBookings.map((b, i) => (
+                    <tr key={i}>
+                      <td>
+                        <div className="sad-guest-cell">
+                          <div className="sad-avatar-circle">{b.guest[0]}</div>
+                          <div>
+                            <p className="sad-guest-name">{b.guest}</p>
+                            <p className="sad-guest-email">{b.email}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td>{b.hotel}</td>
+                      <td>{b.date}</td>
+                      <td className="font-mono font-semibold">{b.amount}</td>
+                      <td className="font-mono text-emerald-500">{b.commission}</td>
+                      <td>
+                        <span className={`sad-status-badge ${b.statusType}`}>
+                          {b.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Real-time Activity Feed */}
+          <div className="sad-card sad-activity-panel">
+            <div className="sad-card-header">
+              <div>
+                <h3 className="sad-card-title">Platform Activity</h3>
+                <p className="sad-card-subtitle">Real-time audit log notifications</p>
+              </div>
+            </div>
+            
+            <div className="sad-activity-list">
+              {activityFeed.map((act, index) => (
+                <div key={index} className="sad-activity-item">
+                  <div className="sad-activity-badge-line">
+                    <span className={`sad-activity-dot ${act.status}`}></span>
+                    <span className="sad-activity-time">{act.time}</span>
+                  </div>
+                  <div className="sad-activity-body">
+                    <h5 className="sad-activity-title">{act.action}</h5>
+                    <p className="sad-activity-desc">{act.detail}</p>
+                    <span className={`sad-activity-tag ${act.status}`}>{act.badge}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+        </div>
+
       </div>
-    </div>
+    </SuperAdminLayout>
   );
 };
 

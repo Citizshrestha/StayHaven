@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { useStaffAuth } from '../../../../context/StaffAuthContext';
 import './SuperAdminLayout.css';
 
 const SuperAdminLayout = ({ children, pageTitle }) => {
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(true); // Default to dark mode for premium feel
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { staffUser, logout: staffLogout } = useStaffAuth();
 
   const navigationItems = [
     { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', path: '/superadmindashboard' },
@@ -40,12 +42,10 @@ const SuperAdminLayout = ({ children, pageTitle }) => {
   };
 
   const handleLogout = useCallback(() => {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('user');
-    sessionStorage.clear();
+    staffLogout();
     toast.success('Logged out successfully');
     navigate('/login');
-  }, [navigate]);
+  }, [staffLogout, navigate]);
 
   const toggleDarkMode = useCallback(() => {
     setDarkMode(prev => {
@@ -59,6 +59,9 @@ const SuperAdminLayout = ({ children, pageTitle }) => {
     const savedMode = localStorage.getItem('superadmin-dark-mode');
     if (savedMode !== null) {
       setDarkMode(JSON.parse(savedMode));
+    } else {
+      // Default to dark mode on initial load
+      localStorage.setItem('superadmin-dark-mode', JSON.stringify(true));
     }
   }, []);
 
@@ -67,6 +70,10 @@ const SuperAdminLayout = ({ children, pageTitle }) => {
   }, [location.pathname]);
 
   const activeNav = getActiveNav();
+
+  const userAvatar = staffUser?.profilePicture || "https://lh3.googleusercontent.com/aida-public/AB6AXuCZvaTAK0pLOwTlSZAtXxrKZFqJcKsMaAGUVG9YLsRPyvenQdBwFRf3_6kDT_FEDpAHCwizUawssQVHa4_2rFJ0ABxWFklBT9zE7xH8ZNsgWAHJp1s6VJNyLdI787vXlTtEalvyviaUgooZvh0mQ7rUHMKxcmJIwzwJfFpKmjn3qGX5sRbJwFwRYfbqvO4PpmHNK7-Sp_nYQhVHwKpZTN08lsdO1NTyx-FwuxGORNKJgV4q0ZCDCa8sYdXAIKW2d_oyCv49QyFiug";
+  const userFullName = staffUser?.fullname || "StayHaven Super Admin";
+  const userEmail = staffUser?.email || "superadmin@stayhaven.com";
 
   return (
     <div className={`sa-layout ${darkMode ? 'dark' : 'light'}`}>
@@ -100,6 +107,15 @@ const SuperAdminLayout = ({ children, pageTitle }) => {
             </div>
 
             <div className="sa-nav-section bottom">
+              {/* Profile card inside sidebar */}
+              <div className="sa-sidebar-profile">
+                <div className="sa-profile-avatar" style={{ backgroundImage: `url(${userAvatar})` }}></div>
+                <div className="sa-profile-info">
+                  <p className="sa-profile-name">{userFullName}</p>
+                  <p className="sa-profile-email">{userEmail}</p>
+                </div>
+              </div>
+              
               {bottomNavItems.map((item) => (
                 <button
                   key={item.id}
@@ -151,7 +167,7 @@ const SuperAdminLayout = ({ children, pageTitle }) => {
                 </span>
               </button>
 
-              <button className="sa-icon-button">
+              <button className="sa-icon-button" aria-label="Notifications">
                 <span className="material-symbols-outlined">notifications</span>
                 <span className="sa-notification-dot"></span>
               </button>
@@ -159,7 +175,7 @@ const SuperAdminLayout = ({ children, pageTitle }) => {
               <div
                 className="sa-user-avatar"
                 style={{
-                  backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuCZvaTAK0pLOwTlSZAtXxrKZFqJcKsMaAGUVG9YLsRPyvenQdBwFRf3_6kDT_FEDpAHCwizUawssQVHa4_2rFJ0ABxWFklBT9zE7xH8ZNsgWAHJp1s6VJNyLdI787vXlTtEalvyviaUgooZvh0mQ7rUHMKxcmJIwzwJfFpKmjn3qGX5sRbJwFwRYfbqvO4PpmHNK7-Sp_nYQhVHwKpZTN08lsdO1NTyx-FwuxGORNKJgV4q0ZCDCa8sYdXAIKW2d_oyCv49QyFiug")'
+                  backgroundImage: `url(${userAvatar})`
                 }}
               ></div>
             </div>

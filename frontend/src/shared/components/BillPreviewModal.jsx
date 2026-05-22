@@ -196,9 +196,9 @@ const BillPreviewModal = ({
                   <tr key={index} className="border-b border-gray-200">
                     <td className="py-2">{item.name}</td>
                     <td className="text-center py-2">{item.quantity}</td>
-                    <td className="text-right py-2">Rs. {item.price.toFixed(2)}</td>
+                    <td className="text-right py-2">Nrs {item.price.toFixed(2)}</td>
                     <td className="text-right py-2 font-semibold">
-                      Rs. {(item.price * item.quantity).toFixed(2)}
+                      Nrs {(item.price * item.quantity).toFixed(2)}
                     </td>
                   </tr>
                 ))}
@@ -209,21 +209,21 @@ const BillPreviewModal = ({
             <div className="totals space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-600">Subtotal:</span>
-                <span className="font-semibold">Rs. {subtotal.toFixed(2)}</span>
+                <span className="font-semibold">Nrs {subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">VAT (13%):</span>
-                <span className="font-semibold">Rs. {tax.toFixed(2)}</span>
+                <span className="font-semibold">Nrs {tax.toFixed(2)}</span>
               </div>
               {serviceCharge > 0 && (
                 <div className="flex justify-between">
                   <span className="text-gray-600">Service Charge:</span>
-                  <span className="font-semibold">Rs. {serviceCharge.toFixed(2)}</span>
+                  <span className="font-semibold">Nrs {serviceCharge.toFixed(2)}</span>
                 </div>
               )}
               <div className="grand-total flex justify-between text-lg font-bold border-t-2 border-gray-900 pt-3 mt-3">
                 <span>GRAND TOTAL:</span>
-                <span>Rs. {grandTotal.toFixed(2)}</span>
+                <span>Nrs {grandTotal.toFixed(2)}</span>
               </div>
             </div>
 

@@ -8,7 +8,7 @@
  * Protected by ProtectedGuestRoute (requires guest role JWT).
  */
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -21,10 +21,13 @@ import {
   HelpCircle,
   Languages,
   Moon,
+  Loader2,
 } from 'lucide-react';
 import { logout } from '../../../../core/api/services/auth.service';
 import { toast } from 'react-toastify';
 import { useTheme } from '../../../../core/hooks/useTheme';
+import axiosClient from '../../../../core/api/client';
+import NoBookingsModal from '../../../../shared/components/NoBookingsModal';
 
 const navItems = [
   { path: '/guest-dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -39,6 +42,38 @@ const GuestDashboardLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isDark, toggleTheme } = useTheme();
+  const [checkingBookings, setCheckingBookings] = useState(true);
+  const [showNoBookingsModal, setShowNoBookingsModal] = useState(false);
+
+  // Check if user has bookings on mount
+  useEffect(() => {
+    const checkBookings = async () => {
+      try {
+        const response = await axiosClient.get('/api/v1/guest/portal/dashboard');
+        const overview = response.data?.data;
+
+        const hasNoBookings =
+          !overview?.activeBooking &&
+          (!overview?.upcomingBookings || overview.upcomingBookings.length === 0) &&
+          (overview?.pastBookingsCount === 0 || !overview?.pastBookingsCount);
+
+        if (hasNoBookings) {
+          setShowNoBookingsModal(true);
+        }
+      } catch (error) {
+        console.error('Error checking bookings:', error);
+      } finally {
+        setCheckingBookings(false);
+      }
+    };
+
+    checkBookings();
+  }, []);
+
+  const handleNoBookingsModalClose = () => {
+    setShowNoBookingsModal(false);
+    navigate('/');
+  };
 
   const handleLogout = async () => {
     try {
@@ -57,6 +92,15 @@ const GuestDashboardLayout = () => {
       navigate('/guest/login');
     }
   };
+
+  // Show loading while checking bookings
+  if (checkingBookings) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-teal-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
@@ -129,6 +173,12 @@ const GuestDashboardLayout = () => {
       <main className="lg:ml-64">
         <Outlet />
       </main>
+
+      {/* No Bookings Modal */}
+      <NoBookingsModal
+        isOpen={showNoBookingsModal}
+        onClose={handleNoBookingsModalClose}
+      />
     </div>
   );
 };

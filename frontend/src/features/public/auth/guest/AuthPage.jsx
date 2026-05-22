@@ -6,10 +6,12 @@ import { GoogleLogin } from '@react-oauth/google';
 import { jwtDecode } from 'jwt-decode';
 import GoogleConfirmModal from '../../../../shared/ui/GoogleConfirmModal';
 import styles from './AuthPage.module.css';
+import { useStaffAuth } from '../../../../context/StaffAuthContext';
 
 const AuthPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { login: staffLoginContext } = useStaffAuth();
 
   // Determine initial tab based on route
   const [activeTab, setActiveTab] = useState(
@@ -131,7 +133,23 @@ const AuthPage = () => {
         }
 
         // Redirect based on user role
-        if (response.role === 'admin') {
+        if (response.role === 'superadmin') {
+          localStorage.setItem("staffAccessToken", response.accessToken);
+          sessionStorage.setItem("staffAccessToken", response.accessToken);
+          localStorage.setItem("staffUserId", response._id);
+          const staffUserData = {
+            _id: response._id,
+            fullname: response.fullname || response.username || 'StayHaven Super Admin',
+            username: response.username,
+            email: response.email,
+            role: response.role,
+            profilePicture: response.profilePicture
+          };
+          staffLoginContext(staffUserData);
+          toast.success('Welcome back, Super Admin!');
+          navigate('/superadmindashboard');
+          return;
+        } else if (response.role === 'admin') {
           navigate('/dashboard');
         } else {
           navigate('/');
@@ -262,7 +280,23 @@ const AuthPage = () => {
           }
 
           // Redirect based on user role
-          if (result.role === 'admin') {
+          if (result.role === 'superadmin') {
+            localStorage.setItem("staffAccessToken", result.accessToken);
+            sessionStorage.setItem("staffAccessToken", result.accessToken);
+            localStorage.setItem("staffUserId", result._id);
+            const staffUserData = {
+              _id: result._id,
+              fullname: result.fullname || result.username || 'StayHaven Super Admin',
+              username: result.username,
+              email: result.email,
+              role: result.role,
+              profilePicture: result.profilePicture
+            };
+            staffLoginContext(staffUserData);
+            toast.success('Welcome back, Super Admin!');
+            navigate('/superadmindashboard');
+            return;
+          } else if (result.role === 'admin') {
             navigate('/dashboard');
           } else {
             navigate('/');

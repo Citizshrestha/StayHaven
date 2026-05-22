@@ -22,7 +22,10 @@ axiosClient.interceptors.request.use(
         // - Normal users use `accessToken`
         // - Staff endpoints should prefer `staffAccessToken`
         const url = String(config.url || "");
-        const isStaffRequest = url.includes("/api/v1/staff") || url.includes("/api/v1/reception");
+        const isStaffRequest = url.includes("/api/v1/staff") ||
+                              url.includes("/api/v1/reception") ||
+                              url.includes("/api/v1/users/admin") ||
+                              url.includes("/api/v1/hotels/admin");
 
         const staffAccessToken = sessionStorage.getItem("staffAccessToken") || localStorage.getItem("staffAccessToken");
         const accessToken = localStorage.getItem('accessToken');
@@ -45,7 +48,10 @@ axiosClient.interceptors.response.use(
     async (error) => {
         const originalRequest = error.config;
         const url = String(originalRequest.url || "");
-        const isStaffRequest = url.includes("/api/v1/staff") || url.includes("/api/v1/reception");
+        const isStaffRequest = url.includes("/api/v1/staff") ||
+                              url.includes("/api/v1/reception") ||
+                              url.includes("/api/v1/users/admin") ||
+                              url.includes("/api/v1/hotels/admin");
         const skipRefreshEndpoints = [
             '/api/v1/auth/login',
             '/api/v1/auth/register',
