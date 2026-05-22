@@ -100,6 +100,49 @@ npm run dev
 - Frontend: http://localhost:5173
 - API: http://localhost:5000/api
 
+## 🗄️ Database Seeding
+
+### Initial Setup & Re-seeding
+
+To populate your database with sample data for testing and development:
+
+```bash
+# Navigate to backend directory
+cd Backend
+
+# Seed menu items (food & drinks)
+node scripts/seedMenuItems.js
+
+# Create test guest with booking
+node scripts/createTestGuestBooking.js
+
+# Seed Nepali guest data (optional)
+node scripts/seedNepaliGuests.js
+
+# Debug guest booking (troubleshooting)
+node scripts/debugGuestBooking.js
+```
+
+### When to Re-seed
+
+You should re-seed the database when:
+- Starting fresh development after database reset
+- Testing new features that require sample data
+- Menu items or images have been updated in seed files
+- Troubleshooting data-related issues
+
+### Important Notes
+
+⚠️ **Before re-seeding:**
+- Backup any important data (seeding may overwrite existing records)
+- Ensure MongoDB is running and accessible
+- Check that `MONGODB_URI` in `.env` points to the correct database
+
+💡 **Tip:** If you encounter image loading issues (404 errors), check that:
+1. The image URLs in seed files are valid and accessible
+2. Cloudinary credentials are properly configured (if using Cloudinary)
+3. Run the patch scripts if specific images need updating (e.g., `patchMasalaTeaImage.js`)
+
 ## 📁 Project Structure
 
 ```

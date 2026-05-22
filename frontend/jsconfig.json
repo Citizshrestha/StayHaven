@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "ignoreDeprecations": "7.0",
     "baseUrl": "src",
     "paths": {
       "@/*": ["./*"],
