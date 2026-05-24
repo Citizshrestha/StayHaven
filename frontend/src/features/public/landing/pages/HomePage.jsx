@@ -125,7 +125,7 @@ const Home = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 overflow-x-hidden flex flex-col">
+    <div className="min-h-screen bg-white overflow-x-hidden flex flex-col">
       <style>{`
         @keyframes hero-ripple {
           to {
@@ -530,7 +530,7 @@ const TrustStrip = () => {
         {marqueeItems.map((item, index) => (
           <div
             key={index}
-            className="flex items-center gap-4 mx-6 px-6 py-4 rounded-2xl bg-gray-50 hover:bg-white border border-gray-100 hover:border-teal-200 hover:shadow-lg transition-all duration-300 group cursor-default select-none"
+            className="flex items-center gap-4 mx-6 px-6 py-4 rounded-2xl hover:bg-white border border-gray-100 hover:border-teal-200 hover:shadow-lg transition-all duration-300 group cursor-default select-none"
             style={{ minWidth: '260px' }}
           >
             <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${item.gradient} flex items-center justify-center flex-shrink-0 shadow-md ${item.glow} group-hover:scale-105 transition-all duration-300`}>
@@ -635,7 +635,7 @@ const Destinations = () => {
     <section
       id="destinations"
       ref={sectionRef}
-      className="py-24 md:py-32 lg:py-36 bg-gray-50 relative z-20"
+      className="py-24 md:py-32 lg:py-36 relative z-20"
     >
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 xl:px-[6vw]">
         <div
@@ -997,7 +997,7 @@ const HowItWorks = () => {
     <section
       id="how-it-works"
       ref={sectionRef}
-      className="py-24 md:py-32 lg:py-36 bg-gray-50 relative z-20"
+      className="py-24 md:py-32 lg:py-36 relative z-20"
     >
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 xl:px-[6vw]">
         <div ref={headerRef} className="text-center max-w-2xl mx-auto mb-14">
@@ -1107,7 +1107,7 @@ const ForEveryone = () => {
     <section
       id="for-managers"
       ref={sectionRef}
-      className="py-24 md:py-32 lg:py-36 bg-gray-50 relative z-20"
+      className="py-24 md:py-32 lg:py-36 relative z-20"
     >
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 xl:px-[6vw]">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10">
@@ -1274,7 +1274,7 @@ const WhyChoose = () => {
   }, []);
 
   return (
-    <section ref={sectionRef} className="py-24 md:py-32 lg:py-36 bg-gray-50 relative z-20">
+    <section ref={sectionRef} className="py-24 md:py-32 lg:py-36 relative z-20">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 xl:px-[6vw]">
         <div ref={headerRef} className="text-center max-w-2xl mx-auto mb-14">
           <h2 className="text-[clamp(28px,3.2vw,44px)] font-bold text-gray-900 mb-4">
@@ -1567,7 +1567,7 @@ const Inspiration = () => {
   }, []);
 
   return (
-    <section ref={sectionRef} className="py-24 md:py-32 lg:py-36 bg-gray-50 relative z-20">
+    <section ref={sectionRef} className="py-24 md:py-32 lg:py-36 relative z-20">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 xl:px-[6vw]">
         <div ref={headerRef} className="mb-10">
           <h2 className="text-[clamp(28px,3.2vw,44px)] font-bold text-gray-900 mb-3">
@@ -1685,7 +1685,7 @@ const FinalCTA = ({ navigate }) => {
   return (
     <section
       ref={sectionRef}
-      className="relative bg-gray-50 z-20 py-8 md:py-12 overflow-hidden"
+      className="relative z-20 py-8 md:py-12 overflow-hidden"
     >
       {/* Subtle background decoration (neutral, no teal wash) */}
       <div
@@ -1742,3 +1742,4 @@ const FinalCTA = ({ navigate }) => {
 };
 
 export default Home;
+

@@ -1,7 +1,7 @@
 /* Super Admin Dashboard - Premium Dark Theme */
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
-:root {
+.superadmin-dashboard {
   /* Color Palette */
   --deep-slate: #0a0e1a;
   --slate-blue: #151b2e;

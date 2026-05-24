@@ -4,7 +4,7 @@
    ============================================ */
 
 /* ===== ROOT VARIABLES ===== */
-:root {
+.hotels-management {
   --primary-blue: #3B82F6;
   --primary-blue-hover: #60A5FA;
   --deep-slate: #0F172A;
@@ -453,6 +453,8 @@
   transition: var(--transition);
   animation: fadeInUp 0.5s ease-out;
   animation-fill-mode: both;
+  position: relative;
+  z-index: 1;
 }
 
 @keyframes fadeInUp {
@@ -470,6 +472,7 @@
   transform: translateY(-8px);
   box-shadow: var(--shadow-xl);
   border-color: var(--primary-blue);
+  z-index: 2;
 }
 
 .hotel-image-container {
@@ -562,6 +565,7 @@
 
 .hotel-menu {
   position: relative;
+  z-index: 10;
 }
 
 .menu-btn {
@@ -593,7 +597,7 @@
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
   min-width: 160px;
-  z-index: 10;
+  z-index: 100;
   animation: fadeIn 0.2s ease-out;
 }
 
@@ -1184,6 +1188,110 @@
   margin: 0;
 }
 
+/* ===== CONFIRMATION MODAL ===== */
+.confirmation-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.confirmation-modal {
+  background: var(--white);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  max-width: 480px;
+  width: 90%;
+  padding: 32px;
+  z-index: 9999;
+  animation: modalSlideIn 0.3s ease-out;
+  position: relative;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.modal-header {
+  margin-bottom: 20px;
+}
+
+.modal-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 8px 0;
+}
+
+.modal-description {
+  font-size: 15px;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.6;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+  justify-content: flex-end;
+}
+
+.modal-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  min-width: 100px;
+  justify-content: center;
+}
+
+.modal-btn.cancel {
+  background: #F8FAFC;
+  color: var(--text-primary);
+  border: 1px solid #E2E8F0;
+}
+
+.modal-btn.cancel:hover {
+  background: #E2E8F0;
+}
+
+.modal-btn.confirm {
+  background: linear-gradient(135deg, var(--primary-blue) 0%, #2563EB 100%);
+  color: var(--white);
+}
+
+.modal-btn.confirm:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.modal-btn.confirm.danger {
+  background: linear-gradient(135deg, var(--danger-red) 0%, #DC2626 100%);
+}
+
+.modal-btn.confirm.success {
+  background: linear-gradient(135deg, var(--success-green) 0%, #059669 100%);
+}
+
 /* ===== PRINT STYLES ===== */
 @media print {
   .page-header,
@@ -1191,7 +1299,8 @@
   .filters-panel,
   .hotel-actions,
   .table-actions,
-  .pending-hotel-actions {
+  .pending-hotel-actions,
+  .confirmation-modal-overlay {
     display: none;
   }
 }

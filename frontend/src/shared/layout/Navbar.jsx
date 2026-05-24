@@ -109,9 +109,10 @@ const Navbar = () => {
     const userId = localStorage.getItem("userId");
     const username = localStorage.getItem("username");
     const profilePicture = localStorage.getItem("profilePicture");
+    const userRole = localStorage.getItem("userRole");
 
     if (accessToken && userId && username) {
-      setUser({ id: userId, username, profilePicture });
+      setUser({ id: userId, username, profilePicture, role: userRole });
     } else {
       setUser(null);
     }
@@ -119,10 +120,13 @@ const Navbar = () => {
     const fetchUserData = async () => {
       try {
         const res = await axiosClient.get("/api/v1/auth/me");
+        const role = res.data.role?.name || res.data.companyRole || 'guest';
+
         setUser({
           id: res.data._id || res.data.id,
           username: res.data.username,
           profilePicture: res.data.profilePicture,
+          role: role,
         });
 
         if (res.data.profilePicture) {
@@ -130,6 +134,9 @@ const Navbar = () => {
         }
         if (res.data.username) {
           localStorage.setItem("username", res.data.username);
+        }
+        if (role) {
+          localStorage.setItem("userRole", role);
         }
       } catch (err) {
         console.error("Error fetching user data:", err);
@@ -150,13 +157,18 @@ const Navbar = () => {
       window.location.href = "/";
     } catch (error) {
       console.error("Logout error:", error);
+      // Clear localStorage even if logout request fails
+      localStorage.clear();
+      setUser(null);
+      window.location.href = "/";
     }
   };
 
   const [searchQuery, setSearchQuery] = useState('');
 
   const handleSearch = () => {
-    navigate('/hotels', searchQuery ? { state: { query: searchQuery } } : undefined);
+    const query = searchQuery.trim();
+    navigate(query ? `/hotels?search=${encodeURIComponent(query)}` : '/hotels');
     setSearchQuery('');
   };
 
@@ -166,7 +178,41 @@ const Navbar = () => {
 
   const handleDashboardClick = async () => {
     try {
-      // Check if user has bookings
+      // Get user role from state or localStorage
+      const userRole = user?.role || localStorage.getItem("userRole") || 'guest';
+
+      // Route based on user role
+      if (userRole === 'admin' || userRole === 'superadmin') {
+        // Superadmin dashboard
+        navigate('/superadmindashboard');
+        return;
+      }
+
+      if (userRole === 'owner') {
+        // Hotel owner dashboard
+        navigate('/hoteladmin-dashboard');
+        return;
+      }
+
+      if (userRole === 'waiter') {
+        // Waiter dashboard
+        navigate('/waiter-dashboard');
+        return;
+      }
+
+      if (userRole === 'chief' || userRole === 'kitchen') {
+        // Kitchen dashboard
+        navigate('/kitchen-dashboard');
+        return;
+      }
+
+      if (['manager', 'receptionist', 'housekeeping', 'maintenance'].includes(userRole)) {
+        // Reception/Staff dashboard
+        navigate('/reception-dashboard');
+        return;
+      }
+
+      // For guests, check if they have bookings
       const response = await axiosClient.get('/api/v1/guest/portal/dashboard');
       const overview = response.data?.data;
 
@@ -179,12 +225,12 @@ const Navbar = () => {
         // Show modal on current page
         setShowNoBookingsModal(true);
       } else {
-        // Navigate to dashboard
+        // Navigate to guest dashboard
         navigate('/guest-dashboard');
       }
     } catch (error) {
-      console.error('Error checking bookings:', error);
-      // If error, still navigate to dashboard (it will handle the error)
+      console.error('Error navigating to dashboard:', error);
+      // Default fallback to guest dashboard
       navigate('/guest-dashboard');
     }
   };
@@ -208,7 +254,7 @@ const Navbar = () => {
             <img
               src="/logo.png"
               alt="StayHaven Logo"
-              className="w-16 h-16 object-contain"
+              className="w-16 h-16 object-contain mix-blend-multiply"
             />
             <span
               className="text-xl font-bold transition-colors text-black"
@@ -572,3 +618,4 @@ const Navbar = () => {
 };
 
 export default Navbar;
+
