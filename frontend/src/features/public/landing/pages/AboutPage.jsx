@@ -1,8 +1,13 @@
 import React from "react";
+import { useContent } from "../../../../hooks/useContent";
+import { getAboutContent } from "../../../../core/api/services/content.service";
 import "./AboutPage.css";
 
 const AboutPage = () => {
-  const teamMembers = [
+  const { data: aboutDataArray } = useContent('about', getAboutContent);
+  const about = aboutDataArray?.[0] || null;
+
+  const defaultTeamMembers = [
     {
       name: "Rajesh Shrestha",
       position: "Founder & CEO",
@@ -32,6 +37,26 @@ const AboutPage = () => {
       expertise: "Partnerships, Business Development"
     }
   ];
+
+  const teamMembers = about?.teamMembers?.length > 0
+    ? about.teamMembers.map(m => ({
+        name: m.name,
+        position: m.role || 'Team Member',
+        image: m.image || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&crop=faces',
+        bio: m.bio || '',
+        expertise: m.role || ''
+      }))
+    : defaultTeamMembers;
+
+  const statsList = about?.stats?.length > 0
+    ? about.stats
+    : [
+        { label: "Luxury Properties", value: "500+" },
+        { label: "Countries", value: "40+" },
+        { label: "Happy Members", value: "50,000+" }
+      ];
+
+  const missionText = about?.mission || "To showcase Nepal's finest hospitality by connecting travelers with exceptional hotels and resorts, while providing seamless booking experiences and personalized service that honors Nepali warmth and tradition.";
 
   const milestones = [
     {
@@ -117,22 +142,15 @@ const AboutPage = () => {
               <div className="mission-text">
                 <h2>Our Mission</h2>
                 <p className="mission-statement">
-                  To showcase Nepal's finest hospitality by connecting travelers with exceptional hotels and resorts,
-                  while providing seamless booking experiences and personalized service that honors Nepali warmth and tradition.
+                  {missionText}
                 </p>
                 <div className="mission-stats">
-                  <div className="mission-stat">
-                    <h3>500+</h3>
-                    <p>Luxury Properties</p>
-                  </div>
-                  <div className="mission-stat">
-                    <h3>40+</h3>
-                    <p>Countries</p>
-                  </div>
-                  <div className="mission-stat">
-                    <h3>50,000+</h3>
-                    <p>Happy Members</p>
-                  </div>
+                  {statsList.map((stat, sIdx) => (
+                    <div key={sIdx} className="mission-stat">
+                      <h3>{stat.value}</h3>
+                      <p>{stat.label}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
               <div className="mission-image">
@@ -147,6 +165,12 @@ const AboutPage = () => {
           <div className="container">
             <h2>Our Journey</h2>
             <p className="section-subtitle">Building Nepal's premier hotel booking platform, one partnership at a time</p>
+
+            {about?.companyStory && (
+              <p className="story-paragraph text-center max-w-3xl mx-auto mb-12 text-gray-600 leading-relaxed text-lg">
+                {about.companyStory}
+              </p>
+            )}
 
             <div className="timeline">
               {milestones.map((milestone, index) => (

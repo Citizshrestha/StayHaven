@@ -3,125 +3,11 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Star, Hotel, Filter, MapPin, Calendar, Thermometer, Bed, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useContent } from "../../../../hooks/useContent";
+import { getDestinations as getDestinationsApi } from "../../../../core/api/services/content.service";
 import "./Destination.css";
 
 gsap.registerPlugin(ScrollTrigger);
-
-//for images inside the info in detail
-const boudha = "source/Kathmandu/BoudhanathStupa.jpg";
-const ktmDurbar = "source/Kathmandu/KathmanduDurbarSquare.jpg";
-const pashupati = "source/Kathmandu/Pashupatinath.jpg";
-
-const deviFall = "source/Pokhara/Devi'sFall.jpg";
-const phewa = "source/Pokhara/PhewaLake.jpg";
-const sarangkot = "source/Pokhara/Sarangkot.jpg";
-const peacePagoda = "source/Pokhara/WorldPeacePagoda.jpg";
-
-const chitwanPark = "source/Chitwan/Chitwannationalpark.jpg";
-const elephant = "source/Chitwan/ElephantBreeding.jpg";
-const raptiRiver = "source/Chitwan/RaptiRiver.jpg";
-const tharuDance = "source/Chitwan/TharuCulturalDance.jpg";
-
-const ashoka = "source/Lumbini/AshokaPillar.jpg";
-const sacredGarden = "source/Lumbini/LumbiniSacredGarden.jpg";
-const mayaTemple = "source/Lumbini/MayaDeviTemple.jpg";
-
-const destinations = [
-  {
-    id: 1,
-    name: "Kathmandu",
-    description: "Explore the rich culture...",
-    images: [boudha, ktmDurbar, pashupati],
-    popular: true,
-    category: "cultural",
-    activities: ["Visit Pashupatinath Temple", "Explore Durbar Square", "Try Local Cuisine", "Shop at Asan Market", "See Boudhanath Stupa"],
-    bestTime: "September to November",
-    weather: "15°C - 25°C",
-    hotelsCount: 45,
-    location: "Bagmati Province",
-    hotelsLink: "/hotels/kathmandu"
-  },
-  {
-    id: 2,
-    name: "Pokhara",
-    description: "Experience serene lakes...",
-    images: [deviFall, phewa, sarangkot, peacePagoda],
-    popular: true,
-    category: "adventure",
-    activities: ["Paragliding over Sarangkot", "Boating on Phewa Lake", "Hiking to Peace Pagoda", "Exploring Caves", "Sunrise at Sarangkot"],
-    bestTime: "October to November",
-    weather: "10°C - 20°C",
-    hotelsCount: 38,
-    location: "Gandaki Province",
-    hotelsLink: "/hotels/pokhara"
-  },
-  {
-    id: 3,
-    name: "Chitwan",
-    description: "Wildlife safaris...",
-    images: [chitwanPark, elephant, raptiRiver, tharuDance],
-    popular: false,
-    category: "nature",
-    activities: ["Jungle Safari", "Elephant Bathing", "Bird Watching", "Nature Walks", "Canoe Ride"],
-    bestTime: "October to February",
-    weather: "20°C - 30°C",
-    hotelsCount: 28,
-    location: "Bagmati Province",
-    hotelsLink: "/hotels/chitwan"
-  },
-  {
-    id: 4,
-    name: "Lumbini",
-    description: "The birthplace of Lord Buddha...",
-    images: [ashoka, sacredGarden, mayaTemple],
-    popular: false,
-    category: "spiritual",
-    activities: ["Visit Maya Devi Temple", "See International Monasteries", "Meditation", "Archaeological Museum", "Peace Stupa"],
-    bestTime: "October to March",
-    weather: "18°C - 28°C",
-    hotelsCount: 22,
-    location: "Lumbini Province",
-    hotelsLink: "/hotels/lumbini"
-  },
-  {
-    id: 5,
-    name: "Nagarkot",
-    description: "Breathtaking sunrise and sunset views of the Himalayas. A hill station offering panoramic views of Mount Everest, Langtang, and other majestic peaks from the comfort of your hotel.",
-    images: [
-      "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1578662996442-48f60103fc96?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1548013146-72479768bada?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1518837695005-2083093ee35b?auto=format&fit=crop&w=800&q=60"
-    ],
-    popular: true,
-    category: "nature",
-    activities: ["Sunrise Viewpoint", "Hiking Trails", "Nature Photography", "Mountain Biking", "Village Tours"],
-    bestTime: "October to December",
-    weather: "5°C - 15°C",
-    hotelsCount: 18,
-    location: "Bagmati Province",
-    hotelsLink: "/hotels/nagarkot"
-  },
-  {
-    id: 6,
-    name: "Bhaktapur",
-    description: "Ancient city with medieval architecture and traditional pottery. Known as the 'City of Devotees' with well-preserved palaces, temples, and traditional Newari culture.",
-    images: [
-      "https://images.unsplash.com/photo-1564507004663-b6dfb3e2ede5?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1554072675-66db59fba849?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1548013146-72479768bada?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1518837695005-2083093ee35b?auto=format&fit=crop&w=800&q=60"
-    ],
-    popular: false,
-    category: "cultural",
-    activities: ["Explore Durbar Square", "Pottery Square", "Nyatapola Temple", "Traditional Arts", "Local Festivals"],
-    bestTime: "September to November",
-    weather: "15°C - 25°C",
-    hotelsCount: 15,
-    location: "Bagmati Province",
-    hotelsLink: "/hotels/bhaktapur"
-  },
-];
 
 const Destination = () => {
   const navigate = useNavigate();
@@ -134,6 +20,22 @@ const Destination = () => {
   const headerRef = useRef(null);
   const filterRef = useRef(null);
   const gridRef = useRef(null);
+
+  const { data: dynamicDestinations, loading, error } = useContent('destinations', getDestinationsApi);
+
+  const mergedDestinations = (dynamicDestinations || []).map(d => ({
+    id: d._id,
+    name: d.name,
+    description: d.description || '',
+    images: d.images?.length > 0 ? d.images : [],
+    popular: d.isPopular || false,
+    category: d.type || 'cultural',
+    activities: d.activities || [],
+    bestTime: d.bestTime || '',
+    weather: d.weather || '',
+    hotelsCount: d.hotelsCount || 0,
+    location: d.province || '',
+  }));
 
   const handleCardClick = (destination) => {
     setSelectedDestination(destination);
@@ -166,6 +68,7 @@ const Destination = () => {
   const handleViewHotels = () => {
     if (!selectedDestination) return;
     const params = new URLSearchParams({
+      destinationId: selectedDestination.id,
       destination: selectedDestination.name,
       province: selectedDestination.location,
       type: selectedDestination.category,
@@ -176,7 +79,7 @@ const Destination = () => {
   };
 
   // Filter destinations based on selected filter
-  const filteredDestinations = destinations.map(dest => ({
+  const filteredDestinations = mergedDestinations.map(dest => ({
     ...dest,
     image: dest.images[0] // Use first image for grid display
   })).filter((dest) => {
@@ -196,10 +99,10 @@ const Destination = () => {
 
   // GSAP Animations
   useEffect(() => {
-    if (!heroRef.current || !headerRef.current || !filterRef.current || !gridRef.current) return;
+    if (!heroRef.current) return;
 
     const ctx = gsap.context(() => {
-      // Header animation
+      // Header animation — hero header fades in (it's in the hero, above the fold)
       if (headerRef.current) {
         gsap.fromTo(
           headerRef.current,
@@ -209,54 +112,32 @@ const Destination = () => {
             opacity: 1,
             duration: 0.6,
             ease: 'power2.out',
-            scrollTrigger: {
-              trigger: heroRef.current,
-              start: 'top 80%',
-              toggleActions: 'play none none reverse',
-            },
+            // No ScrollTrigger — animate immediately on page load
           }
         );
       }
 
-      // Filter animation
-      if (filterRef.current) {
-        gsap.fromTo(
-          filterRef.current,
-          { y: 15, opacity: 0 },
-          {
-            y: 0,
-            opacity: 1,
-            duration: 0.5,
-            delay: 0.2,
-            ease: 'power1.out',
-            scrollTrigger: {
-              trigger: filterRef.current,
-              start: 'top 85%',
-              toggleActions: 'play none none reverse',
-            },
-          }
-        );
-      }
-
-      // Cards animation
-      const cards = gridRef.current?.querySelectorAll('.destination-card');
-      if (cards && cards.length > 0) {
-        gsap.fromTo(
-          cards,
-          { y: 30, opacity: 0 },
-          {
-            y: 0,
-            opacity: 1,
-            duration: 0.5,
-            stagger: 0.08,
-            ease: 'power1.out',
-            scrollTrigger: {
-              trigger: gridRef.current,
-              start: 'top 80%',
-              toggleActions: 'play none none reverse',
-            },
-          }
-        );
+      // Cards animation — only animate when scrolled into view
+      if (gridRef.current) {
+        const cards = gridRef.current.querySelectorAll('.destination-card');
+        if (cards && cards.length > 0) {
+          gsap.fromTo(
+            cards,
+            { y: 30, opacity: 0 },
+            {
+              y: 0,
+              opacity: 1,
+              duration: 0.5,
+              stagger: 0.08,
+              ease: 'power1.out',
+              scrollTrigger: {
+                trigger: gridRef.current,
+                start: 'top 85%',
+                toggleActions: 'play none none none',
+              },
+            }
+          );
+        }
       }
     }, heroRef);
 
@@ -264,7 +145,7 @@ const Destination = () => {
   }, [filteredDestinations]);
 
   return (
-    <div className="min-h-screen bg-gray-50 overflow-x-hidden flex flex-col">
+    <div className="min-h-screen bg-white overflow-x-hidden flex flex-col">
       {/* Hero Section */}
       <section
         ref={heroRef}
@@ -295,24 +176,32 @@ const Destination = () => {
               Discover Nepal
             </h1>
             <p className="text-white/90 text-lg md:text-xl leading-relaxed">
-              Click on any destination image to explore and find hotels
+              Discover cultural heritage, adventure, nature, and spiritual sites
+              across Nepal&apos;s most loved destinations.
             </p>
           </div>
         </div>
       </section>
 
-      {/* Filter Buttons Section */}
+      {/* Destination Filter */}
       <div ref={filterRef} className="relative z-20 bg-white py-8 -mt-16">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 xl:px-[6vw]">
           <div className="bg-white/95 backdrop-blur-sm rounded-[28px] p-6 shadow-xl border border-gray-100">
-            <div className="flex items-center gap-2 text-gray-700 font-semibold mb-4">
-              <Filter className="w-5 h-5 text-teal-600" />
-              <span>Filter by:</span>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+              <div className="flex items-center gap-2 text-gray-700 font-semibold">
+                <Filter className="w-5 h-5 text-teal-600" />
+                <span>Filter destinations</span>
+              </div>
+              <p className="text-sm text-gray-600">
+                Showing {filteredDestinations.length} destination
+                {filteredDestinations.length !== 1 ? 's' : ''}
+              </p>
             </div>
             <div className="flex flex-wrap gap-3">
               {filterButtons.map((filter) => (
                 <button
                   key={filter.id}
+                  type="button"
                   className={`px-6 py-2.5 rounded-full font-medium transition-all ${
                     selectedFilter === filter.id
                       ? 'bg-teal-600 text-white shadow-lg'
@@ -329,13 +218,25 @@ const Destination = () => {
       </div>
 
       {/* Destinations Grid */}
-      <section ref={gridRef} className="py-16 md:py-24 bg-gray-50 relative z-20">
+      <section ref={gridRef} className="py-16 md:py-24 bg-white relative z-20">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 xl:px-[6vw]">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredDestinations.map((dest) => (
+            {loading ? (
+              Array.from({ length: 6 }).map((_, index) => (
+                <div key={index} className="h-[320px] rounded-[28px] bg-gray-200 animate-pulse" />
+              ))
+            ) : error ? (
+              <div className="col-span-full rounded-3xl border border-red-100 bg-red-50 p-10 text-center text-red-600">
+                Destinations could not be loaded right now.
+              </div>
+            ) : filteredDestinations.length === 0 ? (
+              <div className="col-span-full rounded-3xl border border-gray-100 bg-gray-50 p-10 text-center text-gray-600">
+                No destinations have been published for this filter yet.
+              </div>
+            ) : filteredDestinations.map((dest) => (
               <div
                 key={dest.id}
-                className="destination-card relative rounded-[28px] overflow-hidden h-[320px] cursor-pointer group shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-1"
+                className="destination-card relative rounded-[28px] overflow-hidden h-[320px] cursor-pointer group shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 bg-gray-100"
                 onClick={() => handleCardClick(dest)}
               >
                 {/* Popular Badge */}
@@ -348,14 +249,13 @@ const Destination = () => {
                 
                 {/* Image */}
                 <div className="relative w-full h-full">
-                  <img
-                    src={dest.image}
-                    alt={dest.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                    onError={(e) => {
-                      e.target.src = "https://images.unsplash.com/photo-1544735716-392fe2489ffa?auto=format&fit=crop&w=800&q=80";
-                    }}
-                  />
+                  {dest.image ? (
+                    <img
+                      src={dest.image}
+                      alt={dest.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                    />
+                  ) : null}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
                   
                   {/* Hover Overlay */}

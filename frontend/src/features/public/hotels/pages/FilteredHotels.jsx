@@ -7,6 +7,7 @@ import { getAllHotels } from '../../../../core/api/services/hotel.service';
 const FilteredHotels = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const hotelSearch = searchParams.get('search')?.trim() || '';
   const [selectedRating, setSelectedRating] = useState(null);
   const [priceRange, setPriceRange] = useState(45000);
   const [selectedCity, setSelectedCity] = useState('Kathmandu');
@@ -53,9 +54,12 @@ const FilteredHotels = () => {
 
     if (destination) {
       setSelectedCity(destination);
+    } else if (hotelSearch) {
+      setSelectedCity('');
     }
+    setCurrentPage(1);
     // type and province are captured but not used in current filter implementation
-  }, [searchParams]);
+  }, [searchParams, hotelSearch]);
 
   useEffect(() => {
     let cancelled = false;
@@ -64,12 +68,13 @@ const FilteredHotels = () => {
       setError(null);
       try {
         const filters = {
-          city: selectedCity,
           limit: itemsPerPage,
           page: currentPage,
           sort: sortBy,
           maxPrice: priceRange,
         };
+        if (hotelSearch) filters.search = hotelSearch;
+        if (selectedCity) filters.city = selectedCity;
         if (selectedRating) filters.minRating = selectedRating;
         if (selectedAmenityIds.length) filters.amenities = selectedAmenityIds.join(',');
 
@@ -92,7 +97,7 @@ const FilteredHotels = () => {
     return () => {
       cancelled = true;
     };
-  }, [selectedCity, selectedRating, priceRange, selectedAmenityIds, currentPage, sortBy]);
+  }, [hotelSearch, selectedCity, selectedRating, priceRange, selectedAmenityIds, currentPage, sortBy]);
 
   return (
     <div style={{ backgroundColor: '#F9FAFB', minHeight: '100vh' }}>
@@ -227,7 +232,9 @@ const FilteredHotels = () => {
             <section style={{ flex: '1' }}>
               {/* Header with Title and Sort */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
-                <h1 style={{ fontSize: '1.875rem', fontWeight: '700', color: '#111827', fontFamily: 'Nunito, sans-serif' }}>Hotels in {selectedCity}</h1>
+                <h1 style={{ fontSize: '1.875rem', fontWeight: '700', color: '#111827', fontFamily: 'Nunito, sans-serif' }}>
+                  {hotelSearch ? `Hotels matching "${hotelSearch}"` : `Hotels in ${selectedCity || 'all destinations'}`}
+                </h1>
                 <div style={{ position: 'relative', width: '200px' }}>
                   <select
                     value={sortBy}
@@ -339,7 +346,7 @@ const FilteredHotels = () => {
                 })}
                 {!isLoading && !error && hotels.length === 0 && (
                   <div style={{ gridColumn: '1 / -1', padding: '18px', color: '#6B7280' }}>
-                    No hotels found for these filters. Try turning off amenities filters or switching city.
+                    No hotels found for these filters. Try another hotel name, turning off amenities filters, or switching city.
                   </div>
                 )}
               </div>
