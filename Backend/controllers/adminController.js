@@ -1,5 +1,7 @@
 import { User } from "../models/user.schema.js";
 import { Hotel } from "../models/hotel.schema.js";
+import { Booking } from "../models/booking.schema.js";
+import { Company } from "../models/company.schema.js";
 import { Role } from "../models/role.schema.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
@@ -336,7 +338,9 @@ export const getAdminHotels = asyncHandler(async (req, res) => {
     });
   }
 
-  if (status && status !== "all") {
+  if (status === "active") {
+    filters.push({ status: "approved", isActive: true });
+  } else if (status && status !== "all") {
     filters.push({ status });
   }
 
@@ -370,10 +374,164 @@ export const getAdminHotels = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     success: true,
+    data: hotels,
+    pagination: {
+      total,
+      totalPages: Math.ceil(total / Number(limit)),
+      currentPage: Number(page),
+      limit: Number(limit),
+    },
     count: hotels.length,
     total,
     totalPages: Math.ceil(total / Number(limit)),
     currentPage: Number(page),
     hotels,
+  });
+});
+
+// @desc    Get aggregate hotel stats for superadmin/admin
+// @route   GET /api/v1/hotels/admin/stats
+// @access  Private (Admin/Superadmin)
+export const getAdminHotelStats = asyncHandler(async (req, res) => {
+  const [total, approved, active, pending] = await Promise.all([
+    Hotel.countDocuments({}),
+    Hotel.countDocuments({ status: "approved" }),
+    Hotel.countDocuments({ status: "approved", isActive: true }),
+    Hotel.countDocuments({ status: "pending" }),
+  ]);
+
+  res.status(200).json({
+    success: true,
+    data: { total, approved, active, pending },
+    message: "Hotel stats fetched successfully",
+  });
+});
+
+// @desc    Get one hotel with admin details
+// @route   GET /api/v1/hotels/admin/:id
+// @access  Private (Admin/Superadmin)
+export const getAdminHotelById = asyncHandler(async (req, res) => {
+  const hotel = await Hotel.findById(req.params.id)
+    .populate("owner", "fullname username email profilePicture")
+    .populate("propertyManager", "fullname username email profilePicture");
+
+  if (!hotel) {
+    return res.status(404).json({
+      success: false,
+      message: "Hotel not found",
+    });
+  }
+
+  // Check if user is owner or property manager of this hotel
+  const isOwner = String(hotel.owner?._id) === String(req.user._id);
+  const isPropertyManager = String(hotel.propertyManager?._id) === String(req.user._id);
+  const hasFinancialAccess = isOwner || isPropertyManager;
+
+  // Superadmins should NOT see financial data - only owners/managers
+  // Financial data includes bookings and revenue information
+  const responseData = {
+    hotel,
+  };
+
+  // Only include financial data if user is owner or property manager
+  if (hasFinancialAccess) {
+    const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const [recentBookings, monthRevenueAgg, totalRevenueAgg] = await Promise.all([
+      Booking.find({ hotel: hotel._id })
+        .sort("-createdAt")
+        .limit(5)
+        .select("guestInfo totalAmount currency status createdAt bookingId")
+        .lean(),
+      Booking.aggregate([
+        { $match: { hotel: hotel._id, createdAt: { $gte: monthStart }, status: { $ne: "Cancelled" } } },
+        { $group: { _id: null, revenue: { $sum: "$totalAmount" } } },
+      ]),
+      Booking.aggregate([
+        { $match: { hotel: hotel._id, status: { $ne: "Cancelled" } } },
+        { $group: { _id: null, revenue: { $sum: "$totalAmount" } } },
+      ]),
+    ]);
+
+    responseData.recentBookings = recentBookings;
+    responseData.revenue = {
+      thisMonth: monthRevenueAgg[0]?.revenue || 0,
+      total: totalRevenueAgg[0]?.revenue || hotel.totalRevenue || 0,
+    };
+  }
+
+  res.status(200).json({
+    success: true,
+    data: responseData,
+    message: "Hotel fetched successfully",
+  });
+});
+
+// @desc    Create a hotel as superadmin/admin
+// @route   POST /api/v1/hotels/admin
+// @access  Private (Admin/Superadmin)
+export const createAdminHotel = asyncHandler(async (req, res) => {
+  const {
+    name,
+    description,
+    owner,
+    propertyManager,
+    location,
+    category = "Hotel",
+    starRating,
+    priceRange,
+    images,
+    amenities = [],
+    contact,
+  } = req.body;
+
+  if (!name || !description || !owner || !location?.city || !location?.address || !starRating || !priceRange?.min || !contact?.email || !contact?.phone) {
+    return res.status(400).json({
+      success: false,
+      message: "Please provide hotel name, owner, description, location, rating, pricing, and contact details",
+    });
+  }
+
+  const ownerUser = await User.findById(owner);
+  if (!ownerUser) {
+    return res.status(404).json({
+      success: false,
+      message: "Selected owner was not found",
+    });
+  }
+
+  let company = ownerUser.company ? await Company.findById(ownerUser.company) : null;
+  if (!company) {
+    company = await Company.findOne({ owner: ownerUser._id });
+  }
+
+  if (!company) {
+    return res.status(400).json({
+      success: false,
+      message: "Selected owner must have a company profile before a hotel can be created",
+    });
+  }
+
+  const fallbackImage = "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80";
+  const hotel = await Hotel.create({
+    name,
+    description,
+    owner: ownerUser._id,
+    company: company._id,
+    propertyManager: propertyManager || ownerUser._id,
+    location,
+    category,
+    starRating,
+    priceRange,
+    images: images?.length ? images : [fallbackImage],
+    amenities,
+    contact,
+    status: "pending",
+  });
+
+  res.status(201).json({
+    success: true,
+    data: hotel,
+    hotel,
+    message: "Hotel created successfully. Pending admin approval.",
   });
 });

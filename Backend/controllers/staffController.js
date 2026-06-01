@@ -252,6 +252,10 @@ export const staffLogin = asyncHandler(async (req, res) => {
     case "receptionist":
       redirectPath = "/reception-dashboard";
       break;
+    case "owner":
+    case "hoteladmin":
+      redirectPath = "/hoteladmin-dashboard";
+      break;
     default:
       redirectPath = "/dashboard";
   }

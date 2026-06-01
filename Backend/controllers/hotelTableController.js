@@ -17,6 +17,16 @@ const getAssignedHotelIds = (req) => {
 
 const assertHotelAccess = async (req, hotelId) => {
   const role = getUserRole(req);
+
+  // Platform admins and superadmins have full read/write access to all hotel data
+  if (role === "admin" || role === "superadmin") {
+    const hotel = await Hotel.findById(hotelId).select("company owner");
+    if (!hotel) {
+      throw Object.assign(new Error("Hotel not found"), { status: 404 });
+    }
+    return hotel;
+  }
+
   const assignedHotelIds = getAssignedHotelIds(req);
   const userCompany = req.user?.company?._id?.toString?.() || req.user?.company?.toString?.() || req.user?.company;
 
@@ -34,6 +44,16 @@ const assertHotelAccess = async (req, hotelId) => {
   }
 
   return hotel;
+};
+
+const canManageTables = (req) => {
+  const role = getUserRole(req);
+  return ["admin", "superadmin", "owner", "manager"].includes(role);
+};
+
+const canDeleteTables = (req) => {
+  const role = getUserRole(req);
+  return ["admin", "superadmin", "owner"].includes(role);
 };
 
 // Helper function to get hotel ID from user
@@ -84,24 +104,14 @@ export const createTable = asyncHandler(async (req, res) => {
     });
   }
 
-  // Verify hotel exists and user has access
-  const hotel = await Hotel.findById(hotelId);
-  if (!hotel) {
-    return res.status(404).json({
-      success: false,
-      message: "Hotel not found",
-    });
-  }
-
-  // Check ownership/access
-  if (hotel.owner.toString() !== req.user._id.toString() && 
-      req.user.role?.name !== 'admin' &&
-      req.user.role?.name !== 'manager') {
+  if (!canManageTables(req)) {
     return res.status(403).json({
       success: false,
       message: "Not authorized to add tables to this hotel",
     });
   }
+
+  const hotel = await assertHotelAccess(req, hotelId);
 
   // Check if table number already exists for this hotel
   const existingTable = await HotelTable.findOne({
@@ -239,16 +249,14 @@ export const updateTable = asyncHandler(async (req, res) => {
     });
   }
 
-  // Verify ownership
-  const hotel = await Hotel.findById(table.hotel);
-  if (hotel.owner.toString() !== req.user._id.toString() && 
-      req.user.role?.name !== 'admin' &&
-      req.user.role?.name !== 'manager') {
+  if (!canManageTables(req)) {
     return res.status(403).json({
       success: false,
       message: "Not authorized to update this table",
     });
   }
+
+  await assertHotelAccess(req, table.hotel);
 
   // Check if new table number conflicts with existing
   if (tableNumber && tableNumber !== table.tableNumber) {
@@ -299,15 +307,14 @@ export const deleteTable = asyncHandler(async (req, res) => {
     });
   }
 
-  // Verify ownership
-  const hotel = await Hotel.findById(table.hotel);
-  if (hotel.owner.toString() !== req.user._id.toString() && 
-      req.user.role?.name !== 'admin') {
+  if (!canDeleteTables(req)) {
     return res.status(403).json({
       success: false,
       message: "Not authorized to delete this table",
     });
   }
+
+  await assertHotelAccess(req, table.hotel);
 
   await HotelTable.findByIdAndDelete(req.params.id);
 
@@ -332,16 +339,14 @@ export const generateTableQR = asyncHandler(async (req, res) => {
     });
   }
 
-  // Verify ownership
-  const hotel = await Hotel.findById(table.hotel);
-  if (hotel.owner.toString() !== req.user._id.toString() && 
-      req.user.role?.name !== 'admin' &&
-      req.user.role?.name !== 'manager') {
+  if (!canManageTables(req)) {
     return res.status(403).json({
       success: false,
       message: "Not authorized to generate QR for this table",
     });
   }
+
+  await assertHotelAccess(req, table.hotel);
 
   // Regenerate token if requested (invalidates old QR codes)
   if (regenerate) {
@@ -409,23 +414,14 @@ export const batchCreateTables = asyncHandler(async (req, res) => {
     });
   }
 
-  // Verify hotel exists and user has access
-  const hotel = await Hotel.findById(hotelId);
-  if (!hotel) {
-    return res.status(404).json({
-      success: false,
-      message: "Hotel not found",
-    });
-  }
-
-  if (hotel.owner.toString() !== req.user._id.toString() && 
-      req.user.role?.name !== 'admin' &&
-      req.user.role?.name !== 'manager') {
+  if (!canManageTables(req)) {
     return res.status(403).json({
       success: false,
       message: "Not authorized to add tables to this hotel",
     });
   }
+
+  const hotel = await assertHotelAccess(req, hotelId);
 
   const createdTables = [];
   const errors = [];

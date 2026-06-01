@@ -43,6 +43,7 @@ const hotelTableSchema = new mongoose.Schema({
   uniqueToken: {
     type: String,
     required: true,
+    default: () => `TBL-${crypto.randomBytes(8).toString('hex').toUpperCase()}`,
   },
   qrCodeData: {
     type: String, // The full URL encoded in the QR code

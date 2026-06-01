@@ -8,6 +8,25 @@ import { createLogger } from "../utils/logger.js";
 
 const logger = createLogger('HotelController');
 
+const optionalObjectIdFields = ['propertyManager'];
+
+const escapeRegExp = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const sanitizeHotelUpdateFields = (fields) => {
+  const sanitized = { ...fields };
+
+  delete sanitized.mapEmbedUrl;
+  delete sanitized.currency;
+
+  optionalObjectIdFields.forEach((field) => {
+    if (sanitized[field] === '') {
+      delete sanitized[field];
+    }
+  });
+
+  return sanitized;
+};
+
 // @desc    Create a new hotel
 // @route   POST /api/hotels
 // @access  Private (Hotel Owner)
@@ -137,7 +156,14 @@ export const getAllHotels = asyncHandler(async (req, res) => {
   }
 
   if (search) {
-    query.$text = { $search: search };
+    const searchRegex = new RegExp(escapeRegExp(search), 'i');
+    query.$or = [
+      { name: searchRegex },
+      { description: searchRegex },
+      { 'location.city': searchRegex },
+      { 'location.country': searchRegex },
+      { 'location.address': searchRegex },
+    ];
   }
 
   // Execute query with pagination
@@ -225,7 +251,17 @@ export const updateHotel = asyncHandler(async (req, res) => {
   }
 
   // Update hotel (status changes back to pending if major changes)
-  const updatedFields = { ...req.body };
+  const updatedFields = sanitizeHotelUpdateFields(req.body);
+
+  if (updatedFields.propertyManager) {
+    const manager = await User.findById(updatedFields.propertyManager);
+    if (!manager) {
+      return res.status(400).json({
+        success: false,
+        message: "Selected property manager was not found",
+      });
+    }
+  }
 
   // If major fields changed, reset to pending
   const majorFields = ['name', 'description', 'location', 'category'];

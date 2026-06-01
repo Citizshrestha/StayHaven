@@ -17,6 +17,13 @@ const getAssignedHotelIds = (req) => {
 
 const assertHotelAccess = async (req, hotelId) => {
   const role = getUserRole(req);
+
+  // Superadmins should NOT have access to hotel-specific financial data
+  // They can manage hotels (approve/reject) but cannot view bookings, revenue, etc.
+  if (role === "admin" || role === "superadmin") {
+    throw Object.assign(new Error("Superadmins cannot access hotel-specific operational data"), { status: 403 });
+  }
+
   const assignedHotelIds = getAssignedHotelIds(req);
   const userCompany = req.user?.company?._id?.toString?.() || req.user?.company?.toString?.() || req.user?.company;
 

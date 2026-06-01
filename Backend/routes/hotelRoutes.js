@@ -10,7 +10,7 @@ import {
   updateHotelStatus,
   toggleFeatured,
 } from '../controllers/hotelController.js';
-import { getAdminHotels } from '../controllers/adminController.js';
+import { createAdminHotel, getAdminHotelById, getAdminHotels, getAdminHotelStats } from '../controllers/adminController.js';
 import { protect, authorize } from '../middleware/authMiddleware.js';
 import { writeOperationLimiter } from '../middleware/rateLimiter.js';
 import { sanitizeAll } from '../middleware/sanitization.js';
@@ -23,6 +23,9 @@ router.use(sanitizeAll());
 // Public routes
 router.get('/', getAllHotels);
 router.get('/admin/all', protect, authorize('admin'), getAdminHotels);
+router.get('/admin/stats', protect, authorize('admin'), getAdminHotelStats);
+router.post('/admin', protect, authorize('admin'), writeOperationLimiter, createAdminHotel);
+router.get('/admin/:id', protect, authorize('admin'), getAdminHotelById);
 router.get('/:id', getHotelById);
 
 // Protected routes - Hotel Owners
@@ -34,6 +37,14 @@ router.get('/:id/statistics', protect, authorize('owner', 'admin'), getHotelStat
 
 // Admin only routes
 router.patch('/:id/status', protect, authorize('admin'), writeOperationLimiter, updateHotelStatus);
+router.patch('/:id/approve', protect, authorize('admin'), writeOperationLimiter, (req, res, next) => {
+  req.body.status = 'approved';
+  return updateHotelStatus(req, res, next);
+});
+router.patch('/:id/reject', protect, authorize('admin'), writeOperationLimiter, (req, res, next) => {
+  req.body.status = 'rejected';
+  return updateHotelStatus(req, res, next);
+});
 router.patch('/:id/featured', protect, authorize('admin'), writeOperationLimiter, toggleFeatured);
 
 export default router;
