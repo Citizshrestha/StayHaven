@@ -3,6 +3,7 @@ import { Room } from "../models/room.schema.js";
 import { Company } from "../models/company.schema.js";
 import { User } from "../models/user.schema.js";
 import { Role } from "../models/role.schema.js";
+import { FeaturedHotel } from "../models/FeaturedHotel.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
 const ROOM_TYPES = [
@@ -296,6 +297,160 @@ export const createTestStaff = asyncHandler(async (req, res) => {
     account: {
       fullname: TEST_NAME,
       role: "receptionist",
+      company: company.name,
+      hotel: hotel.name,
+    },
+  });
+});
+
+/**
+ * @desc    Seed FeaturedHotel entries from existing hotels (DEV/staging only)
+ * @route   POST /api/seed/featured-hotels
+ * @access  Admin / Owner
+ *
+ * Picks up to `limit` hotels from the DB and creates a FeaturedHotel document
+ * (status=published, isActive=true) for each one that isn't already featured.
+ * Safe to re-run — already-featured hotels are skipped.
+ */
+export const seedFeaturedHotels = asyncHandler(async (req, res) => {
+  const limit = Math.min(Number(req.query.limit) || 6, 12);
+
+  const hotels = await Hotel.find({ isActive: { $ne: false } })
+    .select("_id name")
+    .limit(limit);
+
+  if (!hotels.length) {
+    return res.status(404).json({
+      success: false,
+      message: "No hotels found in the database. Create hotels first.",
+    });
+  }
+
+  // Find which hotels are already featured
+  const existingIds = (
+    await FeaturedHotel.find({ hotelId: { $in: hotels.map((h) => h._id) } }).select("hotelId")
+  ).map((f) => String(f.hotelId));
+
+  const toCreate = hotels.filter((h) => !existingIds.includes(String(h._id)));
+
+  if (!toCreate.length) {
+    return res.status(200).json({
+      success: true,
+      message: "All fetched hotels are already featured. Nothing to seed.",
+      alreadyFeatured: existingIds.length,
+    });
+  }
+
+  const badges = ["Top Rated", "Popular", "Best Value", "New Listing", "Editor's Pick", "Trending"];
+
+  const docs = toCreate.map((hotel, i) => ({
+    hotelId: hotel._id,
+    displayOrder: existingIds.length + i,
+    badge: badges[i % badges.length],
+    status: "published",
+    isActive: true,
+  }));
+
+  const created = await FeaturedHotel.insertMany(docs);
+
+  return res.status(201).json({
+    success: true,
+    message: `Seeded ${created.length} featured hotel(s). ${existingIds.length} already existed.`,
+    created: created.map((c) => ({ id: c._id, hotelId: c.hotelId, badge: c.badge })),
+  });
+});
+
+/**
+ * @desc    Create a test hotel admin account (DEV ONLY)
+ * @route   POST /api/seed/test-hotel-admin
+ * @access  Public (no auth) — intentionally open for dev setup
+ */
+export const createTestHotelAdmin = asyncHandler(async (req, res) => {
+  if (process.env.NODE_ENV === "production") {
+    return res.status(403).json({
+      success: false,
+      message: "This endpoint is not available in production.",
+    });
+  }
+
+  const TEST_EMAIL = "hoteladmin@test.com";
+  const TEST_PASSWORD = "Admin@1234";
+  const TEST_NAME = "Test Hotel Admin";
+  const TEST_USERNAME = "test_hotel_admin";
+
+  const { email, password, fullname, username } = req.body || {};
+  const emailToUse = (email || TEST_EMAIL).trim().toLowerCase();
+  const passwordToUse = password || TEST_PASSWORD;
+  const nameToUse = fullname || TEST_NAME;
+  const usernameToUse =
+    username || emailToUse.split("@")[0] || TEST_USERNAME;
+
+  // Return existing account info if already created
+  const existing = await User.findOne({ email: emailToUse })
+    .populate("company", "name")
+    .populate("assignedProperties", "name");
+
+  if (existing) {
+    return res.status(200).json({
+      success: true,
+      message: "Test hotel admin account already exists",
+      credentials: { email: emailToUse, password: passwordToUse },
+      account: {
+        fullname: existing.fullname,
+        role: existing.companyRole,
+        isActive: existing.isActive,
+        company: existing.company?.name,
+        hotel: existing.assignedProperties?.[0]?.name,
+      },
+    });
+  }
+
+  // Find first available company
+  const company = await Company.findOne();
+  if (!company) {
+    return res.status(404).json({
+      success: false,
+      message: "No company found. Please register as an owner first.",
+    });
+  }
+
+  // Find first hotel for that company
+  const hotel = await Hotel.findOne({ company: company._id });
+  if (!hotel) {
+    return res.status(404).json({
+      success: false,
+      message: `No hotel found for company "${company.name}". Please add a hotel first.`,
+    });
+  }
+
+  // Get or create owner role (hotel admin uses the owner role internally)
+  let role = await Role.findOne({ name: "owner" });
+  if (!role) {
+    role = await Role.create({ name: "owner" });
+  }
+
+  await User.create({
+    fullname: nameToUse,
+    username: usernameToUse,
+    email: emailToUse,
+    password: passwordToUse,
+    role: role._id,
+    companyRole: "owner",
+    company: company._id,
+    assignedProperties: [hotel._id],
+    isActive: true,
+    isEmailVerified: true,
+    accountStatus: "active",
+  });
+
+  return res.status(201).json({
+    success: true,
+    message: "Test hotel admin created!",
+    credentials: { email: emailToUse, password: passwordToUse },
+    loginUrl: "/staff/login",
+    account: {
+      fullname: nameToUse,
+      role: "owner (hotel admin)",
       company: company.name,
       hotel: hotel.name,
     },

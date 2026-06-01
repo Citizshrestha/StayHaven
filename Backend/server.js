@@ -32,6 +32,8 @@ import receptionRoutes from "./routes/receptionRoutes.js";
 import webhookRoutes from "./routes/webhookRoutes.js";
 import healthRoutes from "./routes/healthRoutes.js";
 import feedbackRoutes from "./routes/feedbackRoutes.js";
+import superadminRoutes from "./routes/superadminRoutes.js";
+import contentRoutes from "./routes/content/index.js";
 import cookieParser from "cookie-parser";
 import { initCloudinary } from "./config/cloudinary.js";
 import { initSocket } from "./config/socket.js";
@@ -278,6 +280,9 @@ app.use("/api/v1/guest/portal", guestDashboardRoutes); // Guest dashboard (authe
 app.use("/api/v1/reception", receptionRoutes); // Reception dashboard APIs (authenticated)
 app.use("/api/v1/webhooks", webhookRoutes);    // Payment gateway webhooks (public)
 app.use("/api/v1/feedback", feedbackRoutes);   // Feedback submission (public + admin)
+app.use("/api/v1/superadmin", superadminRoutes); // Super Admin platform management (superadmin only)
+app.use("/api/v1/content", contentRoutes);
+app.use("/api/content", contentRoutes);
 
 // ═══════════════════════════════════════════
 // Error Handling Middleware (MUST BE LAST)
