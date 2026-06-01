@@ -159,6 +159,7 @@ const HotelManagement = () => {
   const [modalType, setModalType] = useState(null);
   const [selectedHotel, setSelectedHotel] = useState(null);
   const [approveTarget, setApproveTarget] = useState(null);
+  const [popoverPosition, setPopoverPosition] = useState({ top: 0, left: 0 });
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 350);
@@ -242,6 +243,30 @@ const HotelManagement = () => {
       setHotels(previousHotels);
       toast.error(error?.message || 'Failed to approve hotel');
     }
+  };
+
+  const handleApproveClick = (event, hotel) => {
+    const button = event.currentTarget;
+    const rect = button.getBoundingClientRect();
+    const popoverWidth = 280;
+    const popoverHeight = 140;
+
+    // Calculate position - try to position below the button, but adjust if it goes off screen
+    let top = rect.bottom + 8;
+    let left = rect.left;
+
+    // Adjust if popover goes off right edge
+    if (left + popoverWidth > window.innerWidth) {
+      left = window.innerWidth - popoverWidth - 16;
+    }
+
+    // Adjust if popover goes off bottom edge
+    if (top + popoverHeight > window.innerHeight) {
+      top = rect.top - popoverHeight - 8;
+    }
+
+    setPopoverPosition({ top, left });
+    setApproveTarget(approveTarget?._id === hotel._id ? null : hotel);
   };
 
   const handleDelete = async (hotel) => {
@@ -369,6 +394,8 @@ const HotelManagement = () => {
             onReject={(hotel) => openModal('reject', hotel)}
             approveTarget={approveTarget}
             setApproveTarget={setApproveTarget}
+            onApproveClick={handleApproveClick}
+            popoverPosition={popoverPosition}
           />
         ) : (
           <div className="hm-table-card">
@@ -469,18 +496,19 @@ const HotelManagement = () => {
                             {hotel.status === 'pending' && (
                               <>
                                 <div className="hm-popover-wrap">
-                                  <button className="hm-action-btn hm-approve" onClick={() => setApproveTarget(approveTarget?._id === hotel._id ? null : hotel)} title="Approve">
+                                  <button className="hm-action-btn hm-approve" onClick={(e) => handleApproveClick(e, hotel)} title="Approve">
                                     <span className="material-symbols-outlined">check_circle</span>
                                   </button>
-                                  {approveTarget?._id === hotel._id && (
-                                    <div className="hm-approve-popover">
+                                  {approveTarget?._id === hotel._id && createPortal(
+                                    <div className="hm-approve-popover" style={{ top: `${popoverPosition.top}px`, left: `${popoverPosition.left}px` }}>
                                       <strong>Approve {hotel.name}?</strong>
-                                      <p>This will notify the owner.</p>
+                                      <p>This will notify the owner and activate the hotel.</p>
                                       <div>
                                         <button onClick={() => setApproveTarget(null)}>Cancel</button>
                                         <button onClick={() => handleApprove(hotel)}>Confirm</button>
                                       </div>
-                                    </div>
+                                    </div>,
+                                    document.body
                                   )}
                                 </div>
                                 <button className="hm-action-btn hm-reject" onClick={() => openModal('reject', hotel)} title="Reject">
@@ -581,7 +609,7 @@ const HotelThumb = ({ hotel }) => (
   </div>
 );
 
-const HotelCardsGrid = ({ hotels, loading, onView, onEdit, onDelete, onApprove, onReject, approveTarget, setApproveTarget }) => {
+const HotelCardsGrid = ({ hotels, loading, onView, onEdit, onDelete, onApprove, onReject, approveTarget, setApproveTarget, onApproveClick, popoverPosition }) => {
   if (loading) {
     return (
       <div className="hm-cards-grid">
@@ -678,20 +706,21 @@ const HotelCardsGrid = ({ hotels, loading, onView, onEdit, onDelete, onApprove, 
                     <div className="hm-popover-wrap">
                       <button
                         className="hm-card-btn hm-approve-btn"
-                        onClick={() => setApproveTarget(approveTarget?._id === hotel._id ? null : hotel)}
+                        onClick={(e) => onApproveClick(e, hotel)}
                       >
                         <span className="material-symbols-outlined">check_circle</span>
                         Approve
                       </button>
-                      {approveTarget?._id === hotel._id && (
-                        <div className="hm-approve-popover">
+                      {approveTarget?._id === hotel._id && createPortal(
+                        <div className="hm-approve-popover" style={{ top: `${popoverPosition.top}px`, left: `${popoverPosition.left}px` }}>
                           <strong>Approve {hotel.name}?</strong>
-                          <p>This will notify the owner.</p>
+                          <p>This will notify the owner and activate the hotel.</p>
                           <div>
                             <button onClick={() => setApproveTarget(null)}>Cancel</button>
                             <button onClick={() => onApprove(hotel)}>Confirm</button>
                           </div>
-                        </div>
+                        </div>,
+                        document.body
                       )}
                     </div>
                     <button className="hm-card-btn hm-reject-btn" onClick={() => onReject(hotel)}>
@@ -862,6 +891,9 @@ const HotelActionLayer = ({ modalType, selectedHotel, onClose, onSuccess, onDele
 
   if (modalType === 'view') {
     const hotel = hotelDetails?.hotel || selectedHotel;
+    const displayStatus = getDisplayStatus(hotel);
+    const statusStyle = statusStyles[displayStatus] || statusStyles.rejected;
+
     return createPortal(
       <div className="hm-layer-backdrop" onClick={(event) => event.target === event.currentTarget && onClose()}>
         <aside className="hm-view-drawer">
@@ -872,37 +904,139 @@ const HotelActionLayer = ({ modalType, selectedHotel, onClose, onSuccess, onDele
             <>
               <div className="hm-drawer-hero">
                 {hotel.images?.[0] ? <img src={hotel.images[0]} alt={hotel.name} /> : <div className="hm-drawer-fallback">{getInitials(hotel.name)}</div>}
+                <div className="hm-drawer-hero-overlay" />
                 <div className="hm-drawer-hero-copy">
+                  <div className="hm-hero-status-badge" style={{ backgroundColor: statusStyle.bg, color: statusStyle.color, borderColor: statusStyle.border }}>
+                    {displayStatus}
+                  </div>
                   <h2>{hotel.name}</h2>
-                  <p>{hotel.location?.city || '-'}, {hotel.location?.country || '-'}</p>
-                  <span>★ {Number(hotel.rating || hotel.starRating || 0).toFixed(1)}</span>
+                  <div className="hm-hero-location">
+                    <span className="material-symbols-outlined">location_on</span>
+                    <span>{hotel.location?.city || '-'}, {hotel.location?.country || '-'}</span>
+                  </div>
+                  <div className="hm-hero-rating">
+                    <span className="material-symbols-outlined">star</span>
+                    <span>{Number(hotel.rating || hotel.starRating || 0).toFixed(1)}</span>
+                    {hotel.reviewCount > 0 && <span className="hm-hero-reviews">({hotel.reviewCount} reviews)</span>}
+                  </div>
                 </div>
               </div>
-              <div className="hm-drawer-content">
-                <InfoSection title="Details" icon="info">
-                  <p>{hotel.description || 'No description provided.'}</p>
-                  <div className="hm-detail-grid">
-                    <span>Created <strong>{formatDate(hotel.createdAt)}</strong></span>
-                    <span>Status <strong>{getDisplayStatus(hotel)}</strong></span>
+
+              <div className="hm-drawer-scrollable-wrapper">
+                {hotel.images && hotel.images.length > 1 && (
+                  <div className="hm-drawer-gallery">
+                    <h4>Gallery</h4>
+                    <div className="hm-gallery-grid">
+                      {hotel.images.slice(0, 6).map((image, index) => (
+                        <div key={index} className="hm-gallery-item">
+                          <img src={image} alt={`${hotel.name} ${index + 1}`} />
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </InfoSection>
-                <InfoSection title="Amenities" icon="widgets">
-                  <div className="hm-amenity-grid compact">
-                    {(hotel.amenities?.length ? hotel.amenities : ['No amenities listed']).map((amenity) => <span key={amenity}>{amenity}</span>)}
-                  </div>
-                </InfoSection>
-                <InfoSection title="Manager" icon="badge">
-                  <ManagerCard manager={hotel.propertyManager || hotel.owner} />
-                </InfoSection>
-                <InfoSection title="Contact Information" icon="contact_mail">
-                  <div className="hm-detail-grid">
-                    <span>Email <strong>{hotel.contact?.email || 'Not provided'}</strong></span>
-                    <span>Phone <strong>{hotel.contact?.phone || 'Not provided'}</strong></span>
-                  </div>
-                </InfoSection>
+                )}
+
+                <div className="hm-drawer-content">
+                  <InfoSection title="Overview" icon="info">
+                    <p className="hm-description-text">{hotel.description || 'No description provided.'}</p>
+                    <div className="hm-detail-grid">
+                      <div className="hm-detail-item">
+                        <span className="hm-detail-label">Category</span>
+                        <span className="hm-detail-value">{hotel.category || 'Hotel'}</span>
+                      </div>
+                      <div className="hm-detail-item">
+                        <span className="hm-detail-label">Star Rating</span>
+                        <span className="hm-detail-value">{'★'.repeat(hotel.starRating || 0)}</span>
+                      </div>
+                      <div className="hm-detail-item">
+                        <span className="hm-detail-label">Created</span>
+                        <span className="hm-detail-value">{formatDate(hotel.createdAt)}</span>
+                      </div>
+                      <div className="hm-detail-item">
+                        <span className="hm-detail-label">Status</span>
+                        <span className="hm-detail-value" style={{ color: statusStyle.color, fontWeight: 700 }}>{displayStatus}</span>
+                      </div>
+                    </div>
+                  </InfoSection>
+
+                  <InfoSection title="Pricing" icon="payments">
+                    <div className="hm-pricing-card">
+                      <div className="hm-price-item">
+                        <span className="hm-price-label">Base Price</span>
+                        <span className="hm-price-value">{formatMoney(hotel.priceRange?.min, hotel.currency)}</span>
+                        <span className="hm-price-period">per night</span>
+                      </div>
+                      {hotel.priceRange?.max && hotel.priceRange.max !== hotel.priceRange.min && (
+                        <div className="hm-price-item">
+                          <span className="hm-price-label">Max Price</span>
+                          <span className="hm-price-value">{formatMoney(hotel.priceRange.max, hotel.currency)}</span>
+                          <span className="hm-price-period">per night</span>
+                        </div>
+                      )}
+                      <div className="hm-price-item">
+                        <span className="hm-price-label">Commission</span>
+                        <span className="hm-price-value">{hotel.commissionRate || 15}%</span>
+                        <span className="hm-price-period">platform fee</span>
+                      </div>
+                    </div>
+                  </InfoSection>
+
+                  <InfoSection title="Amenities & Features" icon="widgets">
+                    <div className="hm-amenity-grid compact">
+                      {(hotel.amenities?.length ? hotel.amenities : ['No amenities listed']).map((amenity, index) => (
+                        <div key={index} className="hm-amenity-chip">
+                          <span className="material-symbols-outlined">check_circle</span>
+                          <span>{amenity}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </InfoSection>
+
+                  <InfoSection title="Property Manager" icon="badge">
+                    <ManagerCard manager={hotel.propertyManager || hotel.owner} />
+                  </InfoSection>
+
+                  <InfoSection title="Contact Information" icon="contact_mail">
+                    <div className="hm-contact-grid">
+                      <div className="hm-contact-item">
+                        <span className="material-symbols-outlined">email</span>
+                        <div>
+                          <span className="hm-contact-label">Email</span>
+                          <span className="hm-contact-value">{hotel.contact?.email || 'Not provided'}</span>
+                        </div>
+                      </div>
+                      <div className="hm-contact-item">
+                        <span className="material-symbols-outlined">phone</span>
+                        <div>
+                          <span className="hm-contact-label">Phone</span>
+                          <span className="hm-contact-value">{hotel.contact?.phone || 'Not provided'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </InfoSection>
+
+                  <InfoSection title="Location" icon="map">
+                    <div className="hm-location-details">
+                      <div className="hm-location-address">
+                        <span className="material-symbols-outlined">home</span>
+                        <span>{hotel.location?.address || 'Address not provided'}</span>
+                      </div>
+                      {hotel.mapEmbedUrl && (
+                        <div className="hm-map-embed">
+                          <iframe src={hotel.mapEmbedUrl} title="Hotel location" loading="lazy" />
+                        </div>
+                      )}
+                    </div>
+                  </InfoSection>
+                </div>
               </div>
+
               <div className="hm-drawer-footer">
-                <button className="hm-add-btn" onClick={() => fetchHotelDetails(hotel._id).then(() => {})}>Refresh</button>
+                <button className="hm-ghost-btn" onClick={onClose}>Close</button>
+                <button className="hm-add-btn" onClick={() => { onClose(); openModal('edit', hotel); }}>
+                  <span className="material-symbols-outlined">edit</span>
+                  Edit Hotel
+                </button>
               </div>
             </>
           )}
