@@ -4,7 +4,7 @@ import { Hotel } from "../models/hotel.schema.js";
 import { MenuItem } from "../models/menuItem.schema.js";
 import { Order, Counter } from "../models/order.schema.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { emitToHotel, emitToWaiters, emitToKitchen } from "../config/socket.js";
+import { emitToHotel, emitToWaiters, emitToKitchen, emitToGuestSession } from "../config/socket.js";
 
 // @desc    Validate table QR token and get table info
 // @route   GET /api/guest/table/:token
@@ -147,11 +147,9 @@ export const getGuestMenu = asyncHandler(async (req, res) => {
     });
   }
 
-  // Build query for menu items
-  const query = {
-    hotel: hotelId,
-    isAvailable: true,
-  };
+  // Build query for menu items — return ALL items so unavailable ones
+  // can be shown as greyed-out/unorderable on the client
+  const query = { hotel: hotelId };
 
   if (category) {
     query.category = category;
@@ -168,8 +166,11 @@ export const getGuestMenu = asyncHandler(async (req, res) => {
     groupedByCategory[item.category].push(item);
   });
 
-  // Get unique categories
-  const categories = [...new Set(menuItems.map(item => item.category))];
+  // Get unique categories derived from available items so empty
+  // unavailable-only categories do not pollute the tab list
+  const categories = [...new Set(
+    menuItems.filter(i => i.isAvailable).map(item => item.category)
+  )];
 
   res.status(200).json({
     success: true,
@@ -198,6 +199,7 @@ export const createGuestOrder = asyncHandler(async (req, res) => {
     customerPhone,
     notes,
     priority = 'normal',
+    guestSessionId,  // Anonymous QR guest session ID for real-time tracking
   } = req.body;
 
   // Validate required fields
@@ -354,7 +356,9 @@ export const createGuestOrder = asyncHandler(async (req, res) => {
     isGuestOrder: true,
     orderBy: null,
     orderByName: 'Guest Order (QR)',
-    guestSessionId: `GUEST-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    // Use client-provided sessionId so the socket room already exists;
+    // fall back to a server-generated value for safety
+    guestSessionId: guestSessionId || `GUEST-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
   });
 
   // Note: The order schema requires orderBy, so we might need to handle this
@@ -379,9 +383,18 @@ export const createGuestOrder = asyncHandler(async (req, res) => {
         tableNumber,
       });
     }
+
+    // Notify the anonymous QR guest's session room so their tracking
+    // view activates immediately without polling
+    if (order.guestSessionId) {
+      emitToGuestSession(order.guestSessionId, 'order-status-update', {
+        orderId: order._id,
+        orderNumber: order.orderNumber,
+        status: order.status,
+      });
+    }
   } catch (socketError) {
-    console.error('Socket emission error:', socketError);
-    // Don't fail the order creation due to socket errors
+    // Socket errors must not fail the order creation
   }
 
   res.status(201).json({
@@ -396,6 +409,7 @@ export const createGuestOrder = asyncHandler(async (req, res) => {
       items: order.items,
       totalPrice: order.totalPrice,
       status: order.status,
+      guestSessionId: order.guestSessionId,
       createdAt: order.createdAt,
     },
   });
@@ -474,8 +488,8 @@ export const callWaiter = asyncHandler(async (req, res) => {
       reason: reason || 'Assistance requested',
       timestamp: new Date(),
     });
-  } catch (socketError) {
-    console.error('Socket emission error:', socketError);
+  } catch {
+    // Socket emission failed — non-fatal, response still sent
   }
 
   res.status(200).json({
@@ -534,8 +548,8 @@ export const requestBill = asyncHandler(async (req, res) => {
       activeOrders: activeOrders.length,
       timestamp: new Date(),
     });
-  } catch (socketError) {
-    console.error('Socket emission error:', socketError);
+  } catch {
+    // Socket emission failed — non-fatal, response still sent
   }
 
   res.status(200).json({

@@ -4,7 +4,7 @@ import { Room } from "../models/room.schema.js";
 import { Hotel } from "../models/hotel.schema.js";
 import { MenuItem } from "../models/menuItem.schema.js";
 import { User } from "../models/user.schema.js";
-import { emitToHotel, emitToWaiters, emitToKitchen, emitToUser } from "../config/socket.js";
+import { emitToHotel, emitToWaiters, emitToKitchen, emitToUser, emitToGuestSession } from "../config/socket.js";
 import { sendEmail, sendSMS, sendWhatsApp, generateBillEmailHTML, generateBillTextMessage } from "../services/notificationService.js";
 import { createNotificationInternal } from "./notificationController.js";
 
@@ -19,6 +19,13 @@ const getAssignedHotelIds = (req) => {
 
 const assertHotelAccess = async (req, hotelId) => {
   const role = getUserRole(req);
+
+  // Superadmins should NOT have access to hotel-specific financial data
+  // They can manage hotels (approve/reject) but cannot view bookings, revenue, etc.
+  if (role === "admin" || role === "superadmin") {
+    throw Object.assign(new Error("Superadmins cannot access hotel-specific operational data"), { status: 403 });
+  }
+
   const assignedHotelIds = getAssignedHotelIds(req);
   const userCompany = req.user?.company?._id?.toString?.() || req.user?.company?.toString?.() || req.user?.company;
 
@@ -242,10 +249,8 @@ export const createOrder = asyncHandler(async (req, res) => {
     );
 
     await Promise.all(notificationPromises);
-    console.log(`✅ Created ${hotelStaff.length} notifications for new order #${order.orderNumber}`);
-  } catch (notifError) {
-    console.error('❌ Failed to create notifications for new order:', notifError);
-    // Don't fail the order creation if notifications fail
+  } catch {
+    // Notification creation failed — non-fatal, order already persisted
   }
 
   return res.status(201).json({
@@ -411,7 +416,7 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     emitToHotel(order.hotel.toString(), "order-status-updated", eventData);
   }
 
-  // Always notify the guest who placed the order (if this is a guest order)
+  // Notify registered guest who placed the order
   if (order.customerId) {
     emitToUser(order.customerId.toString(), "order-status-update", {
       orderId: order._id,
@@ -419,6 +424,16 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
       status: order.status,
       totalPrice: order.totalPrice,
       items: order.items,
+      updatedAt: new Date(),
+    });
+  }
+
+  // Notify anonymous QR guest via their session room
+  if (order.guestSessionId) {
+    emitToGuestSession(order.guestSessionId, "order-status-update", {
+      orderId: order._id,
+      orderNumber: order.orderNumber,
+      status: order.status,
       updatedAt: new Date(),
     });
   }
@@ -475,11 +490,9 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
       );
 
       await Promise.all(notificationPromises);
-      console.log(`✅ Created ${recipients.length} notifications for order #${order.orderNumber} status: ${status}`);
     }
-  } catch (notifError) {
-    console.error('❌ Failed to create notifications for order status update:', notifError);
-    // Don't fail the status update if notifications fail
+  } catch {
+    // Notification creation failed — non-fatal, status update already saved
   }
 
   return res.status(200).json({
@@ -1002,9 +1015,6 @@ export const sendBillToCustomer = asyncHandler(async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('❌ Send bill error:', error);
-    console.error('Error stack:', error.stack);
-    
     // Try to update bill sent status to failed (if order exists)
     try {
       if (order) {
@@ -1012,8 +1022,8 @@ export const sendBillToCustomer = asyncHandler(async (req, res) => {
         order.billSentRetries = (order.billSentRetries || 0) + 1;
         await order.save();
       }
-    } catch (saveError) {
-      console.error('Failed to update order status:', saveError);
+    } catch {
+      // Secondary save failure — non-fatal
     }
     
     return res.status(500).json({

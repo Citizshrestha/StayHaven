@@ -28,9 +28,8 @@ const uploadToCloudinary = async (base64Image, folder, publicId) => {
       resource_type: 'image',
     });
     return result.secure_url;
-  } catch (error) {
-    console.error('Cloudinary upload error:', error);
-    // Return base64 as fallback
+  } catch {
+    // Cloudinary upload failed — caller receives null and uses fallback
     return null;
   }
 };
@@ -44,7 +43,7 @@ const uploadToCloudinary = async (base64Image, folder, publicId) => {
  */
 export const generateTableQRCode = async (uniqueToken, hotelId = null, uploadToCloud = false) => {
   const baseUrl = getBaseUrl();
-  const qrCodeData = `${baseUrl}/guest/table/${uniqueToken}`;
+const qrCodeData = `${baseUrl}/guest/table/${uniqueToken}`;
   
   try {
     // Generate QR code as base64 data URL
@@ -77,8 +76,7 @@ export const generateTableQRCode = async (uniqueToken, hotelId = null, uploadToC
       qrCodeData,
       qrCodeImage,
     };
-  } catch (error) {
-    console.error('Error generating table QR code:', error);
+  } catch {
     throw new Error('Failed to generate QR code');
   }
 };
@@ -125,8 +123,7 @@ export const generateRoomQRCode = async (uniqueToken, hotelId = null, uploadToCl
       qrCodeData,
       qrCodeImage,
     };
-  } catch (error) {
-    console.error('Error generating room QR code:', error);
+  } catch {
     throw new Error('Failed to generate QR code');
   }
 };
@@ -148,8 +145,7 @@ export const generateQRCodeBuffer = async (data, options = {}) => {
   
   try {
     return await QRCode.toBuffer(data, defaultOptions);
-  } catch (error) {
-    console.error('Error generating QR code buffer:', error);
+  } catch {
     throw new Error('Failed to generate QR code buffer');
   }
 };
@@ -167,8 +163,7 @@ export const generateQRCodeSVG = async (data) => {
       margin: 2,
       errorCorrectionLevel: 'H',
     });
-  } catch (error) {
-    console.error('Error generating QR code SVG:', error);
+  } catch {
     throw new Error('Failed to generate QR code SVG');
   }
 };
