@@ -13,11 +13,13 @@ import { toast } from "react-toastify";
 import { staffLogout } from "../../../../api/staff";
 import { useStaffAuth } from "../../../../context/StaffAuthContext";
 import StaffSettings from "../../../../components/shared/StaffSettings";
+import { useTheme } from "../../../../core/hooks/useTheme";
 
 const Sidebar = ({ activeView = "dashboard", onViewChange, notificationCount = 0, waiterCallCount = 0, onMessagingToggle, unreadMessageCount = 0 }) => {
   const navigate = useNavigate();
   const { staffUser, activeProperty, logout, staffRole } = useStaffAuth();
   const [showSettings, setShowSettings] = useState(false);
+  const { isDark } = useTheme();
 
   // Determine if user is chief/kitchen staff (hide waiter-specific items)
   const isChief = staffRole === 'chief' || staffRole === 'kitchen';
@@ -93,7 +95,7 @@ const Sidebar = ({ activeView = "dashboard", onViewChange, notificationCount = 0
     outline: "none",
     cursor: "pointer",
     backgroundColor: isActive ? "var(--color-accent-light)" : "transparent",
-    color: isActive ? "var(--color-primary)" : "var(--text-secondary)",
+    color: isActive ? "var(--color-primary)" : (isDark ? "#E5E7EB" : "#374151"),
     fontWeight: isActive ? "600" : "500",
   });
 
@@ -124,7 +126,7 @@ const Sidebar = ({ activeView = "dashboard", onViewChange, notificationCount = 0
           <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "700", color: "var(--text-primary)" }}>
             {staffUser?.fullname ?? "Staff Member"}
           </h3>
-          <p style={{ margin: 0, fontSize: "14px", color: "var(--text-tertiary)", textTransform: "capitalize" }}>{staffUser?.role ?? "Waiter"}</p>
+          <p style={{ margin: 0, fontSize: "14px", color: "#374151", textTransform: "capitalize" }}>{staffUser?.role ?? "Waiter"}</p>
           {
             activeProperty?.name && (
               <p style={{
@@ -252,3 +254,4 @@ const Sidebar = ({ activeView = "dashboard", onViewChange, notificationCount = 0
 };
 
 export default Sidebar;
+;

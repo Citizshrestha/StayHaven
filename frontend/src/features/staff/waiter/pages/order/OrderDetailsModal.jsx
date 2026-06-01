@@ -553,7 +553,7 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false, onMarkReady, on
                   fontWeight: "700",
                   letterSpacing: "0.1em",
                   textTransform: "uppercase",
-                  color: "#94A3B8",
+                  color: "#000000",
                   marginBottom: "12px",
                   fontFamily: "'Poppins', sans-serif",
                 }}
@@ -621,7 +621,7 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false, onMarkReady, on
                         alignItems: "center",
                         justifyContent: "center",
                         transition: "all 0.2s",
-                        color: "#1F2937",
+                        color: "#000000",
                         fontSize: "16px",
                         fontWeight: "bold",
                       }}
@@ -654,7 +654,7 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false, onMarkReady, on
                         alignItems: "center",
                         justifyContent: "center",
                         transition: "all 0.2s",
-                        color: "#1F2937",
+                        color: "#000000",
                         fontSize: "16px",
                         fontWeight: "bold",
                       }}

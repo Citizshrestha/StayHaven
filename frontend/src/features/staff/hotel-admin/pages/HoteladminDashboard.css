@@ -54,6 +54,8 @@
   z-index: 100;
   flex-shrink: 0;
   margin: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .hotel-dashboard.dark .sidebar {
@@ -140,6 +142,7 @@
   padding: 12px 0;
   display: flex;
   flex-direction: column;
+  flex: 1;
 }
 
 .nav-item {
@@ -210,6 +213,35 @@
   flex: 1;
 }
 
+/* Sidebar Footer - Logout */
+.sidebar-footer {
+  margin-top: auto;
+  padding: 12px 0;
+  border-top: 1px solid #e5e7eb;
+}
+
+.hotel-dashboard.dark .sidebar-footer {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+.logout-btn {
+  color: #ef4444 !important;
+}
+
+.logout-btn:hover {
+  background-color: #fef2f2 !important;
+  color: #dc2626 !important;
+}
+
+.hotel-dashboard.dark .logout-btn {
+  color: #f87171 !important;
+}
+
+.hotel-dashboard.dark .logout-btn:hover {
+  background-color: rgba(239, 68, 68, 0.1) !important;
+  color: #fca5a5 !important;
+}
+
 /* Custom Scrollbar */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
@@ -248,7 +280,7 @@
   width: calc(100% - 220px);
   transition: background-color 0.3s ease;
   box-sizing: border-box;
-  padding-left: 12px;
+  padding-left: 0;
 }
 
 .hotel-dashboard.dark .main-content {
@@ -258,7 +290,7 @@
 .dashboard-content {
   max-width: 100%;
   margin: 0;
-  padding: 20px 16px 20px 8px;
+  padding: 24px 24px 24px 24px;
 }
 
 /* Remove default top margins so content aligns flush with sidebar */
@@ -268,9 +300,9 @@
 .staff-content,
 .billing-payments-content {
   margin-top: 0;
-  padding-top: 20px;
-  padding-left: 8px;
-  padding-right: 16px;
+  padding-top: 24px;
+  padding-left: 24px;
+  padding-right: 24px;
 }
 
 .dashboard-header h1,

@@ -11,9 +11,11 @@ import useRelativeTime from "../../../../../hooks/useRelativeTime";
 import EditOrderModal from "./EditOrderModal";
 import { useStaffAuth } from "../../../../../context/StaffAuthContext";
 import { useSocket } from "../../../../../core/context/SocketContext";
+import { useTheme } from "../../../../../core/hooks/useTheme";
 
 
 const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
+  const { isDark } = useTheme();
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -281,26 +283,27 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
   };
 
   const metaStyle = {
-    color: "var(--text-tertiary)",
+    color: isDark ? "#E5E7EB" : "#000000",
     fontSize: isMobile ? "12px" : "14px",
-    fontWeight: "500",
+    fontWeight: "600",
   };
 
   const titleStyle = {
     fontSize: isMobile ? "18px" : isTablet ? "20px" : "24px",
     fontWeight: "800",
-    color: "var(--text-primary)",
+    color: isDark ? "#ffffff" : "#000000",
     marginBottom: "8px",
     lineHeight: "1.2",
     wordBreak: "break-word",
   };
 
   const itemsStyle = {
-    color: "var(--text-tertiary)",
+    color: isDark ? "#E5E7EB" : "#000000",
     fontSize: isMobile ? "13px" : "14px",
     lineHeight: "1.5",
     marginBottom: isMobile ? "16px" : "24px",
     flex: 1,
+    fontWeight: "600",
   };
 
   const buttonsContainerStyle = {
@@ -455,7 +458,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
         return response.data;
       }
     } catch (error) {
-      console.error('Send bill error:', error);
+
       throw error;
     }
   };
@@ -604,7 +607,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                 fontSize: "16px",
                 fontWeight: "800",
                 letterSpacing: "0.01em",
-                color: "#0284C7"
+                color: isDark ? "#ffffff" : "#000000"
               }}
             >
               {order.customerName}
@@ -1075,3 +1078,4 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
 };
 
 export default OrderCard;
+

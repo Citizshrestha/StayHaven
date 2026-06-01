@@ -5,7 +5,7 @@ import { useStaffAuth } from '../../../../context/StaffAuthContext';
 import './SuperAdminLayout.css';
 
 const SuperAdminLayout = ({ children, pageTitle }) => {
-  const [darkMode, setDarkMode] = useState(true); // Default to dark mode for premium feel
+  const [darkMode, setDarkMode] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -15,10 +15,9 @@ const SuperAdminLayout = ({ children, pageTitle }) => {
     { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', path: '/superadmindashboard' },
     { id: 'users', label: 'User Management', icon: 'group', path: '/usermanagement' },
     { id: 'hotels', label: 'Hotel Management', icon: 'apartment', path: '/hotelmanagement' },
-    { id: 'bookings', label: 'Booking Management', icon: 'book_online' },
     { id: 'finance', label: 'Finance', icon: 'payments' },
     { id: 'reviews', label: 'Review Moderation', icon: 'rate_review' },
-    { id: 'content', label: 'Content Management', icon: 'wysiwyg' },
+    { id: 'content', label: 'Content Management', icon: 'wysiwyg', path: '/contentmanagement' },
     { id: 'config', label: 'System Configuration', icon: 'tune' },
   ];
 
@@ -60,8 +59,7 @@ const SuperAdminLayout = ({ children, pageTitle }) => {
     if (savedMode !== null) {
       setDarkMode(JSON.parse(savedMode));
     } else {
-      // Default to dark mode on initial load
-      localStorage.setItem('superadmin-dark-mode', JSON.stringify(true));
+      localStorage.setItem('superadmin-dark-mode', JSON.stringify(false));
     }
   }, []);
 
@@ -82,10 +80,14 @@ const SuperAdminLayout = ({ children, pageTitle }) => {
         <aside className={`sa-sidebar ${sidebarOpen ? 'mobile-open' : ''}`}>
           <div className="sa-sidebar-header">
             <div className="sa-logo-icon">
-              <span className="material-symbols-outlined">holiday_village</span>
+              <svg viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+                <path d="M8 41V15.8L24 7l16 8.8V41h-8V28h-6v13h-4V28h-6v13H8Z" fill="#00BFA6" />
+                <path d="M14 20h5v5h-5v-5Zm15 0h5v5h-5v-5ZM14 29h5v5h-5v-5Zm15 0h5v5h-5v-5Z" fill="#FFFFFF" opacity=".95" />
+                <path d="M24 7 8 15.8v4.4L24 11l16 9.2v-4.4L24 7Z" fill="#00E5CC" />
+              </svg>
             </div>
             <div className="sa-logo-text">
-              <h1>StayHaven</h1>
+              <h1><span>Stay</span><strong>Haven</strong></h1>
               <p>Super Admin</p>
             </div>
           </div>

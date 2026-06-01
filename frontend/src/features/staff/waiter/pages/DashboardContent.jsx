@@ -8,8 +8,10 @@ import {
   Menu,
 } from "lucide-react";
 import OrderCard from "./order/OrderCard";
+import { useTheme } from "../../../../core/hooks/useTheme";
 
 const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed, onDeleteOrder, onRefresh, isRefreshing, onUpdateOrder, onMenuToggle }) => {
+  const { isDark } = useTheme();
   const [isMobile, setIsMobile] = useState(false);
   const [isTablet, setIsTablet] = useState(false);
 
@@ -112,7 +114,7 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
   const titleStyle = {
     fontSize: isMobile ? "28px" : isTablet ? "32px" : "40px",
     fontWeight: "800",
-    color: "var(--text-primary)",
+    color: isDark ? "#ffffff" : "#000000",
     marginBottom: "8px",
     letterSpacing: "-0.025em",
     lineHeight: "1.1",
@@ -120,8 +122,8 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
 
   const subtitleStyle = {
     fontSize: isMobile ? "14px" : "18px",
-    color: "var(--text-secondary)",
-    fontWeight: "500",
+    color: isDark ? "#D1D5DB" : "#000000",
+    fontWeight: "600",
   };
 
   const refreshButtonStyle = {
@@ -165,7 +167,7 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
     border: "none",
     cursor: "pointer",
     backgroundColor: isActive ? "var(--color-accent-light)" : "var(--bg-primary)",
-    color: isActive ? "var(--color-primary)" : "var(--text-tertiary)",
+    color: isActive ? "var(--color-primary)" : (isDark ? "#E5E7EB" : "#374151"),
     boxShadow: isActive ? "none" : "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
     flexShrink: 0,
   });
@@ -257,7 +259,7 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
 
         {filteredOrders.length === 0 && (
           <div style={{ textAlign: "center", padding: "48px 0" }}>
-            <p style={{ color: "#9CA3AF", fontSize: "18px", fontWeight: "500" }}>
+            <p style={{ color: isDark ? "#ffffff" : "#000000", fontSize: "18px", fontWeight: "600" }}>
               No orders found
             </p>
           </div>

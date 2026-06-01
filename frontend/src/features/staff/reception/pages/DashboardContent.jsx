@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../../../../hooks/useTheme';
 import { useStaffAuth } from '../../../../context/StaffAuthContext';
+import { useSocket } from '../../../../core/context/SocketContext';
 import { toast } from 'react-toastify';
 import {
   Search, Bell, Sun, Moon, ArrowUpRight, ArrowDownRight,
   CalendarCheck, LogOut as LogOutIcon, Bed, Plus, UserPlus,
-  ArrowRightLeft, Wand2, Clock, DollarSign, CreditCard,
-  Users, Eye, TrendingUp, CheckCircle, AlertTriangle,
-  Sparkles, Coffee, Wrench, ChevronRight, Command,
+  ArrowRightLeft, Clock, DollarSign, CreditCard,
+  Users, TrendingUp, CheckCircle, AlertTriangle,
+  Sparkles, Coffee, Wrench, ChevronRight,
   FileText, Zap, Building2, UtensilsCrossed, ConciergeBell,
   X, Send, MessageCircle, Phone, PhoneOff
 } from 'lucide-react';
@@ -17,10 +18,6 @@ import {
 } from './ActionModals';
 import * as msgService from '../../../../core/api/services/messaging.service';
 import * as receptionApi from '../../../../core/api/services/reception.service';
-import { io as socketIO } from 'socket.io-client';
-import { getApiBaseUrl } from '../../../../utils/apiConfig';
-
-const API_BASE = getApiBaseUrl();
 
 /* ── Sparkline Component ── */
 const Sparkline = ({ data, color, height = 32 }) => {
@@ -440,34 +437,27 @@ const DashboardContent = ({ onNavigate }) => {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // ── Socket.io Connection ──
+  // ── Socket.io Connection using SocketContext ──
+  const { socket, isConnected, subscribe } = useSocket();
+
   useEffect(() => {
-    if (!isLoggedIn || !hotelId) return;
-    const socket = socketIO(API_BASE, { withCredentials: true });
+    if (!socket || !isConnected) return;
+    
     socketRef.current = socket;
 
-    socket.on('connect', () => {
-      socket.emit('join-hotel', hotelId);
-      socket.emit('join-role', {
-        hotelId,
-        role: staffUser?.role || 'receptionist',
-        userId: staffUser?._id,
-      });
-    });
-
-    // Listen for new messages
-    socket.on('new-message', (msg) => {
+    // Subscribe to new messages
+    const unsubscribeMessages = subscribe('new-message', (msg) => {
       setMessages(prev => [...prev, msg]);
     });
 
-    // Listen for notifications
-    socket.on('notification', (notif) => {
+    // Subscribe to notifications
+    const unsubscribeNotifications = subscribe('notification', (notif) => {
       setNotifications(prev => [notif, ...prev]);
       setUnreadNotifCount(c => c + 1);
     });
 
-    // Listen for incoming calls
-    socket.on('incoming-call', (callData) => {
+    // Subscribe to incoming calls
+    const unsubscribeCalls = subscribe('incoming-call', (callData) => {
       // Show browser notification for calls
       if (Notification?.permission === 'granted') {
         new Notification(`📞 Incoming call from ${callData.sender?.fullname}`, {
@@ -478,10 +468,11 @@ const DashboardContent = ({ onNavigate }) => {
     });
 
     return () => {
-      socket.disconnect();
-      socketRef.current = null;
+      unsubscribeMessages();
+      unsubscribeNotifications();
+      unsubscribeCalls();
     };
-  }, [isLoggedIn, hotelId, staffUser]);
+  }, [socket, isConnected, subscribe]);
 
   // ── Fetch Notifications from API ──
   useEffect(() => {

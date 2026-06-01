@@ -116,8 +116,8 @@ const RightPanel = ({ orders = [] }) => {
       <div className="rp-section">
         <h2 className="rp-section-title" style={{
           fontSize: '0.9rem',
-          fontWeight: '600',
-          color: isDark ? '#F8FAFC' : '#263238',
+          fontWeight: '700',
+          color: isDark ? '#F8FAFC' : '#111827',
           marginBottom: '12px',
           fontFamily: "'Poppins', sans-serif",
         }}>
@@ -136,7 +136,7 @@ const RightPanel = ({ orders = [] }) => {
               alignItems: 'center',
               justifyContent: 'center',
               padding: '24px 16px',
-              color: isDark ? '#94A3B8' : '#9CA3AF',
+              color: isDark ? '#ffffff' : '#000000',
               textAlign: 'center',
             }}>
               <Bell size={32} style={{ marginBottom: '8px', opacity: 0.5 }} />
@@ -174,8 +174,8 @@ const RightPanel = ({ orders = [] }) => {
                         <p style={{
                           margin: 0,
                           fontSize: '0.85rem',
-                          fontWeight: '500',
-                          color: isDark ? '#F8FAFC' : '#263238',
+                          fontWeight: '600',
+                          color: isDark ? '#F8FAFC' : '#111827',
                           lineHeight: '1.4',
                           marginBottom: '4px',
                           overflow: 'hidden',
@@ -186,10 +186,11 @@ const RightPanel = ({ orders = [] }) => {
                         }}>
                           {notification.message}
                         </p>
-                        <p style={{
+                         <p style={{
                           margin: 0,
                           fontSize: '0.75rem',
-                          color: isDark ? '#94A3B8' : '#546E7A',
+                          fontWeight: '600',
+                          color: isDark ? '#ffffff' : '#000000',
                         }}>
                           {notification.time}
                         </p>

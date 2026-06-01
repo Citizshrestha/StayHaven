@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { useStaffAuth } from '../../../../core/context/StaffAuthContext';
 import './HoteladminDashboard.css';
 import RestaurantManagement from './RestaurantManagement';
 import TableManagement from './TableManagement';
@@ -28,6 +30,9 @@ const LoadingSpinner = ({ message = 'Loading...' }) => (
 );
 
 const HoteladminDashboard = () => {
+  const navigate = useNavigate();
+  const { staffUser, logout } = useStaffAuth();
+
   const [activeSection, setActiveSection] = useState(() => {
     // Initialize from URL hash so direct links work
     const hash = typeof window !== 'undefined' ? window.location.hash.replace('#', '') : '';
@@ -343,6 +348,15 @@ const HoteladminDashboard = () => {
         ? newRoom.amenities.filter(a => a !== amenity)
         : [...newRoom.amenities, amenity];
       handleNewRoomChange('amenities', newAmenities);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/staff/login', { replace: true });
+    } catch {
+      navigate('/staff/login', { replace: true });
     }
   };
 
@@ -1766,8 +1780,8 @@ const renderBillingPayments = () => {
       <div className="sidebar">
         <div className="sidebar-header">
           <div className="admin-info">
-            <h2>Hotel Admin</h2>
-            <p className="admin-role">Hotel Admin</p>
+            <h2>{staffUser?.fullname || 'Hotel Admin'}</h2>
+            <p className="admin-role">{staffUser?.activeProperty?.name || 'Hotel Admin'}</p>
           </div>
           {/* Dark Mode Toggle */}
           <button
@@ -1792,6 +1806,17 @@ const renderBillingPayments = () => {
             </button>
           ))}
         </nav>
+        {/* Logout Button */}
+        <div className="sidebar-footer">
+          <button
+            type="button"
+            className="nav-item logout-btn"
+            onClick={handleLogout}
+          >
+            <span className="nav-icon">🚪</span>
+            <span className="nav-label">Logout</span>
+          </button>
+        </div>
       </div>
 
       {/* Main Content */}

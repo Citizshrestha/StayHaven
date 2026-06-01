@@ -123,14 +123,15 @@ const AssignedAreas = ({ orders = [], onFilterByArea, onClose }) => {
   const titleStyle = {
     fontSize: isMobile ? '28px' : '36px',
     fontWeight: '800',
-    color: 'var(--text-primary)',
+    color: '#000000',
     margin: 0,
   };
 
   const subtitleStyle = {
     fontSize: '16px',
-    color: 'var(--text-tertiary)',
+    color: '#374151',
     marginTop: '8px',
+    fontWeight: '600',
   };
 
   const gridStyle = {
@@ -378,7 +379,7 @@ const AssignedAreas = ({ orders = [], onFilterByArea, onClose }) => {
                     justifyContent: 'space-between',
                     alignItems: 'center',
                   }}>
-                    <span style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>
+                    <span style={{ fontSize: '13px', color: '#374151', fontWeight: '600' }}>
                       Total orders: {area.totalOrders}
                     </span>
                     <span style={{

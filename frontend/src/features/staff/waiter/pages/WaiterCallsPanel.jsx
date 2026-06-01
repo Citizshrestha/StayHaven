@@ -216,7 +216,7 @@ const WaiterCallsPanel = ({ onClose, onCallCountChange }) => {
   const titleStyle = {
     fontSize: isMobile ? '28px' : '36px',
     fontWeight: '800',
-    color: 'var(--text-primary)',
+    color: '#000000',
     margin: 0,
     display: 'flex',
     alignItems: 'center',
