@@ -913,20 +913,17 @@
   opacity: 0.5;
 }
 
-/* Item unavailable overlay */
+/* Sold-out badge (inline style; class kept for legacy) */
 .guest-menu-item.unavailable {
-  opacity: 0.6;
+  opacity: 0.5;
+  filter: grayscale(40%);
   pointer-events: none;
+  position: relative;
 }
 
-.guest-menu-item.unavailable::after {
-  content: 'Currently Unavailable';
-  position: absolute;
-  inset: 0;
-  background: rgba(255, 255, 255, 0.9);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
-  color: var(--guest-danger);
+/* Pulsing ring for the active order-status step */
+@keyframes guestPulse {
+  0%   { box-shadow: 0 0 0 0   rgba(16, 185, 129, 0.45); }
+  70%  { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);    }
+  100% { box-shadow: 0 0 0 0   rgba(16, 185, 129, 0);    }
 }
