@@ -4,11 +4,8 @@ import { Menu, X, Heart, ShoppingCart, Building2, Search } from 'lucide-react';
 import axiosClient from "../../core/api/client";
 import { getWishlist, getCart } from "../../core/api/services/user.service";
 import { Button } from "../ui/button";
-import { createLogger } from "../../core/utils/logger.js";
 import NoBookingsModal from "../components/NoBookingsModal";
 import './Navbar.css';
-
-const logger = createLogger('Navbar');
 
 const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -118,6 +115,12 @@ const Navbar = () => {
     }
 
     const fetchUserData = async () => {
+      // Don't fetch if this is a staff session (staff uses different auth)
+      const isStaffSession = !!(sessionStorage.getItem('staffAccessToken') || localStorage.getItem('staffAccessToken'));
+      if (isStaffSession) {
+        return;
+      }
+
       try {
         const res = await axiosClient.get("/api/v1/auth/me");
         const role = res.data.role?.name || res.data.companyRole || 'guest';
@@ -139,7 +142,10 @@ const Navbar = () => {
           localStorage.setItem("userRole", role);
         }
       } catch (err) {
-        console.error("Error fetching user data:", err);
+        // Silently handle 401 errors (user not authenticated)
+        if (err.response?.status !== 401) {
+          console.error("Error fetching user data:", err);
+        }
         setUser(null);
       }
     };
@@ -289,7 +295,7 @@ const Navbar = () => {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={handleSearchKeyDown}
-                className="pl-4 pr-12 py-2.5 w-56 text-black rounded-full border border-gray-200 bg-white text-gray-700 placeholder-gray-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 text-sm font-medium shadow-sm focus:outline-none focus:w-64 focus:shadow-md transition-all duration-300"
+                className="pl-4 pr-12 py-2.5 w-56 rounded-full border border-gray-200 bg-white text-gray-700 placeholder-gray-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 text-sm font-medium shadow-sm focus:outline-none focus:w-64 focus:shadow-md transition-all duration-300"
               />
               <button
                 onClick={handleSearch}

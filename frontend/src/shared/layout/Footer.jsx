@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   MapPin, Phone, Mail, Facebook, Twitter, Instagram, Youtube,
-  Building2, Shield, Clock, ArrowRight, Heart, Users, Lock
+  ArrowRight, Heart, Users, Lock, Shield, Clock
 } from 'lucide-react';
+import { useContent } from '../../hooks/useContent';
+import { getFooterContent } from '../../core/api/services/content.service';
 
 const Footer = () => {
   const navigate = useNavigate();
@@ -23,96 +25,131 @@ const Footer = () => {
     }, 1000);
   };
 
-  const quickLinks = [
-    { label: 'Home', path: '/' },
-    { label: 'About Us', path: '/about' },
-    { label: 'Destinations', path: '/destinations' },
-    { label: 'Offers & Deals', path: '/offers' },
-    { label: 'Membership', path: '/memberships' },
-  ];
+  const { data: footerDataArray } = useContent('footer', getFooterContent);
+  const footer = footerDataArray?.[0] || null;
 
-  const exploreLinks = [
-    { label: 'Browse Hotels', path: '/hotels' },
-    { label: 'Kathmandu', path: '/hotels' },
-    { label: 'Pokhara', path: '/hotels' },
-    { label: 'Chitwan', path: '/hotels' },
-    { label: 'Lumbini', path: '/hotels' },
-  ];
+  const quickLinks = footer?.quickLinks?.length > 0
+    ? footer.quickLinks.map(l => ({ label: l.label, path: l.href }))
+    : [
+        { label: 'Home', path: '/' },
+        { label: 'About Us', path: '/about' },
+        { label: 'Destinations', path: '/destinations' },
+        { label: 'Offers & Deals', path: '/offers' },
+        { label: 'Membership', path: '/memberships' },
+      ];
+
+  const exploreLinks = footer?.exploreLinks?.length > 0
+    ? footer.exploreLinks.map(l => ({ label: l.label, path: l.href }))
+    : [
+        { label: 'Browse Hotels', path: '/hotels' },
+        { label: 'Kathmandu', path: '/hotels' },
+        { label: 'Pokhara', path: '/hotels' },
+        { label: 'Chitwan', path: '/hotels' },
+        { label: 'Lumbini', path: '/hotels' },
+      ];
 
   const supportLinks = [
     { label: 'FAQ', path: '/' },
-    { label: 'Contact Us', path: '/contact' },
+    { label: 'Contact Us', path: '/contactus' },
     { label: 'Privacy Policy', path: '/' },
     { label: 'Terms of Service', path: '/' },
     { label: 'Feedback', path: '/feedback' },
   ];
 
+  const contactInfo = footer?.contactInfo || {
+    address: 'Thamel, Kathmandu, Nepal',
+    phone: '+977 01-2136 567',
+    email: 'support@stayhaven.com.np'
+  };
+
+  const socialPlatforms = {
+    Facebook,
+    Instagram,
+    Twitter,
+    Youtube
+  };
+
+  const socialLinks = footer?.socialLinks?.length > 0
+    ? footer.socialLinks.map(s => ({
+        Icon: socialPlatforms[s.platform] || Facebook,
+        link: s.url || '#',
+        label: s.platform
+      }))
+    : [
+        { Icon: Facebook, link: '#', label: 'Facebook' },
+        { Icon: Instagram, link: '#', label: 'Instagram' },
+        { Icon: Twitter, link: '#', label: 'Twitter' },
+        { Icon: Youtube, link: '#', label: 'YouTube' }
+      ];
+
   return (
     <footer className="relative">
       {/* Newsletter section — Enhanced with gradient and better spacing */}
-      <div className="bg-gradient-to-br from-teal-50 via-emerald-50 to-cyan-50 border-t border-teal-100">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 xl:px-[6vw] py-16 pb-20">
-          <div className="relative mb-8 overflow-hidden rounded-3xl border border-teal-100 bg-white p-10 shadow-2xl md:mb-10 md:p-12">
-            {/* Decorative background elements */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-teal-100/30 to-emerald-100/30 rounded-full blur-3xl -z-0"></div>
-            <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-cyan-100/30 to-teal-100/30 rounded-full blur-3xl -z-0"></div>
-            
-            <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex min-w-0 flex-1 items-start gap-4 sm:gap-5">
-                <Mail
-                  className="mt-0.5 size-9 shrink-0 text-[#0ea5a0] sm:size-10"
-                  strokeWidth={1.75}
-                  aria-hidden
-                />
-                <div className="min-w-0">
-                  <h3 className="mb-2 text-2xl font-bold text-gray-900">Stay in the Loop!</h3>
-                  <p className="max-w-xl text-base leading-relaxed text-gray-600">
-                    Get exclusive hotel deals, travel tips, and special offers delivered straight to your inbox.
-                    <span className="font-semibold text-[#0d9488]"> Join 10,000+ travelers!</span>
-                  </p>
-                </div>
-              </div>
-
-              <form
-                onSubmit={handleSubscribe}
-                className="flex w-full flex-col gap-3 sm:flex-row sm:items-center lg:w-auto lg:min-w-[min(100%,28rem)]"
-              >
-                <label htmlFor="footer-newsletter-email" className="sr-only">
-                  Email address
-                </label>
-                <div className="flex min-h-[48px] min-w-0 flex-1 items-center gap-3 rounded-xl bg-gray-50 px-4 py-2 transition-all focus-within:bg-white focus-within:shadow-lg sm:min-w-[240px] md:w-80 md:flex-none">
+      {footer?.newsletterEnabled !== false && (
+        <div className="bg-gradient-to-br from-teal-50 via-emerald-50 to-cyan-50 border-t border-teal-100">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8 xl:px-[6vw] py-16 pb-20">
+            <div className="relative mb-8 overflow-hidden rounded-3xl border border-teal-100 bg-white p-10 shadow-2xl md:mb-10 md:p-12">
+              {/* Decorative background elements */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-teal-100/30 to-emerald-100/30 rounded-full blur-3xl -z-0"></div>
+              <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-cyan-100/30 to-teal-100/30 rounded-full blur-3xl -z-0"></div>
+              
+              <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex min-w-0 flex-1 items-start gap-4 sm:gap-5">
                   <Mail
-                    className="size-5 shrink-0 text-gray-400"
-                    strokeWidth={2}
+                    className="mt-0.5 size-9 shrink-0 text-[#0ea5a0] sm:size-10"
+                    strokeWidth={1.75}
                     aria-hidden
                   />
-                  <input
-                    id="footer-newsletter-email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter your email address"
-                    required
-                    autoComplete="email"
-                    className="min-w-0 flex-1 bg-transparent py-0.5 text-base text-gray-900 placeholder:text-gray-400 focus:outline-none"
-                  />
+                  <div className="min-w-0">
+                    <h3 className="mb-2 text-2xl font-bold text-gray-900">Stay in the Loop!</h3>
+                    <p className="max-w-xl text-base leading-relaxed text-gray-600">
+                      Get exclusive hotel deals, travel tips, and special offers delivered straight to your inbox.
+                      <span className="font-semibold text-[#0d9488]"> Join 10,000+ travelers!</span>
+                    </p>
+                  </div>
                 </div>
-                <button
-                  type="submit"
-                  disabled={isSubscribing}
-                  className="inline-flex h-[44px] items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-[#0ea5a0] px-5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#0d9489] disabled:cursor-not-allowed disabled:opacity-50"
+
+                <form
+                  onSubmit={handleSubscribe}
+                  className="flex w-full flex-col gap-3 sm:flex-row sm:items-center lg:w-auto lg:min-w-[min(100%,28rem)]"
                 >
-                  {isSubscribing ? 'Subscribing...' : (
-                    <>
-                      Subscribe <ArrowRight className="w-5 h-5" />
-                    </>
-                  )}
-                </button>
-              </form>
+                  <label htmlFor="footer-newsletter-email" className="sr-only">
+                    Email address
+                  </label>
+                  <div className="flex min-h-[48px] min-w-0 flex-1 items-center gap-3 rounded-xl bg-gray-50 px-4 py-2 transition-all focus-within:bg-white focus-within:shadow-lg sm:min-w-[240px] md:w-80 md:flex-none">
+                    <Mail
+                      className="size-5 shrink-0 text-gray-400"
+                      strokeWidth={2}
+                      aria-hidden
+                    />
+                    <input
+                      id="footer-newsletter-email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="Enter your email address"
+                      required
+                      autoComplete="email"
+                      className="min-w-0 flex-1 bg-transparent py-0.5 text-base text-gray-900 placeholder:text-gray-400 focus:outline-none"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={isSubscribing}
+                    className="inline-flex h-[44px] items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-[#0ea5a0] px-5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#0d9489] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isSubscribing ? 'Subscribing...' : (
+                      <>
+                        Subscribe <ArrowRight className="w-5 h-5" />
+                      </>
+                    )}
+                  </button>
+                </form>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Main footer — Enhanced dark theme */}
       <div className="bg-gradient-to-b from-gray-900 via-gray-900 to-gray-900">
@@ -140,29 +177,24 @@ const Footer = () => {
                   <div className="w-8 h-8 rounded-lg bg-gray-800 group-hover:bg-teal-500/20 flex items-center justify-center transition-all">
                     <MapPin className="w-4 h-4 text-teal-500 group-hover:text-teal-400" />
                   </div>
-                  Thamel, Kathmandu, Nepal
+                  {contactInfo.address}
                 </a>
-                <a href="tel:+97701-2136567" className="flex items-center gap-3 text-sm text-gray-400 hover:text-teal-400 transition-colors group">
+                <a href={`tel:${contactInfo.phone}`} className="flex items-center gap-3 text-sm text-gray-400 hover:text-teal-400 transition-colors group">
                   <div className="w-8 h-8 rounded-lg bg-gray-800 group-hover:bg-teal-500/20 flex items-center justify-center transition-all">
                     <Phone className="w-4 h-4 text-teal-500 group-hover:text-teal-400" />
                   </div>
-                  +977 01-2136 567
+                  {contactInfo.phone}
                 </a>
-                <a href="mailto:support@stayhaven.com.np" className="flex items-center gap-3 text-sm text-gray-400 hover:text-teal-400 transition-colors group">
+                <a href={`mailto:${contactInfo.email}`} className="flex items-center gap-3 text-sm text-gray-400 hover:text-teal-400 transition-colors group">
                   <div className="w-8 h-8 rounded-lg bg-gray-800 group-hover:bg-teal-500/20 flex items-center justify-center transition-all">
                     <Mail className="w-4 h-4 text-teal-500 group-hover:text-teal-400" />
                   </div>
-                  support@stayhaven.com.np
+                  {contactInfo.email}
                 </a>
               </div>
 
               <div className="flex items-center gap-3">
-                {[
-                  { Icon: Facebook, link: '#', label: 'Facebook' },
-                  { Icon: Instagram, link: '#', label: 'Instagram' },
-                  { Icon: Twitter, link: '#', label: 'Twitter' },
-                  { Icon: Youtube, link: '#', label: 'YouTube' }
-                ].map(({ Icon, link, label }) => (
+                {socialLinks.map(({ Icon, link, label }) => (
                   <a
                     key={label}
                     href={link}
