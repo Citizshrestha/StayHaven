@@ -57,6 +57,16 @@ export const initSocket = (httpServer) => {
       }
     });
 
+    // Anonymous QR guests join a session-specific room so status updates
+    // can be pushed to them without a user account.
+    socket.on("join-guest-session", (sessionId) => {
+      if (sessionId && typeof sessionId === "string") {
+        const room = `guest-session-${sessionId}`;
+        socket.join(room);
+        logger.debug(`Socket ${socket.id} joined guest session room: ${room}`);
+      }
+    });
+
     // When a user joins, add them to role/hotel rooms (when provided)
     // and always join their personal room for direct notifications.
     socket.on("join-role", ({ hotelId, role, userId, fullname }) => {
@@ -323,4 +333,17 @@ export const emitToUser = (userId, event, data) => {
   }
 };
 
-export default { initSocket, getIO, emitToHotel, emitToWaiters, emitToKitchen, emitToUser };
+/**
+ * Emit event to an anonymous QR guest's session room.
+ * The room name is deterministic: guest-session-{sessionId}
+ * @param {string} sessionId - The guestSessionId stored on the order
+ * @param {string} event - Event name
+ * @param {object} data - Event data
+ */
+export const emitToGuestSession = (sessionId, event, data) => {
+  if (io && sessionId) {
+    io.to(`guest-session-${sessionId}`).emit(event, data);
+  }
+};
+
+export default { initSocket, getIO, emitToHotel, emitToWaiters, emitToKitchen, emitToUser, emitToGuestSession };

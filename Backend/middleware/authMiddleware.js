@@ -68,11 +68,10 @@ export const authorize = (...roles) => {
   return asyncHandler(async (req, res, next) => {
     const userRole = req.user?.role?.name || req.user?.companyRole;
 
+    // Superadmin bypasses all role checks — platform-level administrator
     if (userRole === 'superadmin') {
       return next();
     }
-
-
 
     if (!userRole || !roles.includes(userRole)) {
       throw Object.assign(new Error(`User role '${userRole || 'unknown'}' is not authorized`), {
