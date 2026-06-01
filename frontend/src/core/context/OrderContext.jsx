@@ -1,12 +1,25 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useLocation } from "react-router-dom";
 import { OrderContext } from "./OrderContextDef";
 import { getActiveProperty, getOrders, createOrder, updateOrder as updateOrderApi, updateOrderStatus as updateOrderStatusApi } from "../api/services/staff.service";
 
 export const OrderProvider = ({ children }) => {
-
+  const location = useLocation();
   const [realOrders, setRealOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // Check if we're on a staff route that needs order data
+  const isStaffRoute = useMemo(() => {
+    const staffRoutes = [
+      '/waiter-dashboard',
+      '/kitchen-dashboard',
+      '/reception-dashboard',
+      '/hoteladmin-dashboard',
+      '/restaurantmanagement',
+    ];
+    return staffRoutes.some(route => location.pathname.startsWith(route));
+  }, [location.pathname]);
 
   // fetch orders from backend
   const fetchOrders = useCallback(async ({ silent = false } = {}) => {
@@ -20,54 +33,12 @@ export const OrderProvider = ({ children }) => {
         return;
       }
 
-      // fetch all order types and status — use allSettled so a transient 401
-      // on one request doesn't abort all 12 parallel fetches
-      const results = await Promise.allSettled([
-        getOrders(activeProperty._id, "pending", "dineIn"),
-        getOrders(activeProperty._id, "preparing", "dineIn"),
-        getOrders(activeProperty._id, "ready", "dineIn"),
-        getOrders(activeProperty._id, "delivered", "dineIn"),
-        getOrders(activeProperty._id, "pending", "roomService"),
-        getOrders(activeProperty._id, "preparing", "roomService"),
-        getOrders(activeProperty._id, "ready", "roomService"),
-        getOrders(activeProperty._id, "delivered", "roomService"),
-        getOrders(activeProperty._id, "pending", "takeaway"),
-        getOrders(activeProperty._id, "preparing", "takeaway"),
-        getOrders(activeProperty._id, "ready", "takeaway"),
-        getOrders(activeProperty._id, "delivered", "takeaway"),
-      ]);
-
-      const [
-        dineInPending,
-        dineInPreparing,
-        dineInReady,
-        dineInDelivered,
-        roomPending,
-        roomPreparing,
-        roomReady,
-        roomDelivered,
-        takeawayPending,
-        takeawayPreparing,
-        takeawayReady,
-        takeawayDelivered,
-      ] = results.map(r => r.status === "fulfilled" ? r.value : { orders: [] });
-
-
-      // merge all orders
-      const allOrders = [
-        ...(dineInPending.orders || []),
-        ...(dineInPreparing.orders || []),
-        ...(dineInReady.orders || []),
-        ...(dineInDelivered.orders || []),
-        ...(roomPending.orders || []),
-        ...(roomPreparing.orders || []),
-        ...(roomReady.orders || []),
-        ...(roomDelivered.orders || []),
-        ...(takeawayPending.orders || []),
-        ...(takeawayPreparing.orders || []),
-        ...(takeawayReady.orders || []),
-        ...(takeawayDelivered.orders || []),
-      ];
+      // Single consolidated fetch — the backend treats status/orderType "all"
+      // as no filter, so one request returns every active order. This replaces
+      // the previous 12 parallel calls (P2-4). Real-time updates are delivered
+      // via sockets; this fetch is just the initial load + slow safety-net poll.
+      const response = await getOrders(activeProperty._id, "all", "all");
+      const allOrders = response?.orders || [];
 
       // transform backendOrders to match frontend format
       const transformedOrders = allOrders.map((order) => ({
@@ -115,7 +86,6 @@ export const OrderProvider = ({ children }) => {
       setRealOrders(transformedOrders);
     } catch (err) {
       setError(err.message);
-      console.error("Failed to fetch orders:", err);
     } finally {
       if (!silent) {
         setLoading(false);
@@ -190,7 +160,6 @@ export const OrderProvider = ({ children }) => {
         // Refresh orders from backend to sync across all dashboards
         await fetchOrders({ silent: true });
       } catch (err) {
-        console.error("Failed to update order status:", err);
         const message =
           err?.response?.data?.message ||
           err?.message ||
@@ -234,7 +203,6 @@ export const OrderProvider = ({ children }) => {
       // Refresh orders from backend
       await fetchOrders({ silent: true });
     } catch (err) {
-      console.error("Failed to update order:", err);
       const message =
         err?.response?.data?.message ||
         err?.message ||
@@ -255,10 +223,17 @@ export const OrderProvider = ({ children }) => {
     });
   }, [realOrders]);
 
-  // fetch real orders when component mounts (only if logged in) AND poll every 5 seconds
+  // Fetch real orders on mount (only if logged in AND on a staff route).
+  // Real-time updates arrive via sockets, so this interval is just a slow
+  // safety-net resync (30s) rather than the primary update channel (P2-4).
   useEffect(() => {
+    // Only fetch orders if we're on a staff route
+    if (!isStaffRoute) {
+      return;
+    }
+
     const fetchRealOrders = async () => {
-      const staffToken = localStorage.getItem("staffAccessToken");
+      const staffToken = sessionStorage.getItem("staffAccessToken") || localStorage.getItem("staffAccessToken");
       if (staffToken) {
         await fetchOrders({ silent: true });
       }
@@ -266,11 +241,11 @@ export const OrderProvider = ({ children }) => {
 
     fetchRealOrders();
 
-    // Poll for updates every 5 seconds
-    const intervalId = setInterval(fetchRealOrders, 5000);
+    // Safety-net resync every 30 seconds (sockets handle live updates)
+    const intervalId = setInterval(fetchRealOrders, 30000);
 
     return () => clearInterval(intervalId);
-  }, [fetchOrders]);
+  }, [fetchOrders, isStaffRoute]);
 
   return (
     <OrderContext.Provider value={{

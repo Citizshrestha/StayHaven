@@ -52,8 +52,8 @@ const loadNotificationsFromStorage = () => {
       // Restore Date objects for createdAt
       return parsed.map(n => ({ ...n, createdAt: new Date(n.createdAt) }));
     }
-  } catch (e) {
-    console.warn('Failed to load notifications from storage:', e);
+  } catch {
+    // Corrupted/unavailable storage — fall back to an empty list
   }
   return [];
 };
@@ -63,8 +63,8 @@ const saveNotificationsToStorage = (notifications) => {
   try {
     // Keep only recent 50 notifications in storage to avoid bloat
     localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(notifications.slice(0, 50)));
-  } catch (e) {
-    console.warn('Failed to save notifications to storage:', e);
+  } catch {
+    // Storage quota exceeded or unavailable — non-fatal, skip persistence
   }
 };
 
@@ -89,12 +89,9 @@ export const NotificationProvider = ({ children }) => {
       }
 
       try {
-        console.log('📥 [NotificationContext] Fetching initial notifications from backend...');
         const response = await getNotifications({ limit: 50, unreadOnly: false });
         
         if (response.success && response.data) {
-          console.log(`✅ [NotificationContext] Fetched ${response.data.length} notifications from backend`);
-          
           // Transform backend notifications to match our format
           const transformedNotifications = response.data.map(n => ({
             id: n._id,
@@ -110,11 +107,9 @@ export const NotificationProvider = ({ children }) => {
           }));
 
           setNotifications(transformedNotifications);
-          console.log(`📊 [NotificationContext] Loaded notifications. Unread: ${transformedNotifications.filter(n => !n.isRead).length}`);
         }
-      } catch (error) {
-        console.error('❌ [NotificationContext] Failed to fetch initial notifications:', error);
-        // Keep localStorage notifications as fallback
+      } catch {
+        // Backend unreachable — keep localStorage notifications as fallback
       } finally {
         setIsLoadingInitial(false);
       }
@@ -145,8 +140,6 @@ export const NotificationProvider = ({ children }) => {
       ...notification,
     };
 
-    console.log('🔔 [NotificationContext] addNotification called:', newNotification);
-
     setNotifications(prev => {
       // Prevent duplicates: check if same type + orderId exists within last 5 seconds
       const isDuplicate = prev.some(n =>
@@ -157,12 +150,10 @@ export const NotificationProvider = ({ children }) => {
       );
 
       if (isDuplicate) {
-        console.log('🔇 Duplicate notification ignored:', notification.type, notification.orderId);
         return prev;
       }
 
       const newState = [newNotification, ...prev.slice(0, 99)]; // Keep max 100 notifications
-      console.log('✅ [NotificationContext] Notification added. Total count:', newState.length, 'Unread:', newState.filter(n => !n.isRead).length);
       return newState;
     });
   }, []);
@@ -193,29 +184,19 @@ export const NotificationProvider = ({ children }) => {
   // Subscribe to socket events
   useEffect(() => {
     if (!subscribe || !isAuthenticated) {
-      console.log('⚠️ [NotificationContext] Not subscribing:', {
-        hasSubscribe: !!subscribe,
-        isAuthenticated
-      });
       return;
     }
 
-    console.log(`📡 [NotificationContext] Setting up subscriptions for role: ${staffRole}`);
-    console.log(`👤 [NotificationContext] Current user ID: ${currentUserId}`);
     const unsubscribers = [];
 
     // New order notification (skip if current user is the creator)
     unsubscribers.push(
       subscribe('new-order', (data) => {
-        console.log('📦 [NotificationContext] New order received:', data);
-
         // Skip notification if current user created this order (self-notification)
         if (data.creatorId && currentUserId && data.creatorId === currentUserId) {
-          console.log('🔇 Skipping self-notification for new order:', data.order?.orderNumber);
           return;
         }
 
-        console.log('🔊 [NotificationContext] Playing sound for new order');
         playWithVibration('newOrder');
 
         const location = formatOrderLocation({
@@ -231,7 +212,6 @@ export const NotificationProvider = ({ children }) => {
           orderNumber: data.order.orderNumber,
         };
 
-        console.log('➕ [NotificationContext] Adding notification:', notification);
         addNotification(notification);
       })
     );
@@ -239,7 +219,6 @@ export const NotificationProvider = ({ children }) => {
     // Order ready notification (for waiters)
     unsubscribers.push(
       subscribe('order-ready', (data) => {
-        console.log('🔔 [NotificationContext] Order ready:', data);
         playWithVibration('orderReady');
         
         addNotification({
@@ -255,11 +234,8 @@ export const NotificationProvider = ({ children }) => {
     // Chiefs receive this when waiters update, waiters receive when chiefs update
     unsubscribers.push(
       subscribe('order-status-updated', (data) => {
-        console.log('📝 [NotificationContext] Status updated:', data);
-        
         // Skip if this is our own update (self-notification)
         if (data.updaterId && currentUserId && data.updaterId === currentUserId) {
-          console.log('🔇 Skipping self-notification for order:', data.orderNumber);
           return;
         }
         
@@ -297,11 +273,8 @@ export const NotificationProvider = ({ children }) => {
     // Order details updated (price, items, customer info, etc.)
     unsubscribers.push(
       subscribe('order-updated', (data) => {
-        console.log('✏️ [NotificationContext] Order updated:', data);
-        
         // Skip if this is our own update (self-notification)
         if (data.updaterId && currentUserId && data.updaterId === currentUserId) {
-          console.log('🔇 Skipping self-notification for order update:', data.orderNumber);
           return;
         }
         
@@ -323,7 +296,6 @@ export const NotificationProvider = ({ children }) => {
     if (staffRole === 'waiter') {
       unsubscribers.push(
         subscribe('new-waiter-call', (data) => {
-          console.log('📞 [NotificationContext] Waiter call:', data);
           playWithVibration('waiterCall');
           setWaiterCallCount(prev => prev + 1);
           
@@ -347,7 +319,6 @@ export const NotificationProvider = ({ children }) => {
     // whenever a channel message or DM is sent.
     unsubscribers.push(
       subscribe('notification', (data) => {
-        console.log('🔔 [NotificationContext] Socket notification received:', data);
         playWithVibration('notification');
         addNotification({
           id: data._id || `notif-${Date.now()}`,

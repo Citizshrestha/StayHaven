@@ -151,6 +151,66 @@ export const getAdminHotels = async (filters = {}) => {
   }
 };
 
+export const getAdminHotelStats = async () => {
+  try {
+    const response = await axiosClient.get(`${BASE}/admin/stats`, {
+      headers: getAuthHeaders()
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching admin hotel stats:', error);
+    throw error.response?.data || error;
+  }
+};
+
+export const getAdminHotelById = async (hotelId) => {
+  try {
+    const response = await axiosClient.get(`${BASE}/admin/${hotelId}`, {
+      headers: getAuthHeaders()
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching admin hotel:', error);
+    throw error.response?.data || error;
+  }
+};
+
+export const createAdminHotel = async (hotelData) => {
+  try {
+    const response = await axiosClient.post(`${BASE}/admin`, hotelData, {
+      headers: getAuthHeaders()
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error creating admin hotel:', error);
+    throw error.response?.data || error;
+  }
+};
+
+export const approveAdminHotel = async (hotelId) => {
+  try {
+    const response = await axiosClient.patch(`${BASE}/${hotelId}/approve`, {}, {
+      headers: getAuthHeaders()
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error approving hotel:', error);
+    throw error.response?.data || error;
+  }
+};
+
+export const rejectAdminHotel = async (hotelId, reason) => {
+  try {
+    const response = await axiosClient.patch(`${BASE}/${hotelId}/reject`, { reason }, {
+      headers: getAuthHeaders()
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error rejecting hotel:', error);
+    throw error.response?.data || error;
+  }
+};
+
 export const updateHotelStatus = async (hotelId, status, reason) => {
   try {
     const response = await axiosClient.patch(`${BASE}/${hotelId}/status`, { status, reason }, {

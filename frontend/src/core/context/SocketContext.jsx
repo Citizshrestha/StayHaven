@@ -42,34 +42,43 @@ export const SocketProvider = ({ children }) => {
   // Refs to store callbacks that will be called when events arrive
   const eventListeners = useRef(new Map());
 
-  // Initialize socket connection for staff OR guest users
+  // Initialize socket connection for staff, registered guests, or anonymous QR guests
   useEffect(() => {
     const staffUser = getCurrentStaffUser();
     const activeProperty = getActiveProperty();
 
-    // Guest user detection: non-staff users with guest accessToken
+    // Registered guest detection
     const guestToken = localStorage.getItem("accessToken");
     const guestUserId = localStorage.getItem("userId");
     const guestRole = localStorage.getItem("role");
+
+    // Anonymous QR guest detection — set by GuestTableView / GuestRoomView on mount
+    const qrGuestSessionId = localStorage.getItem("guestSessionId");
+
     const isStaffUser = !!(staffUser && activeProperty);
     const isGuestUser = !!(guestToken && guestUserId && guestRole === "guest");
+    const isQrGuest = !!qrGuestSessionId && !isStaffUser && !isGuestUser;
 
-    // Only connect if a valid user session exists
-    if (!isStaffUser && !isGuestUser) {
+    // Only connect when we have a meaningful identity
+    if (!isStaffUser && !isGuestUser && !isQrGuest) {
       return;
     }
 
-    // Build auth payload based on user type
+    // Build auth payload — QR guests connect without credentials
     const authPayload = isStaffUser
       ? {
           userId: staffUser._id,
           role: staffUser.role,
           hotelId: activeProperty._id,
         }
-      : {
+      : isGuestUser
+      ? {
           userId: guestUserId,
           role: "guest",
           hotelId: localStorage.getItem("activeHotelId") || null,
+        }
+      : {
+          role: "qr-guest",
         };
 
     // Create socket connection
@@ -84,51 +93,36 @@ export const SocketProvider = ({ children }) => {
 
     // Connection established
     socketInstance.on("connect", () => {
-      console.log("✅ Socket connected:", socketInstance.id);
       setIsConnected(true);
 
-      // Join hotel room to receive hotel-specific updates
-      if (activeProperty?._id) {
-        console.log(`🏨 Joining as staff role: ${staffUser.role} for hotel: ${activeProperty._id}`);
-        console.log(`👤 User details:`, {
-          userId: staffUser._id,
-          role: staffUser.role,
-          fullname: staffUser.fullname || staffUser.name || "Unknown",
-          hotelId: activeProperty._id
-        });
-
+      if (isStaffUser && activeProperty?._id) {
         socketInstance.emit("join-hotel", activeProperty._id);
-
-        // Join role-specific room
         socketInstance.emit("join-role", {
           hotelId: activeProperty._id,
           role: staffUser.role,
           userId: staffUser._id,
           fullname: staffUser.fullname || staffUser.name || "Unknown",
         });
-
-        console.log(`📍 Joined rooms: hotel-${activeProperty._id} and hotel-${activeProperty._id}-${staffUser.role}s`);
       } else if (isGuestUser) {
-        console.log(`🏨 Joining as guest user: ${guestUserId}`);
-        // Join personal room for direct order status updates
         socketInstance.emit("join-role", {
           hotelId: authPayload.hotelId,
           role: "guest",
           userId: guestUserId,
           fullname: localStorage.getItem("username") || "Guest",
         });
+      } else if (isQrGuest) {
+        // Join the deterministic session room so order-status-update events arrive
+        socketInstance.emit("join-guest-session", qrGuestSessionId);
       }
     });
 
     // Connection lost
-    socketInstance.on("disconnect", (reason) => {
-      console.log("🔌 Socket disconnected:", reason);
+    socketInstance.on("disconnect", () => {
       setIsConnected(false);
     });
 
     // Connection error
-    socketInstance.on("connect_error", (error) => {
-      console.error("❌ Socket connection error:", error.message);
+    socketInstance.on("connect_error", () => {
       setIsConnected(false);
     });
 
@@ -137,7 +131,6 @@ export const SocketProvider = ({ children }) => {
 
     // Cleanup on unmount
     return () => {
-      console.log("🔌 Cleaning up socket connection");
       socketInstance.disconnect();
     };
   }, []);
@@ -186,8 +179,6 @@ export const SocketProvider = ({ children }) => {
   const emit = useCallback((event, data) => {
     if (socket && isConnected) {
       socket.emit(event, data);
-    } else {
-      console.warn("⚠️ Socket not connected, cannot emit:", event);
     }
   }, [socket, isConnected]);
 
