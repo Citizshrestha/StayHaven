@@ -34,6 +34,7 @@ import BookingsView from "../features/guest/dashboard/pages/BookingsView";
 import BillingView from "../features/guest/dashboard/pages/BillingView";
 import ProfileView from "../features/guest/dashboard/pages/ProfileView";
 import RequestsView from "../features/guest/dashboard/pages/RequestsView";
+import NotFound from "../shared/pages/NotFound";
 
 // ============================================
 // SHARED - Layout Components
@@ -92,6 +93,11 @@ import ReceptionDashboard from "../features/staff/reception/pages/ReceptionDashb
 
 // ============================================
 // FEATURES - Staff Dashboards (Super Admin)
+// ============================================
+import ContentManagement from "../features/staff/superadmin/pages/ContentManagement";
+
+// ============================================
+// FEATURES - Staff Dashboards (Super Admin) - Legacy Routes
 // ============================================
 import SuperadminDashboard from "../features/staff/superadmin/pages/SuperadminDashboard";
 import UserManagement from "../features/staff/superadmin/pages/UserManagement";
@@ -152,7 +158,7 @@ const Layout = ({ children }) => {
   return (
     <>
       {shouldShowLayout && <Navbar />}
-      <div>
+      <div className="bg-white">
         {children}
       </div>
       {shouldShowLayout && <Footer />}
@@ -187,7 +193,7 @@ const App = () => {
               <NotificationProvider>
                 <OrderProvider>
                   {/* Page Routes */}
-                  <div className="w-screen min-h-screen overflow-x-hidden">
+                  <div className="w-screen min-h-screen overflow-x-hidden bg-white">
                     <Layout>
                       <Routes>
                       {/* ================================ */}
@@ -284,12 +290,36 @@ const App = () => {
                         }
                       />
 
+                      <Route
+                        path="/contentmanagement"
+                        element={
+                          <ProtectedStaffRoute allowedRoles={["superadmin"]}>
+                            <ContentManagement />
+                          </ProtectedStaffRoute>
+                        }
+                      />
+                      <Route
+                        path="/content-management"
+                        element={
+                          <ProtectedStaffRoute allowedRoles={["superadmin"]}>
+                            <ContentManagement />
+                          </ProtectedStaffRoute>
+                        }
+                      />
+
                       {/* Hotel Admin Dashboard */}
-                      <Route path="/hoteladmin-dashboard" element={<HoteladminDashboard />} />
-                      <Route path="/roommanagement" element={<RoomManagement />} />
-                      <Route path="/restaurantmanagement" element={<RestaurantManagement />} />
-                      <Route path="/tablemanagement" element={<TableManagement />} />
-                      <Route path="/roomqrmanagement" element={<RoomQRManagement />} />
+                      <Route
+                        path="/hoteladmin-dashboard"
+                        element={
+                          <ProtectedStaffRoute allowedRoles={['owner', 'hoteladmin', 'manager']}>
+                            <HoteladminDashboard />
+                          </ProtectedStaffRoute>
+                        }
+                      />
+                      <Route path="/roommanagement" element={<ProtectedStaffRoute allowedRoles={['owner', 'hoteladmin', 'manager']}><RoomManagement /></ProtectedStaffRoute>} />
+                      <Route path="/restaurantmanagement" element={<ProtectedStaffRoute allowedRoles={['owner', 'hoteladmin', 'manager']}><RestaurantManagement /></ProtectedStaffRoute>} />
+                      <Route path="/tablemanagement" element={<ProtectedStaffRoute allowedRoles={['owner', 'hoteladmin', 'manager']}><TableManagement /></ProtectedStaffRoute>} />
+                      <Route path="/roomqrmanagement" element={<ProtectedStaffRoute allowedRoles={['owner', 'hoteladmin', 'manager']}><RoomQRManagement /></ProtectedStaffRoute>} />
 
                       {/* ================================ */}
                       {/* GUEST QR ROUTES - Token Based    */}
@@ -315,6 +345,11 @@ const App = () => {
                         <Route path="requests" element={<RequestsView />} />
                         <Route path="profile" element={<ProfileView />} />
                       </Route>
+
+                      {/* ================================ */}
+                      {/* 404 - CATCH ALL ROUTES           */}
+                      {/* ================================ */}
+                      <Route path="*" element={<NotFound />} />
                     </Routes>
                   </Layout>
                 </div>
