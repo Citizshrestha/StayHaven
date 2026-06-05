@@ -137,7 +137,10 @@ export const getAllHotels = asyncHandler(async (req, res) => {
   }
 
   if (minRating) {
-    query.rating = { $gte: parseFloat(minRating) };
+    query.rating = { ...(query.rating || {}), $gte: parseFloat(minRating) };
+  }
+  if (req.query.maxRating !== undefined && req.query.maxRating !== '') {
+    query.rating = { ...(query.rating || {}), $lte: parseFloat(req.query.maxRating) };
   }
 
   // Price filtering: match hotels whose price range overlaps the requested range.

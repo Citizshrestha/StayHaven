@@ -23,26 +23,35 @@ export const upload = multer({
     }
 });
 
+const sanitizePathSegment = (value, fallback = 'unknown') =>
+    (value || fallback)
+        .replace(/[^a-zA-Z0-9\s_-]/g, '')
+        .replace(/\s+/g, '_')
+        .replace(/_+/g, '_')
+        .trim();
+
+const buildStaffProfileFolder = (staffDetails = {}) => {
+    const sanitizedFullname = sanitizePathSegment(staffDetails.fullname);
+    const sanitizedRole = sanitizePathSegment(staffDetails.role || 'staff', 'staff').toLowerCase();
+    return `StayHaven/${sanitizedRole}/profile-pic/${sanitizedFullname}`;
+};
+
+export const buildSuperadminProfileFolder = (username) => {
+    const sanitizedUsername = sanitizePathSegment(username, 'unknown').toLowerCase();
+    return `StayHaven/superadmin/${sanitizedUsername}/profilepic`;
+};
+
 // Helper: upload buffer to cloudinary using base64 data URI (more reliable than upload_stream)
-// Folder structure: StayHaven/{role}/profile-pic/{fullname}
-export const uploadToCloudinary = async (fileBuffer, staffDetails = null) => {
-    // Create folder structure: StayHaven/{role}/profile-pic/{fullname}
-    let folder = "StayHaven/staff/profile-pic/unknown"; // default fallback
+// Folder structure: StayHaven/{role}/profile-pic/{fullname} or custom folder via options.folder
+export const uploadToCloudinary = async (fileBuffer, options = null) => {
+    let folder = "StayHaven/staff/profile-pic/unknown";
 
-    if (staffDetails) {
-        const { role, fullname } = staffDetails;
-        // Sanitize fullname for folder name (replace spaces with underscores, remove special chars)
-        const sanitizedFullname = (fullname || 'unknown')
-            .replace(/[^a-zA-Z0-9\s_-]/g, '')
-            .replace(/\s+/g, '_')
-            .replace(/_+/g, '_')
-            .trim();
-
-        const sanitizedRole = (role || 'staff')
-            .replace(/[^a-zA-Z0-9]/g, '_')
-            .toLowerCase();
-
-        folder = `StayHaven/${sanitizedRole}/profile-pic/${sanitizedFullname}`;
+    if (typeof options === 'string') {
+        folder = options;
+    } else if (options?.folder) {
+        folder = options.folder;
+    } else if (options && (options.role || options.fullname)) {
+        folder = buildStaffProfileFolder(options);
     }
 
     // Convert buffer to base64 data URI — avoids stream/timeout issues
