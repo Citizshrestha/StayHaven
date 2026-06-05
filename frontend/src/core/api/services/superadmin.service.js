@@ -11,25 +11,49 @@ import apiClient from '../client';
 
 /**
  * Get platform-wide metrics
+ * @param {Object} params - { period: '7d' | '30d' | '90d' }
  */
-export const getDashboardMetrics = async () => {
-  const response = await apiClient.get('/api/v1/superadmin/dashboard/metrics');
+export const getDashboardMetrics = async (params = {}) => {
+  const queryParams = new URLSearchParams(params);
+  const response = await apiClient.get(`/api/v1/superadmin/dashboard/metrics?${queryParams.toString()}`);
+  return response.data;
+};
+
+/**
+ * Get recent bookings for dashboard
+ * @param {Object} params - { limit: number }
+ */
+export const getRecentBookingsForDashboard = async (params = {}) => {
+  const queryParams = new URLSearchParams(params);
+  const response = await apiClient.get(`/api/v1/superadmin/dashboard/recent-bookings?${queryParams.toString()}`);
   return response.data;
 };
 
 /**
  * Get recent platform activity
+ * @param {Object} params - { limit: number }
  */
-export const getRecentActivity = async () => {
-  const response = await apiClient.get('/api/v1/superadmin/dashboard/activity');
+export const getRecentActivity = async (params = {}) => {
+  const queryParams = new URLSearchParams(params);
+  const response = await apiClient.get(`/api/v1/superadmin/dashboard/activity?${queryParams.toString()}`);
   return response.data;
 };
 
 /**
- * Get top performing hotels
+ * Get revenue analytics
+ * @param {Object} params - { period: '7d' | '30d' | '90d' }
  */
-export const getTopHotels = async () => {
-  const response = await apiClient.get('/api/v1/superadmin/dashboard/top-hotels');
+export const getRevenueAnalytics = async (params = {}) => {
+  const queryParams = new URLSearchParams(params);
+  const response = await apiClient.get(`/api/v1/superadmin/dashboard/revenue?${queryParams.toString()}`);
+  return response.data;
+};
+
+/**
+ * Get commission breakdown by hotel type
+ */
+export const getCommissionBreakdown = async () => {
+  const response = await apiClient.get('/api/v1/superadmin/dashboard/commission-breakdown');
   return response.data;
 };
 
