@@ -33,10 +33,15 @@ import webhookRoutes from "./routes/webhookRoutes.js";
 import healthRoutes from "./routes/healthRoutes.js";
 import feedbackRoutes from "./routes/feedbackRoutes.js";
 import superadminRoutes from "./routes/superadminRoutes.js";
+import financeRoutes from "./routes/finance.routes.js";
+import reviewModerationRoutes from "./routes/reviewModeration.routes.js";
+import systemConfigRoutes from "./routes/systemConfig.routes.js";
 import contentRoutes from "./routes/content/index.js";
+import profileRoutes from "./routes/profileRoutes.js";
 import cookieParser from "cookie-parser";
 import { initCloudinary } from "./config/cloudinary.js";
 import { initSocket } from "./config/socket.js";
+import { checkMaintenanceMode, getMaintenanceStatus } from "./middleware/maintenanceMode.js";
 import { apiLimiter } from "./middleware/rateLimiter.js";
 import { auditMiddleware } from "./middleware/auditLogger.js";
 import { generateCsrfToken } from "./middleware/csrf.js";
@@ -261,12 +266,19 @@ app.get("/api/v1/csrf-token", generateCsrfToken, (req, res) => {
   });
 });
 
+// Public maintenance status (always available, even during maintenance)
+app.get("/api/v1/public/maintenance-status", getMaintenanceStatus);
+
+// Maintenance mode middleware (blocks guest-facing APIs only)
+app.use(checkMaintenanceMode);
+
 // Health check endpoints (no authentication required)
 app.use("/health", healthRoutes);
 
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/user", userRoutes);
 app.use("/api/v1/users", userRoutes);
+app.use("/api/v1/profile", profileRoutes);
 app.use("/api/v1/hotels", hotelRoutes);
 app.use("/api/v1/company", companyRoutes);
 app.use("/api/v1/staff", staffRoutes);
@@ -281,6 +293,9 @@ app.use("/api/v1/reception", receptionRoutes); // Reception dashboard APIs (auth
 app.use("/api/v1/webhooks", webhookRoutes);    // Payment gateway webhooks (public)
 app.use("/api/v1/feedback", feedbackRoutes);   // Feedback submission (public + admin)
 app.use("/api/v1/superadmin", superadminRoutes); // Super Admin platform management (superadmin only)
+app.use("/api/v1/superadmin/finance", financeRoutes); // Super Admin finance module
+app.use("/api/v1/superadmin/reviews", reviewModerationRoutes); // Super Admin review moderation
+app.use("/api/v1/superadmin/system", systemConfigRoutes); // Super Admin system configuration
 app.use("/api/v1/content", contentRoutes);
 app.use("/api/content", contentRoutes);
 

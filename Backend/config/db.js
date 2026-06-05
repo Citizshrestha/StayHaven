@@ -31,6 +31,10 @@ const connectDB = async () => {
         mongoose.set('maxTimeMS', 10000); // 10 seconds for all queries
 
         logger.info("MongoDB Connected Successfully");
+
+        const { bootstrapDemoData } = await import("../utils/bootstrapDemoData.js");
+        bootstrapDemoData();
+
         return true;
     } catch (error) {
         logger.error("MongoDB Connection Failed", { message: error.message, stack: error.stack });
