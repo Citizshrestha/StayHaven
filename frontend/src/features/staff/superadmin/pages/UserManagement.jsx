@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import SuperAdminLayout from './SuperAdminLayout';
-import { getAdminUsers, updateUserStatus } from '../../../../core/api/services/user.service';
+import DeleteConfirmModal from '../components/DeleteConfirmModal';
+import { getAdminUsers, updateUserStatus, deleteUser } from '../../../../core/api/services/user.service';
 import UserActionModals from '../components/UserActionModals';
 import './UserManagement.css';
 
@@ -48,8 +49,13 @@ const UserManagement = () => {
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
 
   // Modal state
-  const [modalType, setModalType] = useState(null); // 'view' | 'edit' | 'delete' | null
+  const [modalType, setModalType] = useState(null); // 'view' | 'edit' | null
   const [selectedUser, setSelectedUser] = useState(null);
+
+  // Delete modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 350);
@@ -183,6 +189,22 @@ const UserManagement = () => {
     };
 
     fetchUsers();
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      await deleteUser(deleteTarget._id);
+      toast.success('User deleted successfully');
+      setShowDeleteModal(false);
+      setDeleteTarget(null);
+      handleModalSuccess();
+    } catch (error) {
+      toast.error(error?.message || 'Failed to delete user');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const getInitials = (user) => {
@@ -372,7 +394,10 @@ const UserManagement = () => {
                             </button>
                             <button
                               className="um-action-btn um-delete"
-                              onClick={() => handleOpenModal('delete', user)}
+                              onClick={() => {
+                                setDeleteTarget(user);
+                                setShowDeleteModal(true);
+                              }}
                               title="Delete user"
                             >
                               <span className="material-symbols-outlined">delete</span>
@@ -435,6 +460,20 @@ const UserManagement = () => {
         selectedUser={selectedUser}
         onClose={handleCloseModal}
         onSuccess={handleModalSuccess}
+      />
+
+      <DeleteConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setDeleteTarget(null);
+        }}
+        onConfirm={handleDelete}
+        title="Delete User"
+        message="This will permanently remove the user and all associated data including bookings, reviews, and activity history. This action cannot be undone."
+        itemName={deleteTarget?.fullname || deleteTarget?.username}
+        confirmText="Delete User"
+        isDeleting={isDeleting}
       />
     </SuperAdminLayout>
   );

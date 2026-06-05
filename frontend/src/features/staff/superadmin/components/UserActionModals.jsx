@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { toast } from 'react-toastify';
-import { getUserById, updateUser, deleteUser, resetUserPassword } from '../../../../core/api/services/user.service';
+import { getUserById, updateUser, resetUserPassword } from '../../../../core/api/services/user.service';
 import './UserActionModals.css';
 
 // Role color mapping
@@ -20,7 +20,6 @@ const UserActionModals = ({ modalType, selectedUser, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [userData, setUserData] = useState(null);
   const [formData, setFormData] = useState({});
-  const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
@@ -107,22 +106,6 @@ const UserActionModals = ({ modalType, selectedUser, onClose, onSuccess }) => {
       toast.success('Password reset email sent successfully');
     } catch (error) {
       toast.error(error?.message || 'Failed to send reset email');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (deleteConfirmText !== 'DELETE') return;
-
-    setLoading(true);
-    try {
-      await deleteUser(selectedUser._id);
-      toast.success('User deleted successfully');
-      onSuccess();
-      onClose();
-    } catch (error) {
-      toast.error(error?.message || 'Failed to delete user');
     } finally {
       setLoading(false);
     }
@@ -439,77 +422,6 @@ const UserActionModals = ({ modalType, selectedUser, onClose, onSuccess }) => {
               </div>
             </form>
           )}
-        </div>
-      </div>,
-      document.body
-    );
-  }
-
-  // DELETE MODAL
-  if (modalType === 'delete') {
-    const isConfirmValid = deleteConfirmText === 'DELETE';
-
-    return createPortal(
-      <div className="uam-backdrop" onClick={handleBackdropClick}>
-        <div className="uam-modal uam-delete-modal">
-          <div className="uam-delete-header">
-            <div className="uam-delete-icon">
-              <span className="material-symbols-outlined">warning</span>
-            </div>
-            <h2>Delete User?</h2>
-          </div>
-
-          <div className="uam-delete-content">
-            <div className="uam-delete-user-pill">
-              <strong>{user.fullname || user.username}</strong>
-              <span>{user.email}</span>
-            </div>
-
-            <p className="uam-delete-warning">
-              This action is permanent and cannot be undone. All bookings, reviews, and data associated with this user will be removed.
-            </p>
-
-            <div className="uam-form-group">
-              <label htmlFor="confirm-delete">
-                Type <strong>DELETE</strong> to confirm
-              </label>
-              <input
-                id="confirm-delete"
-                type="text"
-                className={`uam-input ${isConfirmValid ? 'valid' : ''}`}
-                value={deleteConfirmText}
-                onChange={(e) => setDeleteConfirmText(e.target.value)}
-                placeholder="Type DELETE"
-                autoComplete="off"
-              />
-            </div>
-
-            <div className="uam-delete-actions">
-              <button
-                type="button"
-                className="uam-btn uam-btn-ghost"
-                onClick={onClose}
-                disabled={loading}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="uam-btn uam-btn-danger"
-                onClick={handleDelete}
-                disabled={!isConfirmValid || loading}
-              >
-                {loading ? (
-                  <>
-                    <div className="uam-btn-spinner"></div>
-                    Deleting...
-                  </>
-                ) : (
-                  'Yes, Delete User'
-                )}
-              </button>
-            </div>
-          </div>
         </div>
       </div>,
       document.body

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'react-toastify';
 import SuperAdminLayout from './SuperAdminLayout';
+import DeleteConfirmModal from '../components/DeleteConfirmModal';
 import {
   getAdminContent,
   createContent,
@@ -160,24 +161,6 @@ const StringList = ({ label, items, onChange, placeholder }) => {
   );
 };
 
-/* ─────────────────────────────────────────────
-   CONFIRM DELETE MODAL
-───────────────────────────────────────────── */
-const ConfirmModal = ({ message, onConfirm, onCancel }) => (
-  <div className="cm-modal-backdrop" onClick={onCancel}>
-    <div className="cm-confirm-modal" onClick={(e) => e.stopPropagation()}>
-      <p className="cm-confirm-msg">{message}</p>
-      <div className="cm-confirm-actions">
-        <button type="button" className="cm-btn cm-btn-ghost" onClick={onCancel}>
-          Cancel
-        </button>
-        <button type="button" className="cm-btn cm-btn-danger" onClick={onConfirm}>
-          Delete
-        </button>
-      </div>
-    </div>
-  </div>
-);
 
 /* ─────────────────────────────────────────────
    GENERIC FIELD RENDERER
@@ -402,6 +385,7 @@ const ContentListTab = ({ contentType, fields, cardTitle, cardSubtitle, accent }
   const [formData, setFormData] = useState({});
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -500,14 +484,18 @@ const ContentListTab = ({ contentType, fields, cardTitle, cardSubtitle, accent }
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async () => {
+    if (!confirmDelete) return;
+    setIsDeleting(true);
     try {
-      await deleteContent(contentType, id);
+      await deleteContent(contentType, confirmDelete.id);
       toast.success('Deleted');
       setConfirmDelete(null);
       fetchItems();
     } catch {
       toast.error('Delete failed');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -643,7 +631,7 @@ const ContentListTab = ({ contentType, fields, cardTitle, cardSubtitle, accent }
                   <button
                     type="button"
                     className="cm-icon-btn delete"
-                    onClick={() => setConfirmDelete(item._id)}
+                    onClick={() => setConfirmDelete({ id: item._id, name: cardTitle(item) })}
                     title="Delete"
                   >
                     <span className="material-symbols-outlined">delete</span>
@@ -668,19 +656,21 @@ const ContentListTab = ({ contentType, fields, cardTitle, cardSubtitle, accent }
         />
       )}
 
-      {confirmDelete && (
-        <ConfirmModal
-          message="Are you sure you want to delete this item? This action cannot be undone."
-          onConfirm={() => handleDelete(confirmDelete)}
-          onCancel={() => setConfirmDelete(null)}
-        />
-      )}
+      <DeleteConfirmModal
+        isOpen={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={handleDelete}
+        title="Delete Content"
+        message="Are you sure you want to delete this item? This action cannot be undone."
+        itemName={confirmDelete?.name}
+        isDeleting={isDeleting}
+      />
     </>
   );
 };
 
 /* ─────────────────────────────────────────────
-   SINGLETON TAB (About, Footer, SiteSettings)
+  SINGLETON TAB (About, SiteSettings)
 ───────────────────────────────────────────── */
 const SingletonTab = ({ contentType, fields, autoPublish }) => {
   const [doc, setDoc] = useState(null);
@@ -813,6 +803,7 @@ const FeaturedHotelsTab = () => {
   const [formData, setFormData] = useState({ hotelId: '', badge: '', displayOrder: 0, featuredUntil: '', status: 'draft' });
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [hotels, setHotels] = useState([]);
   const [hotelsLoading, setHotelsLoading] = useState(false);
 
@@ -935,14 +926,18 @@ const FeaturedHotelsTab = () => {
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDeleteFeaturedHotel = async () => {
+    if (!confirmDelete) return;
+    setIsDeleting(true);
     try {
-      await deleteContent('featured-hotels', id);
+      await deleteContent('featured-hotels', confirmDelete.id);
       toast.success('Deleted');
       setConfirmDelete(null);
       fetchItems();
     } catch {
       toast.error('Delete failed');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -1061,7 +1056,7 @@ const FeaturedHotelsTab = () => {
                     <button type="button" className="cm-icon-btn edit" onClick={() => openEdit(item)} title="Edit">
                       <span className="material-symbols-outlined">edit</span>
                     </button>
-                    <button type="button" className="cm-icon-btn delete" onClick={() => setConfirmDelete(item._id)} title="Delete">
+                    <button type="button" className="cm-icon-btn delete" onClick={() => setConfirmDelete({ id: item._id, name: name })} title="Delete">
                       <span className="material-symbols-outlined">delete</span>
                     </button>
                   </div>
@@ -1167,13 +1162,16 @@ const FeaturedHotelsTab = () => {
         </div>
       )}
 
-      {confirmDelete && (
-        <ConfirmModal
-          message="Remove this hotel from the featured list?"
-          onConfirm={() => handleDelete(confirmDelete)}
-          onCancel={() => setConfirmDelete(null)}
-        />
-      )}
+      <DeleteConfirmModal
+        isOpen={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={handleDeleteFeaturedHotel}
+        title="Remove Featured Hotel"
+        message="Remove this hotel from the featured list? This will not delete the hotel itself."
+        itemName={confirmDelete?.name}
+        confirmText="Remove"
+        isDeleting={isDeleting}
+      />
     </>
   );
 };
@@ -1285,7 +1283,6 @@ const FOOTER_FIELDS = [
     { key: 'url', label: 'URL', placeholder: 'https://facebook.com/...' },
   ]},
   { key: 'copyrightText', label: 'Copyright Text', type: 'text', placeholder: '© 2025 StayHaven. All rights reserved.' },
-  { key: 'newsletterEnabled', label: 'Show Newsletter Section', type: 'checkbox' },
 ];
 
 const SITE_SETTINGS_FIELDS = [
@@ -1364,14 +1361,6 @@ const TABS = [
     type: 'singleton',
     contentType: 'about',
     fields: ABOUT_FIELDS,
-  },
-  {
-    id: 'footer',
-    label: 'Footer',
-    icon: 'link',
-    type: 'singleton',
-    contentType: 'footer',
-    fields: FOOTER_FIELDS,
   },
   {
     id: 'site-settings',
