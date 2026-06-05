@@ -21,11 +21,15 @@ axiosClient.interceptors.request.use(
         // Token selection logic:
         // - Normal users use `accessToken`
         // - Staff endpoints should prefer `staffAccessToken`
+        // - Superadmin endpoints use `accessToken` (logged in as superadmin)
         const url = String(config.url || "");
         const isStaffRequest = url.includes("/api/v1/staff") ||
                               url.includes("/api/v1/reception") ||
+                              url.includes("/api/v1/profile") ||
                               url.includes("/api/v1/users/admin") ||
                               url.includes("/api/v1/hotels/admin");
+
+        const isSuperadminRequest = url.includes("/api/v1/superadmin");
 
         const staffAccessToken = sessionStorage.getItem("staffAccessToken") || localStorage.getItem("staffAccessToken");
         const accessToken = localStorage.getItem('accessToken');
@@ -50,6 +54,7 @@ axiosClient.interceptors.response.use(
         const url = String(originalRequest.url || "");
         const isStaffRequest = url.includes("/api/v1/staff") ||
                               url.includes("/api/v1/reception") ||
+                              url.includes("/api/v1/profile") ||
                               url.includes("/api/v1/users/admin") ||
                               url.includes("/api/v1/hotels/admin");
         const skipRefreshEndpoints = [

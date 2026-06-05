@@ -132,11 +132,13 @@ export const StaffAuthProvider = ({ children }) => {
   };
 
   // Update user data (e.g., after profile update)
-  const updateUser = (updatedData) => {
-    const newUser = { ...staffUser, ...updatedData };
-    setStaffUser(newUser);
-    localStorage.setItem("staffUser", JSON.stringify(newUser));
-  };
+  const updateUser = useCallback((updatedData) => {
+    setStaffUser((prev) => {
+      const newUser = { ...prev, ...updatedData };
+      localStorage.setItem("staffUser", JSON.stringify(newUser));
+      return newUser;
+    });
+  }, []);
 
   // Computed values
   const isAuthenticated = !!staffUser;

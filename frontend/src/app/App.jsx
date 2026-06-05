@@ -35,6 +35,7 @@ import BillingView from "../features/guest/dashboard/pages/BillingView";
 import ProfileView from "../features/guest/dashboard/pages/ProfileView";
 import RequestsView from "../features/guest/dashboard/pages/RequestsView";
 import NotFound from "../shared/pages/NotFound";
+import MaintenanceGate from "../shared/components/MaintenanceGate";
 
 // ============================================
 // SHARED - Layout Components
@@ -95,6 +96,9 @@ import ReceptionDashboard from "../features/staff/reception/pages/ReceptionDashb
 // FEATURES - Staff Dashboards (Super Admin)
 // ============================================
 import ContentManagement from "../features/staff/superadmin/pages/ContentManagement";
+import Finance from "../features/staff/superadmin/pages/Finance";
+import ReviewModeration from "../features/staff/superadmin/pages/ReviewModeration";
+import SystemConfiguration from "../features/staff/superadmin/pages/SystemConfiguration";
 
 // ============================================
 // FEATURES - Staff Dashboards (Super Admin) - Legacy Routes
@@ -142,6 +146,10 @@ const Layout = ({ children }) => {
     '/superadmindashboard',
     '/usermanagement',
     '/hotelmanagement',
+    '/finance',
+    '/reviews',
+    '/system-config',
+    '/contentmanagement',
     '/hoteladmin-dashboard',
     '/roommanagement',
     '/restaurantmanagement',
@@ -194,6 +202,7 @@ const App = () => {
                 <OrderProvider>
                   {/* Page Routes */}
                   <div className="w-screen min-h-screen overflow-x-hidden bg-white">
+                    <MaintenanceGate>
                     <Layout>
                       <Routes>
                       {/* ================================ */}
@@ -299,10 +308,26 @@ const App = () => {
                         }
                       />
                       <Route
-                        path="/content-management"
+                        path="/finance"
                         element={
                           <ProtectedStaffRoute allowedRoles={["superadmin"]}>
-                            <ContentManagement />
+                            <Finance />
+                          </ProtectedStaffRoute>
+                        }
+                      />
+                      <Route
+                        path="/reviews"
+                        element={
+                          <ProtectedStaffRoute allowedRoles={["superadmin"]}>
+                            <ReviewModeration />
+                          </ProtectedStaffRoute>
+                        }
+                      />
+                      <Route
+                        path="/system-config"
+                        element={
+                          <ProtectedStaffRoute allowedRoles={["superadmin"]}>
+                            <SystemConfiguration />
                           </ProtectedStaffRoute>
                         }
                       />
@@ -352,6 +377,7 @@ const App = () => {
                       <Route path="*" element={<NotFound />} />
                     </Routes>
                   </Layout>
+                  </MaintenanceGate>
                 </div>
               </OrderProvider>
             </NotificationProvider>

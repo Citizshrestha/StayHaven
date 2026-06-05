@@ -1,0 +1,78 @@
+.maintenance-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.maintenance-overlay-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.72);
+  backdrop-filter: blur(4px);
+}
+
+.maintenance-overlay-card {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  background: #ffffff;
+  border-radius: 1rem;
+  padding: 2rem;
+  text-align: center;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+}
+
+.maintenance-overlay-icon {
+  width: 4rem;
+  height: 4rem;
+  margin: 0 auto 1rem;
+  border-radius: 50%;
+  background: rgba(245, 158, 11, 0.12);
+  color: #d97706;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.maintenance-overlay-icon .material-symbols-outlined {
+  font-size: 2rem;
+}
+
+.maintenance-overlay-card h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.maintenance-overlay-message {
+  margin: 0 0 0.75rem;
+  color: #475569;
+  line-height: 1.6;
+}
+
+.maintenance-overlay-schedule {
+  margin: 0 0 1rem;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.maintenance-overlay-hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: #94a3b8;
+}
+
+.maintenance-overlay-hint a {
+  color: #00bfa6;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.maintenance-overlay-hint a:hover {
+  text-decoration: underline;
+}
