@@ -10,6 +10,9 @@ import {
   createTestHotelAdmin,
   seedFeaturedHotels,
 } from '../controllers/seedController.js';
+import { seedSuperadminData } from '../controllers/seedSuperadminData.js';
+import { seedFinanceData } from '../controllers/seedFinanceData.js';
+import { seedReviewData } from '../controllers/seedReviewData.js';
 
 const router = express.Router();
 
@@ -26,11 +29,16 @@ router.post('/test-hotel-admin', writeOperationLimiter, createTestHotelAdmin);
 
 // All other seed routes require authentication and admin/owner authorization
 router.use(protect);
-router.use(authorize('admin', 'owner'));
+router.use(authorize('admin', 'owner', 'superadmin'));
 
 // ============================================
 // SEED ROUTES (for testing only)
 // ============================================
+
+// Seed superadmin dashboard data (requires superadmin role)
+router.post('/superadmin-data', authorize('superadmin'), batchLimiter, seedSuperadminData);
+router.post('/finance-data', authorize('superadmin'), batchLimiter, seedFinanceData);
+router.post('/review-data', authorize('superadmin'), batchLimiter, seedReviewData);
 
 // Seed rooms for a specific hotel
 router.post('/rooms/:hotelId', batchLimiter, seedRoomsForHotel);

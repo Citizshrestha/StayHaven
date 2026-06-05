@@ -1,7 +1,13 @@
 import express from 'express';
-import mongoose from 'mongoose';
 import { protect, authorize } from '../middleware/authMiddleware.js';
-import { Booking } from '../models/booking.schema.js';
+import {
+  getDashboardMetrics,
+  getRecentBookings,
+  getRecentActivity,
+  getRevenueAnalytics,
+  getCommissionBreakdown,
+  getPendingActions
+} from '../controllers/superadminController.js';
 
 const router = express.Router();
 
@@ -23,114 +29,45 @@ router.use(authorize('superadmin'));
  * @desc    Get platform-wide metrics (revenue, bookings, users, hotels)
  * @access  Super Admin
  */
-router.get('/dashboard/metrics', async (req, res) => {
-  try {
-    // TODO: Implement actual metrics calculation
-    const metrics = {
-      revenue: { value: 1250450, change: 2.5, trend: 'up' },
-      bookings: { value: 152, change: 5.1, trend: 'up' },
-      users: { value: 12345, change: -0.2, trend: 'down' },
-      hotels: { value: 47, change: 3, trend: 'up' },
-    };
+router.get('/dashboard/metrics', getDashboardMetrics);
 
-    res.json({
-      success: true,
-      data: metrics,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch dashboard metrics',
-      error: error.message,
-    });
-  }
-});
+/**
+ * @route   GET /api/v1/superadmin/dashboard/recent-bookings
+ * @desc    Get recent bookings for dashboard
+ * @access  Super Admin
+ */
+router.get('/dashboard/recent-bookings', getRecentBookings);
 
 /**
  * @route   GET /api/v1/superadmin/dashboard/activity
  * @desc    Get recent platform activity
  * @access  Super Admin
  */
-router.get('/dashboard/activity', async (req, res) => {
-  try {
-    // TODO: Implement actual activity feed
-    const recentActivity = [
-      { type: 'booking', hotel: 'Hotel Annapurna', amount: 12500, time: '2 min ago' },
-      { type: 'approval', hotel: 'Soaltee Crown Plaza', time: '15 min ago' },
-      { type: 'payout', hotel: 'Hyatt Regency', amount: 45000, time: '1 hour ago' },
-      { type: 'review', hotel: 'Dwarika\'s Hotel', rating: 5, time: '2 hours ago' },
-    ];
-
-    res.json({
-      success: true,
-      data: recentActivity,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch activity feed',
-      error: error.message,
-    });
-  }
-});
+router.get('/dashboard/activity', getRecentActivity);
 
 /**
- * @route   GET /api/v1/superadmin/dashboard/top-hotels
- * @desc    Get top performing hotels
+ * @route   GET /api/v1/superadmin/dashboard/revenue
+ * @desc    Get revenue analytics with time series data
  * @access  Super Admin
  */
-router.get('/dashboard/top-hotels', async (req, res) => {
-  try {
-    // TODO: Implement actual top hotels calculation
-    const topHotels = [
-      { name: 'Hotel Annapurna', revenue: 245000, bookings: 89, growth: 12.5 },
-      { name: 'Soaltee Crown Plaza', revenue: 198000, bookings: 67, growth: 8.3 },
-      { name: 'Hyatt Regency', revenue: 176000, bookings: 54, growth: 15.2 },
-      { name: 'Dwarika\'s Hotel', revenue: 165000, bookings: 48, growth: 6.7 },
-    ];
+router.get('/dashboard/revenue', getRevenueAnalytics);
 
-    res.json({
-      success: true,
-      data: topHotels,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch top hotels',
-      error: error.message,
-    });
-  }
-});
+/**
+ * @route   GET /api/v1/superadmin/dashboard/commission-breakdown
+ * @desc    Get commission breakdown by hotel type
+ * @access  Super Admin
+ */
+router.get('/dashboard/commission-breakdown', getCommissionBreakdown);
 
 /**
  * @route   GET /api/v1/superadmin/dashboard/pending-actions
  * @desc    Get pending actions requiring attention
  * @access  Super Admin
  */
-router.get('/dashboard/pending-actions', async (req, res) => {
-  try {
-    // TODO: Implement actual pending actions count
-    const pendingActions = [
-      { type: 'hotel', count: 8, label: 'Hotels Awaiting Approval' },
-      { type: 'review', count: 23, label: 'Reviews Pending Moderation' },
-      { type: 'payout', count: 3, label: 'Payouts Due This Week' },
-    ];
-
-    res.json({
-      success: true,
-      data: pendingActions,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch pending actions',
-      error: error.message,
-    });
-  }
-});
+router.get('/dashboard/pending-actions', getPendingActions);
 
 // ═══════════════════════════════════════════
-// Hotels Management
+// Hotels Management (existing routes)
 // ═══════════════════════════════════════════
 
 /**
@@ -521,33 +458,8 @@ router.get('/revenue', async (req, res) => {
   }
 });
 
-// ═══════════════════════════════════════════
-// Reviews Management
-// ═══════════════════════════════════════════
-
-/**
- * @route   GET /api/v1/superadmin/reviews
- * @desc    Get all reviews with moderation status
- * @access  Super Admin
- */
-router.get('/reviews', async (req, res) => {
-  try {
-    const { status, hotel } = req.query;
-
-    // TODO: Implement actual review fetching
-    res.json({
-      success: true,
-      data: [],
-      total: 0,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch reviews',
-      error: error.message,
-    });
-  }
-});
+// Reviews management is handled by reviewModeration.routes.js
+// mounted at /api/v1/superadmin/reviews
 
 // ═══════════════════════════════════════════
 // System Settings
