@@ -75,7 +75,10 @@ const FilteredHotels = () => {
         };
         if (hotelSearch) filters.search = hotelSearch;
         if (selectedCity) filters.city = selectedCity;
-        if (selectedRating) filters.minRating = selectedRating;
+        if (selectedRating) {
+          filters.minRating = selectedRating;
+          filters.maxRating = selectedRating + 1;
+        }
         if (selectedAmenityIds.length) filters.amenities = selectedAmenityIds.join(',');
 
         const data = await getAllHotels(filters);
@@ -139,7 +142,11 @@ const FilteredHotels = () => {
                     {[5, 4, 3, 2, 1].map((rating) => (
                       <button
                         key={rating}
-                        onClick={() => setSelectedRating(selectedRating === rating ? null : rating)}
+                        onClick={() => {
+                          const next = selectedRating === rating ? null : rating;
+                          setSelectedRating(next);
+                          setCurrentPage(1);
+                        }}
                         style={{
                           padding: '6px',
                           border: selectedRating === rating ? '2px solid #FCD34D' : '2px solid #D1D5DB',
