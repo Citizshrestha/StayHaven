@@ -83,7 +83,6 @@ const roomSchema = new mongoose.Schema({
     // QR Code fields
     uniqueToken: {
         type: String,
-        sparse: true, // Allows null values while maintaining uniqueness for non-null
     },
     qrCodeData: {
         type: String, // The full URL encoded in the QR code
