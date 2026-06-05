@@ -114,14 +114,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: rgba(0, 191, 166, 0.1);
-  border-radius: 0.75rem;
-  box-shadow: 0 6px 14px rgba(0, 191, 166, 0.14);
+  flex-shrink: 0;
 }
 
-.sa-logo-icon svg {
-  width: 2rem;
-  height: 2rem;
+.sa-logo-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.sa-layout.light .sa-logo-image {
+  mix-blend-mode: multiply;
 }
 
 .sa-logo-text h1 {
@@ -165,9 +168,10 @@
 .sa-sidebar-content {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
   flex: 1;
   padding: 1rem;
+  gap: 0.5rem;
+  overflow-y: auto;
 }
 
 .sa-nav-section {
@@ -177,7 +181,13 @@
 }
 
 .sa-nav-section.bottom {
-  margin-top: auto;
+  margin-top: 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--sa-border-light);
+}
+
+.sa-layout.dark .sa-nav-section.bottom {
+  border-top-color: var(--sa-border-dark);
 }
 
 /* Sidebar profile card */
@@ -185,11 +195,11 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.75rem;
+  padding: 0.625rem 0.75rem;
   border-radius: 0.75rem;
   background-color: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.05);
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
 }
 
 .sa-layout.light .sa-sidebar-profile {

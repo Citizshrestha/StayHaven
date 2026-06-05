@@ -1,10 +1,10 @@
 /* SuperadminDashboard.css - Redesigned Dashboard Styles */
 
 .sad-container {
-  padding: 2rem;
+  padding: 1.25rem 1.5rem 1.5rem;
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 1.25rem;
   width: 100%;
   max-width: 1600px;
   margin: 0 auto;
@@ -15,7 +15,7 @@
 .sad-stats-grid {
   display: grid;
   grid-template-columns: repeat(1, 1fr);
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 @media (min-width: 640px) {
@@ -34,8 +34,8 @@
 .sad-stat-card {
   display: flex;
   align-items: center;
-  gap: 1.25rem;
-  padding: 1.5rem;
+  gap: 1rem;
+  padding: 1.125rem 1.25rem;
   border-radius: 1.25rem;
   background-color: var(--sa-card-light);
   border: 1px solid var(--sa-border-light);
@@ -144,7 +144,8 @@
 .sad-charts-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 1.5rem;
+  gap: 1.25rem;
+  align-items: start;
 }
 
 @media (min-width: 1024px) {
@@ -158,11 +159,11 @@
   border-radius: 1.25rem;
   background-color: var(--sa-card-light);
   border: 1px solid var(--sa-border-light);
-  padding: 1.75rem;
+  padding: 1.25rem;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 .sa-layout.dark .sad-card {
@@ -302,7 +303,7 @@
 
 .sad-svg-chart {
   width: 100%;
-  height: 220px;
+  height: 180px;
   overflow: visible;
 }
 
@@ -459,7 +460,8 @@
 .sad-bottom-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 1.5rem;
+  gap: 1.25rem;
+  align-items: start;
 }
 
 @media (min-width: 1024px) {
@@ -472,7 +474,8 @@
 .sad-table-panel {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 0.75rem;
+  height: fit-content;
 }
 
 .sad-text-link {
@@ -496,7 +499,7 @@
 
 .sad-table-wrapper {
   overflow-x: auto;
-  margin: 0 -1.75rem;
+  margin: 0 -1.25rem;
 }
 
 .sad-table {
@@ -504,10 +507,11 @@
   border-collapse: collapse;
   text-align: left;
   font-size: 0.875rem;
+  table-layout: fixed;
 }
 
 .sad-table th {
-  padding: 0.875rem 1.75rem;
+  padding: 0.625rem 1rem;
   font-weight: 600;
   color: var(--sa-text-secondary-light);
   text-transform: uppercase;
@@ -524,11 +528,31 @@
 }
 
 .sad-table td {
-  padding: 1rem 1.75rem;
+  padding: 0.625rem 1rem;
   border-bottom: 1px solid var(--sa-border-light);
   color: var(--sa-text-light);
   vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
+
+.sad-table td:first-child {
+  white-space: normal;
+}
+
+.sad-table th:nth-child(1),
+.sad-table td:nth-child(1) { width: 24%; }
+.sad-table th:nth-child(2),
+.sad-table td:nth-child(2) { width: 22%; }
+.sad-table th:nth-child(3),
+.sad-table td:nth-child(3) { width: 14%; }
+.sad-table th:nth-child(4),
+.sad-table td:nth-child(4) { width: 14%; }
+.sad-table th:nth-child(5),
+.sad-table td:nth-child(5) { width: 14%; }
+.sad-table th:nth-child(6),
+.sad-table td:nth-child(6) { width: 12%; }
 
 .sa-layout.dark .sad-table td {
   border-bottom-color: var(--sa-border-dark);
@@ -619,14 +643,19 @@
 .sad-activity-panel {
   display: flex;
   flex-direction: column;
+  height: fit-content;
+  max-height: 420px;
 }
 
 .sad-activity-list {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 0.75rem;
   position: relative;
   padding-left: 0.5rem;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 
 .sad-activity-list::before {
@@ -646,9 +675,10 @@
 .sad-activity-item {
   display: flex;
   flex-direction: column;
-  gap: 0.375rem;
+  gap: 0.25rem;
   position: relative;
-  padding-left: 2rem;
+  padding-left: 1.75rem;
+  flex-shrink: 0;
 }
 
 .sad-activity-badge-line {
@@ -703,10 +733,10 @@
   background-color: rgba(0, 0, 0, 0.02);
   border: 1px solid var(--sa-border-light);
   border-radius: 0.75rem;
-  padding: 0.875rem 1rem;
+  padding: 0.625rem 0.75rem;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.125rem;
   position: relative;
 }
 
@@ -743,7 +773,7 @@
   font-weight: 700;
   padding: 0.125rem 0.5rem;
   border-radius: 0.25rem;
-  margin-top: 0.5rem;
+  margin-top: 0.25rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -816,11 +846,15 @@
   }
   
   .sad-table-wrapper {
-    margin: 0 -1.25rem;
+    margin: 0 -1rem;
   }
   
   .sad-table th, .sad-table td {
-    padding: 0.75rem 1.25rem;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .sad-activity-panel {
+    max-height: none;
   }
   
   .sad-activity-item {

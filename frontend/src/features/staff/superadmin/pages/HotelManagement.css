@@ -697,6 +697,31 @@
   color: var(--sa-text-secondary-dark);
 }
 
+/* Commission Cell */
+.hm-commission {
+  text-align: center;
+}
+
+.hm-commission-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 56px;
+  padding: 0.35rem 0.7rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #0F766E;
+  background: rgba(20, 184, 166, 0.12);
+  border: 1px solid rgba(20, 184, 166, 0.35);
+}
+
+.sa-layout.dark .hm-commission-pill {
+  color: #5EEAD4;
+  background: rgba(94, 234, 212, 0.15);
+  border-color: rgba(94, 234, 212, 0.35);
+}
+
 /* Manager Cell */
 .hm-manager-cell {
   display: flex;
@@ -865,7 +890,7 @@
 
 .hm-skeleton-grid {
   display: grid;
-  grid-template-columns: 2fr 1fr 1.4fr;
+  grid-template-columns: 2fr 1fr 1fr 1.4fr;
   gap: 1rem;
   padding: 0.35rem 0;
 }

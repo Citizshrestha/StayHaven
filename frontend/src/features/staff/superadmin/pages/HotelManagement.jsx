@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { toast } from 'react-toastify';
 import SuperAdminLayout from './SuperAdminLayout';
+import DeleteConfirmModal from '../components/DeleteConfirmModal';
 import {
   approveAdminHotel,
   createAdminHotel,
@@ -160,6 +161,9 @@ const HotelManagement = () => {
   const [selectedHotel, setSelectedHotel] = useState(null);
   const [approveTarget, setApproveTarget] = useState(null);
   const [popoverPosition, setPopoverPosition] = useState({ top: 0, left: 0 });
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 350);
@@ -269,15 +273,26 @@ const HotelManagement = () => {
     setApproveTarget(approveTarget?._id === hotel._id ? null : hotel);
   };
 
-  const handleDelete = async (hotel) => {
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
     try {
-      await deleteHotel(hotel._id);
+      await deleteHotel(deleteTarget._id);
       toast.success('Hotel deleted successfully');
+      setShowDeleteModal(false);
+      setDeleteTarget(null);
       closeModal();
       await invalidateHotels();
     } catch (error) {
       toast.error(error?.message || 'Failed to delete hotel');
+    } finally {
+      setIsDeleting(false);
     }
+  };
+
+  const openDeleteModal = (hotel) => {
+    setDeleteTarget(hotel);
+    setShowDeleteModal(true);
   };
 
   const pageStart = total === 0 ? 0 : (page - 1) * pageSize + 1;
@@ -389,7 +404,7 @@ const HotelManagement = () => {
             loading={loading}
             onView={(hotel) => openModal('view', hotel)}
             onEdit={(hotel) => openModal('edit', hotel)}
-            onDelete={(hotel) => openModal('delete', hotel)}
+            onDelete={openDeleteModal}
             onApprove={handleApprove}
             onReject={(hotel) => openModal('reject', hotel)}
             approveTarget={approveTarget}
@@ -406,6 +421,7 @@ const HotelManagement = () => {
                   <th>Hotel</th>
                   <th>Location</th>
                   <th>Rating</th>
+                  <th>Commission</th>
                   <th>Manager Assigned</th>
                   <th>Status</th>
                   <th>Created At</th>
@@ -416,7 +432,7 @@ const HotelManagement = () => {
                 {loading ? (
                   Array.from({ length: 6 }).map((_, index) => (
                     <tr key={index} className="hm-skeleton-row">
-                      <td colSpan="7">
+                      <td colSpan="8">
                         <div className="hm-skeleton-grid">
                           <span />
                           <span />
@@ -427,7 +443,7 @@ const HotelManagement = () => {
                   ))
                 ) : hotels.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="hm-empty-cell">
+                    <td colSpan="8" className="hm-empty-cell">
                       <div className="hm-empty-state">
                         <div className="hm-empty-icon">
                           <span className="material-symbols-outlined">holiday_village</span>
@@ -446,6 +462,7 @@ const HotelManagement = () => {
                     const manager = hotel.propertyManager || hotel.owner;
                     const displayStatus = getDisplayStatus(hotel);
                     const statusStyle = statusStyles[displayStatus] || statusStyles.rejected;
+                    const commission = hotel.commissionRate || 15;
 
                     return (
                       <tr key={hotel._id} className="hm-table-row" style={{ animationDelay: `${index * 0.04}s` }}>
@@ -471,6 +488,9 @@ const HotelManagement = () => {
                           ) : (
                             <span className="hm-no-rating">-</span>
                           )}
+                        </td>
+                        <td className="hm-commission">
+                          <span className="hm-commission-pill">{commission}%</span>
                         </td>
                         <td>
                           {manager ? (
@@ -522,7 +542,7 @@ const HotelManagement = () => {
                             <button className="hm-action-btn hm-edit" onClick={() => openModal('edit', hotel)} title="Edit">
                               <span className="material-symbols-outlined">edit</span>
                             </button>
-                            <button className="hm-action-btn hm-delete" onClick={() => openModal('delete', hotel)} title="Delete">
+                            <button className="hm-action-btn hm-delete" onClick={() => openDeleteModal(hotel)} title="Delete">
                               <span className="material-symbols-outlined">delete</span>
                             </button>
                           </div>
@@ -597,7 +617,20 @@ const HotelManagement = () => {
         selectedHotel={selectedHotel}
         onClose={closeModal}
         onSuccess={invalidateHotels}
-        onDelete={handleDelete}
+      />
+
+      <DeleteConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setDeleteTarget(null);
+        }}
+        onConfirm={handleDelete}
+        title="Delete Hotel"
+        message="This will permanently remove the hotel and cancel all associated bookings. This action cannot be undone."
+        itemName={deleteTarget?.name}
+        confirmText="Delete Hotel"
+        isDeleting={isDeleting}
       />
     </SuperAdminLayout>
   );
@@ -748,17 +781,15 @@ const HotelCardsGrid = ({ hotels, loading, onView, onEdit, onDelete, onApprove, 
   );
 };
 
-const HotelActionLayer = ({ modalType, selectedHotel, onClose, onSuccess, onDelete }) => {
+const HotelActionLayer = ({ modalType, selectedHotel, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [hotelDetails, setHotelDetails] = useState(null);
   const [owners, setOwners] = useState([]);
   const [formData, setFormData] = useState(initialForm);
-  const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [rejectReason, setRejectReason] = useState('');
 
   useEffect(() => {
     if (!modalType) return;
-    setDeleteConfirmText('');
     setRejectReason('');
   }, [modalType]);
 
@@ -1041,35 +1072,6 @@ const HotelActionLayer = ({ modalType, selectedHotel, onClose, onSuccess, onDele
             </>
           )}
         </aside>
-      </div>,
-      document.body
-    );
-  }
-
-  if (modalType === 'delete') {
-    const canDelete = deleteConfirmText === selectedHotel?.name;
-    return createPortal(
-      <div className="hm-layer-backdrop" onClick={(event) => event.target === event.currentTarget && onClose()}>
-        <div className="hm-modal hm-delete-modal">
-          <div className="hm-danger-header">
-            <span className="material-symbols-outlined">warning</span>
-            <h2>Delete Hotel</h2>
-          </div>
-          <div className="hm-modal-body">
-            <div className="hm-delete-pill"><HotelThumb hotel={selectedHotel} /><strong>{selectedHotel?.name}</strong></div>
-            <p>This will permanently remove the hotel and cancel all associated bookings.</p>
-            <label className="hm-field">
-              <span>Type hotel name to confirm</span>
-              <input value={deleteConfirmText} onChange={(event) => setDeleteConfirmText(event.target.value)} placeholder={selectedHotel?.name} />
-            </label>
-          </div>
-          <div className="hm-modal-footer">
-            <button className="hm-ghost-btn" onClick={onClose}>Cancel</button>
-            <button className="hm-danger-btn" disabled={!canDelete || loading} onClick={() => onDelete(selectedHotel)}>
-              {loading ? 'Deleting...' : 'Delete Hotel'}
-            </button>
-          </div>
-        </div>
       </div>,
       document.body
     );
