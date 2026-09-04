@@ -14,12 +14,17 @@ import { useNotifications } from "../../../../core/context/useNotifications";
 import { useTheme } from "../../../../core/hooks/useTheme";
 import MessagingPanel from "../../../../shared/components/MessagingPanel";
 import { Plus } from "lucide-react";
+import useSettingsAutoRefresh from "../../../../core/hooks/useSettingsAutoRefresh";
 
 const WaiterDashboard = () => {
   const [activeFilter, setActiveFilter] = useState("all");
   const [activeView, setActiveView] = useState("dashboard");
   const { orders, markServed, removeOrder, fetchOrders, loading, updateOrder } =
     useOrderContext();
+
+  // Settings > Display > Auto-refresh: periodic reconciliation fetch on top
+  // of the primary socket-driven updates (in case an event is missed).
+  useSettingsAutoRefresh("waiterSettings", fetchOrders);
   const [showOrderForm, setShowOrderForm] = useState(false);
   const [isMessagingOpen, setIsMessagingOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -134,6 +139,7 @@ const WaiterDashboard = () => {
             onClose={() => setActiveView("dashboard")}
             onNotificationClick={handleNotificationClick}
             isDarkMode={isDark}
+            variant="waiter"
           />
         );
       case "waiterCalls":
@@ -167,7 +173,7 @@ const WaiterDashboard = () => {
         backgroundColor: "var(--bg-secondary)",
         color: "var(--text-primary)",
       }}
-      className="min-h-screen lg:flex lg:h-screen lg:overflow-hidden"
+      className="h-[100dvh] flex flex-col overflow-hidden overflow-x-hidden lg:flex-row lg:h-screen"
     >
       {/* Sidebar - Hidden on mobile, visible flex item on desktop */}
       <aside
@@ -188,7 +194,7 @@ const WaiterDashboard = () => {
       </aside>
 
       {/* Main Content Area - Flex grow to fill space */}
-      <main className="flex-1 lg:h-full min-h-0 overflow-y-auto relative w-full">
+      <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain relative w-full pb-24 lg:pb-0 lg:h-full">
         {/* Main Content - switches based on activeView */}
         {renderMainContent()}
       </main>

@@ -247,7 +247,7 @@ const WaiterSettings = ({ onClose }) => {
                                     onChange={(e) => setEditedName(e.target.value)}
                                     onKeyDown={(e) => { if (e.key === 'Enter') handleSaveName(); if (e.key === 'Escape') handleCancelName(); }}
                                     style={{
-                                        fontSize: '15px', fontWeight: '700', color: '#111827',
+                                        fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)',
                                         border: '1.5px solid #10B981', borderRadius: '6px',
                                         padding: '2px 6px', width: '140px', outline: 'none',
                                     }}

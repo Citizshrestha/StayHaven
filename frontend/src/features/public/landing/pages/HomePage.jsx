@@ -12,14 +12,15 @@ import {
   HeadphonesIcon, TrendingDown, Leaf, ConciergeBell,
   BarChart3, MessageSquare, BadgePercent
 } from 'lucide-react';
-import { Input } from '../../../../shared/ui/input';
 import { useContent } from '../../../../hooks/useContent';
 import {
   getHeroBanners,
   getSiteSettings,
   getDestinations as getDestinationsApi,
   getFeaturedHotels,
+  getTestimonials,
 } from '../../../../core/api/services/content.service';
+import { adToBS } from '../../../../utils/dateConverter';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -55,13 +56,108 @@ const HERO_BG_URL =
   'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1920&q=80';
 
 const heroFieldShell =
-  'hero-field-shell flex h-8 w-full min-w-0 items-center gap-1.5 rounded-md border border-[rgba(0,0,0,0.08)] bg-white px-2 pr-1';
+  'hero-field-shell flex h-11 w-full min-w-0 items-center gap-2 rounded-lg border border-[rgba(0,0,0,0.08)] bg-white px-3 pr-2 sm:h-9 sm:gap-1.5 sm:rounded-md sm:px-2 sm:pr-1 lg:h-8';
 
 const heroInputClass =
-  'hero-panel-input !m-0 !h-full !min-h-0 !w-full min-w-0 !flex-1 !rounded-none !border-0 !bg-transparent !px-0 !py-0 !text-[13px] !leading-tight !font-medium !text-[#64748b] !shadow-none !ring-0 !outline-none placeholder:!text-[#94a3b8] focus-visible:!border-0 focus-visible:!ring-0 focus-visible:!ring-offset-0';
+  'hero-panel-input !m-0 !h-full !min-h-0 !w-full min-w-0 !flex-1 !rounded-none !border-0 !bg-transparent !px-0 !py-0 !text-[15px] sm:!text-[13px] !leading-tight !font-medium !text-[#64748b] !shadow-none !ring-0 !outline-none placeholder:!text-[#94a3b8] focus-visible:!border-0 focus-visible:!ring-0 focus-visible:!ring-offset-0';
 
 const heroSelectClass =
-  'hero-panel-select !m-0 h-full min-h-0 w-full min-w-0 flex-1 cursor-pointer appearance-none border-0 bg-transparent py-0 text-[13px] font-medium leading-tight text-[#64748b] outline-none ring-0 focus:ring-0';
+  'hero-panel-select !m-0 h-full min-h-0 w-full min-w-0 flex-1 cursor-pointer appearance-none border-0 bg-transparent py-0 text-[15px] sm:text-[13px] font-medium leading-tight text-[#64748b] outline-none ring-0 focus:ring-0';
+
+const toISODate = (date) => date.toISOString().split('T')[0];
+
+const addDays = (date, days) => {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+};
+
+const HeroSearch = ({ ripples, onSearchRipple }) => {
+  const navigate = useNavigate();
+  const today = toISODate(new Date());
+  const tomorrow = toISODate(addDays(new Date(), 1));
+  const [destination, setDestination] = useState('');
+  const [checkIn, setCheckIn] = useState(today);
+  const [checkOut, setCheckOut] = useState(tomorrow);
+  const [guests, setGuests] = useState('2');
+
+  const displayDate = (value) => {
+    if (!value) return '';
+    return calendarSystem === 'BS' ? `${adToBS(value)} BS` : `${value} AD`;
+  };
+
+  const openPicker = (event) => {
+    event.currentTarget.querySelector('input')?.showPicker?.();
+  };
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    onSearchRipple(event);
+
+    const trimmedDestination = destination.trim();
+    if (!trimmedDestination || !checkIn || !checkOut || new Date(checkOut) <= new Date(checkIn)) return;
+
+    const params = new URLSearchParams({
+      destination: trimmedDestination,
+      checkIn,
+      checkOut,
+      guests,
+    });
+
+    navigate(`/hotels?${params.toString()}`);
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <div className="sh-hero-search-grid">
+        <div className="flex min-h-0 min-w-0 flex-col border-b border-[rgba(0,0,0,0.08)] px-1 py-2.5 text-left sm:px-3 sm:py-1.5 lg:border-b-0 lg:[border-right:1px_solid_rgba(0,0,0,0.08)] lg:px-4 lg:py-1.5">
+          <label className="mb-1.5 block text-[11px] font-bold uppercase leading-none tracking-widest text-[#64748b] sm:mb-1 sm:text-[10px]" htmlFor="hero-where">Where to?</label>
+          <div className={heroFieldShell}>
+            <MapPin className="size-4 shrink-0 text-[#0ea5a0] sm:size-3.5" aria-hidden />
+            <input id="hero-where" value={destination} onChange={(e) => setDestination(e.target.value)} placeholder="Search destinations in Nepal" className={heroInputClass} />
+          </div>
+        </div>
+
+        <div onClick={openPicker} className="flex min-h-0 min-w-0 cursor-pointer flex-col border-b border-[rgba(0,0,0,0.08)] px-1 py-2.5 text-left sm:px-3 sm:py-1.5 lg:border-b-0 lg:[border-right:1px_solid_rgba(0,0,0,0.08)] lg:px-4 lg:py-1.5">
+          <label className="mb-1.5 block text-[11px] font-bold uppercase leading-none tracking-widest text-[#64748b] sm:mb-1 sm:text-[10px]" htmlFor="hero-checkin">Check-in</label>
+          <div className={heroFieldShell}>
+            <Calendar className="size-4 shrink-0 text-[#0ea5a0] sm:size-3.5" aria-hidden />
+            <input id="hero-checkin" type="date" value={checkIn} min={today} onChange={(e) => setCheckIn(e.target.value)} className={`hero-date-input ${heroInputClass}`} />
+          </div>
+        </div>
+
+        <div onClick={openPicker} className="flex min-h-0 min-w-0 cursor-pointer flex-col border-b border-[rgba(0,0,0,0.08)] px-1 py-2.5 text-left sm:px-3 sm:py-1.5 lg:border-b-0 lg:[border-right:1px_solid_rgba(0,0,0,0.08)] lg:px-4 lg:py-1.5">
+          <label className="mb-1.5 block text-[11px] font-bold uppercase leading-none tracking-widest text-[#64748b] sm:mb-1 sm:text-[10px]" htmlFor="hero-checkout">Check-out</label>
+          <div className={heroFieldShell}>
+            <Calendar className="size-4 shrink-0 text-[#0ea5a0] sm:size-3.5" aria-hidden />
+            <input id="hero-checkout" type="date" value={checkOut} min={checkIn || today} onChange={(e) => setCheckOut(e.target.value)} className={`hero-date-input ${heroInputClass}`} />
+          </div>
+        </div>
+
+        <div className="flex min-h-0 min-w-0 flex-col border-b border-[rgba(0,0,0,0.08)] px-1 py-2.5 text-left sm:px-3 sm:py-1.5 lg:border-b-0 lg:[border-right:1px_solid_rgba(0,0,0,0.08)] lg:px-4 lg:py-1.5">
+          <span className="mb-1.5 block text-[11px] font-bold uppercase leading-none tracking-widest text-[#64748b] sm:mb-1 sm:text-[10px]">Guests</span>
+          <div className={heroFieldShell}>
+            <Users className="size-4 shrink-0 text-[#0ea5a0] sm:size-3.5" aria-hidden />
+            <select value={guests} onChange={(e) => setGuests(e.target.value)} className={heroSelectClass} style={{ colorScheme: 'light' }} aria-label="Number of guests">
+              <option value="1">1 Guest</option>
+              <option value="2">2 Guests</option>
+              <option value="3">3 Guests</option>
+              <option value="4">4+ Guests</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="flex flex-col justify-end px-1 pt-3 sm:border-t sm:border-[rgba(0,0,0,0.08)] sm:px-3 sm:py-2 lg:border-t-0 lg:border-0 lg:px-2 lg:pb-1.5 lg:pt-0">
+          <button type="submit" className="relative inline-flex h-12 w-full cursor-pointer items-center justify-center overflow-hidden whitespace-nowrap rounded-xl border-0 bg-[#0ea5a0] px-6 text-[15px] font-bold text-white transition-colors hover:bg-[#0d9489] sm:h-9 sm:rounded-[10px] sm:px-5 sm:text-[13px] lg:h-8 lg:w-auto lg:self-center">
+            {ripples.map((r) => <span key={r.id} className="pointer-events-none absolute size-3 rounded-full bg-white/40" style={{ left: r.x, top: r.y, transform: 'translate(-50%, -50%) scale(0)', animation: 'hero-ripple 0.6s ease-out forwards' }} />)}
+            <Search className="mr-2 size-4 shrink-0 sm:mr-1.5 sm:size-3.5" strokeWidth={2.5} />
+            Search
+          </button>
+        </div>
+      </div>
+    </form>
+  );
+};
 
 const Home = () => {
   const navigate = useNavigate();
@@ -75,10 +171,12 @@ const Home = () => {
   const [ripples, setRipples] = useState([]);
 
   // Dynamic content from API
-  const { data: banners } = useContent('hero-banners', getHeroBanners);
-  const { data: siteSettings } = useContent('site-settings', getSiteSettings);
+  const { data: banners, loading: heroLoading } = useContent('hero-banners', getHeroBanners);
+  const { data: siteSettings, loading: settingsLoading } = useContent('site-settings', getSiteSettings);
+  const { data: testimonials, loading: testimonialsLoading } = useContent('testimonials', () => getTestimonials(2));
   const hero = banners?.[0] || null;
   const settings = siteSettings?.[0] || null;
+  const heroReady = !heroLoading;
 
   // GSAP: scroll parallax + hero exit (entrance handled by Framer Motion)
   useEffect(() => {
@@ -173,6 +271,14 @@ const Home = () => {
             opacity: 0;
           }
         }
+        @keyframes hero-pulse {
+          0%, 100% {
+            opacity: 0.4;
+          }
+          50% {
+            opacity: 0.6;
+          }
+        }
         .sh-eyebrow {
           display: inline-flex;
           align-items: center;
@@ -240,28 +346,51 @@ const Home = () => {
             grid-template-columns: 1.4fr 1fr 1fr 1fr auto;
           }
         }
+        @media (max-width: 380px) {
+          .sh-trust-badge {
+            padding: 6px 12px;
+            font-size: 11px;
+          }
+        }
       `}</style>
       <Navbar />
       {/* Hero Section */}
-      <section ref={heroRef} className="relative z-10 w-full overflow-hidden">
+      {heroLoading ? (
+        <section className="relative z-10 w-full overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+          <div className="relative z-2 mx-auto flex w-full max-w-[1100px] flex-col items-center px-4 pt-[150px] pb-[130px] text-center sm:px-6">
+            <div className="w-full max-w-[540px] space-y-6">
+              <div className="h-7 w-48 mx-auto bg-slate-700/50 rounded-full animate-pulse" style={{ animation: 'hero-pulse 2s ease-in-out infinite' }} />
+              <div className="h-16 w-full bg-slate-700/50 rounded-2xl animate-pulse" style={{ animation: 'hero-pulse 2s ease-in-out infinite', animationDelay: '0.2s' }} />
+              <div className="h-6 w-4/5 mx-auto bg-slate-700/50 rounded-xl animate-pulse" style={{ animation: 'hero-pulse 2s ease-in-out infinite', animationDelay: '0.4s' }} />
+              <div className="h-14 w-full max-w-[860px] mx-auto bg-slate-700/50 rounded-2xl animate-pulse" style={{ animation: 'hero-pulse 2s ease-in-out infinite', animationDelay: '0.6s' }} />
+            </div>
+          </div>
+        </section>
+      ) : (
+        <section ref={heroRef} className="relative z-10 w-full overflow-hidden">
         <div
           ref={overlayRef}
           className="absolute inset-0 z-0 w-full min-h-full overflow-hidden"
-          style={{ willChange: 'transform' }}
+          style={{
+            willChange: 'transform',
+            background: '#0a1923',
+          }}
         >
-          <Motion.div
-            ref={imageParallaxRef}
-            className="absolute inset-0 z-0 scale-110"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
-            style={{
-              backgroundImage: `url('${hero?.backgroundImage || HERO_BG_URL}')`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              backgroundRepeat: 'no-repeat',
-            }}
-          />
+          {heroReady && hero?.backgroundImage && (
+            <Motion.div
+              ref={imageParallaxRef}
+              className="absolute inset-0 z-0 scale-110"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+              style={{
+                backgroundImage: `url('${hero.backgroundImage}')`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat',
+              }}
+            />
+          )}
           <div
             className="pointer-events-none absolute inset-0 z-1"
             style={{
@@ -271,19 +400,19 @@ const Home = () => {
           />
         </div>
 
-        <div className="relative z-2 mx-auto flex w-full max-w-[1100px] flex-col items-center px-4 pt-[150px] pb-[130px] text-center sm:px-6">
+        <div className="relative z-2 mx-auto flex w-full max-w-[1100px] flex-col items-center px-5 pt-28 pb-16 text-center sm:px-6 sm:pt-36 sm:pb-24 lg:pt-[150px] lg:pb-[130px]">
           <div ref={headlineRef} className="flex w-full flex-col items-center antialiased">
             <div className="sh-eyebrow">
               <span className="sh-eyebrow-dot" aria-hidden />
               <span>{hero?.eyebrowText || "NEPAL'S #1 HOTEL BOOKING PLATFORM"}</span>
             </div>
-            <div className="mb-[18px] flex flex-col items-center gap-0">
+            <div className="mb-[14px] flex flex-col items-center gap-0 sm:mb-[18px]">
               <Motion.span
                 className="block text-white"
                 style={{
-                  fontSize: 'clamp(2.25rem, 6vw, 72px)',
+                  fontSize: 'clamp(1.85rem, 8vw, 72px)',
                   fontWeight: 800,
-                  lineHeight: 1.1,
+                  lineHeight: 1.15,
                   textShadow: '0 2px 20px rgba(0,0,0,0.3)',
                 }}
                 initial={{ opacity: 0, y: 20 }}
@@ -297,7 +426,7 @@ const Home = () => {
 
           <Motion.p
             ref={subheadlineRef}
-            className="mx-auto mb-9 w-full max-w-[540px] text-center text-[17px] leading-[1.65]"
+            className="mx-auto mb-7 w-full max-w-[540px] text-center text-[15px] leading-[1.6] sm:mb-9 sm:text-[17px] sm:leading-[1.65]"
             style={{ color: 'rgba(255,255,255,0.78)' }}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
@@ -308,121 +437,18 @@ const Home = () => {
 
           <Motion.div
             ref={searchCardRef}
-            className="mb-5 w-full max-w-[860px] rounded-2xl px-4 py-3 shadow-[0_20px_60px_rgba(0,0,0,0.22)] sm:px-[18px]"
+            className="mb-4 w-full max-w-[860px] rounded-[20px] px-4 py-4 shadow-[0_16px_40px_rgba(0,0,0,0.24)] sm:mb-5 sm:rounded-2xl sm:px-[18px] sm:py-3"
             style={{ background: 'rgba(255,255,255,0.97)' }}
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 1.15, duration: 0.55, ease: 'easeOut' }}
           >
-            <div className="sh-hero-search-grid">
-              <div className="flex min-h-0 min-w-0 flex-col border-b border-[rgba(0,0,0,0.08)] px-3 py-1.5 text-left lg:border-b-0 lg:[border-right:1px_solid_rgba(0,0,0,0.08)] lg:px-4 lg:py-1.5">
-                <label
-                  className="mb-1 block text-[10px] font-bold uppercase leading-none tracking-widest text-[#64748b]"
-                  htmlFor="hero-where"
-                >
-                  Where to?
-                </label>
-                <div className={heroFieldShell}>
-                  <MapPin className="size-3.5 shrink-0 text-[#0ea5a0]" aria-hidden />
-                  <Input
-                    id="hero-where"
-                    placeholder="Search destinations in Nepal"
-                    className={heroInputClass}
-                  />
-                </div>
-              </div>
-
-              <div className="flex min-h-0 min-w-0 flex-col border-b border-[rgba(0,0,0,0.08)] px-3 py-1.5 text-left lg:border-b-0 lg:[border-right:1px_solid_rgba(0,0,0,0.08)] lg:px-4 lg:py-1.5">
-                <label
-                  className="mb-1 block text-[10px] font-bold uppercase leading-none tracking-widest text-[#64748b]"
-                  htmlFor="hero-checkin"
-                >
-                  Check-in
-                </label>
-                <div className={heroFieldShell}>
-                  <Calendar className="size-3.5 shrink-0 text-[#0ea5a0]" aria-hidden />
-                  <Input
-                    id="hero-checkin"
-                    type="date"
-                    className={`hero-date-input ${heroInputClass}`}
-                  />
-                </div>
-              </div>
-
-              <div className="flex min-h-0 min-w-0 flex-col border-b border-[rgba(0,0,0,0.08)] px-3 py-1.5 text-left lg:border-b-0 lg:[border-right:1px_solid_rgba(0,0,0,0.08)] lg:px-4 lg:py-1.5">
-                <label
-                  className="mb-1 block text-[10px] font-bold uppercase leading-none tracking-widest text-[#64748b]"
-                  htmlFor="hero-checkout"
-                >
-                  Check-out
-                </label>
-                <div className={heroFieldShell}>
-                  <Calendar className="size-3.5 shrink-0 text-[#0ea5a0]" aria-hidden />
-                  <Input
-                    id="hero-checkout"
-                    type="date"
-                    className={`hero-date-input ${heroInputClass}`}
-                  />
-                </div>
-              </div>
-
-              <div className="flex min-h-0 min-w-0 flex-col border-b border-[rgba(0,0,0,0.08)] px-3 py-1.5 text-left lg:border-b-0 lg:[border-right:1px_solid_rgba(0,0,0,0.08)] lg:px-4 lg:py-1.5">
-                <span className="mb-1 block text-[10px] font-bold uppercase leading-none tracking-widest text-[#64748b]">
-                  Guests
-                </span>
-                <div className={heroFieldShell}>
-                  <Users className="size-3.5 shrink-0 text-[#0ea5a0]" aria-hidden />
-                  <select
-                    className={heroSelectClass}
-                    style={{ colorScheme: 'light' }}
-                    aria-label="Number of guests"
-                  >
-                    <option>1 Guest</option>
-                    <option>2 Guests</option>
-                    <option>3 Guests</option>
-                    <option>4+ Guests</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex flex-col justify-end border-t border-[rgba(0,0,0,0.08)] px-3 py-2 lg:border-t-0 lg:border-0 lg:px-2 lg:pb-1.5 lg:pt-0">
-                <span
-                  className="mb-1 hidden text-[10px] font-bold uppercase leading-none tracking-widest lg:invisible lg:block"
-                  aria-hidden
-                >
-                  Guests
-                </span>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    onSearchRipple(e);
-                    navigate('/hotels');
-                  }}
-                  className="relative inline-flex h-8 w-full cursor-pointer items-center justify-center overflow-hidden whitespace-nowrap rounded-[10px] border-0 bg-[#0ea5a0] px-5 text-[13px] font-bold text-white transition-colors hover:bg-[#0d9489] lg:w-auto lg:self-center"
-                >
-                  {ripples.map((r) => (
-                    <span
-                      key={r.id}
-                      className="pointer-events-none absolute size-3 rounded-full bg-white/40"
-                      style={{
-                        left: r.x,
-                        top: r.y,
-                        transform: 'translate(-50%, -50%) scale(0)',
-                        animation: 'hero-ripple 0.6s ease-out forwards',
-                      }}
-                    />
-                  ))}
-                  <Search className="mr-1.5 size-3.5 shrink-0" strokeWidth={2.5} />
-                  Search
-                </button>
-              </div>
-            </div>
-
+            <HeroSearch ripples={ripples} onSearchRipple={onSearchRipple} />
           </Motion.div>
 
           <div
             ref={badgesRef}
-            className="mb-0 flex w-full max-w-[860px] flex-wrap items-center justify-center gap-2.5"
+            className="mb-0 mt-1 flex w-full max-w-[860px] flex-wrap items-center justify-center gap-2 sm:mt-0 sm:gap-2.5"
           >
             {settings?.trustBadges?.length > 0 ? (
               settings.trustBadges.sort((a, b) => (a.order || 0) - (b.order || 0)).map((badge, i) => (
@@ -450,6 +476,7 @@ const Home = () => {
           </div>
         </div>
       </section>
+      )}
 
       {/* Trust Strip */}
       <TrustStrip />
@@ -470,7 +497,7 @@ const Home = () => {
       <WhyChoose />
 
       {/* Testimonials */}
-      <Testimonials />
+      <Testimonials testimonials={testimonials} loading={testimonialsLoading} />
 
       {/* Inspiration */}
       <Inspiration />
@@ -747,7 +774,7 @@ const FeaturedHotelsSection = () => {
         </div>
 
         <Motion.div
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10"
+          className="flex md:grid md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-10 overflow-x-auto md:overflow-visible snap-x snap-mandatory md:snap-none scroll-pl-4 -mx-4 px-4 md:mx-0 md:px-0 pb-4 md:pb-0 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           variants={staggerReveal}
         >
           {isLoading ? (
@@ -755,7 +782,7 @@ const FeaturedHotelsSection = () => {
             Array.from({ length: 6 }).map((_, index) => (
               <div
                 key={index}
-                className="featured-hotel-card bg-white rounded-[28px] overflow-hidden shadow-xl animate-pulse border border-slate-100"
+                className="featured-hotel-card bg-white rounded-[28px] overflow-hidden shadow-xl animate-pulse border border-slate-100 flex-shrink-0 w-[82vw] sm:w-[340px] md:w-auto snap-center"
               >
                 <div className="relative h-[260px] bg-gray-200" />
                 <div className="p-7">
@@ -769,12 +796,12 @@ const FeaturedHotelsSection = () => {
               </div>
             ))
           ) : error ? (
-            <div className="col-span-full rounded-3xl border border-red-100 bg-red-50 p-10 text-center">
+            <div className="w-full md:col-span-full rounded-3xl border border-red-100 bg-red-50 p-10 text-center flex-shrink-0">
               <p className="text-red-600">Featured hotels could not be loaded right now.</p>
             </div>
           ) : filteredHotels.length === 0 ? (
             // No hotels found
-            <div className="col-span-full rounded-3xl border border-gray-200 bg-white p-10 text-center shadow-sm">
+            <div className="w-full md:col-span-full rounded-3xl border border-gray-200 bg-white p-10 text-center shadow-sm flex-shrink-0">
               <p className="text-gray-500">No hotels found for this category.</p>
             </div>
           ) : (
@@ -786,7 +813,7 @@ const FeaturedHotelsSection = () => {
                 variants={cardReveal}
                 whileHover={{ y: -8, scale: 1.015 }}
                 whileTap={{ scale: 0.99 }}
-                className="featured-hotel-card group bg-white rounded-[28px] overflow-hidden shadow-[0_18px_45px_rgba(15,23,42,0.10)] hover:shadow-[0_26px_64px_rgba(15,23,42,0.16)] transition-shadow duration-500 cursor-pointer border border-slate-100 focus:outline-none"
+                className="featured-hotel-card group bg-white rounded-[28px] overflow-hidden shadow-[0_18px_45px_rgba(15,23,42,0.10)] hover:shadow-[0_26px_64px_rgba(15,23,42,0.16)] transition-shadow duration-500 cursor-pointer border border-slate-100 focus:outline-none flex-shrink-0 w-[82vw] sm:w-[340px] md:w-auto snap-center"
               >
                 <div className="relative h-[260px] overflow-hidden bg-gray-100">
                   {hotel.image ? (
@@ -1110,7 +1137,7 @@ const WhyChoose = () => {
 };
 
 // Testimonials Component
-const Testimonials = () => {
+const Testimonials = ({ testimonials: dynamicTestimonials = [], loading }) => {
   const stats = [
     { value: '500+', label: 'Properties', icon: Building, color: 'teal' },
     { value: '50K+', label: 'Happy Guests', icon: Users, color: 'indigo' },
@@ -1118,7 +1145,8 @@ const Testimonials = () => {
     { value: '4.9', label: 'Avg Rating', icon: Star, color: 'amber', isStar: true },
   ];
 
-  const testimonials = [
+  // Fallback testimonials if no dynamic data is available
+  const fallbackTestimonials = [
     {
       quote:
         'The best booking experience I have had — clean app, great support, and amazing properties across Nepal. StayHaven makes travel planning effortless.',
@@ -1140,6 +1168,18 @@ const Testimonials = () => {
       rating: 5,
     },
   ];
+
+  // Use dynamic testimonials if available, otherwise fallback
+  const testimonials = dynamicTestimonials.length > 0
+    ? dynamicTestimonials.map(t => ({
+        quote: t.quote,
+        author: t.author,
+        role: t.role,
+        image: `https://ui-avatars.com/api/?name=${encodeURIComponent(t.author)}&size=200&background=0ea5a0&color=fff`,
+        imageAlt: `Portrait of ${t.author}`,
+        rating: t.rating || 5,
+      }))
+    : fallbackTestimonials;
 
   return (
     <Motion.section

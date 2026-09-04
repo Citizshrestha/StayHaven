@@ -14,7 +14,7 @@ const api = axios.create({
 
 // Add auth token to requests
 api.interceptors.request.use((config) => {
-  const token = sessionStorage.getItem('staffAccessToken') || localStorage.getItem('staffAccessToken');
+  const token = sessionStorage.getItem('staffAccessToken');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -32,8 +32,32 @@ export const getMenuItems = (params = {}) => api.get('/staff/menu-items', { para
 
 export const getMenuCategories = () => api.get('/staff/menu-categories');
 
-export const createMenuItem = (data) => api.post('/staff/menu-items', data);
+// When data.imageFile is set, sends multipart form-data so the backend can
+// upload the image to Cloudinary; otherwise sends plain JSON.
+const toMenuPayload = (data) => {
+  const { imageFile, ...rest } = data;
+  if (!imageFile) return { body: rest, config: {} };
 
-export const updateMenuItem = (itemId, data) => api.put(`/staff/menu-items/${itemId}`, data);
+  const form = new FormData();
+  Object.entries(rest).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) form.append(key, value);
+  });
+  form.append('image', imageFile);
+  return { body: form, config: { headers: { 'Content-Type': 'multipart/form-data' } } };
+};
+
+export const createMenuItem = (data) => {
+  const { body, config } = toMenuPayload(data);
+  return api.post('/staff/menu-items', body, config);
+};
+
+export const updateMenuItem = (itemId, data) => {
+  const { body, config } = toMenuPayload(data);
+  return api.put(`/staff/menu-items/${itemId}`, body, config);
+};
 
 export const deleteMenuItem = (itemId) => api.delete(`/staff/menu-items/${itemId}`);
+
+export const bulkToggleAvailability = (data) => api.put('/staff/menu-items/bulk-toggle', data);
+
+export const reorderMenuItems = (data) => api.put('/staff/menu-items/reorder', data);

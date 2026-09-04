@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { X, ChevronRight, Clock, User, Check, CheckCircle2, Eye } from "lucide-react";
 import ItemCarousel from "../../../../components/shared/ItemCarousel";
 import useRelativeTime from "../../../../hooks/useRelativeTime";
@@ -201,8 +201,39 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
 
   const statusStyle = getStatusStyles(order.status);
 
+  // Flag orders sitting in "new"/"pending" for over 5 minutes so kitchen
+  // staff can spot ones at risk of being missed during a rush.
+  const isStalePending = useMemo(() => {
+    if (order.status !== "new" && order.status !== "pending") return false;
+    const placedAt = order?.placedAt || order?.createdAt;
+    if (!placedAt) return false;
+    const diffMins = (Date.now() - new Date(placedAt).getTime()) / 60000;
+    return diffMins > 5;
+  }, [order.status, order.placedAt, order.createdAt, placedAtRelativeTime]);
+
+  // Flag orders stuck in "preparing" for over 20 minutes — likely forgotten
+  // or blocked, needs kitchen attention.
+  const isStalePreparing = useMemo(() => {
+    if (order.status !== "preparing") return false;
+    const since = order?.startedPreparingAt || order?.updatedAt || order?.placedAt || order?.createdAt;
+    if (!since) return false;
+    const diffMins = (Date.now() - new Date(since).getTime()) / 60000;
+    return diffMins > 20;
+  }, [order.status, order.startedPreparingAt, order.updatedAt, order.placedAt, order.createdAt, placedAtRelativeTime]);
+
+  const staleBg = isStalePreparing
+    ? (isDarkMode ? "rgba(220, 38, 38, 0.08)" : "#FEF2F2")
+    : isStalePending
+      ? (isDarkMode ? "rgba(217, 119, 6, 0.08)" : "#FFFBEB")
+      : colors.card;
+  const staleBorder = isStalePreparing
+    ? "1px solid #DC2626"
+    : isStalePending
+      ? "1px solid #F59E0B"
+      : `1px solid ${colors.cardBorder}`;
+
   const cardStyle = {
-    backgroundColor: colors.card,
+    backgroundColor: staleBg,
     borderRadius: isMobile ? "16px" : "24px",
     padding: isMobile ? "16px" : "24px",
     display: "flex",
@@ -211,7 +242,7 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
     boxShadow: isDarkMode
       ? "0 4px 6px -1px rgba(0, 0, 0, 0.3)"
       : "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-    border: `1px solid ${colors.cardBorder}`,
+    border: staleBorder,
     transition: "all 0.2s ease",
   };
 

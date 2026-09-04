@@ -11,18 +11,6 @@ import axiosClient from "../../../core/api/client";
 
 const BASE = "/api/v1/guest/portal";
 
-/** Resolve the user's active hotelId from activeProperty or query */
-const getActiveHotelId = () => {
-  try {
-    const raw = localStorage.getItem("activeProperty");
-    if (!raw) return null;
-    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
-    return parsed?._id || parsed || null;
-  } catch {
-    return null;
-  }
-};
-
 /* ════════════════════════════════════════════
    DASHBOARD
    ════════════════════════════════════════════ */

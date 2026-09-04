@@ -8,7 +8,7 @@ import {
 } from '../services/roomApi';
 import './RoomManagement.css';
 
-const RoomsManagement = () => {
+const RoomsManagement = ({ embedded = false }) => {
   const { activeProperty } = useStaffAuth();
   const [activeSection, setActiveSection] = useState('rooms');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -407,6 +407,8 @@ const RoomsManagement = () => {
       </div>
     </div>
   );
+
+  if (embedded) return renderRoomsManagement();
 
   return (
     <div className="rooms-management">

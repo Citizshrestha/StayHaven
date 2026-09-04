@@ -7,7 +7,6 @@
  */
 
 import React, { useMemo, useReducer, useEffect, useCallback, useState } from "react";
-import { useTheme } from "../../../../core/hooks/useTheme";
 import { Bell, Menu, RefreshCw, X } from "lucide-react";
 import { logout } from "../../../../core/api/services/auth.service";
 import { toast } from "react-toastify";
@@ -38,7 +37,7 @@ function getInitialView() {
     if (tab && ['dashboard', 'bookings', 'room-service', 'billing', 'profile', 'requests'].includes(tab)) {
       return tab;
     }
-  } catch (e) { /* ignore */ }
+  } catch { /* ignore */ }
   return 'dashboard';
 }
 
@@ -63,7 +62,6 @@ const reducer = (state, action) => {
 
 const GuestDashboard = () => {
   const [state, dispatch] = useReducer(reducer, initialState);
-  const { isDark } = useTheme();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [now, setNow] = useState(Date.now());
@@ -108,18 +106,6 @@ const GuestDashboard = () => {
       window.location.href = "/guest/login";
     }
   }, []);
-
-  const viewTitle = useMemo(() => {
-    switch (state.activeView) {
-      case "dashboard": return "Dashboard";
-      case "room-service": return "Room Service";
-      case "billing": return "Billing";
-      case "profile": return "Profile";
-      case "bookings": return "Bookings";
-      case "requests": return "Requests";
-      default: return "Guest Portal";
-    }
-  }, [state.activeView]);
 
   const lastUpdatedText = useMemo(() => {
     const diffMs = now - state.lastRefresh;

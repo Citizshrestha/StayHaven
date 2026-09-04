@@ -843,7 +843,7 @@ const ReceptionOrdersView = () => {
   /* ── Existing memos / callbacks (unchanged) ── */
   const hotelId = useMemo(() => {
     try {
-      const raw = localStorage.getItem('activeProperty');
+      const raw = sessionStorage.getItem('activeProperty');
       if (!raw) return null;
       const parsed = JSON.parse(raw);
       if (typeof parsed === 'string') return parsed;

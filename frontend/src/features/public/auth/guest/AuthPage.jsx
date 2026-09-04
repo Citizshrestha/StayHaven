@@ -133,24 +133,46 @@ const AuthPage = () => {
         }
 
         // Redirect based on user role
-        if (response.role === 'superadmin') {
-          localStorage.setItem("staffAccessToken", response.accessToken);
-          sessionStorage.setItem("staffAccessToken", response.accessToken);
-          localStorage.setItem("staffUserId", response._id);
+        const staffRoles = ['superadmin', 'admin', 'owner', 'hoteladmin', 'manager', 'receptionist', 'waiter', 'chief'];
+        if (staffRoles.includes(response.role)) {
+          // Build staff user data
           const staffUserData = {
             _id: response._id,
-            fullname: response.fullname || response.username || 'StayHaven Super Admin',
+            fullname: response.fullname || response.username || 'Staff Member',
             username: response.username,
             email: response.email,
             role: response.role,
             profilePicture: response.profilePicture
           };
+
+          // sessionStorage only, including the user/role metadata — these
+          // are tab-scoped on purpose so a second staff login in another
+          // tab of the same browser can't bleed into this one (localStorage
+          // is shared browser-wide; see StaffAuthContext for the token).
+          sessionStorage.setItem("staffAccessToken", response.accessToken);
+          sessionStorage.setItem("staffUser", JSON.stringify(staffUserData));
+          sessionStorage.setItem("staffRole", response.role);
+
+          // Update React context state
           staffLoginContext(staffUserData);
-          toast.success('Welcome back, Super Admin!');
-          navigate('/superadmindashboard');
+
+          // Determine target dashboard
+          let dashboardPath = '/hoteladmin-dashboard';
+          if (response.role === 'superadmin') {
+            toast.success('Welcome back, Super Admin!');
+            dashboardPath = '/superadmindashboard';
+          } else if (response.role === 'receptionist') {
+            dashboardPath = '/reception-dashboard';
+          } else if (response.role === 'waiter') {
+            dashboardPath = '/waiter-dashboard';
+          } else if (response.role === 'chief') {
+            dashboardPath = '/kitchen-dashboard';
+          }
+
+          // Defer navigation by one tick so React flushes the staffUser state
+          // update before ProtectedStaffRoute evaluates isAuthenticated
+          setTimeout(() => navigate(dashboardPath), 0);
           return;
-        } else if (response.role === 'admin') {
-          navigate('/dashboard');
         } else {
           navigate('/');
         }
@@ -280,24 +302,44 @@ const AuthPage = () => {
           }
 
           // Redirect based on user role
-          if (result.role === 'superadmin') {
-            localStorage.setItem("staffAccessToken", result.accessToken);
-            sessionStorage.setItem("staffAccessToken", result.accessToken);
-            localStorage.setItem("staffUserId", result._id);
+          const staffRoles = ['superadmin', 'admin', 'owner', 'hoteladmin', 'manager', 'receptionist', 'waiter', 'chief'];
+          if (staffRoles.includes(result.role)) {
+            // Build staff user data
             const staffUserData = {
               _id: result._id,
-              fullname: result.fullname || result.username || 'StayHaven Super Admin',
+              fullname: result.fullname || result.username || 'Staff Member',
               username: result.username,
               email: result.email,
               role: result.role,
               profilePicture: result.profilePicture
             };
+
+            // Persist the token to sessionStorage only — see the matching
+            // comment above and StaffAuthContext for why.
+            sessionStorage.setItem("staffAccessToken", result.accessToken);
+            sessionStorage.setItem("staffUser", JSON.stringify(staffUserData));
+            sessionStorage.setItem("staffRole", result.role);
+
+            // Update React context state
             staffLoginContext(staffUserData);
-            toast.success('Welcome back, Super Admin!');
-            navigate('/superadmindashboard');
+
+            // Determine target dashboard
+            let dashboardPath = '/hoteladmin-dashboard';
+            if (result.role === 'superadmin') {
+              toast.success('Welcome back, Super Admin!');
+              dashboardPath = '/superadmindashboard';
+            } else if (result.role === 'receptionist') {
+              dashboardPath = '/reception-dashboard';
+            } else if (result.role === 'waiter') {
+              dashboardPath = '/waiter-dashboard';
+            } else if (result.role === 'chief') {
+              dashboardPath = '/kitchen-dashboard';
+            }
+
+            // Defer navigation by one tick so React flushes the staffUser state
+            // update before ProtectedStaffRoute evaluates isAuthenticated
+            setTimeout(() => navigate(dashboardPath), 0);
             return;
-          } else if (result.role === 'admin') {
-            navigate('/dashboard');
           } else {
             navigate('/');
           }
@@ -454,6 +496,7 @@ const AuthPage = () => {
                   shape="rectangular"
                   theme="outline"
                   size="large"
+                  locale="en"
                 />
               </div>
 
@@ -551,6 +594,7 @@ const AuthPage = () => {
                   shape="rectangular"
                   theme="outline"
                   size="large"
+                  locale="en"
                 />
               </div>
 
@@ -654,13 +698,18 @@ const AuthPage = () => {
                 <div className={styles.checkboxRow}>
                   <input
                     type="checkbox"
+                    id="agreeToTerms"
                     name="agreeToTerms"
                     checked={signUpData.agreeToTerms}
                     onChange={handleSignUpChange}
                     className={styles.checkbox}
                     required
                   />
-                  <label className={styles.checkboxLabel}>
+                  {/* htmlFor makes the whole sentence tappable, not just the
+                      16px checkbox — the links inside still navigate normally,
+                      a click there just also toggles the box first, which is
+                      standard <label> behavior. */}
+                  <label htmlFor="agreeToTerms" className={styles.checkboxLabel}>
                     I agree to StayHaven's <a href="/terms">Terms of Service</a> and <a href="/privacy">Privacy Policy</a>
                   </label>
                 </div>

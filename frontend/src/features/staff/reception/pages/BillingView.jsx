@@ -41,7 +41,7 @@ const BillingView = () => {
     // Get hotel info for invoice branding
     const hotelInfo = useMemo(() => {
         try {
-            const stored = localStorage.getItem('activeProperty');
+            const stored = sessionStorage.getItem('activeProperty');
             if (stored) {
                 const parsed = JSON.parse(stored);
                 if (typeof parsed === 'object' && parsed?.name) return parsed;

@@ -153,6 +153,8 @@ const Layout = ({ children }) => {
     '/hoteladmin-dashboard',
     '/roommanagement',
     '/restaurantmanagement',
+    '/tablemanagement',
+    '/roomqrmanagement',
     '/guest/table',
     '/guest/room',
     '/guest-dashboard',
@@ -336,15 +338,15 @@ const App = () => {
                       <Route
                         path="/hoteladmin-dashboard"
                         element={
-                          <ProtectedStaffRoute allowedRoles={['owner', 'hoteladmin', 'manager']}>
+                          <ProtectedStaffRoute allowedRoles={['owner', 'hoteladmin', 'admin', 'manager']}>
                             <HoteladminDashboard />
                           </ProtectedStaffRoute>
                         }
                       />
-                      <Route path="/roommanagement" element={<ProtectedStaffRoute allowedRoles={['owner', 'hoteladmin', 'manager']}><RoomManagement /></ProtectedStaffRoute>} />
-                      <Route path="/restaurantmanagement" element={<ProtectedStaffRoute allowedRoles={['owner', 'hoteladmin', 'manager']}><RestaurantManagement /></ProtectedStaffRoute>} />
-                      <Route path="/tablemanagement" element={<ProtectedStaffRoute allowedRoles={['owner', 'hoteladmin', 'manager']}><TableManagement /></ProtectedStaffRoute>} />
-                      <Route path="/roomqrmanagement" element={<ProtectedStaffRoute allowedRoles={['owner', 'hoteladmin', 'manager']}><RoomQRManagement /></ProtectedStaffRoute>} />
+                      <Route path="/roommanagement" element={<ProtectedStaffRoute allowedRoles={['owner', 'hoteladmin', 'admin', 'manager']}><RoomManagement /></ProtectedStaffRoute>} />
+                      <Route path="/restaurantmanagement" element={<ProtectedStaffRoute allowedRoles={['owner', 'hoteladmin', 'admin', 'manager']}><RestaurantManagement /></ProtectedStaffRoute>} />
+                      <Route path="/tablemanagement" element={<ProtectedStaffRoute allowedRoles={['owner', 'hoteladmin', 'admin', 'manager']}><TableManagement /></ProtectedStaffRoute>} />
+                      <Route path="/roomqrmanagement" element={<ProtectedStaffRoute allowedRoles={['owner', 'hoteladmin', 'admin', 'manager']}><RoomQRManagement /></ProtectedStaffRoute>} />
 
                       {/* ================================ */}
                       {/* GUEST QR ROUTES - Token Based    */}

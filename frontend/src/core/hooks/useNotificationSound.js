@@ -14,46 +14,46 @@ const SOUND_URLS = {
   notification: "https://assets.mixkit.co/active_storage/sfx/2866/2866-preview.mp3",
 };
 
+// Maps a playSound() sound key to the "ALERT TYPES" chip that governs it
+// in Settings > Notifications. Sound types not listed here (e.g. the
+// waiter-call alert) are always allowed through — they're not opt-out.
+const SOUND_TYPE_TO_ALERT_TYPE = {
+  newOrder: "newOrders",
+  orderReady: "ready",
+};
+
 /**
- * Helper function to check if sound is currently enabled in settings
- * Reads directly from localStorage to always get the latest value
- * Supports both waiter and kitchen settings
+ * Helper function to check if a given sound type is currently enabled in
+ * settings. Reads directly from localStorage to always get the latest value.
+ * Supports both waiter and kitchen settings, and honors both the master
+ * "Sound" toggle and the per-category "ALERT TYPES" chips.
  */
-const isSoundEnabledInSettings = () => {
-  // Get role directly from localStorage (simpler and more reliable)
-  const currentRole = localStorage.getItem("staffRole");
-  
-  // Check the appropriate settings based on role
-  if (currentRole === 'chief' || currentRole === 'kitchen') {
-    // Kitchen staff - check kitchenSettings
-    const kitchenSaved = localStorage.getItem("kitchenSettings");
-    if (kitchenSaved) {
-      try {
-        const settings = JSON.parse(kitchenSaved);
-        return settings.sound !== false; // Explicitly check for false
-      } catch {
-        // Ignore parse errors, default to enabled
-      }
+const isSoundEnabledInSettings = (type) => {
+  // Get role directly from sessionStorage (simpler and more reliable)
+  const currentRole = sessionStorage.getItem("staffRole");
+
+  const storageKey =
+    currentRole === 'chief' || currentRole === 'kitchen' ? "kitchenSettings"
+      : currentRole === 'waiter' ? "waiterSettings"
+        : null;
+
+  if (!storageKey) return true; // Unknown role — default to enabled
+
+  const saved = localStorage.getItem(storageKey);
+  if (!saved) return true; // No settings saved yet — default to enabled
+
+  try {
+    const settings = JSON.parse(saved);
+    if (settings.sound === false) return false; // Master toggle off
+
+    const alertType = SOUND_TYPE_TO_ALERT_TYPE[type];
+    if (alertType && Array.isArray(settings.alertTypes)) {
+      return settings.alertTypes.includes(alertType);
     }
-    // No kitchenSettings found, default to enabled
     return true;
-  } else if (currentRole === 'waiter') {
-    // Waiter - check waiterSettings
-    const waiterSaved = localStorage.getItem("waiterSettings");
-    if (waiterSaved) {
-      try {
-        const settings = JSON.parse(waiterSaved);
-        return settings.sound !== false; // Explicitly check for false
-      } catch {
-        // Ignore parse errors, default to enabled
-      }
-    }
-    // No waiterSettings found, default to enabled
-    return true;
+  } catch {
+    return true; // Ignore parse errors, default to enabled
   }
-  
-  // Unknown role - default to enabled
-  return true;
 };
 
 /**
@@ -117,8 +117,8 @@ const useNotificationSound = () => {
   const playSound = useCallback((type = "notification") => {
     // Read current sound setting directly from localStorage (not from React state)
     // This ensures the setting is always up-to-date even if changed in settings
-    const soundEnabled = isSoundEnabledInSettings();
-    const currentRole = localStorage.getItem("staffRole") || 'unknown';
+    const soundEnabled = isSoundEnabledInSettings(type);
+    const currentRole = sessionStorage.getItem("staffRole") || 'unknown';
     
     if (!soundEnabled) {
       console.log(`🔇 [${currentRole}] Sound disabled in settings`);

@@ -68,7 +68,7 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
 
   // Responsive Inline Styles
   const containerStyle = {
-    paddingBottom: isMobile ? "5rem" : "0",
+    paddingBottom: isMobile ? "7rem" : "0",
     backgroundColor: "var(--bg-secondary)",
     fontFamily: "'Nunito', sans-serif",
   };
@@ -88,6 +88,7 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
     justifyContent: "space-between",
     gap: isMobile ? "16px" : "0",
     marginBottom: isMobile ? "20px" : "32px",
+    flexWrap: "wrap",
   };
 
   const titleRowStyle = {
@@ -104,11 +105,12 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
     width: "40px",
     height: "40px",
     borderRadius: "12px",
-    backgroundColor: "var(--bg-primary)",
-    border: "1px solid var(--border-color)",
+    backgroundColor: "#111827",
+    border: "1px solid rgba(255, 255, 255, 0.12)",
     cursor: "pointer",
     transition: "all 0.2s",
     flexShrink: 0,
+    boxShadow: "0 8px 18px rgba(0, 0, 0, 0.18)",
   };
 
   const titleStyle = {
@@ -195,16 +197,16 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
               style={menuButtonStyle}
               onMouseEnter={(e) => {
                 if (isMobile) {
-                  e.currentTarget.style.backgroundColor = "var(--bg-tertiary)";
+                  e.currentTarget.style.backgroundColor = "#000000";
                 }
               }}
               onMouseLeave={(e) => {
                 if (isMobile) {
-                  e.currentTarget.style.backgroundColor = "var(--bg-primary)";
+                  e.currentTarget.style.backgroundColor = "#111827";
                 }
               }}
             >
-              <Menu size={20} style={{ color: "var(--text-primary)" }} />
+              <Menu size={20} style={{ color: "#ffffff" }} />
             </button>
 
             {/* Title */}

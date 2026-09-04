@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
@@ -17,7 +17,6 @@ import {
   Wrench,
 } from 'lucide-react';
 import { useSocket } from '../../../../core/context/SocketContext';
-import { useTheme } from '../../../../core/hooks/useTheme';
 import {
   getDashboardOverview,
   getGuestInvoices,
@@ -46,36 +45,6 @@ const formatDate = (value) => {
   });
 };
 
-const formatDateTime = (value) => {
-  if (!value) return '--';
-  return new Date(value).toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-};
-
-const formatRelativeTime = (value) => {
-  if (!value) return 'just now';
-  const target = new Date(value).getTime();
-  if (Number.isNaN(target)) return 'just now';
-
-  const now = Date.now();
-  const diffMs = now - target;
-  const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
-  const diffMinutes = Math.floor(diffMs / 60000);
-
-  if (Math.abs(diffMinutes) < 1) return 'just now';
-  if (Math.abs(diffMinutes) < 60) return rtf.format(-diffMinutes, 'minute');
-
-  const diffHours = Math.floor(diffMinutes / 60);
-  if (Math.abs(diffHours) < 24) return rtf.format(-diffHours, 'hour');
-
-  const diffDays = Math.floor(diffHours / 24);
-  return rtf.format(-diffDays, 'day');
-};
-
 const normalizeStatusLabel = (status) => {
   if (!status) return 'Updated';
   return status
@@ -100,7 +69,6 @@ const statusStyles = {
 const DashboardView = () => {
   const navigate = useNavigate();
   const { subscribe, isConnected } = useSocket();
-  const { isDark } = useTheme();
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -235,7 +203,6 @@ const DashboardView = () => {
 
   const onRealtimeBillReceived = useCallback((payload) => {
     const orderNum = payload?.orderNumber || '--';
-    const total = payload?.billData?.total || 0;
     toast.info(`📄 Bill received for Order #${orderNum}`, {
       autoClose: 5000,
     });
@@ -290,9 +257,9 @@ const DashboardView = () => {
             <div className={styles.heroTop}>
               <div>
                 <p className={styles.heroGreeting}>Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'},</p>
-                <h1 className={styles.heroName}>{activeBooking?.hotel?.name || 'Guest'}</h1>
+                <h1 className={styles.heroName}>{localStorage.getItem('username') || 'Guest'}</h1>
                 <p className={styles.heroStayInfo}>
-                  Room {activeBooking?.room?.roomNumber || '--'} • {nightsLeft > 0 ? `Check-out in ${nightsLeft} day${nightsLeft > 1 ? 's' : ''}` : 'No active booking'}
+                  {activeBooking?.hotel?.name ? `${activeBooking.hotel.name} • ` : ''}Room {activeBooking?.room?.roomNumber || '--'} • {nightsLeft > 0 ? `Check-out in ${nightsLeft} day${nightsLeft > 1 ? 's' : ''}` : 'No active booking'}
                   {isUrgent && nightsLeft > 0 && (
                     <span className={styles.countdownPill}>
                       ⚠ {nightsLeft} day left
@@ -680,7 +647,7 @@ const DashboardView = () => {
         isOpen={showExtendModal}
         onClose={() => setShowExtendModal(false)}
         booking={activeBooking}
-        onExtendSuccess={(data) => {
+        onExtendSuccess={() => {
           toast.success('Stay extended successfully!');
           refreshDashboard();
         }}
@@ -694,7 +661,7 @@ const DashboardView = () => {
           setSelectedOrder(null);
         }}
         order={selectedOrder}
-        onCancelSuccess={(data) => {
+        onCancelSuccess={() => {
           toast.success('Order cancelled successfully!');
           refreshDashboard();
         }}

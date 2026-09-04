@@ -116,7 +116,7 @@ const Navbar = () => {
 
     const fetchUserData = async () => {
       // Don't fetch if this is a staff session (staff uses different auth)
-      const isStaffSession = !!(sessionStorage.getItem('staffAccessToken') || localStorage.getItem('staffAccessToken'));
+      const isStaffSession = !!(sessionStorage.getItem('staffAccessToken'));
       if (isStaffSession) {
         return;
       }

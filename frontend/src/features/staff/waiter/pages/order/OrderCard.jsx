@@ -246,16 +246,24 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
 
   const statusStyle = getStatusStyles(order.status);
 
+  const cardBg = isDark ? "#0F172A" : "var(--card-bg)";
+  const cardBorder = isDark ? "#334155" : "var(--card-border)";
+  const cardShadow = isDark ? "0 10px 30px rgba(0,0,0,0.28)" : "var(--shadow-sm)";
+  const panelBg = isDark ? "#111827" : "var(--bg-tertiary)";
+  const primaryText = isDark ? "#F8FAFC" : "#111827";
+  const secondaryText = isDark ? "#CBD5E1" : "#374151";
+  const mutedText = isDark ? "#94A3B8" : "#6B7280";
+
   // Responsive Inline Styles
   const cardStyle = {
-    backgroundColor: "var(--card-bg)",
+    backgroundColor: cardBg,
     borderRadius: isMobile ? "16px" : "24px",
     padding: isMobile ? "16px" : "24px",
     display: "flex",
     flexDirection: isMobile ? "column" : "row",
     gap: isMobile ? "16px" : "24px",
-    boxShadow: "var(--shadow-sm)",
-    border: "1px solid var(--card-border)",
+    boxShadow: cardShadow,
+    border: `1px solid ${cardBorder}`,
   };
 
   const contentStyle = {
@@ -283,7 +291,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
   };
 
   const metaStyle = {
-    color: isDark ? "#E5E7EB" : "#000000",
+    color: secondaryText,
     fontSize: isMobile ? "12px" : "14px",
     fontWeight: "600",
   };
@@ -291,14 +299,14 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
   const titleStyle = {
     fontSize: isMobile ? "18px" : isTablet ? "20px" : "24px",
     fontWeight: "800",
-    color: isDark ? "#ffffff" : "#000000",
+    color: primaryText,
     marginBottom: "8px",
     lineHeight: "1.2",
     wordBreak: "break-word",
   };
 
   const itemsStyle = {
-    color: isDark ? "#E5E7EB" : "#000000",
+    color: secondaryText,
     fontSize: isMobile ? "13px" : "14px",
     lineHeight: "1.5",
     marginBottom: isMobile ? "16px" : "24px",
@@ -473,8 +481,8 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
         <button
           onClick={() => setShowMenu(!showMenu)}
           style={{
-            background: "var(--card-bg)",
-            border: "1px solid var(--border-color)",
+            background: isDark ? "#111827" : "var(--card-bg)",
+            border: `1px solid ${isDark ? "#334155" : "var(--border-color)"}`,
             borderRadius: "8px",
             padding: "8px",
             cursor: "pointer",
@@ -482,10 +490,10 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
             alignItems: "center",
             justifyContent: "center",
             transition: "all 0.2s",
-            boxShadow: showMenu ? "var(--shadow-md)" : "none",
+            boxShadow: showMenu ? (isDark ? "0 12px 24px rgba(0,0,0,0.35)" : "var(--shadow-md)") : "none",
           }}
         >
-          <MoreVertical size={18} color="var(--text-tertiary)" />
+          <MoreVertical size={18} color={isDark ? "#E5E7EB" : "var(--text-tertiary)"} />
         </button>
 
         {/* Dropdown Menu */}
@@ -496,11 +504,11 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
               top: "100%",
               right: 0,
               marginTop: "4px",
-              backgroundColor: "var(--card-bg)",
+              backgroundColor: isDark ? "#111827" : "var(--card-bg)",
               borderRadius: "12px",
-              boxShadow: "var(--shadow-lg)",
-              border: "1px solid var(--border-color)",
-              minWidth: "180px",
+              boxShadow: isDark ? "0 18px 30px rgba(0,0,0,0.4)" : "var(--shadow-lg)",
+              border: `1px solid ${isDark ? "#334155" : "var(--border-color)"}`,
+              minWidth: "220px",
               overflow: "hidden",
               zIndex: 100,
             }}
@@ -517,14 +525,14 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                 background: "none",
                 cursor: "pointer",
                 fontSize: "14px",
-                fontWeight: "500",
-                color: "var(--text-secondary)",
+                fontWeight: "700",
+                color: isDark ? "#F9FAFB" : "#111827",
                 transition: "background 0.2s",
               }}
-              onMouseEnter={(e) => e.target.style.backgroundColor = "var(--bg-tertiary)"}
+              onMouseEnter={(e) => e.target.style.backgroundColor = isDark ? "#1F2937" : "var(--bg-tertiary)"}
               onMouseLeave={(e) => e.target.style.backgroundColor = "transparent"}
             >
-              <Edit size={16} color="var(--text-tertiary)" />
+              <Edit size={16} color={isDark ? "#E5E7EB" : "#374151"} />
               Edit Order
             </button>
             <div style={{ height: "1px", backgroundColor: "var(--border-color)", margin: "4px 0" }} />
@@ -540,11 +548,11 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                 background: "none",
                 cursor: "pointer",
                 fontSize: "14px",
-                fontWeight: "500",
+                fontWeight: "700",
                 color: "#DC2626",
                 transition: "background 0.2s",
               }}
-              onMouseEnter={(e) => e.target.style.backgroundColor = "#FEE2E2"}
+              onMouseEnter={(e) => e.target.style.backgroundColor = isDark ? "rgba(220,38,38,0.14)" : "#FEE2E2"}
               onMouseLeave={(e) => e.target.style.backgroundColor = "transparent"}
             >
               <Trash2 size={16} color="#DC2626" />
@@ -565,8 +573,8 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
               borderRadius: "8px",
               fontSize: "11px",
               fontWeight: "700",
-              backgroundColor: "#EDE9FE",
-              color: "#7C3AED",
+              backgroundColor: isDark ? "#312E81" : "#EDE9FE",
+              color: isDark ? "#DDD6FE" : "#7C3AED",
             }}>
               🍽️ {getTotalItemCount()} items
             </span>
@@ -578,8 +586,8 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                 borderRadius: "8px",
                 fontSize: "11px",
                 fontWeight: "700",
-                backgroundColor: "#FEE2E2",
-                color: "#DC2626",
+                backgroundColor: isDark ? "rgba(220,38,38,0.16)" : "#FEE2E2",
+                color: isDark ? "#FCA5A5" : "#DC2626",
               }}
             >
               Urgent
@@ -607,7 +615,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                 fontSize: "16px",
                 fontWeight: "800",
                 letterSpacing: "0.01em",
-                color: isDark ? "#ffffff" : "#000000"
+                color: primaryText
               }}
             >
               {order.customerName}
@@ -621,7 +629,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
           <div style={{
             marginBottom: "12px",
             padding: "8px 12px",
-            backgroundColor: "#FFFBEB",
+            backgroundColor: isDark ? "#1F2937" : "#FFFBEB",
             borderRadius: "8px",
             borderLeft: "3px solid #F59E0B",
             maxWidth: "280px",
@@ -629,7 +637,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
             <div style={{
               fontSize: "11px",
               fontWeight: "700",
-              color: "#B45309",
+              color: isDark ? "#FCD34D" : "#B45309",
               marginBottom: "4px",
               textTransform: "uppercase",
               letterSpacing: "0.5px",
@@ -639,16 +647,16 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
             {order.items.filter(item => item.notes).slice(0, 2).map(item => (
               <div key={item.id} style={{
                 fontSize: "11px",
-                color: "#78350F",
+                color: isDark ? "#FEF3C7" : "#78350F",
                 marginBottom: "2px",
                 lineHeight: "1.3",
               }}>
                 <span style={{ fontWeight: "600" }}>{item.name}:</span>{" "}
-                <span style={{ color: "#92400E" }}>{item.notes.length > 25 ? item.notes.slice(0, 25) + "..." : item.notes}</span>
+                <span style={{ color: isDark ? "#FCD34D" : "#92400E" }}>{item.notes.length > 25 ? item.notes.slice(0, 25) + "..." : item.notes}</span>
               </div>
             ))}
             {order.items.filter(item => item.notes).length > 2 && (
-              <div style={{ fontSize: "10px", color: "#B45309", marginTop: "4px", fontStyle: "italic" }}>
+              <div style={{ fontSize: "10px", color: isDark ? "#FBBF24" : "#B45309", marginTop: "4px", fontStyle: "italic" }}>
                 +{order.items.filter(item => item.notes).length - 2} more in details
               </div>
             )}
@@ -661,7 +669,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
               <div
                 style={{
                   padding: "12px",
-                  backgroundColor: "#D1FAE5",
+                  backgroundColor: isDark ? "rgba(16,185,129,0.12)" : "#D1FAE5",
                   borderRadius: "12px",
                   textAlign: "center",
                   marginBottom: "12px",
@@ -671,13 +679,13 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                   style={{
                     fontSize: "16px",
                     fontWeight: "700",
-                    color: "#059669",
+                    color: isDark ? "#6EE7B7" : "#059669",
                     marginBottom: "4px",
                   }}
                 >
                   ✓ Order Completed
                 </div>
-                <div style={{ fontSize: "14px", color: "#6B7280" }}>
+                <div style={{ fontSize: "14px", color: isDark ? "#CBD5E1" : "#6B7280" }}>
                   {(() => {
                     const t = formatCompletionTime(order);
                     return t ? `Served on ${t}` : "Completed";

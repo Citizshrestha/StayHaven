@@ -2,8 +2,105 @@ import { useState, useEffect } from 'react';
 import { X, CreditCard, Loader2, CheckCircle2, AlertCircle, Shield, Lock, ExternalLink, LogIn } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
-import { createBookingWithPayment, isAuthenticated } from '../../../../api/publicBooking';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { createBookingWithPayment, verifyCardPayment, isAuthenticated } from '../../../../api/publicBooking';
 import PropTypes from 'prop-types';
+
+// Loaded once at module scope, same pattern as StripePaymentModal.jsx
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+
+/**
+ * Card payment step — rendered once the backend has created a pending
+ * booking + Stripe PaymentIntent. Card number/CVV are typed directly into
+ * Stripe's own hosted iframe (PaymentElement) and never touch this app's
+ * server; only Stripe's `stripe.confirmPayment` call sees them.
+ */
+const CardCheckoutForm = ({ amount, onSuccess, onError }) => {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState(null);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!stripe || !elements || submitting) return;
+
+    setSubmitting(true);
+    setFormError(null);
+
+    try {
+      const { error: stripeError, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        redirect: 'if_required',
+      });
+
+      if (stripeError) {
+        setFormError(stripeError.message || 'Card payment failed.');
+        setSubmitting(false);
+        return;
+      }
+
+      if (!paymentIntent || paymentIntent.status !== 'succeeded') {
+        setFormError('Payment could not be completed. Please try again.');
+        setSubmitting(false);
+        return;
+      }
+
+      // Stripe confirmed the charge — now ask our server to verify it
+      // directly with Stripe and mark the booking paid. This is the only
+      // point at which the booking is actually finalized.
+      await onSuccess(paymentIntent.id);
+    } catch (err) {
+      setFormError(err.message || 'An unexpected error occurred.');
+      setSubmitting(false);
+      onError?.(err);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4 animate-slideDown">
+      <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+        <div className="flex items-center gap-2 mb-4">
+          <Lock className="w-4 h-4 text-gray-500" />
+          <span className="text-sm font-medium text-gray-700">Your card details are encrypted and handled directly by Stripe</span>
+        </div>
+        <PaymentElement options={{ layout: { type: 'tabs', defaultCollapsed: false } }} />
+      </div>
+
+      {formError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700 flex items-start gap-2">
+          <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <span>{formError}</span>
+        </div>
+      )}
+
+      <button
+        type="submit"
+        disabled={!stripe || submitting}
+        className="w-full px-6 py-3 bg-gradient-to-r from-[#00BFA6] to-[#00E5CC] hover:from-[#00A896] hover:to-[#00D4BB] text-white font-semibold rounded-lg transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+      >
+        {submitting ? (
+          <>
+            <Loader2 className="w-5 h-5 animate-spin" />
+            Processing...
+          </>
+        ) : (
+          <>
+            <Lock className="w-5 h-5" />
+            Pay NPR {amount.toLocaleString()}
+          </>
+        )}
+      </button>
+    </form>
+  );
+};
+
+CardCheckoutForm.propTypes = {
+  amount: PropTypes.number.isRequired,
+  onSuccess: PropTypes.func.isRequired,
+  onError: PropTypes.func,
+};
 
 const BookingPaymentModal = ({
   isOpen,
@@ -18,12 +115,8 @@ const BookingPaymentModal = ({
   const [paymentStatus, setPaymentStatus] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [isUserAuthenticated, setIsUserAuthenticated] = useState(false);
-  const [cardDetails, setCardDetails] = useState({
-    number: '',
-    name: '',
-    expiry: '',
-    cvv: ''
-  });
+  const [cardClientSecret, setCardClientSecret] = useState(null);
+  const [cardBookingInfo, setCardBookingInfo] = useState(null);
   const [bankTransferDetails, setBankTransferDetails] = useState({
     accountName: '',
     accountNumber: '',
@@ -107,45 +200,6 @@ const BookingPaymentModal = ({
     }
   ];
 
-  const formatCardNumber = (value) => {
-    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
-    const matches = v.match(/\d{4,16}/g);
-    const match = (matches && matches[0]) || '';
-    const parts = [];
-    for (let i = 0, len = match.length; i < len; i += 4) {
-      parts.push(match.substring(i, i + 4));
-    }
-    return parts.length ? parts.join(' ') : value;
-  };
-
-  const formatExpiry = (value) => {
-    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
-    if (v.length >= 2) {
-      return v.slice(0, 2) + '/' + v.slice(2, 4);
-    }
-    return v;
-  };
-
-  const validateCardDetails = () => {
-    if (!cardDetails.number || cardDetails.number.replace(/\s/g, '').length < 13) {
-      toast.error('Please enter a valid card number');
-      return false;
-    }
-    if (!cardDetails.name || cardDetails.name.length < 3) {
-      toast.error('Please enter cardholder name');
-      return false;
-    }
-    if (!cardDetails.expiry || cardDetails.expiry.length < 5) {
-      toast.error('Please enter valid expiry date (MM/YY)');
-      return false;
-    }
-    if (!cardDetails.cvv || cardDetails.cvv.length < 3) {
-      toast.error('Please enter valid CVV');
-      return false;
-    }
-    return true;
-  };
-
   const validateBankTransferDetails = () => {
     if (!bankTransferDetails.accountName || bankTransferDetails.accountName.length < 3) {
       toast.error('Please enter account holder name');
@@ -166,10 +220,31 @@ const BookingPaymentModal = ({
     return true;
   };
 
+  // Called by CardCheckoutForm once Stripe has confirmed the charge —
+  // finalizes the booking server-side (server re-verifies with Stripe).
+  const handleCardPaymentConfirmed = async (paymentIntentId) => {
+    try {
+      const result = await verifyCardPayment(paymentIntentId);
+      if (!result.success) throw new Error(result.message || 'Payment verification failed');
+
+      setPaymentStatus('success');
+      toast.success('Payment successful!');
+      setTimeout(() => {
+        onPaymentSuccess({ ...cardBookingInfo, ...result.data });
+        onClose();
+      }, 2000);
+    } catch (error) {
+      setPaymentStatus('error');
+      const errorMsg = error.message || 'Payment verification failed. Please contact support if you were charged.';
+      setErrorMessage(errorMsg);
+      toast.error(errorMsg, { position: 'top-center', autoClose: 5000, toastId: 'payment-error' });
+      if (onPaymentError) onPaymentError(error);
+    }
+  };
+
   const handlePayment = async () => {
     if (processing) return;
 
-    if (selectedMethod === 'card' && !validateCardDetails()) return;
     if (selectedMethod === 'bank' && !validateBankTransferDetails()) return;
 
     setProcessing(true);
@@ -180,18 +255,20 @@ const BookingPaymentModal = ({
       const payload = {
         ...bookingData,
         paymentMethod: selectedMethod === 'bank' ? 'bank-transfer' : selectedMethod,
-        ...(selectedMethod === 'card' && {
-          cardDetails: {
-            number: cardDetails.number.replace(/\s/g, ''),
-            name: cardDetails.name,
-            expiry: cardDetails.expiry,
-            cvv: cardDetails.cvv
-          }
-        }),
         ...(selectedMethod === 'bank' && { bankTransferDetails })
       };
 
       const result = await createBookingWithPayment(payload);
+
+      if (result.requiresClientConfirmation) {
+        // Card path: booking created as Pending/unpaid, backend gave us a
+        // Stripe PaymentIntent clientSecret. Render the Stripe Elements
+        // form so the guest enters their card directly with Stripe.
+        setCardClientSecret(result.clientSecret);
+        setCardBookingInfo(result.booking);
+        setProcessing(false);
+        return;
+      }
 
       if (result.requiresRedirect) {
         isRedirecting = true;
@@ -402,8 +479,28 @@ const BookingPaymentModal = ({
             </div>
           )}
 
+          {/* Card confirmation step — Stripe Elements, shown after a pending
+              booking + PaymentIntent is created */}
+          {!paymentStatus && isUserAuthenticated && cardClientSecret && (
+            <div className="space-y-4">
+              <button
+                onClick={() => { setCardClientSecret(null); setCardBookingInfo(null); }}
+                className="text-sm font-semibold text-[#00BFA6] hover:underline"
+              >
+                &larr; Change payment method
+              </button>
+              <Elements options={{ clientSecret: cardClientSecret }} stripe={stripePromise}>
+                <CardCheckoutForm
+                  amount={amount}
+                  onSuccess={handleCardPaymentConfirmed}
+                  onError={onPaymentError}
+                />
+              </Elements>
+            </div>
+          )}
+
           {/* Payment Methods */}
-          {!paymentStatus && isUserAuthenticated && (
+          {!paymentStatus && isUserAuthenticated && !cardClientSecret && (
             <>
               <div>
                 <h3 className="text-sm font-semibold text-[#263238] mb-3 flex items-center gap-2">
@@ -461,61 +558,15 @@ const BookingPaymentModal = ({
                 </div>
               )}
 
-              {/* Card Details Form */}
+              {/* Card notice — actual card entry happens in the next step via Stripe */}
               {selectedMethod === 'card' && (
-                <div className="space-y-4 animate-slideDown">
-                  <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                    <div className="flex items-center gap-2 mb-4">
-                      <Lock className="w-4 h-4 text-gray-500" />
-                      <span className="text-sm font-medium text-gray-700">Your card details are encrypted and secure</span>
-                    </div>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-[#263238] mb-2">Card Number</label>
-                        <input
-                          type="text"
-                          value={cardDetails.number}
-                          onChange={(e) => setCardDetails({ ...cardDetails, number: formatCardNumber(e.target.value) })}
-                          placeholder="4111 1111 1111 1111"
-                          maxLength="19"
-                          className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00BFA6] focus:border-transparent text-[#263238]"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-[#263238] mb-2">Cardholder Name</label>
-                        <input
-                          type="text"
-                          value={cardDetails.name}
-                          onChange={(e) => setCardDetails({ ...cardDetails, name: e.target.value.toUpperCase() })}
-                          placeholder="JOHN DOE"
-                          className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00BFA6] focus:border-transparent text-[#263238]"
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-[#263238] mb-2">Expiry Date</label>
-                          <input
-                            type="text"
-                            value={cardDetails.expiry}
-                            onChange={(e) => setCardDetails({ ...cardDetails, expiry: formatExpiry(e.target.value) })}
-                            placeholder="MM/YY"
-                            maxLength="5"
-                            className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00BFA6] focus:border-transparent text-[#263238]"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-[#263238] mb-2">CVV</label>
-                          <input
-                            type="password"
-                            value={cardDetails.cvv}
-                            onChange={(e) => setCardDetails({ ...cardDetails, cvv: e.target.value.replace(/\D/g, '').slice(0, 4) })}
-                            placeholder="123"
-                            maxLength="4"
-                            className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00BFA6] focus:border-transparent text-[#263238]"
-                          />
-                        </div>
-                      </div>
-                    </div>
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
+                  <Lock className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="text-sm font-semibold text-blue-900 mb-1">Secure Card Payment</h4>
+                    <p className="text-xs text-blue-700">
+                      You'll enter your card details on the next step, directly through Stripe's secure payment form. We never see or store your card number.
+                    </p>
                   </div>
                 </div>
               )}
@@ -620,8 +671,9 @@ const BookingPaymentModal = ({
           )}
         </div>
 
-        {/* Footer */}
-        {!paymentStatus && isUserAuthenticated && (
+        {/* Footer — hidden during the Stripe card-confirmation step, which
+            has its own submit button inside CardCheckoutForm */}
+        {!paymentStatus && isUserAuthenticated && !cardClientSecret && (
           <div className="sticky bottom-0 bg-gray-50 border-t border-[rgba(0,191,166,0.2)] px-6 py-4 flex items-center justify-between gap-4">
             <button
               onClick={onClose}
@@ -649,6 +701,8 @@ const BookingPaymentModal = ({
                   )}
                   {selectedMethod === 'khalti' || selectedMethod === 'esewa'
                     ? `Pay via ${selectedMethod === 'khalti' ? 'Khalti' : 'eSewa'} — NPR ${amount.toLocaleString()}`
+                    : selectedMethod === 'card'
+                    ? 'Continue to Card Payment'
                     : `Pay NPR ${amount.toLocaleString()}`
                   }
                 </>

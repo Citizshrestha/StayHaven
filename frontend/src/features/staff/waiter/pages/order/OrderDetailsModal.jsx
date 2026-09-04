@@ -8,14 +8,14 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false, onMarkReady, on
 
   // Theme colors
   const colors = {
-    bg: "#FFFFFF",
-    text: "#263238",
-    textSecondary: "#546E7A",
-    textTertiary: "#94A3B8",
-    border: "#E0E7EB",
-    cardBg: "#F8FAFB",
-    accent: "#00BFA6",
-    accentLight: "#00E5CC",
+    bg: isDarkMode ? "#0F172A" : "#FFFFFF",
+    text: isDarkMode ? "#F8FAFC" : "#263238",
+    textSecondary: isDarkMode ? "#CBD5E1" : "#546E7A",
+    textTertiary: isDarkMode ? "#94A3B8" : "#94A3B8",
+    border: isDarkMode ? "#334155" : "#E0E7EB",
+    cardBg: isDarkMode ? "#111827" : "#F8FAFB",
+    accent: isDarkMode ? "#34D399" : "#00BFA6",
+    accentLight: isDarkMode ? "#10B981" : "#00E5CC",
   };
 
   const itemsArray = Array.isArray(order.items)
@@ -312,7 +312,7 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false, onMarkReady, on
                 fontWeight: "700",
                 letterSpacing: "0.1em",
                 textTransform: "uppercase",
-                color: "#94A3B8",
+                  color: isDarkMode ? "#CBD5E1" : "#94A3B8",
                 marginBottom: "12px",
                 display: "flex",
                 alignItems: "center",
@@ -553,7 +553,7 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false, onMarkReady, on
                   fontWeight: "700",
                   letterSpacing: "0.1em",
                   textTransform: "uppercase",
-                  color: "#000000",
+                  color: isDarkMode ? "#F8FAFC" : "#000000",
                   marginBottom: "12px",
                   fontFamily: "'Poppins', sans-serif",
                 }}

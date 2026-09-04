@@ -6,6 +6,7 @@ import {
   moderateReview,
   getModerationMetrics,
   seedReviewData,
+  toggleFeaturedReview,
 } from '../../../../core/api/services/reviewModeration.service';
 import './ReviewModeration.css';
 
@@ -67,6 +68,16 @@ const ReviewModeration = () => {
       loadReviews();
     } catch (error) {
       toast.error(`Failed to ${action} review`);
+    }
+  };
+
+  const handleToggleFeatured = async (reviewId, currentStatus) => {
+    try {
+      await toggleFeaturedReview(reviewId, { isFeatured: !currentStatus });
+      toast.success(`Review ${!currentStatus ? 'featured' : 'unfeatured'} successfully`);
+      loadReviews();
+    } catch (error) {
+      toast.error('Failed to toggle featured status');
     }
   };
 
@@ -204,6 +215,18 @@ const ReviewModeration = () => {
                               <span className="moderated-date">
                                 Moderated on {new Date(review.moderatedAt).toLocaleDateString()}
                               </span>
+                            )}
+                            {review.moderationStatus === 'approved' && (
+                              <button
+                                className={`btn-featured ${review.isFeatured ? 'featured-active' : ''}`}
+                                onClick={() => handleToggleFeatured(review._id, review.isFeatured)}
+                                title={review.isFeatured ? 'Remove from homepage' : 'Feature on homepage'}
+                              >
+                                <span className="material-symbols-outlined">
+                                  {review.isFeatured ? 'star' : 'star_outline'}
+                                </span>
+                                {review.isFeatured ? 'Featured' : 'Feature'}
+                              </button>
                             )}
                           </div>
                         )}

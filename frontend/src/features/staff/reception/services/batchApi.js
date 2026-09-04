@@ -14,7 +14,7 @@ const api = axios.create({
 
 // Add auth token to requests
 api.interceptors.request.use((config) => {
-  const token = sessionStorage.getItem('staffAccessToken') || localStorage.getItem('staffAccessToken');
+  const token = sessionStorage.getItem('staffAccessToken');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -24,10 +24,10 @@ api.interceptors.request.use((config) => {
 // Setup CSRF token interceptor
 setupCsrfInterceptor(api);
 
-// Helper to inject hotelId from localStorage
+// Helper to inject hotelId from sessionStorage
 const getActiveHotelId = () => {
   try {
-    const raw = localStorage.getItem("activeProperty");
+    const raw = sessionStorage.getItem("activeProperty");
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (typeof parsed === "string") return parsed;

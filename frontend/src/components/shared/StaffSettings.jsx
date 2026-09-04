@@ -193,6 +193,9 @@ const StaffSettings = ({ onClose, variant = "waiter" }) => {
   // Handle save
   const handleSave = () => {
     localStorage.setItem(storageKey, JSON.stringify(settings));
+    // Notify any open dashboard in this tab (e.g. the auto-refresh poller)
+    // that settings changed, without requiring a page reload.
+    window.dispatchEvent(new CustomEvent("staff-settings-updated", { detail: { storageKey, settings } }));
 
     // Apply theme on save
     if (settings.theme !== theme) {
@@ -443,17 +446,39 @@ const StaffSettings = ({ onClose, variant = "waiter" }) => {
             <div className="ws-section-header">
               <Zap size={18} className="ws-section-icon" />
               <span>Quick Actions</span>
-              <button className="ws-manage-btn">MANAGE</button>
+              <button
+                className="ws-manage-btn"
+                disabled
+                title="Coming soon"
+                style={{ opacity: 0.5, cursor: "not-allowed" }}
+              >
+                MANAGE
+              </button>
             </div>
 
             <div className="ws-chips">
-              <button className="ws-chip action-chip">
+              <button
+                className="ws-chip action-chip"
+                disabled
+                title="Coming soon — use the order's own Print Bill action for now"
+                style={{ opacity: 0.5, cursor: "not-allowed" }}
+              >
                 🖨️ Print Bill
               </button>
-              <button className="ws-chip action-chip">
+              <button
+                className="ws-chip action-chip"
+                disabled
+                title="Coming soon"
+                style={{ opacity: 0.5, cursor: "not-allowed" }}
+              >
                 🍴 Split Table
               </button>
-              <button className="ws-chip add-chip">
+              <button
+                className="ws-chip add-chip"
+                disabled
+                title="Coming soon"
+                style={{ opacity: 0.5, cursor: "not-allowed" }}
+              >
                 + Add New
               </button>
             </div>

@@ -1,10 +1,12 @@
 import { useState, useEffect, useMemo } from "react";
 import { MapPin, Users, Clock, ChefHat, CheckCircle, AlertCircle, X, Calendar } from "lucide-react";
 import axiosClient from "../../../../axiosClient";
+import { useTheme } from "../../../../core/hooks/useTheme";
 
 const AssignedAreas = ({ orders = [], onFilterByArea, onClose }) => {
   const [isMobile, setIsMobile] = useState(false);
   const [myAssignment, setMyAssignment] = useState(null);
+  const { isDark } = useTheme();
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -123,13 +125,13 @@ const AssignedAreas = ({ orders = [], onFilterByArea, onClose }) => {
   const titleStyle = {
     fontSize: isMobile ? '28px' : '36px',
     fontWeight: '800',
-    color: '#000000',
+    color: isDark ? '#ffffff' : '#000000',
     margin: 0,
   };
 
   const subtitleStyle = {
     fontSize: '16px',
-    color: '#374151',
+    color: isDark ? '#CBD5E1' : '#374151',
     marginTop: '8px',
     fontWeight: '600',
   };
@@ -269,8 +271,8 @@ const AssignedAreas = ({ orders = [], onFilterByArea, onClose }) => {
                     borderRadius: '8px',
                     fontSize: '13px',
                     fontWeight: '600',
-                    backgroundColor: '#D1FAE5',
-                    color: '#065F46',
+                    backgroundColor: isDark ? '#064E3B' : '#D1FAE5',
+                    color: isDark ? '#A7F3D0' : '#065F46',
                   }}>
                     🍽️ Table {table}
                   </span>
@@ -281,8 +283,8 @@ const AssignedAreas = ({ orders = [], onFilterByArea, onClose }) => {
                     borderRadius: '8px',
                     fontSize: '13px',
                     fontWeight: '600',
-                    backgroundColor: '#DBEAFE',
-                    color: '#1E40AF',
+                    backgroundColor: isDark ? '#1E3A8A' : '#DBEAFE',
+                    color: isDark ? '#BFDBFE' : '#1E40AF',
                   }}>
                     🛏️ Room {room}
                   </span>
@@ -379,7 +381,7 @@ const AssignedAreas = ({ orders = [], onFilterByArea, onClose }) => {
                     justifyContent: 'space-between',
                     alignItems: 'center',
                   }}>
-                    <span style={{ fontSize: '13px', color: '#374151', fontWeight: '600' }}>
+                    <span style={{ fontSize: '13px', color: isDark ? '#CBD5E1' : '#374151', fontWeight: '600' }}>
                       Total orders: {area.totalOrders}
                     </span>
                     <span style={{

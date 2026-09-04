@@ -25,7 +25,7 @@ const HotelDetail = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [mobileBookingOpen, setMobileBookingOpen] = useState(false);
   const [expandedReviews, setExpandedReviews] = useState({});
-  const [selectedRoomByType, setSelectedRoomByType] = useState({});
+  const [selectedRoomId, setSelectedRoomId] = useState(null);
   const [hotel, setHotel] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -86,8 +86,21 @@ const HotelDetail = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [id]);
 
+  // The room actually being booked — defaults to the first room until the
+  // guest picks one in "Choose your room" below. Every price shown to the
+  // guest (sidebar summary, total, and what's sent to the payment gateway)
+  // must come from THIS room, not from the hotel's overall price range —
+  // those two used to be unrelated values (hotel.priceRange.min vs
+  // hotel.rooms[0].price), which could show one total on this page and a
+  // different, higher one on the actual eSewa/Khalti payment screen.
+  const selectedRoom = useMemo(() => {
+    const rooms = hotel?.rooms || [];
+    if (!rooms.length) return null;
+    return rooms.find((r) => (r._id || r.id) === selectedRoomId) || rooms[0];
+  }, [hotel?.rooms, selectedRoomId]);
+
   const booking = useMemo(() => {
-    const pricePerNight = hotel?.priceRange?.min ?? 0;
+    const pricePerNight = selectedRoom?.price ?? hotel?.priceRange?.min ?? 0;
     const nights = 3;
     const taxesAndFees = Math.round(pricePerNight * nights * 0.12);
     return {
@@ -97,7 +110,7 @@ const HotelDetail = () => {
       guests: '2 Adults, 1 Child',
       freeCancellationDate: 'Apr 4, 2026',
     };
-  }, [hotel?.priceRange?.min]);
+  }, [selectedRoom, hotel?.priceRange?.min]);
 
   const reviewAverage = (hotel?.rating ?? 0).toFixed(1);
 
@@ -208,14 +221,25 @@ const HotelDetail = () => {
               <section id="section-rooms" className="space-y-5 animate-[fadeInUp_0.8s_ease]">
                 <h3 className="text-2xl font-bold text-[#263238]">Choose your room</h3>
                 {(hotel.rooms || []).map((room) => {
-                  const selectedRoomNumber = selectedRoomByType[room.id];
+                  const roomId = room._id || room.id;
+                  const isSelected = (selectedRoom?._id || selectedRoom?.id) === roomId;
                   return (
                     <article
-                      key={room._id || room.id}
-                      className="group rounded-2xl border bg-white overflow-hidden transition-all duration-300 hover:-translate-y-1"
+                      key={roomId}
+                      role="button"
+                      tabIndex={0}
+                      aria-pressed={isSelected}
+                      onClick={() => setSelectedRoomId(roomId)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setSelectedRoomId(roomId);
+                        }
+                      }}
+                      className="group rounded-2xl border bg-white overflow-hidden transition-all duration-300 hover:-translate-y-1 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00BFA6]"
                       style={{
-                        borderColor: selectedRoomNumber ? '#00BFA6' : 'rgba(0,191,166,0.15)',
-                        boxShadow: selectedRoomNumber
+                        borderColor: isSelected ? '#00BFA6' : 'rgba(0,191,166,0.15)',
+                        boxShadow: isSelected
                           ? '0 8px 32px rgba(0,191,166,0.15)'
                           : '0 4px 16px rgba(0,0,0,0.06)',
                       }}
@@ -242,10 +266,18 @@ const HotelDetail = () => {
                             {(room.amenities || []).slice(0, 3).map((feature) => <span key={feature}>{feature}</span>)}
                           </div>
                           <div className="h-px bg-[rgba(0,191,166,0.15)] my-4" />
-                          <p className="text-lg font-bold text-[#263238]">NPR {room.price}/night</p>
-                          <button className="mt-5 w-full rounded-xl py-3 text-sm font-bold text-white bg-linear-to-r from-[#00BFA6] to-[#00E5CC] hover:shadow-[0_8px_24px_rgba(0,191,166,0.3)] transition">
-                            Select Room →
-                          </button>
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-lg font-bold text-[#263238]">NPR {room.price}/night</p>
+                            {isSelected ? (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-white bg-[#00BFA6]">
+                                <Check className="w-3.5 h-3.5" /> Selected
+                              </span>
+                            ) : (
+                              <span className="px-3 py-1.5 rounded-full text-xs font-semibold text-[#00A896] border border-[#00BFA6]/40">
+                                Select room
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </article>
@@ -436,7 +468,7 @@ const HotelDetail = () => {
                     hotelAddress={[hotel?.location?.address, hotel?.location?.city].filter(Boolean).join(', ')}
                     hotelImage={hotel.images?.[0]}
                     hotelId={hotel._id}
-                    roomId={hotel.rooms?.[0]?._id || hotel.rooms?.[0]?.id}
+                    roomId={selectedRoom?._id || selectedRoom?.id}
                   />
                 </div>
               </div>
@@ -466,7 +498,7 @@ const HotelDetail = () => {
               hotelAddress={[hotel?.location?.address, hotel?.location?.city].filter(Boolean).join(', ')}
               hotelImage={hotel.images?.[0]}
               hotelId={hotel._id}
-              roomId={hotel.rooms?.[0]?._id || hotel.rooms?.[0]?.id}
+              roomId={selectedRoom?._id || selectedRoom?.id}
             />
           </div>
         </div>

@@ -1,0 +1,141 @@
+/* ═══════════════════════════════════════════════════════════════
+   ReportsAnalytics — matches StaffManagement premium design tokens
+═══════════════════════════════════════════════════════════════ */
+:root {
+  --ra-primary:    #6366f1;
+  --ra-surface:    #ffffff;
+  --ra-bg:         #f8fafc;
+  --ra-border:     #e2e8f0;
+  --ra-text:       #1e293b;
+  --ra-text2:      #64748b;
+  --ra-text3:      #94a3b8;
+  --ra-danger:     #ef4444;
+  --ra-success:    #10b981;
+  --ra-radius:     14px;
+  --ra-radius-sm:  8px;
+  --ra-shadow:     0 1px 3px rgba(0,0,0,.05), 0 4px 16px rgba(0,0,0,.06);
+  --ra-shadow-md:  0 4px 24px rgba(0,0,0,.12);
+  --ra-tr:         all .2s cubic-bezier(.4,0,.2,1);
+}
+
+.ra-root { background: var(--ra-bg); min-height: 100%; font-family: inherit; padding-bottom: 28px; }
+
+/* ── Header ── */
+.ra-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 28px; background: var(--ra-surface); border-bottom: 1px solid var(--ra-border);
+  flex-wrap: wrap; gap: 14px;
+}
+.ra-header-left { display: flex; align-items: center; gap: 14px; }
+.ra-header-icon {
+  width: 48px; height: 48px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  border-radius: 12px; display: flex; align-items: center; justify-content: center;
+  color: white; flex-shrink: 0;
+}
+.ra-header-left h1 { font-size: 1.4rem; font-weight: 700; color: var(--ra-text); margin: 0 0 2px; }
+.ra-header-left p  { font-size: .85rem; color: var(--ra-text2); margin: 0; }
+
+.ra-btn {
+  padding: 9px 18px; border-radius: var(--ra-radius-sm); font-size: .875rem; font-weight: 500;
+  cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: var(--ra-tr);
+  background: var(--ra-surface); color: var(--ra-text2); border: 1px solid var(--ra-border); white-space: nowrap;
+}
+.ra-btn:hover:not(:disabled) { background: var(--ra-bg); color: var(--ra-text); }
+.ra-btn:disabled { opacity: .5; cursor: not-allowed; }
+.ra-spin { animation: ra-spin .8s linear infinite; }
+@keyframes ra-spin { to { transform: rotate(360deg); } }
+
+/* ── KPI cards ── */
+.ra-kpis {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px; padding: 18px 28px;
+}
+.ra-kpi {
+  background: var(--ra-surface); border: 1px solid var(--ra-border);
+  border-radius: var(--ra-radius); padding: 18px;
+  display: flex; align-items: center; gap: 14px;
+  box-shadow: var(--ra-shadow); border-top: 3px solid var(--c, var(--ra-primary));
+  transition: var(--ra-tr);
+}
+.ra-kpi:hover { box-shadow: var(--ra-shadow-md); transform: translateY(-2px); }
+.ra-kpi-icon {
+  width: 44px; height: 44px; border-radius: 10px; flex-shrink: 0;
+  background: var(--c, var(--ra-primary)); display: flex; align-items: center; justify-content: center; color: #fff;
+}
+.ra-kpi-value { font-size: 1.5rem; font-weight: 800; color: var(--ra-text); line-height: 1.1; }
+.ra-kpi-label { font-size: .8rem; color: var(--ra-text2); font-weight: 500; }
+.ra-kpi-sub   { font-size: .72rem; color: var(--ra-text3); margin-top: 2px; }
+
+/* ── Section grid & cards ── */
+.ra-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px; padding: 0 28px 20px;
+}
+.ra-card {
+  background: var(--ra-surface); border: 1px solid var(--ra-border);
+  border-radius: var(--ra-radius); padding: 20px; box-shadow: var(--ra-shadow);
+}
+.ra-card-title {
+  display: flex; align-items: center; gap: 8px; font-size: .95rem; font-weight: 700;
+  color: var(--ra-text); margin: 0 0 14px;
+}
+
+/* ── Check-in/out mini stats ── */
+.ra-minigrid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.ra-mini-label { font-size: .72rem; color: var(--ra-text2); font-weight: 500; margin-bottom: 4px; }
+.ra-mini-value { font-size: 1.3rem; font-weight: 800; color: var(--ra-text); }
+.ra-mini-sub   { font-size: .7rem; color: var(--ra-text3); margin-top: 2px; }
+
+.ra-pill {
+  display: inline-block; margin-top: 6px; padding: 2px 10px; border-radius: 999px;
+  font-size: .7rem; font-weight: 700;
+}
+
+/* ── Housekeeping rows ── */
+.ra-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 0; border-bottom: 1px solid var(--ra-border); font-size: .83rem; color: var(--ra-text);
+}
+.ra-row:last-child { border-bottom: none; }
+
+/* ── Revenue bars ── */
+.ra-bar { margin-bottom: 10px; }
+.ra-bar-head { display: flex; justify-content: space-between; font-size: .8rem; margin-bottom: 4px; color: var(--ra-text); }
+.ra-bar-head b { font-weight: 700; }
+.ra-bar-track { height: 8px; border-radius: 4px; background: var(--ra-bg); border: 1px solid var(--ra-border); overflow: hidden; }
+.ra-bar-fill { height: 100%; border-radius: 4px; transition: width .5s ease; }
+.ra-bar-total { text-align: right; font-size: .8rem; font-weight: 700; margin-top: 10px; color: var(--ra-text); }
+
+/* ── Room status tiles ── */
+.ra-rooms {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px;
+}
+.ra-room-tile { background: var(--ra-bg); border: 1px solid var(--ra-border); border-radius: var(--ra-radius-sm); padding: 12px; }
+.ra-room-type { font-weight: 700; font-size: .85rem; color: var(--ra-text); margin-bottom: 4px; }
+.ra-room-occ  { font-size: .75rem; color: var(--ra-text2); margin-bottom: 6px; }
+.ra-room-bar  { height: 6px; border-radius: 3px; background: var(--ra-border); overflow: hidden; }
+.ra-room-bar-fill { height: 100%; border-radius: 3px; background: var(--ra-primary); }
+
+/* ── Activity list ── */
+.ra-activity-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 9px 0; border-bottom: 1px solid var(--ra-border);
+}
+.ra-activity-row:last-child { border-bottom: none; }
+.ra-activity-desc { font-size: .83rem; color: var(--ra-text); }
+.ra-activity-time { font-size: .72rem; color: var(--ra-text3); white-space: nowrap; }
+
+/* ── Loading / Error ── */
+.ra-loading, .ra-error {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  padding: 100px 28px; color: var(--ra-text2);
+}
+.ra-spinner { width: 30px; height: 30px; border: 3px solid var(--ra-border); border-top-color: var(--ra-primary); border-radius: 50%; animation: ra-spin .8s linear infinite; }
+.ra-error { color: var(--ra-danger); }
+
+.ra-empty-inline { text-align: center; padding: 24px; color: var(--ra-text3); font-size: .83rem; }
+
+@media (max-width: 640px) {
+  .ra-header, .ra-kpis, .ra-grid { padding-left: 16px; padding-right: 16px; }
+}

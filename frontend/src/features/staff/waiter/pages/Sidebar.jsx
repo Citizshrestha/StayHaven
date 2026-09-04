@@ -123,10 +123,10 @@ const Sidebar = ({ activeView = "dashboard", onViewChange, notificationCount = 0
           style={profileImageStyle}
         />
         <div style={{ minWidth: 0 }}>
-          <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "700", color: "var(--text-primary)" }}>
+          <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "700", color: isDark ? "#F8FAFC" : "#0F172A" }}>
             {staffUser?.fullname ?? "Staff Member"}
           </h3>
-          <p style={{ margin: 0, fontSize: "14px", color: "#374151", textTransform: "capitalize" }}>{staffUser?.role ?? "Waiter"}</p>
+          <p style={{ margin: 0, fontSize: "14px", color: isDark ? "#CBD5E1" : "#334155", textTransform: "capitalize" }}>{staffUser?.role ?? "Waiter"}</p>
           {
             activeProperty?.name && (
               <p style={{

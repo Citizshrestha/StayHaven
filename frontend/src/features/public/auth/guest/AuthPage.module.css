@@ -409,9 +409,13 @@
 }
 
 .checkbox {
+  /* 16px visually, but padding pads the actual hit area out to ~24px —
+     the visual box stays small/tidy while the tap target is closer to
+     the ~44px mobile accessibility guideline. */
   width: 16px;
   height: 16px;
   margin-top: 3px;
+  padding: 6px;
   flex-shrink: 0;
   accent-color: var(--brand-teal);
   cursor: pointer;

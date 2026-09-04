@@ -224,6 +224,43 @@
   gap: 1rem;
   padding-top: 1rem;
   border-top: 1px solid #f1f5f9;
+  flex-wrap: wrap;
+}
+
+.btn-featured {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
+  color: #64748b;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.875rem;
+  margin-left: auto;
+}
+
+.btn-featured:hover {
+  background: #f8fafc;
+  border-color: #fbbf24;
+  color: #f59e0b;
+}
+
+.btn-featured.featured-active {
+  background: #fef3c7;
+  border-color: #fbbf24;
+  color: #d97706;
+}
+
+.btn-featured.featured-active:hover {
+  background: #fde68a;
+}
+
+.btn-featured .material-symbols-outlined {
+  font-size: 1.125rem;
 }
 
 .moderated-date {

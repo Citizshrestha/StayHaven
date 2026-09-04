@@ -12,6 +12,8 @@ import { useNotifications } from "../../../../core/context/useNotifications";
 import { useTheme } from "../../../../core/hooks/useTheme";
 import { useStaffAuth } from "../../../../context/StaffAuthContext";
 import MessagingPanel from "../../../../shared/components/MessagingPanel";
+import useNotificationSound from "../../../../core/hooks/useNotificationSound";
+import useSettingsAutoRefresh from "../../../../core/hooks/useSettingsAutoRefresh";
 
 const KitchenDashboard = () => {
   const navigate = useNavigate();
@@ -41,6 +43,10 @@ const KitchenDashboard = () => {
 
   const { orders, updateOrderStatus, fetchOrders, loading } = useOrderContext();
 
+  // Settings > Display > Auto-refresh: periodic reconciliation fetch on top
+  // of the primary socket-driven updates (in case an event is missed).
+  useSettingsAutoRefresh("kitchenSettings", fetchOrders);
+
   // Calculate active order count for header
   const activeOrderCount = useMemo(() => {
     return orders.filter((o) => o.status !== "delivered").length;
@@ -65,6 +71,15 @@ const KitchenDashboard = () => {
 
   // Socket.io for order refresh (notifications handled by context)
   const { subscribe } = useSocket();
+  const { playWithVibration } = useNotificationSound();
+
+  // Request browser notification permission once so we can alert kitchen
+  // staff of new orders even when this tab isn't focused.
+  useEffect(() => {
+    if (typeof Notification !== "undefined" && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, []);
 
   // Apply kitchen-dark class for legacy CSS support (in addition to dark-theme from ThemeContext)
   useEffect(() => {
@@ -98,8 +113,21 @@ const KitchenDashboard = () => {
       fetchOrders({ silent: true });
     });
 
-    const unsubscribeNewOrder = subscribe('new-order', () => {
+    const unsubscribeNewOrder = subscribe('new-order', (data) => {
       fetchOrders({ silent: true });
+
+      playWithVibration('newOrder');
+
+      // Browser notification so kitchen staff notice even when the tab
+      // isn't focused (e.g. they're checking another dashboard).
+      if (typeof Notification !== "undefined" && Notification.permission === "granted" && document.hidden) {
+        const orderNumber = data?.order?.orderNumber;
+        new Notification("New order received", {
+          body: orderNumber ? `Order #${orderNumber} just came in` : "A new order just came in",
+          icon: "/favicon.ico",
+          tag: "kitchen-new-order",
+        });
+      }
     });
 
     return () => {
@@ -143,6 +171,7 @@ const KitchenDashboard = () => {
             onClose={() => setActiveView("dashboard")}
             onNotificationClick={handleNotificationClick}
             isDarkMode={isDarkMode}
+            variant="kitchen"
           />
         );
       case "settings":

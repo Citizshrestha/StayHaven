@@ -32,7 +32,7 @@ const ProtectedStaffRoute = ({ children, allowedRoles = [] }) => {
     if (role === 'chief') {
       return <Navigate to="/kitchen-dashboard" replace />;
     }
-    if (role === 'hoteladmin') {
+    if (role === 'hoteladmin' || role === 'admin' || role === 'owner') {
       return <Navigate to="/hoteladmin-dashboard" replace />;
     }
     if (role === 'superadmin') {

@@ -30,6 +30,7 @@ import { getActiveProperty } from "../../../../api/staff";
 import axiosClient from "../../../../axiosClient";
 import { useSocket } from "../../../../context/SocketContext";
 import useNotificationSound from "../../../../hooks/useNotificationSound";
+import { useTheme } from "../../../../core/hooks/useTheme";
 
 const WaiterCallsPanel = ({ onClose, onCallCountChange }) => {
   const [calls, setCalls] = useState([]);
@@ -37,6 +38,7 @@ const WaiterCallsPanel = ({ onClose, onCallCountChange }) => {
   const [error, setError] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
   const [processingCall, setProcessingCall] = useState(null);
+  const { isDark } = useTheme();
 
   const { subscribe, isConnected } = useSocket();
   const { playWithVibration } = useNotificationSound();
@@ -216,7 +218,7 @@ const WaiterCallsPanel = ({ onClose, onCallCountChange }) => {
   const titleStyle = {
     fontSize: isMobile ? '28px' : '36px',
     fontWeight: '800',
-    color: '#000000',
+    color: isDark ? '#ffffff' : '#000000',
     margin: 0,
     display: 'flex',
     alignItems: 'center',
@@ -339,7 +341,7 @@ const WaiterCallsPanel = ({ onClose, onCallCountChange }) => {
         <div style={{
           textAlign: 'center',
           padding: '60px 20px',
-          color: '#DC2626'
+          color: isDark ? '#FCA5A5' : '#DC2626'
         }}>
           <p>{error}</p>
         </div>
@@ -354,7 +356,7 @@ const WaiterCallsPanel = ({ onClose, onCallCountChange }) => {
             fontSize: '18px',
             fontWeight: '600',
             marginBottom: '8px',
-            color: 'var(--text-secondary)'
+            color: isDark ? '#E2E8F0' : 'var(--text-secondary)'
           }}>
             No active calls
           </h3>
@@ -406,7 +408,9 @@ const WaiterCallsPanel = ({ onClose, onCallCountChange }) => {
                           gap: '8px'
                         }}>
                           <MapPin size={16} />
-                          Room {call.roomNumber}
+                          {call.tableNumber
+                            ? `Table ${call.tableNumber}`
+                            : `Room ${call.roomNumber}`}
                         </p>
                         <p style={{
                           margin: '2px 0 0 0',

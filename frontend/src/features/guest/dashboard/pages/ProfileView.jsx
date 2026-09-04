@@ -5,10 +5,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { getUserProfile, updateUserProfile } from "../guestDashboardApi";
-import { useTheme } from '../../../../core/hooks/useTheme';
 import { toast } from 'react-toastify';
 import {
-  User,
   Mail,
   Phone,
   Calendar,
@@ -17,12 +15,11 @@ import {
   X,
   Loader2,
   Award,
-  Star,
+  Wallet,
+  CalendarCheck,
 } from 'lucide-react';
-import { motion } from 'framer-motion';
 
 const ProfileView = () => {
-  const { isDark } = useTheme();
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [profile, setProfile] = useState(null);
@@ -75,10 +72,18 @@ const ProfileView = () => {
     }
   };
 
+  const handleCancelEdit = () => {
+    setEditing(false);
+    setFormData({
+      fullname: profile?.fullname || '',
+      contact: profile?.contact || '',
+    });
+  };
+
   if (loading) {
     return (
-      <div className={`min-h-screen flex items-center justify-center ${isDark ? 'bg-linear-to-br from-slate-950 to-slate-900' : 'bg-linear-to-br from-purple-50 to-pink-50'}`}>
-        <Loader2 className="w-10 h-10 animate-spin text-purple-600" />
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#0b1220]">
+        <Loader2 className="w-10 h-10 animate-spin text-teal-500" />
       </div>
     );
   }
@@ -91,168 +96,143 @@ const ProfileView = () => {
       })
     : 'N/A';
 
+  const EditToggle = ({ compact }) =>
+    !editing ? (
+      <button
+        onClick={() => setEditing(true)}
+        className={`flex items-center gap-2 bg-gradient-to-r from-teal-500 to-emerald-500 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-teal-500/20 transition-all ${compact ? 'px-3.5 py-2 text-sm' : 'px-4 py-2.5'}`}
+      >
+        <Edit2 className="w-4 h-4" />
+        Edit Profile
+      </button>
+    ) : (
+      <div className="flex gap-2">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className={`flex items-center gap-2 bg-teal-600 text-white rounded-xl font-semibold hover:bg-teal-700 transition-all disabled:opacity-50 ${compact ? 'px-3.5 py-2 text-sm' : 'px-4 py-2.5'}`}
+        >
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          Save
+        </button>
+        <button
+          onClick={handleCancelEdit}
+          className={`flex items-center gap-2 bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-200 dark:hover:bg-white/10 transition-all ${compact ? 'px-3.5 py-2 text-sm' : 'px-4 py-2.5'}`}
+        >
+          <X className="w-4 h-4" />
+          Cancel
+        </button>
+      </div>
+    );
+
   return (
-    <div className={`min-h-screen pb-24 md:pb-8 ${isDark ? 'bg-linear-to-br from-slate-950 via-slate-900 to-gray-950 text-gray-100' : 'bg-linear-to-br from-purple-50 via-pink-50 to-red-50'}`}>
+    <div className="min-h-screen pb-24 lg:pb-8 bg-gray-50 dark:bg-[#0b1220]">
       {/* Header */}
-      <div className="hidden md:block bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border-b border-gray-100 dark:border-slate-800 shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">My Profile</h1>
-              <p className="text-gray-600 dark:text-gray-400 mt-1">Manage your account information</p>
-            </div>
-            {!editing ? (
-              <button
-                onClick={() => setEditing(true)}
-                className="px-4 py-2 bg-linear-to-r from-purple-500 to-pink-500 text-white rounded-lg font-semibold hover:shadow-md transition-all flex items-center gap-2"
-              >
-                <Edit2 className="w-4 h-4" />
-                Edit Profile
-              </button>
-            ) : (
-              <div className="flex gap-2">
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="px-4 py-2 bg-green-500 text-white rounded-lg font-semibold hover:shadow-md transition-all flex items-center gap-2 disabled:opacity-50"
-                >
-                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  Save
-                </button>
-                <button
-                  onClick={() => setEditing(false)}
-                  className="px-4 py-2 bg-gray-200 dark:bg-slate-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-slate-700 transition-all flex items-center gap-2"
-                >
-                  <X className="w-4 h-4" />
-                  Cancel
-                </button>
-              </div>
-            )}
+      <div className="hidden lg:block bg-white/90 dark:bg-[#0f1c2e]/90 backdrop-blur-lg border-b border-gray-100 dark:border-white/5 sticky top-0 z-10">
+        <div className="max-w-4xl mx-auto px-8 py-7 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My Profile</h1>
+            <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">Manage your account information</p>
           </div>
+          <EditToggle />
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 md:pt-8 pb-8">
-        <div className="md:hidden mb-4 flex items-center justify-between gap-3">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 lg:pt-8 pb-8">
+        <div className="lg:hidden mb-5 flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-base font-semibold text-gray-900 dark:text-gray-100 truncate">Profile</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">Manage your account</p>
+            <p className="text-xl font-bold text-gray-900 dark:text-white truncate">Profile</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 truncate">Manage your account</p>
           </div>
-          {!editing ? (
-            <button
-              onClick={() => setEditing(true)}
-              className="px-3 py-2 bg-linear-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold hover:shadow-md transition-all flex items-center gap-2 text-sm"
-            >
-              <Edit2 className="w-4 h-4" />
-              Edit
-            </button>
-          ) : (
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="px-3 py-2 bg-green-500 text-white rounded-xl font-semibold hover:shadow-md transition-all flex items-center gap-2 disabled:opacity-50 text-sm"
-            >
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              Save
-            </button>
-          )}
+          <EditToggle compact />
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid lg:grid-cols-3 gap-6">
           {/* Profile Card */}
-          <div className="md:col-span-1">
-            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-md p-6 text-center border border-gray-100 dark:border-slate-800">
-              {profilePicture ? (
-                <img
-                  src={profilePicture}
-                  alt={fullname}
-                  className="w-24 h-24 rounded-full mx-auto mb-4 object-cover border-4 border-purple-200"
-                />
-              ) : (
-                <div className="w-24 h-24 rounded-full mx-auto mb-4 bg-linear-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white text-3xl font-bold">
-                  {fullname?.charAt(0) || 'G'}
+          <div className="lg:col-span-1">
+            <div className="relative bg-white dark:bg-[#0f1c2e] rounded-2xl shadow-sm border border-gray-100 dark:border-white/5 overflow-hidden">
+              <div className="h-20 bg-gradient-to-r from-teal-500 to-emerald-500" />
+              <div className="px-6 pb-6 -mt-10 text-center">
+                {profilePicture ? (
+                  <img
+                    src={profilePicture}
+                    alt={fullname}
+                    className="w-20 h-20 rounded-full mx-auto object-cover border-4 border-white dark:border-[#0f1c2e] shadow-md"
+                  />
+                ) : (
+                  <div className="w-20 h-20 rounded-full mx-auto bg-gradient-to-br from-teal-400 to-emerald-500 flex items-center justify-center text-white text-2xl font-bold border-4 border-white dark:border-[#0f1c2e] shadow-md">
+                    {fullname?.charAt(0)?.toUpperCase() || 'G'}
+                  </div>
+                )}
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white mt-3">{fullname}</h2>
+                <span className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-teal-50 dark:bg-teal-500/10 text-teal-700 dark:text-teal-300 capitalize">
+                  {role}
+                </span>
+                <div className="mt-5 pt-5 border-t border-gray-100 dark:border-white/5 flex items-center justify-center gap-2 text-sm">
+                  <Calendar className="w-4 h-4 text-gray-400" />
+                  <span className="text-gray-500 dark:text-gray-400">Member since</span>
+                  <span className="font-semibold text-gray-900 dark:text-gray-100">{memberSince}</span>
                 </div>
-              )}
-              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">{fullname}</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{role}</p>
-              <div className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-800">
-                <p className="text-sm text-gray-500 dark:text-gray-400">Member since</p>
-                <p className="font-medium text-gray-900 dark:text-gray-100">{memberSince}</p>
               </div>
             </div>
           </div>
 
-          {/* Stats Cards */}
-          <div className="md:col-span-2 space-y-4">
+          {/* Stats + Details */}
+          <div className="lg:col-span-2 space-y-5">
             <div className="grid grid-cols-3 gap-4">
-              <StatCard
-                icon={Award}
-                label="Total Stays"
-                value={stats?.totalBookings || 0}
-                color="text-purple-600"
-                bgColor="bg-purple-50"
-                darkBgColor="dark:bg-purple-900/20"
-              />
-              <StatCard
-                icon={Star}
-                label="Total Spent"
-                value={`NPR ${stats?.totalSpent?.toFixed(0) || 0}`}
-                color="text-pink-600"
-                bgColor="bg-pink-50"
-                darkBgColor="dark:bg-pink-900/20"
-              />
-              <StatCard
-                icon={Calendar}
-                label="Active Bookings"
-                value={stats?.activeBookings || 0}
-                color="text-blue-600"
-                bgColor="bg-blue-50"
-                darkBgColor="dark:bg-blue-900/20"
-              />
+              <StatCard icon={Award} label="Total Stays" value={stats?.totalBookings || 0} />
+              <StatCard icon={Wallet} label="Total Spent" value={`NPR ${stats?.totalSpent?.toFixed(0) || 0}`} />
+              <StatCard icon={CalendarCheck} label="Active Bookings" value={stats?.activeBookings || 0} />
             </div>
 
             {/* Profile Details */}
-            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-md p-6 border border-gray-100 dark:border-slate-800">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Contact Information</h3>
-              <div className="space-y-4">
+            <div className="bg-white dark:bg-[#0f1c2e] rounded-2xl shadow-sm p-6 border border-gray-100 dark:border-white/5">
+              <h3 className="text-base font-bold text-gray-900 dark:text-white mb-5">Contact Information</h3>
+              <div className="space-y-5">
                 <div>
-                  <label className="text-sm text-gray-600 dark:text-gray-400 mb-1 block">Full Name</label>
+                  <label className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-2 block">Full Name</label>
                   {editing ? (
                     <input
                       type="text"
                       value={formData.fullname}
                       onChange={(e) => setFormData({ ...formData, fullname: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500"
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-white/10 rounded-xl bg-white dark:bg-white/5 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
                       placeholder="Enter your full name"
                     />
                   ) : (
-                    <p className="font-medium text-gray-900 dark:text-gray-100">{fullname}</p>
+                    <p className="font-semibold text-gray-900 dark:text-gray-100">{fullname}</p>
                   )}
                 </div>
 
                 <div>
-                  <label className="text-sm text-gray-600 dark:text-gray-400 mb-1 block">Email</label>
-                  <div className="flex items-center gap-2">
-                    <Mail className="w-5 h-5 text-gray-400 dark:text-gray-500" />
-                    <p className="font-medium text-gray-900 dark:text-gray-100">{email}</p>
+                  <label className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-2 block">Email</label>
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-lg bg-gray-50 dark:bg-white/5 flex items-center justify-center shrink-0">
+                      <Mail className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-900 dark:text-gray-100">{email}</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500">Email cannot be changed</p>
+                    </div>
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Email cannot be changed</p>
                 </div>
 
                 <div>
-                  <label className="text-sm text-gray-600 dark:text-gray-400 mb-1 block">Phone</label>
+                  <label className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-2 block">Phone</label>
                   {editing ? (
                     <input
                       type="tel"
                       value={formData.contact}
                       onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500"
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-white/10 rounded-xl bg-white dark:bg-white/5 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
                       placeholder="Enter your phone number"
                     />
                   ) : (
-                    <div className="flex items-center gap-2">
-                      <Phone className="w-5 h-5 text-gray-400 dark:text-gray-500" />
-                      <p className="font-medium text-gray-900 dark:text-gray-100">{contact || 'Not provided'}</p>
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-lg bg-gray-50 dark:bg-white/5 flex items-center justify-center shrink-0">
+                        <Phone className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                      </div>
+                      <p className="font-semibold text-gray-900 dark:text-gray-100">{contact || 'Not provided'}</p>
                     </div>
                   )}
                 </div>
@@ -269,15 +249,13 @@ const ProfileView = () => {
 // Sub-components
 // ─────────────────────────────────────────
 
-const StatCard = ({ icon: Icon, label, value, color, bgColor, darkBgColor }) => (
-  <div className={`${bgColor} ${darkBgColor} rounded-lg shadow-sm p-4`}>
-    <div className="flex items-center gap-3">
-      <Icon className={`w-6 h-6 ${color}`} />
-      <div>
-        <p className="text-sm text-gray-600 dark:text-gray-400">{label}</p>
-        <p className="text-xl font-bold text-gray-900 dark:text-gray-100">{value}</p>
-      </div>
+const StatCard = ({ icon: Icon, label, value }) => (
+  <div className="bg-white dark:bg-[#0f1c2e] rounded-2xl shadow-sm border border-gray-100 dark:border-white/5 p-4">
+    <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-teal-500/10 flex items-center justify-center mb-3">
+      <Icon className="w-[18px] h-[18px] text-teal-600 dark:text-teal-400" />
     </div>
+    <p className="text-lg font-bold text-gray-900 dark:text-white truncate">{value}</p>
+    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{label}</p>
   </div>
 );
 

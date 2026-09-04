@@ -455,6 +455,11 @@ const MessagingPanel = ({
         }
     }, [isOpen, hotelId, loadConversations, loadContacts]);
 
+    // Keep searches scoped to the Contacts tab only.
+    useEffect(() => {
+        if (activeTab !== 'contacts') setSearchQuery('');
+    }, [activeTab]);
+
     // Load messages when chat changes
     useEffect(() => {
         if (activeChat) {
@@ -518,6 +523,26 @@ const MessagingPanel = ({
                     if (msg.sender?._id !== currentUserId) {
                         messagingApi.markMessagesRead({ messageIds: [msg._id], hotelId }).catch(() => { });
                     }
+                    // The chat list's preview still needs this message even though
+                    // we're skipping the full loadConversations() refetch below —
+                    // otherwise the open conversation's row goes stale until you
+                    // leave and reopen the panel. Patch it in place instead.
+                    setConversations(prev => prev.map(c => {
+                        const matches = isChannelMatch
+                            ? c.channel === msg.channel
+                            : (c.partner?._id === msg.sender?._id || c.partner?._id === msg.recipient);
+                        if (!matches) return c;
+                        return {
+                            ...c,
+                            lastMessage: {
+                                content: msg.content,
+                                messageType: msg.messageType,
+                                senderId: msg.sender?._id,
+                                createdAt: msg.createdAt || new Date().toISOString(),
+                                isRead: msg.sender?._id === currentUserId ? c.lastMessage?.isRead : true,
+                            },
+                        };
+                    }));
                     return;
                 }
             }
@@ -702,7 +727,7 @@ const MessagingPanel = ({
                 // If outgoing call, end it; if incoming, mark as missed
                 if (prev.id) {
                     const newStatus = prev.direction === 'outgoing' ? 'ended' : 'missed';
-                    messagingApi.updateCallStatus(prev.id, { callStatus: newStatus }).catch(() => {});
+                    messagingApi.updateCallStatus(prev.id, { callStatus: newStatus, hotelId }).catch(() => {});
                     if (emit) {
                         emit(newStatus === 'ended' ? 'end-call' : 'decline-call', {
                             callId: prev.id, hotelId,
@@ -840,7 +865,7 @@ const MessagingPanel = ({
             // Update local state
             setActiveCall(prev => prev ? { ...prev, status: 'answered', startTime: Date.now() } : null);
             // Persist to backend (also triggers call-status-update to both users)
-            await messagingApi.updateCallStatus(activeCall.id, { callStatus: 'answered' });
+            await messagingApi.updateCallStatus(activeCall.id, { callStatus: 'answered', hotelId });
 
             // WebRTC: callee side — offer will arrive via 'webrtc-offer' listener
             // (manager is initialized in the offer listener)
@@ -863,7 +888,7 @@ const MessagingPanel = ({
 
         try {
             setActiveCall(prev => prev ? { ...prev, status: 'declined' } : null);
-            await messagingApi.updateCallStatus(activeCall.id, { callStatus: 'declined' });
+            await messagingApi.updateCallStatus(activeCall.id, { callStatus: 'declined', hotelId });
             emit('decline-call', { callId: activeCall.id, hotelId });
             setTimeout(() => setActiveCall(null), 1500);
         } catch (err) {
@@ -888,6 +913,7 @@ const MessagingPanel = ({
             await messagingApi.updateCallStatus(activeCall.id, {
                 callStatus: 'ended',
                 callDuration: duration || 0,
+                hotelId,
             });
             emit('end-call', { callId: activeCall.id, hotelId, duration: duration || 0 });
             setActiveCall(prev => prev ? { ...prev, status: 'ended' } : null);
@@ -997,24 +1023,22 @@ const MessagingPanel = ({
         return () => document.removeEventListener('click', handleClickOutside);
     }, [activeConvMenu]);
 
-    // Get all contacts flattened
+    // Get all contacts flattened (Users only: Cook, Waiter, Receptionist)
     const allContacts = useMemo(() => {
         const all = [
             ...contacts.receptionists,
             ...contacts.waiters,
             ...contacts.chefs,
-            ...contacts.managers,
-            ...contacts.other
         ];
-        if (searchQuery) {
-            const q = searchQuery.toLowerCase();
-            return all.filter(c =>
-                c.fullname?.toLowerCase().includes(q) ||
-                c.companyRole?.toLowerCase().includes(q) ||
-                c.email?.toLowerCase().includes(q)
-            );
-        }
-        return all;
+
+        if (!searchQuery) return all;
+        const q = searchQuery.toLowerCase();
+
+        return all.filter(c =>
+            c.fullname?.toLowerCase().includes(q) ||
+            c.companyRole?.toLowerCase().includes(q) ||
+            c.email?.toLowerCase().includes(q)
+        );
     }, [contacts, searchQuery]);
 
     // Channel definitions
@@ -1235,8 +1259,6 @@ const MessagingPanel = ({
             { label: 'Receptionists', items: contacts.receptionists },
             { label: 'Waiters', items: contacts.waiters },
             { label: 'Kitchen Staff', items: contacts.chefs },
-            { label: 'Managers', items: contacts.managers },
-            { label: 'Other', items: contacts.other },
         ].filter(g => g.items.length > 0);
 
         if (searchQuery) {
@@ -1542,14 +1564,14 @@ const MessagingPanel = ({
                             </button>
                         </div>
 
-                        {/* Search */}
-                        {(activeTab === 'contacts' || activeTab === 'chats') && (
+                        {/* Search (Users only) */}
+                        {activeTab === 'contacts' && (
                             <div className="msg-search">
                                 <div className="msg-search-input-wrapper">
                                     <Search size={15} className="msg-search-icon" />
                                     <input
                                         className="msg-search-input"
-                                        placeholder={activeTab === 'chats' ? 'Search conversations...' : 'Search contacts...'}
+                                        placeholder="Search Users..."
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
                                     />

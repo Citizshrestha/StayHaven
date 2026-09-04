@@ -8,6 +8,8 @@ const FilteredHotels = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const hotelSearch = searchParams.get('search')?.trim() || '';
+  const checkIn = searchParams.get('checkIn') || '';
+  const checkOut = searchParams.get('checkOut') || '';
   const [selectedRating, setSelectedRating] = useState(null);
   const [priceRange, setPriceRange] = useState(45000);
   const [selectedCity, setSelectedCity] = useState('Kathmandu');
@@ -74,7 +76,11 @@ const FilteredHotels = () => {
           maxPrice: priceRange,
         };
         if (hotelSearch) filters.search = hotelSearch;
-        if (selectedCity) filters.city = selectedCity;
+        if (selectedCity) filters.destination = selectedCity;
+        if (checkIn && checkOut) {
+          filters.checkIn = checkIn;
+          filters.checkOut = checkOut;
+        }
         if (selectedRating) {
           filters.minRating = selectedRating;
           filters.maxRating = selectedRating + 1;
@@ -100,7 +106,7 @@ const FilteredHotels = () => {
     return () => {
       cancelled = true;
     };
-  }, [hotelSearch, selectedCity, selectedRating, priceRange, selectedAmenityIds, currentPage, sortBy]);
+  }, [hotelSearch, checkIn, checkOut, selectedCity, selectedRating, priceRange, selectedAmenityIds, currentPage, sortBy]);
 
   return (
     <div style={{ backgroundColor: '#F9FAFB', minHeight: '100vh' }}>
@@ -239,9 +245,16 @@ const FilteredHotels = () => {
             <section style={{ flex: '1' }}>
               {/* Header with Title and Sort */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
-                <h1 style={{ fontSize: '1.875rem', fontWeight: '700', color: '#111827', fontFamily: 'Nunito, sans-serif' }}>
-                  {hotelSearch ? `Hotels matching "${hotelSearch}"` : `Hotels in ${selectedCity || 'all destinations'}`}
-                </h1>
+                <div>
+                  <h1 style={{ fontSize: '1.875rem', fontWeight: '700', color: '#111827', fontFamily: 'Nunito, sans-serif' }}>
+                    {hotelSearch ? `Hotels matching "${hotelSearch}"` : `Hotels in ${selectedCity || 'all destinations'}`}
+                  </h1>
+                  {checkIn && checkOut && (
+                    <p style={{ marginTop: '6px', color: '#4B5563', fontSize: '0.875rem' }}>
+                      Available from {checkIn} to {checkOut}
+                    </p>
+                  )}
+                </div>
                 <div style={{ position: 'relative', width: '200px' }}>
                   <select
                     value={sortBy}

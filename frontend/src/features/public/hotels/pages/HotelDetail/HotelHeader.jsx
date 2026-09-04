@@ -71,7 +71,7 @@ const HotelHeader = ({ name, location, rating, reviewCount, highlights = [], bad
                 </div>
                 <span className="font-bold text-[#263238]">{rating}</span>
                 <span className="text-[#00BFA6] text-xs font-semibold cursor-pointer hover:underline">
-                  ({formatReviewCount(reviewCount)} reviews)
+                  {formatReviewCount(reviewCount)}
                 </span>
              </div>
           </div>

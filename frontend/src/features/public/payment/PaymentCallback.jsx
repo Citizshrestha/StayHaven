@@ -16,86 +16,127 @@ const PaymentCallback = () => {
       const statusParam = searchParams.get('status');
       const method = searchParams.get('method');
       const orderId = searchParams.get('orderId');
+      const type = searchParams.get('type');
 
-      console.log('Payment callback received:', { statusParam, method, orderId });
+      console.log('Payment callback received:', { statusParam, method, orderId, type });
+
+      // Guest-portal order/invoice payment — verify server-side (re-checks with
+      // the gateway) then send the user back to their billing page.
+      if (type === 'portal' && statusParam === 'success') {
+        try {
+          const { verifyKhaltiPayment, verifyEsewaPayment } = await import(
+            '../../guest/dashboard/guestDashboardApi'
+          );
+
+          let result;
+          if (method === 'khalti') {
+            result = await verifyKhaltiPayment(searchParams.get('pidx'), orderId);
+          } else {
+            result = await verifyEsewaPayment(searchParams.get('encodedData'), orderId);
+          }
+
+          if (result?.success) {
+            setStatus('success');
+            setProcessing(false);
+            if (!hasShownToast.current) {
+              hasShownToast.current = true;
+              toast.success(`Payment successful via ${method === 'esewa' ? 'eSewa' : 'Khalti'}!`, {
+                position: 'top-center',
+                autoClose: 3000,
+              });
+            }
+            setTimeout(() => navigate('/guest-dashboard/billing'), 2000);
+          } else {
+            throw new Error(result?.message || 'Payment verification failed');
+          }
+        } catch (error) {
+          console.error('Portal payment verification error:', error);
+          setStatus('failed');
+          setProcessing(false);
+          if (!hasShownToast.current) {
+            hasShownToast.current = true;
+            toast.error(
+              error.response?.data?.message || error.message || 'Payment verification failed',
+              { position: 'top-center', autoClose: 5000 }
+            );
+          }
+        }
+        return;
+      }
 
       // Wait a moment for better UX
       await new Promise(resolve => setTimeout(resolve, 1500));
 
-      setStatus(statusParam);
-      setProcessing(false);
+      // The redirect's own `status` param is not trusted on its own — it's
+      // just what the URL claims, and this page is reachable by typing a
+      // URL directly. The webhook (webhookController.js) is what actually
+      // verifies payment with the gateway and marks the booking paid; here
+      // we only show "success" once we've confirmed that server-side state
+      // ourselves, by re-fetching the booking and checking paymentStatus.
+      if (statusParam !== 'success' || !orderId) {
+        setStatus(statusParam === 'success' ? 'failed' : statusParam);
+        setProcessing(false);
+        return;
+      }
 
-      // Show toast only once
-      if (!hasShownToast.current) {
-        hasShownToast.current = true;
+      try {
+        const response = await fetch(`${getApiBaseUrl()}/api/v1/public/bookings/${orderId}`);
+        const data = await response.json();
 
-        if (statusParam === 'success') {
+        const isConfirmedPaid = data.success && data.data.paymentStatus === 'paid';
+
+        if (!isConfirmedPaid) {
+          // The gateway redirect says success, but the booking isn't
+          // (yet, or ever) confirmed paid server-side — don't show a false
+          // success screen. The webhook can still be a beat behind the
+          // redirect; a real success will land here again once it lands.
+          setStatus('failed');
+          setProcessing(false);
+          return;
+        }
+
+        setStatus('success');
+        setProcessing(false);
+
+        if (!hasShownToast.current) {
+          hasShownToast.current = true;
           toast.success(`Payment successful via ${method === 'esewa' ? 'eSewa' : 'Khalti'}!`, {
             position: 'top-center',
             autoClose: 3000,
           });
-
-          // Fetch booking details to get confirmation code
-          try {
-            const response = await fetch(
-              `${getApiBaseUrl()}/api/v1/public/bookings/${orderId}`
-            );
-            const data = await response.json();
-
-            if (data.success) {
-              // Redirect to booking confirmation with full booking data
-              setTimeout(() => {
-                navigate('/booking-confirmed', {
-                  state: {
-                    bookingId: data.data._id, // MongoDB _id for API calls
-                    bookingReference: data.data.confirmationCode,
-                    hotelName: data.data.hotelName,
-                    hotelAddress: data.data.hotelAddress,
-                    hotelImage: data.data.hotelImage,
-                    checkIn: new Date(data.data.checkIn).toLocaleDateString('en-US', {
-                      weekday: 'short',
-                      day: '2-digit',
-                      month: 'short',
-                      year: 'numeric'
-                    }),
-                    checkOut: new Date(data.data.checkOut).toLocaleDateString('en-US', {
-                      weekday: 'short',
-                      day: '2-digit',
-                      month: 'short',
-                      year: 'numeric'
-                    }),
-                    guests: `${data.data.guests.adults} Adult${data.data.guests.adults > 1 ? 's' : ''}${data.data.guests.children > 0 ? `, ${data.data.guests.children} Child${data.data.guests.children > 1 ? 'ren' : ''}` : ''}`,
-                    roomType: data.data.roomType,
-                    totalPaid: data.data.paidAmount || data.data.totalAmount,
-                    paymentMethod: method === 'esewa' ? 'eSewa' : 'Khalti',
-                  }
-                });
-              }, 2000);
-            } else {
-              // Fallback if API fails
-              setTimeout(() => {
-                navigate('/booking-confirmed', {
-                  state: {
-                    bookingReference: orderId,
-                    paymentMethod: method === 'esewa' ? 'eSewa' : 'Khalti',
-                  }
-                });
-              }, 2000);
-            }
-          } catch (error) {
-            console.error('Error fetching booking details:', error);
-            // Fallback if API fails
-            setTimeout(() => {
-              navigate('/booking-confirmed', {
-                state: {
-                  bookingReference: orderId,
-                  paymentMethod: method === 'esewa' ? 'eSewa' : 'Khalti',
-                }
-              });
-            }, 2000);
-          }
         }
-        // Don't show toast for failed - the UI is clear enough
+
+        setTimeout(() => {
+          navigate('/booking-confirmed', {
+            state: {
+              bookingId: data.data._id, // MongoDB _id for API calls
+              bookingReference: data.data.confirmationCode,
+              hotelName: data.data.hotelName,
+              hotelAddress: data.data.hotelAddress,
+              hotelImage: data.data.hotelImage,
+              checkIn: new Date(data.data.checkIn).toLocaleDateString('en-US', {
+                weekday: 'short',
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric'
+              }),
+              checkOut: new Date(data.data.checkOut).toLocaleDateString('en-US', {
+                weekday: 'short',
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric'
+              }),
+              guests: `${data.data.guests.adults} Adult${data.data.guests.adults > 1 ? 's' : ''}${data.data.guests.children > 0 ? `, ${data.data.guests.children} Child${data.data.guests.children > 1 ? 'ren' : ''}` : ''}`,
+              roomType: data.data.roomType,
+              totalPaid: data.data.paidAmount || data.data.totalAmount,
+              paymentMethod: method === 'esewa' ? 'eSewa' : 'Khalti',
+            }
+          });
+        }, 2000);
+      } catch (error) {
+        console.error('Error fetching booking details:', error);
+        setStatus('failed');
+        setProcessing(false);
       }
     };
 

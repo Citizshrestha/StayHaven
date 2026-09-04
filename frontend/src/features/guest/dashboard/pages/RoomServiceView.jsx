@@ -5,12 +5,11 @@
  */
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { getGuestMenu, placeOrder, getGuestOrders } from "../guestDashboardApi";
 import { useSocket } from '../../../../core/context/SocketContext';
 import { useTheme } from '../../../../core/hooks/useTheme';
 import { toast } from 'react-toastify';
-import notificationSoundService from '../../../../services/notificationSoundService';
+import CancelOrderModal from '../../../../shared/components/CancelOrderModal';
 import {
   ShoppingCart,
   Plus,
@@ -22,10 +21,10 @@ import {
   Loader2,
   Search,
   UtensilsCrossed,
-  Sparkles,
   Flame,
+  X,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 
 // Brand colors matching DashboardView.jsx
 const LIGHT_BRAND = {
@@ -54,7 +53,6 @@ const DARK_BRAND = {
 // belong to the guest's current hotel would break tenant isolation.
 
 const RoomServiceView = () => {
-  const navigate = useNavigate();
   const { subscribe, isConnected } = useSocket();
   const { isDark } = useTheme();
   const BRAND = isDark ? DARK_BRAND : LIGHT_BRAND;
@@ -68,8 +66,18 @@ const RoomServiceView = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [placingOrder, setPlacingOrder] = useState(false);
   const [activeOrders, setActiveOrders] = useState([]);
+  const [cancelTarget, setCancelTarget] = useState(null);
 
   const subscribedOrderIds = useRef(new Set());
+
+  const handleOrderCancelled = useCallback((cancelledOrder) => {
+    const id = cancelledOrder?._id || cancelTarget?._id;
+    if (id) {
+      setActiveOrders((prev) => prev.filter((o) => o._id !== id));
+      subscribedOrderIds.current.delete(id);
+    }
+    setCancelTarget(null);
+  }, [cancelTarget]);
 
   // Load active orders on mount
   useEffect(() => {
@@ -185,7 +193,7 @@ const RoomServiceView = () => {
       prev
         .map((item) =>
           item._id === itemId
-            ? { ...item, quantity: Math.max(1, item.quantity + delta) }
+            ? { ...item, quantity: item.quantity + delta }
             : item
         )
         .filter((item) => item.quantity > 0)
@@ -329,7 +337,12 @@ const RoomServiceView = () => {
           <SectionCard title="Active Orders" brand={BRAND}>
             <div className="space-y-3">
               {activeOrders.map((order) => (
-                <OrderStatusCard key={order._id} order={order} brand={BRAND} />
+                <OrderStatusCard
+                  key={order._id}
+                  order={order}
+                  brand={BRAND}
+                  onCancel={() => setCancelTarget(order)}
+                />
               ))}
             </div>
           </SectionCard>
@@ -384,7 +397,7 @@ const RoomServiceView = () => {
       {/* Cart Sidebar */}
       <AnimatePresence>
         {showCart && (
-          <motion.div
+          <Motion.div
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
@@ -442,6 +455,13 @@ const RoomServiceView = () => {
                           >
                             <Plus className="w-4 h-4" />
                           </button>
+                          <button
+                            onClick={() => removeFromCart(item._id)}
+                            aria-label={`Remove ${item.name} from cart`}
+                            className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-rose-100 dark:hover:bg-rose-900/30 transition text-rose-500"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -472,9 +492,17 @@ const RoomServiceView = () => {
                 </>
               )}
             </div>
-          </motion.div>
+          </Motion.div>
         )}
       </AnimatePresence>
+
+      {/* Cancel Order Modal */}
+      <CancelOrderModal
+        isOpen={!!cancelTarget}
+        onClose={() => setCancelTarget(null)}
+        order={cancelTarget}
+        onCancelSuccess={handleOrderCancelled}
+      />
 
       {/* Floating Cart Button (Mobile) */}
       {!showCart && cartItemCount > 0 && (
@@ -570,9 +598,10 @@ const MenuItemCard = React.memo(({ item, onAdd, brand }) => {
   );
 });
 
-const OrderStatusCard = ({ order, brand }) => {
+const OrderStatusCard = ({ order, brand, onCancel }) => {
   const isDark = brand.background !== '#F8FAFB';
   const [showItems, setShowItems] = useState(false);
+  const canCancel = ['pending', 'confirmed'].includes((order.status || '').toLowerCase());
 
   const statusIcons = {
     pending: <Clock className="w-5 h-5" style={{ color: '#F59E0B' }} />,
@@ -651,17 +680,17 @@ const OrderStatusCard = ({ order, brand }) => {
           >
             <UtensilsCrossed size={16} />
             <span>{items.length} item{items.length > 1 ? 's' : ''} ordered</span>
-            <motion.span
+            <Motion.span
               animate={{ rotate: showItems ? 180 : 0 }}
               transition={{ duration: 0.2 }}
             >
               ▼
-            </motion.span>
+            </Motion.span>
           </button>
 
           <AnimatePresence>
             {showItems && (
-              <motion.div
+              <Motion.div
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
@@ -702,7 +731,7 @@ const OrderStatusCard = ({ order, brand }) => {
                     </div>
                   ))}
                 </div>
-              </motion.div>
+              </Motion.div>
             )}
           </AnimatePresence>
         </div>
@@ -725,6 +754,20 @@ const OrderStatusCard = ({ order, brand }) => {
           {order.status === 'preparing' && '⏱️ Estimated: 10-15 minutes'}
           {order.status === 'ready' && '🚀 Delivering to your room now'}
         </p>
+      )}
+
+      {canCancel && onCancel && (
+        <button
+          onClick={onCancel}
+          className="mt-3 w-full py-2 rounded-lg text-sm font-semibold border transition-colors"
+          style={{
+            color: '#e11d48',
+            borderColor: isDark ? 'rgba(225,29,72,0.4)' : 'rgba(225,29,72,0.25)',
+            background: isDark ? 'rgba(225,29,72,0.08)' : 'rgba(225,29,72,0.04)',
+          }}
+        >
+          Cancel Order
+        </button>
       )}
     </div>
   );

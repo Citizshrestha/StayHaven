@@ -202,6 +202,13 @@ const GuestTableView = () => {
     return item ? item.quantity : 0;
   };
 
+  // Per-item special note (e.g. "no onions") — sent as items[].notes
+  const setItemNote = (itemId, note) => {
+    setCart(prev => prev.map(i =>
+      i.menuItem === itemId ? { ...i, notes: note.slice(0, 200) } : i
+    ));
+  };
+
   const getCartTotal = () => cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   const getCartCount = () => cart.reduce((total, item) => total + item.quantity, 0);
 
@@ -238,7 +245,7 @@ const GuestTableView = () => {
         items: cart.map(item => ({
           menuItem: item.menuItem,
           quantity: item.quantity,
-          notes: ''
+          notes: item.notes || ''
         }))
       };
 
@@ -264,7 +271,9 @@ const GuestTableView = () => {
       const response = await callWaiter({
         tableToken: token,
         hotelId: hotelData._id,
-        reason
+        reason,
+        guestSessionId,
+        guestName: customerInfo.name.trim() || undefined,
       });
       if (response.success) {
         toast.success('Waiter has been notified! They will be with you shortly.');
@@ -282,7 +291,9 @@ const GuestTableView = () => {
       setActionLoading(true);
       const response = await requestBill({
         tableToken: token,
-        hotelId: hotelData._id
+        hotelId: hotelData._id,
+        guestSessionId,
+        guestName: customerInfo.name.trim() || undefined,
       });
       if (response.success) {
         toast.success('Bill request sent! A waiter will bring your bill shortly.');
@@ -565,10 +576,21 @@ const GuestTableView = () => {
 
         <div className="guest-order-items">
           {cart.map(item => (
-            <div key={item.menuItem} className="guest-order-item">
-              <div className="guest-order-item-qty">{item.quantity}x</div>
-              <span className="guest-order-item-name">{item.name}</span>
-              <span className="guest-order-item-price">Rs. {item.price * item.quantity}</span>
+            <div key={item.menuItem}>
+              <div className="guest-order-item">
+                <div className="guest-order-item-qty">{item.quantity}x</div>
+                <span className="guest-order-item-name">{item.name}</span>
+                <span className="guest-order-item-price">Rs. {item.price * item.quantity}</span>
+              </div>
+              <input
+                type="text"
+                className="guest-form-input"
+                style={{ margin: '4px 0 10px', fontSize: '0.85rem', padding: '8px 12px' }}
+                placeholder={`Note for ${item.name} (e.g. no onions)`}
+                maxLength={200}
+                value={item.notes || ''}
+                onChange={(e) => setItemNote(item.menuItem, e.target.value)}
+              />
             </div>
           ))}
         </div>

@@ -191,6 +191,13 @@ const GuestRoomView = () => {
     return item ? item.quantity : 0;
   };
 
+  // Per-item special note (e.g. "no onions") — sent as items[].notes
+  const setItemNote = (itemId, note) => {
+    setCart(prev => prev.map(i =>
+      i.menuItem === itemId ? { ...i, notes: note.slice(0, 200) } : i
+    ));
+  };
+
   const getCartTotal = () => cart.reduce((t, i) => t + i.price * i.quantity, 0);
   const getCartCount = () => cart.reduce((t, i) => t + i.quantity, 0);
 
@@ -223,7 +230,7 @@ const GuestRoomView = () => {
         items: cart.map(item => ({
           menuItem: item.menuItem,
           quantity: item.quantity,
-          notes: ''
+          notes: item.notes || ''
         }))
       };
       const response = await createGuestOrder(orderData);
@@ -616,10 +623,21 @@ const GuestRoomView = () => {
 
         <div className="guest-order-items">
           {cart.map(item => (
-            <div key={item.menuItem} className="guest-order-item">
-              <div className="guest-order-item-qty">{item.quantity}x</div>
-              <span className="guest-order-item-name">{item.name}</span>
-              <span className="guest-order-item-price">Rs. {item.price * item.quantity}</span>
+            <div key={item.menuItem}>
+              <div className="guest-order-item">
+                <div className="guest-order-item-qty">{item.quantity}x</div>
+                <span className="guest-order-item-name">{item.name}</span>
+                <span className="guest-order-item-price">Rs. {item.price * item.quantity}</span>
+              </div>
+              <input
+                type="text"
+                className="guest-form-input"
+                style={{ margin: '4px 0 10px', fontSize: '0.85rem', padding: '8px 12px' }}
+                placeholder={`Note for ${item.name} (e.g. no onions)`}
+                maxLength={200}
+                value={item.notes || ''}
+                onChange={(e) => setItemNote(item.menuItem, e.target.value)}
+              />
             </div>
           ))}
         </div>

@@ -391,15 +391,15 @@ const DashboardContent = ({ onNavigate }) => {
     const fromCtx = staffUser?.activeProperty?._id || staffUser?.activeProperty;
     if (fromCtx) return typeof fromCtx === 'object' ? fromCtx.toString() : fromCtx;
 
-    // 2. Try localStorage (set during login by StaffAuthContext)
+    // 2. Try sessionStorage (set during login by StaffAuthContext)
     try {
-      const stored = localStorage.getItem('activeProperty');
+      const stored = sessionStorage.getItem('activeProperty');
       if (!stored) return null;
       const parsed = JSON.parse(stored);
       if (typeof parsed === 'object' && parsed?._id) return parsed._id;
       if (typeof parsed === 'string' && parsed.length > 0) return parsed;
     } catch {
-      const raw = localStorage.getItem('activeProperty')?.replace(/"/g, '');
+      const raw = sessionStorage.getItem('activeProperty')?.replace(/"/g, '');
       if (raw && raw.length > 0) return raw;
     }
     return null;

@@ -22,7 +22,10 @@ const SuperAdminLayout = ({ children, pageTitle }) => {
   ];
 
   const bottomNavItems = [
-    { id: 'analytics', label: 'Analytics', icon: 'analytics' },
+    // Points at the dashboard, which already has the Sales Analytics /
+    // revenue-trend section — there's no separate Analytics page, and this
+    // button previously had no `path` at all, so it silently did nothing.
+    { id: 'analytics', label: 'Analytics', icon: 'analytics', path: '/superadmindashboard' },
     { id: 'logout', label: 'Logout', icon: 'logout' },
   ];
 

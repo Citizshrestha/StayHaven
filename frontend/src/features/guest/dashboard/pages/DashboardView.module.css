@@ -4,7 +4,18 @@
    Brand: Teal #0ea5a0
    ═══════════════════════════════════════════════════ */
 
-:root {
+/* NOTE: these used to live in a `:root { ... }` block. CSS custom
+   properties are NOT scoped by CSS Modules — only class/id selectors get
+   hashed — so a `:root` declaration here is actually global and collides
+   with any other file that declares the same variable name at `:root`
+   (this repo has at least one: RoomManagement.css also defines
+   `--page-bg`, and whichever file's stylesheet loads later in the bundle
+   silently wins for the whole app). Declaring them on `.container`/
+   `.loading` instead — real, uniquely-hashed classes — scopes them
+   correctly: a same-element declaration always beats an inherited one
+   from some unrelated `:root` rule, regardless of load order. */
+.container,
+.loading {
   --teal: #0ea5a0;
   --teal-dark: #0d9488;
   --teal-light: rgba(14, 165, 160, 0.08);
@@ -17,9 +28,23 @@
   --card-shadow: 0 2px 16px rgba(0, 0, 0, 0.06);
   --page-bg: #f8fafc;
   --card-bg: #ffffff;
+  --card-bg-alt: #ffffff;
   --radius-sm: 10px;
   --radius-md: 16px;
   --radius-lg: 20px;
+}
+
+/* Dark theme — the app toggles `.dark` on <html> (see ThemeContext.jsx). */
+:global(.dark) .container,
+:global(.dark) .loading {
+  --ink: #f1f5f9;
+  --ink-60: #94a3b8;
+  --ink-30: #64748b;
+  --border: rgba(255, 255, 255, 0.08);
+  --card-shadow: 0 2px 20px rgba(0, 0, 0, 0.45);
+  --page-bg: #0b1220;
+  --card-bg: #16202f;
+  --card-bg-alt: #1e293b;
 }
 
 /* ═══════════════════════════════════════════════════
@@ -458,6 +483,10 @@
   margin-bottom: 12px;
 }
 
+:global(.dark) .emptyIcon {
+  color: #334155;
+}
+
 .emptyTitle {
   font-size: 14px;
   font-weight: 600;
@@ -661,13 +690,17 @@
 }
 
 .billButton.outline {
-  background: white;
-  border: 1.5px solid rgba(0, 0, 0, 0.1);
+  background: var(--card-bg-alt);
+  border: 1.5px solid var(--border);
   color: var(--teal);
 }
 
 .billButton.outline:hover {
   background: rgba(14, 165, 160, 0.05);
+}
+
+:global(.dark) .billButton.outline:hover {
+  background: rgba(14, 165, 160, 0.12);
 }
 
 .billButton.primary {
@@ -842,13 +875,17 @@
 }
 
 .helpButton.outline {
-  background: white;
-  border: 1.5px solid rgba(0, 0, 0, 0.1);
+  background: var(--card-bg-alt);
+  border: 1.5px solid var(--border);
   color: var(--ink);
 }
 
 .helpButton.outline:hover {
   background: rgba(0, 0, 0, 0.02);
+}
+
+:global(.dark) .helpButton.outline:hover {
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .helpButton.primary {
