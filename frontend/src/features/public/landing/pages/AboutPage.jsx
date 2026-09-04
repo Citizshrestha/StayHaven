@@ -1,52 +1,12 @@
 import React from "react";
 import { useContent } from "../../../../hooks/useContent";
 import { getAboutContent } from "../../../../core/api/services/content.service";
+import LeadershipTestimonials from "../../../../components/LeadershipTestimonials";
 import "./AboutPage.css";
 
 const AboutPage = () => {
   const { data: aboutDataArray } = useContent('about', getAboutContent);
   const about = aboutDataArray?.[0] || null;
-
-  const defaultTeamMembers = [
-    {
-      name: "Rajesh Shrestha",
-      position: "Founder & CEO",
-      image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&crop=faces",
-      bio: "Hospitality veteran with 15+ years experience in Nepal's tourism industry. Founded StayHaven to showcase Nepal's finest accommodations.",
-      expertise: "Hospitality Management, Business Strategy"
-    },
-    {
-      name: "Anita Gurung",
-      position: "Chief Operations Officer",
-      image: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&h=400&fit=crop&crop=faces",
-      bio: "Operations expert ensuring seamless experiences across all partner properties. Passionate about quality service delivery.",
-      expertise: "Operations, Quality Assurance"
-    },
-    {
-      name: "Priya Thapa",
-      position: "Head of Guest Experience",
-      image: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=400&h=400&fit=crop&crop=faces",
-      bio: "Dedicated to creating memorable stays for every guest. Leads our customer service and support teams.",
-      expertise: "Customer Experience, Service Design"
-    },
-    {
-      name: "Bikram Rai",
-      position: "Partnerships Director",
-      image: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=400&h=400&fit=crop&crop=faces",
-      bio: "Builds relationships with hotels and resorts across Nepal. Curates our exclusive portfolio of properties.",
-      expertise: "Partnerships, Business Development"
-    }
-  ];
-
-  const teamMembers = about?.teamMembers?.length > 0
-    ? about.teamMembers.map(m => ({
-        name: m.name,
-        position: m.role || 'Team Member',
-        image: m.image || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&crop=faces',
-        bio: m.bio || '',
-        expertise: m.role || ''
-      }))
-    : defaultTeamMembers;
 
   const statsList = about?.stats?.length > 0
     ? about.stats
@@ -205,28 +165,7 @@ const AboutPage = () => {
         </section>
 
         {/* Team Section */}
-        <section className="team-section">
-          <div className="container">
-            <h2>Leadership Team</h2>
-            <p className="section-subtitle">Meet the passionate team behind StayHaven's success</p>
-
-            <div className="team-grid">
-              {teamMembers.map((member, index) => (
-                <div key={index} className="team-card">
-                  <div className="member-avatar">
-                    <img src={member.image} alt={member.name} />
-                  </div>
-                  <h3>{member.name}</h3>
-                  <p className="member-position">{member.position}</p>
-                  <p className="member-bio">{member.bio}</p>
-                  <div className="member-expertise">
-                    <strong>Expertise:</strong> {member.expertise}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+        <LeadershipTestimonials />
 
         {/* Commitment Section */}
         <section className="commitment-section">

@@ -1,0 +1,448 @@
+/* ─────────────────────────────────────────────────────────────────
+   DESIGN TOKENS
+───────────────────────────────────────────────────────────────── */
+:root {
+  --sidebar-bg: #16213e;
+  --sidebar-border: rgba(255, 255, 255, 0.06);
+  --purple: #6c63ff;
+  --purple-light: rgba(108, 99, 255, 0.15);
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.5);
+  --text-muted: rgba(255, 255, 255, 0.3);
+  --green: #10b981;
+  --amber: #f59e0b;
+  --red: #ef4444;
+  --blue: #3b82f6;
+  --orange: #f97316;
+  --cyan: #06b6d4;
+  --pink: #ec4899;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   SIDEBAR SHELL
+───────────────────────────────────────────────────────────────── */
+.sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 260px;
+  height: 100vh;
+  background-color: var(--sidebar-bg);
+  border-right: 1px solid var(--sidebar-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 100;
+  flex-shrink: 0;
+}
+
+/* Ambient glow — depth without distraction */
+.sidebar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 280px 200px at 130px -40px, rgba(108, 99, 255, 0.18) 0%, transparent 70%),
+    radial-gradient(ellipse 200px 300px at -60px 600px, rgba(16, 185, 129, 0.08) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* All nav content sits above the glow */
+.sidebar > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   LOGO SECTION
+───────────────────────────────────────────────────────────────── */
+.logoSection {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 24px 20px 20px;
+  border-bottom: 1px solid var(--sidebar-border);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.logoIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #6c63ff, #8b5cf6);
+  box-shadow: 0 4px 16px rgba(108, 99, 255, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #ffffff;
+}
+
+.logoText {
+  flex: 1;
+  min-width: 0;
+}
+
+.hotelName {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.propertyLabel {
+  display: block;
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 1px;
+}
+
+.liveBadge {
+  margin-left: auto;
+  flex-shrink: 0;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: var(--green);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 20px;
+  text-transform: uppercase;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   NAV BODY (scrollable, hidden scrollbar)
+───────────────────────────────────────────────────────────────── */
+.navBody {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 12px 12px 8px;
+  scrollbar-width: none;
+  position: relative;
+  z-index: 1;
+}
+
+.navBody::-webkit-scrollbar {
+  display: none;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   SECTION LABELS
+───────────────────────────────────────────────────────────────── */
+.sectionLabel {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0 8px;
+  margin: 16px 0 6px;
+  display: block;
+}
+
+.sectionLabel:first-child,
+.sectionLabelFirst {
+  margin-top: 0;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   DIVIDER
+───────────────────────────────────────────────────────────────── */
+.divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.06);
+  margin: 8px 0;
+  border: none;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   NAV ITEM
+───────────────────────────────────────────────────────────────── */
+.navItem {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 10px;
+  margin-bottom: 1px;
+  width: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  text-align: left;
+  text-decoration: none;
+  color: inherit;
+}
+
+.navItem:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.navItem:hover .navLabel {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   ACTIVE STATE
+───────────────────────────────────────────────────────────────── */
+.navItem.active {
+  background: rgba(108, 99, 255, 0.15);
+  border-color: rgba(108, 99, 255, 0.25);
+}
+
+.navItem.active .navLabel {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* Left accent bar */
+.navItem.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 60%;
+  background: var(--purple);
+  border-radius: 0 3px 3px 0;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   ICON CONTAINER
+───────────────────────────────────────────────────────────────── */
+.iconWrap {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.18s ease;
+  background: transparent;
+  color: var(--text-secondary);
+  opacity: 0.5;
+}
+
+.navItem:hover .iconWrap,
+.navItem.active .iconWrap {
+  opacity: 1;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   PER-ITEM ICON COLORS (hover + active)
+───────────────────────────────────────────────────────────────── */
+
+/* Dashboard — purple */
+.navItem:hover .iconDashboard,
+.navItem.active .iconDashboard {
+  background: rgba(108, 99, 255, 0.12);
+  color: #6c63ff;
+}
+
+/* Rooms — blue */
+.navItem:hover .iconRooms,
+.navItem.active .iconRooms {
+  background: rgba(59, 130, 246, 0.12);
+  color: #3b82f6;
+}
+
+/* Restaurant — orange */
+.navItem:hover .iconRestaurant,
+.navItem.active .iconRestaurant {
+  background: rgba(249, 115, 22, 0.12);
+  color: #f97316;
+}
+
+/* Table QR — cyan */
+.navItem:hover .iconTableQR,
+.navItem.active .iconTableQR {
+  background: rgba(6, 182, 212, 0.12);
+  color: #06b6d4;
+}
+
+/* Room QR — pink */
+.navItem:hover .iconRoomQR,
+.navItem.active .iconRoomQR {
+  background: rgba(236, 72, 153, 0.12);
+  color: #ec4899;
+}
+
+/* Orders — amber */
+.navItem:hover .iconOrders,
+.navItem.active .iconOrders {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+}
+
+/* Stock — green */
+.navItem:hover .iconStock,
+.navItem.active .iconStock {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+
+/* Staff — blue */
+.navItem:hover .iconStaff,
+.navItem.active .iconStaff {
+  background: rgba(59, 130, 246, 0.12);
+  color: #3b82f6;
+}
+
+/* Billing — green */
+.navItem:hover .iconBilling,
+.navItem.active .iconBilling {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+
+/* Loyalty — amber */
+.navItem:hover .iconLoyalty,
+.navItem.active .iconLoyalty {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+}
+
+/* Reports — purple */
+.navItem:hover .iconReports,
+.navItem.active .iconReports {
+  background: rgba(108, 99, 255, 0.12);
+  color: #6c63ff;
+}
+
+/* Notifications — red */
+.navItem:hover .iconNotifications,
+.navItem.active .iconNotifications {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
+
+/* Logout — red */
+.navItem:hover .iconLogout,
+.navItem.active .iconLogout {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   NAV LABEL
+───────────────────────────────────────────────────────────────── */
+.navLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  flex: 1;
+  transition: color 0.18s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   COUNT BADGES
+───────────────────────────────────────────────────────────────── */
+.badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 20px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.badgeRed {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.badgeAmber {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.badgeGreen {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   FOOTER — Admin Profile Card
+───────────────────────────────────────────────────────────────── */
+.footer {
+  padding: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.profileCard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+  transition: background 0.18s ease;
+  width: 100%;
+  text-align: left;
+}
+
+.profileCard:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #6c63ff, #8b5cf6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.profileInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.profileName {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profileRole {
+  display: block;
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 1px;
+}
+
+.chevron {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}

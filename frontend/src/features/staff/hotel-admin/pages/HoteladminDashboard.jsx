@@ -2,10 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useStaffAuth } from '../../../../core/context/StaffAuthContext';
+import { useNotifications } from '../../../../core/context/useNotifications';
+
 import './HoteladminDashboard.css';
+import Sidebar from '../components/Sidebar';
+import SeedDataButton from '../components/SeedDataButton';
 import RestaurantManagement from './RestaurantManagement';
 import TableManagement from './TableManagement';
 import RoomQRManagement from './RoomQRManagement';
+import OrderManagement from './OrderManagement';
+import StaffManagement from './StaffManagement';
+import StockManagement from './StockManagement';
+import RoomsManagement from './RoomManagement';
+import LoyaltyManagement from './LoyaltyManagement';
+import ReportsAnalytics from './ReportsAnalytics';
+import NotificationsManagement from './NotificationsManagement';
 
 // Empty State Component
 const EmptyState = ({ icon, title, description, actionLabel, onAction }) => (
@@ -32,6 +43,7 @@ const LoadingSpinner = ({ message = 'Loading...' }) => (
 const HoteladminDashboard = () => {
   const navigate = useNavigate();
   const { staffUser, logout } = useStaffAuth();
+  const { unreadCount } = useNotifications();
 
   const [activeSection, setActiveSection] = useState(() => {
     // Initialize from URL hash so direct links work
@@ -39,20 +51,6 @@ const HoteladminDashboard = () => {
     return hash || 'dashboard';
   });
   
-  // Dark mode state with localStorage persistence
-  const [darkMode, setDarkMode] = useState(() => {
-    const saved = localStorage.getItem('hoteladmin-dark-mode');
-    return saved ? JSON.parse(saved) : false;
-  });
-
-  // Toggle dark mode
-  const toggleDarkMode = () => {
-    setDarkMode(prev => {
-      const newMode = !prev;
-      localStorage.setItem('hoteladmin-dark-mode', JSON.stringify(newMode));
-      return newMode;
-    });
-  };
   const [orderSearch, setOrderSearch] = useState('');
   const [orderTypeFilter, setOrderTypeFilter] = useState('all');
   const [orderStatusFilter, setOrderStatusFilter] = useState('all');
@@ -88,21 +86,24 @@ const HoteladminDashboard = () => {
     amenities: []
   });
 
-  // Navigation items
+  // Navigation items — IDs are the canonical section keys used throughout
+  // legacyNavItems kept for reference but navigation is handled by <Sidebar />
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-    { id: 'rooms', label: 'Rooms', icon: '🛏' },
-    { id: 'restaurant', label: 'Restaurant', icon: '🍽' },
-    { id: 'tables', label: 'Table QR Codes', icon: '📱' },
-    { id: 'roomqr', label: 'Room QR Codes', icon: '🏨' },
-    { id: 'orders', label: 'Orders', icon: '📦' },
-    { id: 'stock', label: 'Stock / Inventory', icon: '📋' },
-    { id: 'staff', label: 'Staff Management', icon: '👥' },
-    { id: 'billing', label: 'Billing & Payments', icon: '💰' },
-    { id: 'loyalty', label: 'Loyalty Points', icon: '⭐' },
-    { id: 'reports', label: 'Reports & Analytics', icon: '📈' },
-    { id: 'notifications', label: 'Notifications', icon: '🔔' }
+    { id: 'dashboard' },
+    { id: 'rooms' },
+    { id: 'restaurant' },
+    { id: 'tables' },
+    { id: 'roomqr' },
+    { id: 'orders' },
+    { id: 'stock' },
+    { id: 'staff' },
+    { id: 'billing' },
+    { id: 'loyalty' },
+    { id: 'reports' },
+    { id: 'notifications' },
   ];
+  // eslint-disable-next-line no-unused-vars
+  void navItems; // consumed by Sidebar component via props
 
   // Staff data
   const staffData = [
@@ -366,7 +367,7 @@ const HoteladminDashboard = () => {
       case 'dashboard':
         return renderDashboard();
       case 'rooms':
-        return renderRoomsManagement();
+        return <RoomsManagement embedded />;
       case 'restaurant':
         return <RestaurantManagement embedded />;
       case 'tables':
@@ -374,19 +375,19 @@ const HoteladminDashboard = () => {
       case 'roomqr':
         return <RoomQRManagement />;
       case 'orders':
-        return renderOrdersManagement();
+        return <OrderManagement />;
       case 'stock':
-        return <div className="page-content">Stock / Inventory</div>;
+        return <StockManagement />;
       case 'staff':
-        return renderStaffManagement();
+        return <StaffManagement embedded />;
       case 'billing':
         return renderBillingPayments();
       case 'loyalty':
-        return <div className="page-content">Loyalty Points</div>;
+        return <LoyaltyManagement />;
       case 'reports':
-        return <div className="page-content">Reports & Analytics</div>;
+        return <ReportsAnalytics />;
       case 'notifications':
-        return <div className="page-content">Notifications</div>;
+        return <NotificationsManagement />;
       default:
         return renderDashboard();
     }
@@ -401,6 +402,10 @@ const HoteladminDashboard = () => {
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Welcome back! Here's what's happening today.</p>
         </div>
         <div style={{gap: "16px"}} className="flex items-center">
+          <SeedDataButton
+            hotelId={staffUser?.assignedProperties?.[0]}
+            onSuccess={() => window.location.reload()}
+          />
           <button style={{padding: "10px"}} className="rounded-xl bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shadow-sm border border-gray-200 dark:border-gray-700">
             <svg className="w-5 h-5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -1775,52 +1780,20 @@ const renderBillingPayments = () => {
   };
 
   return (
-    <div className={`hotel-dashboard ${darkMode ? 'dark' : ''}`}>
+    <div className="hotel-dashboard">
       {/* Sidebar Navigation */}
-      <div className="sidebar">
-        <div className="sidebar-header">
-          <div className="admin-info">
-            <h2>{staffUser?.fullname || 'Hotel Admin'}</h2>
-            <p className="admin-role">{staffUser?.activeProperty?.name || 'Hotel Admin'}</p>
-          </div>
-          {/* Dark Mode Toggle */}
-          <button
-            onClick={toggleDarkMode}
-            className="theme-toggle-btn"
-            aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-            title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-          >
-            {darkMode ? '☀️' : '🌙'}
-          </button>
-        </div>
-        <nav className="sidebar-nav">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={`nav-item ${activeSection === item.id ? 'active' : ''}`}
-              onClick={() => handleNavigation(item.id)}
-            >
-              <span className="nav-icon">{item.icon}</span>
-              <span className="nav-label">{item.label}</span>
-            </button>
-          ))}
-        </nav>
-        {/* Logout Button */}
-        <div className="sidebar-footer">
-          <button
-            type="button"
-            className="nav-item logout-btn"
-            onClick={handleLogout}
-          >
-            <span className="nav-icon">🚪</span>
-            <span className="nav-label">Logout</span>
-          </button>
-        </div>
-      </div>
+      <Sidebar
+        activeSection={activeSection}
+        onNavigate={handleNavigation}
+        onLogout={handleLogout}
+        staffUser={staffUser}
+        roomCount={roomStats.total}
+        activeOrders={ordersData.filter(o => o.status !== 'Fulfilled').length}
+        unreadCount={unreadCount}
+      />
 
       {/* Main Content */}
-      <div className="main-content">
+      <div className="hoteladmin-main-content">
         {renderContent()}
       </div>
     </div>
