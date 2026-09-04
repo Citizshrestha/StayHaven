@@ -4,7 +4,7 @@ const BASE = "/api/v1/reception";
 
 const getActiveHotelId = () => {
   try {
-    const raw = localStorage.getItem("activeProperty");
+    const raw = sessionStorage.getItem("activeProperty");
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (typeof parsed === "string") return parsed;

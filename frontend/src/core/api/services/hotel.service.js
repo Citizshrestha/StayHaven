@@ -4,7 +4,6 @@ const BASE = '/api/v1/hotels';
 
 const getAuthToken = () =>
   sessionStorage.getItem('staffAccessToken') ||
-  localStorage.getItem('staffAccessToken') ||
   localStorage.getItem('accessToken');
 
 const getAuthHeaders = () => {

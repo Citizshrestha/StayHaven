@@ -20,18 +20,17 @@ axiosClient.interceptors.request.use(
     (config) => {
         // Token selection logic:
         // - Normal users use `accessToken`
-        // - Staff endpoints should prefer `staffAccessToken`
-        // - Superadmin endpoints use `accessToken` (logged in as superadmin)
+        // - Staff endpoints (including superadmin, which logs in via the
+        //   same /staff/login flow) prefer `staffAccessToken`
         const url = String(config.url || "");
         const isStaffRequest = url.includes("/api/v1/staff") ||
                               url.includes("/api/v1/reception") ||
                               url.includes("/api/v1/profile") ||
                               url.includes("/api/v1/users/admin") ||
-                              url.includes("/api/v1/hotels/admin");
+                              url.includes("/api/v1/hotels/admin") ||
+                              url.includes("/api/v1/superadmin");
 
-        const isSuperadminRequest = url.includes("/api/v1/superadmin");
-
-        const staffAccessToken = sessionStorage.getItem("staffAccessToken") || localStorage.getItem("staffAccessToken");
+        const staffAccessToken = sessionStorage.getItem("staffAccessToken");
         const accessToken = localStorage.getItem('accessToken');
 
         const tokenToUse = isStaffRequest
@@ -56,7 +55,8 @@ axiosClient.interceptors.response.use(
                               url.includes("/api/v1/reception") ||
                               url.includes("/api/v1/profile") ||
                               url.includes("/api/v1/users/admin") ||
-                              url.includes("/api/v1/hotels/admin");
+                              url.includes("/api/v1/hotels/admin") ||
+                              url.includes("/api/v1/superadmin");
         const skipRefreshEndpoints = [
             '/api/v1/auth/login',
             '/api/v1/auth/register',
@@ -82,7 +82,7 @@ axiosClient.interceptors.response.use(
         );
 
         // Determine if user is logged in (staff or normal user)
-        const hasStaffSession = !!(sessionStorage.getItem('staffAccessToken') || localStorage.getItem('staffAccessToken'));
+        const hasStaffSession = !!(sessionStorage.getItem('staffAccessToken'));
         const hasUserSession = !!(localStorage.getItem('accessToken') || localStorage.getItem('userId'));
 
         // Only attempt refresh if:
@@ -121,7 +121,6 @@ axiosClient.interceptors.response.use(
                 // Store in the correct key
                 if (isStaffRequest && hasStaffSession) {
                     sessionStorage.setItem('staffAccessToken', newAccessToken);
-                    localStorage.setItem('staffAccessToken', newAccessToken);
                 } else {
                     localStorage.setItem('accessToken', newAccessToken);
                 }
@@ -133,6 +132,12 @@ axiosClient.interceptors.response.use(
                 if (isStaffRequest && hasStaffSession) {
                     sessionStorage.removeItem('staffAccessToken');
                     localStorage.removeItem('staffAccessToken');
+                    sessionStorage.removeItem('staffUser');
+                    sessionStorage.removeItem('staffUserId');
+                    sessionStorage.removeItem('staffRole');
+                    sessionStorage.removeItem('activeProperty');
+                    // Defensive: purge any pre-existing localStorage copies
+                    // from before these moved to sessionStorage.
                     localStorage.removeItem('staffUser');
                     localStorage.removeItem('staffUserId');
                     localStorage.removeItem('staffRole');

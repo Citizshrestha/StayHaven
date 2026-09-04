@@ -16,6 +16,11 @@ export const moderateReview = async (id, data) => {
   return response.data;
 };
 
+export const toggleFeaturedReview = async (id, data) => {
+  const response = await apiClient.put(`/api/v1/superadmin/reviews/${id}/featured`, data);
+  return response.data;
+};
+
 export const getAutoFlagRules = async () => {
   const response = await apiClient.get("/api/v1/superadmin/reviews/auto-flag-rules");
   return response.data;

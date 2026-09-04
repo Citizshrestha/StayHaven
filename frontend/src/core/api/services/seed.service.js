@@ -1,4 +1,19 @@
-import axiosClient from "../axiosClient";
+import axiosClient from "../client";
+
+/**
+ * Seed comprehensive hotel admin dashboard data
+ * @param {string} hotelId - Hotel ID
+ * @param {boolean} clear - Clear existing data before seeding
+ * @returns {Promise} - API response
+ */
+export const seedHotelAdminData = async (hotelId, clear = false) => {
+  try {
+    const response = await axiosClient.post(`/seed/hotel-admin-data/${hotelId}${clear ? '?clear=true' : ''}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { success: false, message: error.message };
+  }
+};
 
 /**
  * Seed rooms for a specific hotel
@@ -40,3 +55,4 @@ export const clearHotelRooms = async (hotelId) => {
     throw error.response?.data || { success: false, message: error.message };
   }
 };
+

@@ -2,7 +2,6 @@ import axiosClient from "../client";
 
 const getAuthToken = () =>
   sessionStorage.getItem("staffAccessToken") ||
-  localStorage.getItem("staffAccessToken") ||
   localStorage.getItem("accessToken");
 
 const getAuthHeaders = () => {

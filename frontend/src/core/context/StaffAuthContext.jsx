@@ -30,7 +30,6 @@ export const StaffAuthProvider = ({ children }) => {
       
       if (data.success && data.accessToken) {
         sessionStorage.setItem("staffAccessToken", data.accessToken);
-        localStorage.setItem("staffAccessToken", data.accessToken); // backward compatibility fallback
         return true;
       }
       return false;
@@ -52,7 +51,7 @@ export const StaffAuthProvider = ({ children }) => {
     
     // Set up new timer for proactive refresh
     refreshTimerRef.current = setInterval(() => {
-      const hasToken = sessionStorage.getItem("staffAccessToken") || localStorage.getItem("staffAccessToken");
+      const hasToken = sessionStorage.getItem("staffAccessToken");
       if (hasToken) {
         refreshToken();
       }
@@ -63,15 +62,15 @@ export const StaffAuthProvider = ({ children }) => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const savedUser = localStorage.getItem("staffUser");
-        const savedRole = localStorage.getItem("staffRole");
-        const savedToken = sessionStorage.getItem("staffAccessToken") || localStorage.getItem("staffAccessToken");
+        const savedUser = sessionStorage.getItem("staffUser");
+        const savedRole = sessionStorage.getItem("staffRole");
+        const savedToken = sessionStorage.getItem("staffAccessToken");
         
         if (savedUser && savedRole && savedToken) {
           const user = JSON.parse(savedUser);
           setStaffUser(user);
           
-          // Restore session from localStorage. The access token is already
+          // Restore session from sessionStorage. The access token is already
           // stored and valid. DO NOT proactively call refreshToken() here —
           // token rotation means two simultaneous page-loads would race and
           // the loser gets a 401. The axios interceptor in client.js handles
@@ -82,9 +81,9 @@ export const StaffAuthProvider = ({ children }) => {
       } catch (error) {
         console.error("Error checking auth:", error);
         // Clear corrupted data
-        localStorage.removeItem("staffUser");
-        localStorage.removeItem("staffRole");
-        localStorage.removeItem("activeProperty");
+        sessionStorage.removeItem("staffUser");
+        sessionStorage.removeItem("staffRole");
+        sessionStorage.removeItem("activeProperty");
         sessionStorage.removeItem("staffAccessToken");
         localStorage.removeItem("staffAccessToken");
       } finally {
@@ -105,10 +104,10 @@ export const StaffAuthProvider = ({ children }) => {
   // Login function - called after successful API login
   const login = (userData) => {
     setStaffUser(userData);
-    localStorage.setItem("staffUser", JSON.stringify(userData));
-    localStorage.setItem("staffRole", userData.role);
+    sessionStorage.setItem("staffUser", JSON.stringify(userData));
+    sessionStorage.setItem("staffRole", userData.role);
     if (userData.activeProperty) {
-      localStorage.setItem("activeProperty", JSON.stringify(userData.activeProperty));
+      sessionStorage.setItem("activeProperty", JSON.stringify(userData.activeProperty));
     }
     // Setup proactive refresh timer after login
     setupRefreshTimer();
@@ -123,11 +122,16 @@ export const StaffAuthProvider = ({ children }) => {
     }
     
     setStaffUser(null);
+    sessionStorage.removeItem("staffUser");
+    sessionStorage.removeItem("staffRole");
+    sessionStorage.removeItem("activeProperty");
+    sessionStorage.removeItem("staffAccessToken");
+    // Defensive: purge any pre-existing localStorage copies from before
+    // these moved to sessionStorage.
+    localStorage.removeItem("staffAccessToken");
     localStorage.removeItem("staffUser");
     localStorage.removeItem("staffRole");
     localStorage.removeItem("activeProperty");
-    sessionStorage.removeItem("staffAccessToken");
-    localStorage.removeItem("staffAccessToken");
     localStorage.removeItem("restaurant_orders");
   };
 
@@ -135,7 +139,7 @@ export const StaffAuthProvider = ({ children }) => {
   const updateUser = useCallback((updatedData) => {
     setStaffUser((prev) => {
       const newUser = { ...prev, ...updatedData };
-      localStorage.setItem("staffUser", JSON.stringify(newUser));
+      sessionStorage.setItem("staffUser", JSON.stringify(newUser));
       return newUser;
     });
   }, []);

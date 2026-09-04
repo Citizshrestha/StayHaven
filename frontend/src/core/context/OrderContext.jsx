@@ -233,7 +233,7 @@ export const OrderProvider = ({ children }) => {
     }
 
     const fetchRealOrders = async () => {
-      const staffToken = sessionStorage.getItem("staffAccessToken") || localStorage.getItem("staffAccessToken");
+      const staffToken = sessionStorage.getItem("staffAccessToken");
       if (staffToken) {
         await fetchOrders({ silent: true });
       }

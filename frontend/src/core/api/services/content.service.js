@@ -24,6 +24,9 @@ export const getAboutContent = () => getContent(CONTENT_TYPES.about);
 export const getFooterContent = () => getContent(CONTENT_TYPES.footer);
 export const getSiteSettings = () => getContent(CONTENT_TYPES.siteSettings);
 
+export const getTestimonials = (limit = 10) =>
+  apiClient.get('/api/v1/testimonials', { params: { limit } });
+
 export const getAdminContent = (type, params = {}) => (
   apiClient.get(`${BASE_PATH}/${type}/admin`, { params })
 );

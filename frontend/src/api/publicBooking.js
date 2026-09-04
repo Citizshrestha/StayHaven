@@ -27,25 +27,11 @@ export const createBookingWithPayment = async (bookingData) => {
       throw new Error('Invalid authentication token. Please login again.');
     }
 
-    console.log('Creating booking with payment:', {
-      hotelId: bookingData.hotelId,
-      roomId: bookingData.roomId,
-      checkIn: bookingData.checkIn,
-      checkOut: bookingData.checkOut,
-      paymentMethod: bookingData.paymentMethod,
-      totalAmount: bookingData.totalAmount,
-      hasGuestInfo: !!(bookingData.guestName && bookingData.guestEmail && bookingData.guestPhone),
-      guestName: bookingData.guestName,
-      guestEmail: bookingData.guestEmail,
-      guestPhone: bookingData.guestPhone,
-    });
-
     // Use axiosClient which automatically handles CSRF tokens via interceptor
     const response = await axiosClient.post('/api/v1/public/bookings/create-with-payment', bookingData, {
       timeout: 30000, // 30 second timeout
     });
 
-    console.log('Booking creation response:', response.data);
     return response.data;
   } catch (error) {
     console.error('Booking creation error:', {
@@ -86,6 +72,25 @@ export const createBookingWithPayment = async (bookingData) => {
     } else {
       throw new Error('Failed to create booking. Please try again.');
     }
+  }
+};
+
+/**
+ * Verify a card payment after Stripe confirms it client-side, and finalize
+ * the booking server-side (server re-checks the charge with Stripe before
+ * marking anything paid — see Backend webhookController.finalizeStripeBookingPayment).
+ */
+export const verifyCardPayment = async (paymentIntentId) => {
+  try {
+    const response = await axiosClient.post('/api/v1/public/bookings/verify-card-payment', {
+      paymentIntentId,
+    });
+    return response.data;
+  } catch (error) {
+    if (error.response?.data?.message) {
+      throw new Error(error.response.data.message);
+    }
+    throw new Error('Failed to verify payment. Please contact support if you were charged.');
   }
 };
 

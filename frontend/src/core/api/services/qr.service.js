@@ -68,10 +68,14 @@ export const createGuestOrder = async (orderData) => {
 /**
  * Get order status (for guests to track their order)
  * @param {string} orderId - The order ID
+ * @param {string} guestSessionId - The guest session that placed the order
+ *   (required for anonymous QR orders — the backend verifies ownership)
  */
-export const getGuestOrderStatus = async (orderId) => {
+export const getGuestOrderStatus = async (orderId, guestSessionId) => {
   try {
-    const response = await axiosClient.get(`/api/v1/guest/order/${orderId}`);
+    const response = await axiosClient.get(`/api/v1/guest/order/${orderId}`, {
+      params: guestSessionId ? { guestSessionId } : undefined,
+    });
     return response.data;
   } catch (error) {
     console.error('Error fetching order status:', error);

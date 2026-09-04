@@ -44,9 +44,11 @@ export const createGuestOrder = async (orderData) => {
   }
 };
 
-export const getGuestOrderStatus = async (orderId) => {
+export const getGuestOrderStatus = async (orderId, guestSessionId) => {
   try {
-    const response = await axiosClient.get(`/api/v1/guest/order/${orderId}`);
+    const response = await axiosClient.get(`/api/v1/guest/order/${orderId}`, {
+      params: guestSessionId ? { guestSessionId } : undefined,
+    });
     return response.data;
   } catch (error) {
     throw error.response?.data || error;

@@ -64,15 +64,24 @@ export const SocketProvider = ({ children }) => {
       return;
     }
 
+    // Access token used by the server to verify the handshake identity and
+    // authorize hotel-room joins. QR guests have no token and connect anonymously.
+    // sessionStorage is the primary store (see StaffAuthContext) — read it
+    // first, falling back to localStorage only for any pre-existing session
+    // written there before that fallback was removed.
+    const staffAccessToken = sessionStorage.getItem("staffAccessToken");
+
     // Build auth payload — QR guests connect without credentials
     const authPayload = isStaffUser
       ? {
+          token: staffAccessToken || undefined,
           userId: staffUser._id,
           role: staffUser.role,
           hotelId: activeProperty._id,
         }
       : isGuestUser
       ? {
+          token: guestToken || undefined,
           userId: guestUserId,
           role: "guest",
           hotelId: localStorage.getItem("activeHotelId") || null,

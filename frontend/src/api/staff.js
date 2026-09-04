@@ -1,4 +1,4 @@
-import axiosClient from "../axiosClient";
+import axiosClient from "../core/api/client";
 import { createLogger } from "../core/utils/logger.js";
 
 const logger = createLogger('StaffAPI');
@@ -12,18 +12,22 @@ export const staffLogin = async (email, password) => {
 
   if (response.data.success) {
     if (response.data.accessToken) {
-      localStorage.setItem("staffAccessToken", response.data.accessToken);
+      // sessionStorage only — see StaffAuthContext for why localStorage is
+      // avoided for the token itself. (Note: this staffLogin export isn't
+      // currently called anywhere — StaffLogin.jsx uses the one in
+      // core/api/services/staff.service.js — kept consistent regardless.)
+      sessionStorage.setItem("staffAccessToken", response.data.accessToken);
     }
-    localStorage.setItem("staffUserId", response.data.user._id);
-    localStorage.setItem("staffUser", JSON.stringify(response.data.user));
-    localStorage.setItem("staffRole", response.data.user.role);
+    sessionStorage.setItem("staffUserId", response.data.user._id);
+    sessionStorage.setItem("staffUser", JSON.stringify(response.data.user));
+    sessionStorage.setItem("staffRole", response.data.user.role);
     if (response.data.user.activeProperty) {
-      localStorage.setItem(
+      sessionStorage.setItem(
         "activeProperty",
         JSON.stringify(response.data.user.activeProperty)
       );
     } else {
-      localStorage.removeItem("activeProperty");
+      sessionStorage.removeItem("activeProperty");
     }
   }
 
@@ -39,6 +43,13 @@ export const staffLogout = async () => {
   } finally {
     // Clear all staff data
     localStorage.removeItem("staffAccessToken");
+    sessionStorage.removeItem("staffUser");
+    sessionStorage.removeItem("staffUserId");
+    sessionStorage.removeItem("staffRole");
+    sessionStorage.removeItem("activeProperty");
+    // Defensive: purge any pre-existing localStorage copies from before
+    // these moved to sessionStorage, so a stale cross-tab value can't
+    // linger and get read by old cached JS still checking localStorage.
     localStorage.removeItem("staffUser");
     localStorage.removeItem("staffUserId");
     localStorage.removeItem("staffRole");
@@ -55,23 +66,23 @@ export const getStaffProfile = async () => {
 
 // Check if staff is authenticated
 export const isStaffAuthenticated = () => {
-  return !!localStorage.getItem("staffAccessToken");
+  return !!sessionStorage.getItem("staffAccessToken");
 };
 
 // Get current staff user
 export const getCurrentStaffUser = () => {
-  const user = localStorage.getItem("staffUser");
+  const user = sessionStorage.getItem("staffUser");
   return user ? JSON.parse(user) : null;
 };
 
 // Get staff role
 export const getStaffRole = () => {
-  return localStorage.getItem("staffRole");
+  return sessionStorage.getItem("staffRole");
 };
 
 // Get active property
 export const getActiveProperty = () => {
-  const property = localStorage.getItem("activeProperty");
+  const property = sessionStorage.getItem("activeProperty");
   return property ? JSON.parse(property) : null;
 };
 

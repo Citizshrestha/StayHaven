@@ -127,10 +127,11 @@ export const initiateCall = async ({ recipientId, channel, roomNumber, hotelId }
 /**
  * Update call status
  */
-export const updateCallStatus = async (callId, { callStatus, callDuration }) => {
+export const updateCallStatus = async (callId, { callStatus, callDuration, hotelId }) => {
     const { data } = await axiosClient.put(`${BASE}/messages/call/${callId}`, {
         callStatus,
         callDuration,
+        hotelId,
     });
     return data;
 };

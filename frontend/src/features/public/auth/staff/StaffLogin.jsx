@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { staffLogin } from "../../../../api/staff";
-import { useStaffAuth } from "../../../../context/StaffAuthContext";
+import { staffLogin } from "../../../../core/api/services/staff.service";
+import { useStaffAuth } from "../../../../core/context/StaffAuthContext";
 import { toast } from "react-toastify";
 
 const StaffLogin = () => {
