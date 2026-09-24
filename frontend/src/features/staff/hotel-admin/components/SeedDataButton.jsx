@@ -54,7 +54,7 @@ const SeedDataButton = ({ hotelId, onSuccess }) => {
   };
 
   // Only show in development mode
-  if (process.env.NODE_ENV === 'production') {
+  if (import.meta.env.PROD) {
     return null;
   }
 

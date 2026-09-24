@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { GoogleOAuthProvider } from "@react-oauth/google";
@@ -74,6 +74,7 @@ import Feedback from "../features/public/landing/pages/Feedback";
 // ============================================
 import HotelDetailPage from "../features/public/hotels/pages/HotelDetail/Index";
 import FilteredHotels from "../features/public/hotels/pages/FilteredHotels";
+import SavedHotels from "../features/public/hotels/pages/SavedHotels";
 import BookingConfirmed from "../features/public/hotels/pages/BookingConfirmed";
 import PaymentCallback from "../features/public/payment/PaymentCallback";
 
@@ -111,10 +112,9 @@ import HotelManagement from "../features/staff/superadmin/pages/HotelManagement"
 // FEATURES - Staff Dashboards (Hotel Admin)
 // ============================================
 import HoteladminDashboard from "../features/staff/hotel-admin/pages/HoteladminDashboard";
-import RoomManagement from "../features/staff/hotel-admin/pages/RoomManagement";
-import RestaurantManagement from "../features/staff/hotel-admin/pages/RestaurantManagement";
-import TableManagement from "../features/staff/hotel-admin/pages/TableManagement";
-import RoomQRManagement from "../features/staff/hotel-admin/pages/RoomQRManagement";
+// The former standalone hotel-admin pages (Rooms/Restaurant/Table QR/Room QR)
+// now live only as sections inside the unified HoteladminDashboard shell.
+// Their old top-level routes redirect into the dashboard hash sections below.
 
 // ============================================
 // FEATURES - Guest QR Access
@@ -238,6 +238,7 @@ const App = () => {
                       {/* Hotels & Booking */}
                       <Route path="/hotels/:id" element={<HotelDetailPage />} />
                       <Route path="/hotels" element={<FilteredHotels />} />
+                      <Route path="/saved-hotels" element={<SavedHotels />} />
                       <Route path="/booking-confirmed" element={<BookingConfirmed />} />
                       <Route path="/payment-callback" element={<PaymentCallback />} />
 
@@ -343,10 +344,11 @@ const App = () => {
                           </ProtectedStaffRoute>
                         }
                       />
-                      <Route path="/roommanagement" element={<ProtectedStaffRoute allowedRoles={['owner', 'hoteladmin', 'admin', 'manager']}><RoomManagement /></ProtectedStaffRoute>} />
-                      <Route path="/restaurantmanagement" element={<ProtectedStaffRoute allowedRoles={['owner', 'hoteladmin', 'admin', 'manager']}><RestaurantManagement /></ProtectedStaffRoute>} />
-                      <Route path="/tablemanagement" element={<ProtectedStaffRoute allowedRoles={['owner', 'hoteladmin', 'admin', 'manager']}><TableManagement /></ProtectedStaffRoute>} />
-                      <Route path="/roomqrmanagement" element={<ProtectedStaffRoute allowedRoles={['owner', 'hoteladmin', 'admin', 'manager']}><RoomQRManagement /></ProtectedStaffRoute>} />
+                      {/* Legacy standalone routes now redirect into the unified dashboard shell */}
+                      <Route path="/roommanagement" element={<Navigate to="/hoteladmin-dashboard#rooms" replace />} />
+                      <Route path="/restaurantmanagement" element={<Navigate to="/hoteladmin-dashboard#restaurant" replace />} />
+                      <Route path="/tablemanagement" element={<Navigate to="/hoteladmin-dashboard#tables" replace />} />
+                      <Route path="/roomqrmanagement" element={<Navigate to="/hoteladmin-dashboard#roomqr" replace />} />
 
                       {/* ================================ */}
                       {/* GUEST QR ROUTES - Token Based    */}
@@ -371,6 +373,7 @@ const App = () => {
                         <Route path="billing" element={<BillingView />} />
                         <Route path="requests" element={<RequestsView />} />
                         <Route path="profile" element={<ProfileView />} />
+                        <Route path="*" element={<Navigate to="/guest-dashboard" replace />} />
                       </Route>
 
                       {/* ================================ */}
