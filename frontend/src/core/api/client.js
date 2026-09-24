@@ -28,7 +28,8 @@ axiosClient.interceptors.request.use(
                               url.includes("/api/v1/profile") ||
                               url.includes("/api/v1/users/admin") ||
                               url.includes("/api/v1/hotels/admin") ||
-                              url.includes("/api/v1/superadmin");
+                              url.includes("/api/v1/superadmin") ||
+                              url.includes("/seed/");
 
         const staffAccessToken = sessionStorage.getItem("staffAccessToken");
         const accessToken = localStorage.getItem('accessToken');
@@ -56,7 +57,8 @@ axiosClient.interceptors.response.use(
                               url.includes("/api/v1/profile") ||
                               url.includes("/api/v1/users/admin") ||
                               url.includes("/api/v1/hotels/admin") ||
-                              url.includes("/api/v1/superadmin");
+                              url.includes("/api/v1/superadmin") ||
+                              url.includes("/seed/");
         const skipRefreshEndpoints = [
             '/api/v1/auth/login',
             '/api/v1/auth/register',
@@ -149,11 +151,11 @@ axiosClient.interceptors.response.use(
                 } else if (localStorage.getItem('accessToken')) {
                     localStorage.removeItem('accessToken');
                     localStorage.removeItem('userId');
-                    if (!window.location.pathname.includes('/login')) {
+                    if (!originalRequest.preservePaymentReturn && !window.location.pathname.includes('/login')) {
                         window.location.href = "/";
                     }
                 }
-                return Promise.reject(refreshErr);
+                return Promise.reject(originalRequest.preservePaymentReturn ? error : refreshErr);
             }
         }
 

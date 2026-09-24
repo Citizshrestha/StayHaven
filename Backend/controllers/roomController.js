@@ -129,10 +129,12 @@ export const generateRoomQR = asyncHandler(async (req, res) => {
   // Validate hotel access and get hotel
   const hotel = await assertHotelAccess(req, room.hotel);
 
-  // Verify ownership/role
-  if (hotel.owner.toString() !== req.user._id.toString() &&
-      req.user.role?.name !== 'admin' &&
-      req.user.role?.name !== 'manager') {
+  // QR generation is a configuration action, not a front-desk one — allow
+  // any owner/admin/manager (a hotel can have more than one "owner"-role
+  // staff member, so comparing against the single hotel.owner id wrongly
+  // locked out every co-owner but the one recorded there).
+  const qrRole = req.user.role?.name;
+  if (!['owner', 'admin', 'manager'].includes(qrRole)) {
     return res.status(403).json({
       success: false,
       message: "Not authorized to generate QR for this room",
@@ -144,13 +146,22 @@ export const generateRoomQR = asyncHandler(async (req, res) => {
     room.regenerateToken();
   }
 
+  // Backfill company from the hotel for legacy rooms created before the
+  // company field was required, so save() validation doesn't fail on an
+  // unrelated missing field during a QR-only update.
+  if (!room.company && hotel?.company) {
+    room.company = hotel.company;
+  }
+
   // Generate QR code
   const { qrCodeData, qrCodeImage } = await generateRoomQRCode(room.uniqueToken, room.hotel.toString());
   room.qrCodeData = qrCodeData;
   room.qrCodeImage = qrCodeImage;
   room.isQrActive = true;
 
-  await room.save();
+  // Validate only the fields we actually modified so legacy documents with
+  // other missing/invalid fields can still receive a QR code.
+  await room.save({ validateModifiedOnly: true });
 
   res.status(200).json({
     success: true,
@@ -182,9 +193,9 @@ export const batchGenerateRoomQR = asyncHandler(async (req, res) => {
   // Validate hotel access and get hotel
   const hotel = await assertHotelAccess(req, hotelId);
 
-  if (hotel.owner.toString() !== req.user._id.toString() &&
-      req.user.role?.name !== 'admin' &&
-      req.user.role?.name !== 'manager') {
+  // See generateRoomQR above for why this isn't a hotel.owner id comparison.
+  const batchQrRole = req.user.role?.name;
+  if (!['owner', 'admin', 'manager'].includes(batchQrRole)) {
     return res.status(403).json({
       success: false,
       message: "Not authorized to generate QR codes for this hotel",
@@ -206,11 +217,16 @@ export const batchGenerateRoomQR = asyncHandler(async (req, res) => {
 
       // Generate QR code if not exists or regenerating
       if (!room.qrCodeImage || regenerate) {
+        // Backfill company for legacy rooms so save() doesn't fail on an
+        // unrelated required field during a QR-only update.
+        if (!room.company && hotel?.company) {
+          room.company = hotel.company;
+        }
         const { qrCodeData, qrCodeImage } = await generateRoomQRCode(room.uniqueToken, hotelId);
         room.qrCodeData = qrCodeData;
         room.qrCodeImage = qrCodeImage;
         room.isQrActive = true;
-        await room.save();
+        await room.save({ validateModifiedOnly: true });
       }
 
       results.push({
@@ -261,8 +277,11 @@ export const toggleRoomQR = asyncHandler(async (req, res) => {
     });
   }
 
+  if (!room.company && hotel?.company) {
+    room.company = hotel.company;
+  }
   room.isQrActive = !room.isQrActive;
-  await room.save();
+  await room.save({ validateModifiedOnly: true });
 
   res.status(200).json({
     success: true,

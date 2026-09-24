@@ -346,11 +346,17 @@ export const generateTableQR = asyncHandler(async (req, res) => {
     });
   }
 
-  await assertHotelAccess(req, table.hotel);
+  const hotel = await assertHotelAccess(req, table.hotel);
 
   // Regenerate token if requested (invalidates old QR codes)
   if (regenerate) {
     table.regenerateToken();
+  }
+
+  // Backfill company for legacy tables so save() validation doesn't fail on
+  // an unrelated required field during a QR-only update.
+  if (!table.company && hotel?.company) {
+    table.company = hotel.company;
   }
 
   // Generate QR code
@@ -359,7 +365,7 @@ export const generateTableQR = asyncHandler(async (req, res) => {
   table.qrCodeImage = qrCodeImage;
   table.isQrActive = true;
 
-  await table.save();
+  await table.save({ validateModifiedOnly: true });
 
   res.status(200).json({
     success: true,
