@@ -1,0 +1,199 @@
+/* ============================================================================
+ * Hotel Admin — Design Tokens (single source of truth)
+ * ----------------------------------------------------------------------------
+ * Scoped to `.hotelAdminShell` so it never leaks into the guest portal,
+ * landing pages, or other staff dashboards. Every hotel-admin page consumes
+ * these `--ha-*` variables instead of redefining its own palette.
+ *
+ * Palette is intentionally UNCHANGED from the previous four competing
+ * definitions — this file just canonicalizes them into one place.
+ * ========================================================================== */
+
+/* ── Typography split: Plus Jakarta Sans (headings) + Inter (body/tables) ── */
+.hotelAdminShell {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: var(--ha-text);
+  background: var(--ha-bg);
+}
+
+.hotelAdminShell h1,
+.hotelAdminShell h2,
+.hotelAdminShell h3,
+.hotelAdminShell h4,
+.hotelAdminShell .ha-heading {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont,
+    'Segoe UI', Roboto, sans-serif;
+}
+
+/* Tabular figures for all numeric data (prices, counts, dates, percentages) */
+.haNum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* ── Type scale helpers (optional utility classes) ── */
+.hotelAdminShell .ha-h1        { font-size: 24px; line-height: 30px; font-weight: 700; }
+.hotelAdminShell .ha-h2        { font-size: 18px; line-height: 24px; font-weight: 600; }
+.hotelAdminShell .ha-h3        { font-size: 15px; line-height: 20px; font-weight: 600; }
+.hotelAdminShell .ha-body      { font-size: 14px; line-height: 20px; font-weight: 400; }
+.hotelAdminShell .ha-body-strong { font-size: 14px; line-height: 20px; font-weight: 600; }
+.hotelAdminShell .ha-small     { font-size: 12px; line-height: 16px; font-weight: 400; }
+.hotelAdminShell .ha-label {
+  font-size: 11px; line-height: 14px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.hotelAdminShell .ha-kpi-value {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 28px; line-height: 34px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.hotelAdminShell .ha-money {
+  font-size: 14px; line-height: 20px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.hotelAdminShell .ha-money-large {
+  font-size: 22px; line-height: 28px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================================
+ * COLOR — LIGHT (default)
+ * ========================================================================== */
+.hotelAdminShell {
+  /* Brand / primary */
+  --ha-primary:        #10b981;  /* emerald-500 */
+  --ha-primary-hover:  #059669;  /* emerald-600 */
+  --ha-primary-soft:   rgba(16, 185, 129, 0.10);
+  --ha-accent:         #10a394;
+
+  /* Surfaces */
+  --ha-bg:             #f9fafb;
+  --ha-surface:        #ffffff;
+  --ha-surface-sunken: #f3f4f6;
+  --ha-border:         #e5e7eb;
+  --ha-border-strong:  #d1d5db;
+
+  /* Text */
+  --ha-text:           #111827;
+  --ha-text-muted:     #374151;
+  --ha-text-subtle:    #6b7280;
+  --ha-text-inverse:   #ffffff;
+
+  /* Sidebar (dark always — does not follow light/dark theme) */
+  --ha-sidebar-bg:       #16213e;
+  --ha-sidebar-surface:  #1c2749;
+  --ha-sidebar-border:   rgba(255, 255, 255, 0.08);
+  --ha-sidebar-text:     #e2e8f0;
+  --ha-sidebar-text-muted: #94a3b8;
+  --ha-sidebar-accent:   #6c63ff;
+
+  /* Status — one definition, all pages */
+  --ha-success:        #10b981;  --ha-success-bg: #d1fae5;
+  --ha-warning:        #f59e0b;  --ha-warning-bg: #fef3c7;
+  --ha-danger:         #ef4444;  --ha-danger-bg:  #fee2e2;
+  --ha-info:           #3b82f6;  --ha-info-bg:    #dbeafe;
+  --ha-neutral:        #6b7280;  --ha-neutral-bg: #f3f4f6;
+
+  /* Nav / icon accent colors (from the old Sidebar palette — kept for variety) */
+  --ha-accent-purple:  #6c63ff;
+  --ha-accent-amber:   #f59e0b;
+  --ha-accent-blue:    #3b82f6;
+  --ha-accent-orange:  #f97316;
+  --ha-accent-cyan:    #06b6d4;
+  --ha-accent-pink:    #ec4899;
+
+  /* Tier colors (loyalty — distinct from status, imply rank not good/bad) */
+  --ha-tier-bronze:  #b45309;  --ha-tier-bronze-bg:  #fef3c7;
+  --ha-tier-silver:  #64748b;  --ha-tier-silver-bg:  #f1f5f9;
+  --ha-tier-gold:    #ca8a04;  --ha-tier-gold-bg:    #fef9c3;
+  --ha-tier-platinum:#0891b2;  --ha-tier-platinum-bg:#cffafe;
+  --ha-tier-diamond: #7c3aed;  --ha-tier-diamond-bg: #ede9fe;
+
+  --ha-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --ha-shadow-md: 0 2px 8px rgba(15, 23, 42, 0.08);
+  --ha-shadow-lg: 0 8px 24px rgba(15, 23, 42, 0.10);
+
+  --ha-radius-sm: 8px;
+  --ha-radius-md: 12px;
+  --ha-radius-lg: 16px;
+  --ha-radius-pill: 999px;
+
+  /* Spacing scale — 4/8/12/16/20/24/32/40 */
+  --ha-s1: 4px;  --ha-s2: 8px;  --ha-s3: 12px; --ha-s4: 16px;
+  --ha-s5: 20px; --ha-s6: 24px; --ha-s8: 32px; --ha-s10: 40px;
+
+  --ha-focus-ring: 0 0 0 2px var(--ha-surface), 0 0 0 4px var(--ha-primary);
+}
+
+/* ============================================================================
+ * COLOR — DARK
+ * ========================================================================== */
+.dark .hotelAdminShell {
+  --ha-primary:        #34d399;
+  --ha-primary-hover:  #10b981;
+  --ha-primary-soft:   rgba(52, 211, 153, 0.14);
+
+  --ha-bg:             #0f1419;
+  --ha-surface:        #1a1f2e;
+  --ha-surface-sunken: #16202f;
+  --ha-border:         #2d3748;
+  --ha-border-strong:  rgba(255, 255, 255, 0.16);
+
+  --ha-text:           #ffffff;
+  --ha-text-muted:     #cbd5e1;
+  --ha-text-subtle:    #94a3b8;
+
+  --ha-success-bg: rgba(16, 185, 129, 0.15);
+  --ha-warning-bg: rgba(245, 158, 11, 0.15);
+  --ha-danger-bg:  rgba(239, 68, 68, 0.15);
+  --ha-info-bg:    rgba(59, 130, 246, 0.15);
+  --ha-neutral-bg: rgba(148, 163, 184, 0.12);
+
+  --ha-tier-bronze-bg:  rgba(180, 83, 9, 0.18);
+  --ha-tier-silver-bg:  rgba(100, 116, 139, 0.18);
+  --ha-tier-gold-bg:    rgba(202, 138, 4, 0.18);
+  --ha-tier-platinum-bg:rgba(8, 145, 178, 0.18);
+  --ha-tier-diamond-bg: rgba(124, 58, 237, 0.20);
+
+  --ha-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --ha-shadow-md: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --ha-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+
+  --ha-focus-ring: 0 0 0 2px var(--ha-surface), 0 0 0 4px var(--ha-primary);
+}
+
+/* ============================================================================
+ * SHARED BASE STYLES
+ * ========================================================================== */
+
+/* Page container padding scale: 16 (mobile) -> 24 (tablet) -> 32 (desktop) */
+.hotelAdminShell .ha-page {
+  padding: var(--ha-s4);
+  min-height: 100vh;
+  background: var(--ha-bg);
+  color: var(--ha-text);
+}
+@media (min-width: 768px)  { .hotelAdminShell .ha-page { padding: var(--ha-s6); } }
+@media (min-width: 1024px) { .hotelAdminShell .ha-page { padding: var(--ha-s8); } }
+
+/* Accessible focus for every interactive element */
+.hotelAdminShell :is(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--ha-primary);
+  outline-offset: 2px;
+  border-radius: var(--ha-radius-sm);
+}
+
+/* Respect reduced motion for everything we add */
+@media (prefers-reduced-motion: reduce) {
+  .hotelAdminShell *,
+  .hotelAdminShell *::before,
+  .hotelAdminShell *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}

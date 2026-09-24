@@ -1,0 +1,537 @@
+/* ============================================================================
+ * Hotel Admin — Shared UI primitive styles
+ * All classes are prefixed `ha-` and consume the --ha-* tokens only.
+ * ========================================================================== */
+
+/* ── Button ── */
+.ha-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: var(--ha-radius-sm);
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 150ms ease-out, border-color 150ms ease-out,
+    color 150ms ease-out, box-shadow 150ms ease-out;
+  user-select: none;
+}
+.ha-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.ha-btn svg { flex-shrink: 0; }
+
+.ha-btn--sm { height: 34px; padding: 0 12px; font-size: 13px; }
+.ha-btn--lg { height: 46px; padding: 0 22px; font-size: 15px; }
+.ha-btn--block { width: 100%; }
+
+.ha-btn--primary {
+  background: var(--ha-primary);
+  color: var(--ha-text-inverse);
+}
+.dark .ha-btn--primary { color: #0f1419; }
+.ha-btn--primary:not(:disabled):hover { background: var(--ha-primary-hover); }
+
+.ha-btn--secondary {
+  background: var(--ha-surface);
+  color: var(--ha-text-muted);
+  border-color: var(--ha-border-strong);
+}
+.ha-btn--secondary:not(:disabled):hover {
+  background: var(--ha-surface-sunken);
+  border-color: var(--ha-text-subtle);
+}
+
+.ha-btn--danger {
+  background: var(--ha-danger);
+  color: #ffffff;
+}
+.ha-btn--danger:not(:disabled):hover { filter: brightness(0.93); }
+
+.ha-btn--ghost {
+  background: transparent;
+  color: var(--ha-text-muted);
+}
+.ha-btn--ghost:not(:disabled):hover { background: var(--ha-surface-sunken); }
+
+/* Icon-only button — meets 44x44 touch target with padding */
+.ha-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid transparent;
+  border-radius: var(--ha-radius-sm);
+  background: transparent;
+  color: var(--ha-text-subtle);
+  cursor: pointer;
+  transition: background-color 150ms ease-out, color 150ms ease-out,
+    border-color 150ms ease-out;
+}
+.ha-icon-btn:hover {
+  background: var(--ha-surface-sunken);
+  color: var(--ha-text);
+}
+.ha-icon-btn--bordered {
+  background: var(--ha-surface);
+  border-color: var(--ha-border);
+}
+
+/* ── Input / Select ── */
+.ha-field { display: flex; flex-direction: column; gap: 6px; }
+.ha-field__label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ha-text-subtle);
+}
+.ha-input,
+.ha-select,
+.ha-textarea {
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--ha-border-strong);
+  border-radius: var(--ha-radius-sm);
+  background: var(--ha-surface);
+  color: var(--ha-text);
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  transition: border-color 150ms ease-out, box-shadow 150ms ease-out;
+  width: 100%;
+}
+.ha-textarea { height: auto; min-height: 88px; padding: 10px 12px; resize: vertical; }
+.ha-input::placeholder,
+.ha-textarea::placeholder { color: var(--ha-text-subtle); }
+.ha-input:focus,
+.ha-select:focus,
+.ha-textarea:focus {
+  outline: none;
+  border-color: var(--ha-primary);
+  box-shadow: 0 0 0 3px var(--ha-primary-soft);
+}
+.ha-input[aria-invalid="true"],
+.ha-select[aria-invalid="true"],
+.ha-textarea[aria-invalid="true"] {
+  border-color: var(--ha-danger);
+}
+.ha-field__error {
+  font-size: 12px;
+  color: var(--ha-danger);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Search input with leading icon */
+.ha-search {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+  max-width: 320px;
+}
+.ha-search__icon {
+  position: absolute;
+  left: 12px;
+  color: var(--ha-text-subtle);
+  pointer-events: none;
+}
+.ha-search .ha-input { padding-left: 38px; }
+
+/* ── Badge (status) ── */
+.ha-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--ha-radius-pill);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: capitalize;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+}
+.ha-badge__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+.ha-badge--success { color: var(--ha-success); background: var(--ha-success-bg); }
+.ha-badge--warning { color: var(--ha-warning); background: var(--ha-warning-bg); }
+.ha-badge--danger  { color: var(--ha-danger);  background: var(--ha-danger-bg); }
+.ha-badge--info    { color: var(--ha-info);    background: var(--ha-info-bg); }
+.ha-badge--neutral { color: var(--ha-neutral); background: var(--ha-neutral-bg); }
+
+/* ── Filter tabs / chips ── */
+.ha-filter-tabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ha-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--ha-border);
+  border-radius: var(--ha-radius-pill);
+  background: var(--ha-surface);
+  color: var(--ha-text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 150ms ease-out;
+}
+.ha-filter-chip:hover { border-color: var(--ha-border-strong); }
+.ha-filter-chip--active {
+  background: var(--ha-primary);
+  border-color: var(--ha-primary);
+  color: var(--ha-text-inverse);
+}
+.dark .ha-filter-chip--active { color: #0f1419; }
+.ha-filter-chip__count {
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0.8;
+}
+
+/* ── Card / Surface ── */
+.ha-card {
+  background: var(--ha-surface);
+  border: 1px solid var(--ha-border);
+  border-radius: var(--ha-radius-lg);
+  box-shadow: var(--ha-shadow-sm);
+}
+.ha-card--pad { padding: 20px; }
+
+/* ── StatCard ── */
+.ha-statcard {
+  background: var(--ha-surface);
+  border: 1px solid var(--ha-border);
+  border-radius: var(--ha-radius-lg);
+  padding: 20px;
+  box-shadow: var(--ha-shadow-sm);
+  transition: box-shadow 150ms ease-out, border-color 150ms ease-out;
+}
+.ha-statcard--clickable { cursor: pointer; }
+.ha-statcard--clickable:hover {
+  box-shadow: var(--ha-shadow-md);
+  border-color: var(--ha-border-strong);
+}
+.ha-statcard__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.ha-statcard__icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--ha-radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+.ha-statcard__value {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 28px;
+  line-height: 34px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ha-text, #111827);
+  margin-bottom: 4px;
+}
+.ha-statcard__label { font-size: 13px; color: var(--ha-text-subtle, #6b7280); }
+.ha-statcard__trend {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--ha-radius-pill);
+}
+.ha-statcard__trend--up   { color: var(--ha-success); background: var(--ha-success-bg); }
+.ha-statcard__trend--flat { color: var(--ha-info);    background: var(--ha-info-bg); }
+.ha-statcard__trend--warn { color: var(--ha-warning); background: var(--ha-warning-bg); }
+
+.ha-kpi-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+@media (min-width: 640px)  { .ha-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1024px) { .ha-kpi-grid { grid-template-columns: repeat(4, 1fr); } }
+
+/* ── Modal ── */
+.ha-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: haFade 150ms ease-out;
+}
+.ha-modal {
+  background: var(--ha-surface);
+  border: 1px solid var(--ha-border);
+  border-radius: var(--ha-radius-lg);
+  box-shadow: var(--ha-shadow-lg);
+  width: 100%;
+  max-width: 560px;
+  max-height: calc(100vh - 32px);
+  display: flex;
+  flex-direction: column;
+  animation: haPop 150ms ease-out;
+}
+.ha-modal--sm { max-width: 420px; }
+.ha-modal--lg { max-width: 780px; }
+.ha-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--ha-border);
+}
+.ha-modal__title {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ha-text);
+}
+.ha-modal__body {
+  padding: 24px;
+  overflow-y: auto;
+}
+.ha-modal__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--ha-border);
+}
+@keyframes haFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes haPop {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ha-modal-overlay, .ha-modal { animation: none; }
+}
+
+/* ── Table ── */
+.ha-table-wrap {
+  background: var(--ha-surface);
+  border: 1px solid var(--ha-border);
+  border-radius: var(--ha-radius-lg);
+  overflow: hidden;
+  box-shadow: var(--ha-shadow-sm);
+}
+.ha-table-scroll { overflow-x: auto; }
+.ha-table { width: 100%; border-collapse: collapse; }
+.ha-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--ha-surface-sunken);
+  color: var(--ha-text-subtle);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  text-align: left;
+  padding: 12px 16px;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--ha-border);
+}
+.ha-table th.ha-sortable { cursor: pointer; user-select: none; }
+.ha-table th.ha-sortable:hover { color: var(--ha-text); }
+.ha-table th .ha-sort-ind { display: inline-flex; vertical-align: middle; margin-left: 4px; opacity: 0.7; }
+.ha-table tbody td {
+  padding: 12px 16px;
+  font-size: 14px;
+  color: var(--ha-text-muted);
+  border-bottom: 1px solid var(--ha-border);
+  vertical-align: middle;
+}
+.ha-table tbody tr { transition: background-color 150ms ease-out; }
+.ha-table tbody tr:hover { background: var(--ha-surface-sunken); }
+.ha-table tbody tr:last-child td { border-bottom: none; }
+.ha-table__row-actions { display: inline-flex; gap: 4px; }
+
+/* ── EmptyState ── */
+.ha-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 48px 24px;
+  gap: 8px;
+}
+.ha-empty__icon {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--ha-radius-lg);
+  background: var(--ha-surface-sunken);
+  color: var(--ha-text-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+.ha-empty__title { font-size: 15px; font-weight: 600; color: var(--ha-text); }
+.ha-empty__desc { font-size: 13px; color: var(--ha-text-subtle); max-width: 360px; }
+
+/* ── Skeleton ── */
+.ha-skel {
+  background: linear-gradient(90deg,
+    var(--ha-surface-sunken) 25%,
+    var(--ha-border) 37%,
+    var(--ha-surface-sunken) 63%);
+  background-size: 400% 100%;
+  animation: haShimmer 1.4s ease infinite;
+  border-radius: var(--ha-radius-sm);
+}
+@keyframes haShimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ha-skel { animation: none; }
+}
+
+/* ── PageHeader ── */
+.ha-page-header {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.ha-page-header__row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.ha-page-header__title {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 24px;
+  line-height: 30px;
+  font-weight: 700;
+  color: var(--ha-text);
+}
+.ha-page-header__subtitle {
+  font-size: 14px;
+  color: var(--ha-text-subtle);
+  margin-top: 4px;
+}
+.ha-page-header__actions { display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.ha-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.ha-toolbar__group { display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+/* ── Live indicator (orders auto-poll) ── */
+.ha-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ha-success);
+}
+.ha-live__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ha-success);
+  animation: haPulse 1.6s ease-in-out infinite;
+}
+@keyframes haPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.7); }
+}
+@media (prefers-reduced-motion: reduce) { .ha-live__dot { animation: none; } }
+
+/* ── Pagination ── */
+.ha-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 4px;
+}
+.ha-pagination__info { font-size: 13px; color: var(--ha-text-subtle); }
+.ha-pagination__controls { display: inline-flex; align-items: center; gap: 4px; }
+.ha-pagination__btn {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--ha-border);
+  border-radius: var(--ha-radius-sm);
+  background: var(--ha-surface);
+  color: var(--ha-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 150ms ease-out;
+}
+.ha-pagination__btn:hover:not(:disabled) { background: var(--ha-surface-sunken); }
+.ha-pagination__btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.ha-pagination__btn--active {
+  background: var(--ha-primary);
+  border-color: var(--ha-primary);
+  color: var(--ha-text-inverse);
+}
+.dark .ha-pagination__btn--active { color: #0f1419; }
+
+/* ── Segmented control (view toggles / tabs) ── */
+.ha-segment {
+  display: inline-flex;
+  padding: 3px;
+  background: var(--ha-surface-sunken);
+  border: 1px solid var(--ha-border);
+  border-radius: var(--ha-radius-sm);
+  gap: 2px;
+}
+.ha-segment__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ha-text-subtle);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 150ms ease-out;
+}
+.ha-segment__btn--active {
+  background: var(--ha-surface);
+  color: var(--ha-text);
+  box-shadow: var(--ha-shadow-sm);
+}

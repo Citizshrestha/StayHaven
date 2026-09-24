@@ -1,0 +1,107 @@
+/* ============================================================================
+ * Hotel Admin — App shell layout (sidebar + topbar + content)
+ * Responsive: fixed sidebar (>=1024) -> icon rail (768-1023) -> off-canvas (<768)
+ * ========================================================================== */
+
+.ha-shell {
+  display: flex;
+  height: 100vh;          /* pin to viewport so only the content scrolls */
+  overflow: hidden;
+  background: var(--ha-bg);
+  color: var(--ha-text);
+}
+
+/* Sidebar occupies fixed width on desktop and stays put */
+.ha-shell__sidebar {
+  flex-shrink: 0;
+  width: 260px;
+  height: 100vh;
+  transition: width 200ms ease-out, transform 200ms ease-out;
+  z-index: 60;
+}
+
+/* Main column — this is the scroll container */
+.ha-shell__main {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ha-shell__content {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Topbar — only visible on tablet/mobile to host hamburger + theme toggle */
+.ha-topbar {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--ha-surface);
+  border-bottom: 1px solid var(--ha-border);
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+.ha-topbar__title {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--ha-text);
+}
+.ha-topbar__spacer { flex: 1; }
+
+/* Backdrop for off-canvas drawer */
+.ha-shell__backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  z-index: 55;
+}
+
+/* ── Tablet: collapse to icon rail ── */
+@media (max-width: 1023px) and (min-width: 768px) {
+  .ha-shell__sidebar { width: 72px; }
+  .ha-shell__sidebar[data-collapsed='false'] { width: 260px; }
+}
+
+/* ── Mobile: off-canvas drawer + topbar ── */
+@media (max-width: 767px) {
+  .ha-topbar { display: flex; }
+  .ha-shell__sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    transform: translateX(-100%);
+  }
+  .ha-shell__sidebar[data-open='true'] { transform: translateX(0); }
+  .ha-shell__backdrop[data-open='true'] { display: block; }
+}
+
+/* Theme toggle wrapper in sidebar footer */
+.ha-theme-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 4px 0;
+}
+.ha-theme-row__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ha-sidebar-text-muted);
+}
+
+/* Dashboard two-column body responsive */
+@media (min-width: 1024px) {
+  .ha-dashboard-body { grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr) !important; }
+}
