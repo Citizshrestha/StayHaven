@@ -1,6 +1,16 @@
-import { useState, useMemo } from 'react';
-import { Bell, Check, CheckCheck, Trash2, Filter } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Bell, Check, CheckCheck, Trash2, ShoppingBag, BellRing, MessageSquare, Activity } from 'lucide-react';
 import { useNotifications, NOTIFICATION_TYPES } from '../../../../core/context/useNotifications';
+import ConfirmDialog from '../../../../components/ConfirmDialog';
+import {
+  PageHeader,
+  Button,
+  Badge,
+  FilterTabs,
+  EmptyState,
+  Skeleton,
+} from '../components/ui';
+import '../styles/hotel-admin-tokens.css';
 
 const TABS = [
   { key: 'all', label: 'All' },
@@ -11,11 +21,14 @@ const TABS = [
   { key: NOTIFICATION_TYPES.ORDER_STATUS, label: 'Status Updates' },
 ];
 
-const PRIORITY_COLORS = {
-  high: { bg: '#fef2f2', color: '#dc2626', label: 'High' },
-  medium: { bg: '#fffbeb', color: '#d97706', label: 'Medium' },
-  low: { bg: '#f0fdf4', color: '#16a34a', label: 'Low' },
+const TYPE_ICON = {
+  [NOTIFICATION_TYPES.NEW_ORDER]: ShoppingBag,
+  [NOTIFICATION_TYPES.WAITER_CALL]: BellRing,
+  [NOTIFICATION_TYPES.MESSAGE]: MessageSquare,
+  [NOTIFICATION_TYPES.ORDER_STATUS]: Activity,
 };
+
+const PRIORITY_TONE = { high: 'danger', medium: 'warning', low: 'success' };
 
 const timeAgo = (date) => {
   const mins = Math.floor((Date.now() - new Date(date)) / 60000);
@@ -25,105 +38,132 @@ const timeAgo = (date) => {
   return `${Math.floor(mins / 1440)}d ago`;
 };
 
-const s = {
-  container: { padding: '24px', maxWidth: 800, margin: '0 auto' },
-  header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 },
-  title: { margin: 0, fontSize: 22, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 },
-  stats: { display: 'flex', gap: 16, fontSize: 13, color: '#6b7280', marginTop: 6 },
-  statBadge: (color) => ({ background: color, color: '#fff', borderRadius: 10, padding: '2px 8px', fontWeight: 600, fontSize: 12 }),
-  actions: { display: 'flex', gap: 8 },
-  btn: { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 12px', border: '1px solid #d1d5db', borderRadius: 6, background: '#fff', cursor: 'pointer', fontSize: 13, color: '#374151' },
-  tabs: { display: 'flex', gap: 4, marginBottom: 16, overflowX: 'auto', paddingBottom: 4 },
-  tab: (active) => ({ padding: '6px 14px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: active ? 600 : 400, background: active ? '#2563eb' : '#f3f4f6', color: active ? '#fff' : '#4b5563' }),
-  list: { display: 'flex', flexDirection: 'column', gap: 6 },
-  item: (isRead) => ({ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 16px', borderRadius: 8, border: '1px solid #e5e7eb', background: isRead ? '#fff' : '#eff6ff', cursor: 'pointer', transition: 'background .15s' }),
-  dot: (isRead) => ({ width: 8, height: 8, borderRadius: '50%', background: isRead ? '#d1d5db' : '#2563eb', marginTop: 6, flexShrink: 0 }),
-  body: { flex: 1, minWidth: 0 },
-  itemTitle: { margin: 0, fontSize: 14, fontWeight: 500, lineHeight: 1.4 },
-  meta: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, fontSize: 12, color: '#9ca3af' },
-  priority: (p) => { const c = PRIORITY_COLORS[p] || PRIORITY_COLORS.medium; return { background: c.bg, color: c.color, borderRadius: 4, padding: '1px 6px', fontSize: 11, fontWeight: 600 }; },
-  empty: { textAlign: 'center', padding: '60px 24px', color: '#9ca3af' },
-};
-
 const NotificationsManagement = () => {
   const { notifications, unreadCount, isLoadingInitial, markRead, markAllRead, clearAll } = useNotifications();
   const [tab, setTab] = useState('all');
+  const [confirmClear, setConfirmClear] = useState(false);
 
   const filtered = useMemo(() => {
     if (tab === 'all') return notifications;
-    if (tab === 'unread') return notifications.filter(n => !n.isRead);
-    return notifications.filter(n => n.type === tab);
+    if (tab === 'unread') return notifications.filter((n) => !n.isRead);
+    return notifications.filter((n) => n.type === tab);
   }, [notifications, tab]);
 
-  const readCount = notifications.length - unreadCount;
-
-  if (isLoadingInitial) {
-    return (
-      <div style={s.empty}>
-        <Bell size={40} strokeWidth={1.5} style={{ marginBottom: 12, opacity: 0.4 }} />
-        <p style={{ margin: 0 }}>Loading notifications...</p>
-      </div>
-    );
-  }
+  const tabOptions = TABS.map((t) => ({
+    value: t.key,
+    label: t.label,
+    count: t.key === 'unread' ? unreadCount || undefined : undefined,
+  }));
 
   return (
-    <div style={s.container}>
-      {/* Header */}
-      <div style={s.header}>
-        <div>
-          <h2 style={s.title}><Bell size={22} /> Notifications</h2>
-          <div style={s.stats}>
-            <span>{notifications.length} total</span>
-            <span><span style={s.statBadge('#2563eb')}>{unreadCount}</span> unread</span>
-            <span><span style={s.statBadge('#6b7280')}>{readCount}</span> read</span>
-          </div>
-        </div>
-        <div style={s.actions}>
-          <button style={s.btn} onClick={markAllRead} disabled={!unreadCount} title="Mark all read">
-            <CheckCheck size={14} /> Mark all read
-          </button>
-          <button style={{ ...s.btn, borderColor: '#fca5a5', color: '#dc2626' }} onClick={clearAll} disabled={!notifications.length} title="Clear all">
-            <Trash2 size={14} /> Clear
-          </button>
-        </div>
-      </div>
+    <div className="ha-page" style={{ maxWidth: 860, margin: '0 auto' }}>
+      <PageHeader
+        title="Notifications"
+        subtitle={`${notifications.length} total · ${unreadCount} unread`}
+        actions={
+          <>
+            <Button variant="secondary" onClick={markAllRead} disabled={!unreadCount}>
+              <CheckCheck size={16} aria-hidden="true" /> Mark all read
+            </Button>
+            <Button variant="danger" onClick={() => setConfirmClear(true)} disabled={!notifications.length}>
+              <Trash2 size={16} aria-hidden="true" /> Clear
+            </Button>
+          </>
+        }
+        toolbar={<FilterTabs options={tabOptions} value={tab} onChange={setTab} ariaLabel="Filter notifications" />}
+      />
 
-      {/* Filter tabs */}
-      <div style={s.tabs}>
-        {TABS.map(t => (
-          <button key={t.key} style={s.tab(tab === t.key)} onClick={() => setTab(t.key)}>
-            {t.label}
-            {t.key === 'unread' && unreadCount > 0 && <span style={{ marginLeft: 4 }}>({unreadCount})</span>}
-          </button>
-        ))}
-      </div>
-
-      {/* List */}
-      {filtered.length === 0 ? (
-        <div style={s.empty}>
-          <Filter size={32} strokeWidth={1.5} style={{ marginBottom: 8, opacity: 0.3 }} />
-          <p style={{ margin: 0 }}>{tab === 'all' ? 'No notifications yet' : `No ${TABS.find(t => t.key === tab)?.label?.toLowerCase() || ''} notifications`}</p>
-        </div>
-      ) : (
-        <div style={s.list}>
-          {filtered.map(n => (
-            <div key={n.id} style={s.item(n.isRead)} onClick={() => !n.isRead && markRead(n.id)}>
-              <div style={s.dot(n.isRead)} />
-              <div style={s.body}>
-                <p style={s.itemTitle}>{n.title || n.message}</p>
-                {n.title && n.message && n.title !== n.message && (
-                  <p style={{ margin: '2px 0 0', fontSize: 13, color: '#6b7280' }}>{n.message}</p>
-                )}
-                <div style={s.meta}>
-                  <span>{timeAgo(n.createdAt)}</span>
-                  {n.priority && <span style={s.priority(n.priority)}>{PRIORITY_COLORS[n.priority]?.label || n.priority}</span>}
-                  {n.isRead && <Check size={12} style={{ color: '#9ca3af' }} />}
-                </div>
+      {isLoadingInitial ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="ha-card ha-card--pad" style={{ display: 'flex', gap: 12 }}>
+              <Skeleton width={36} height={36} radius="var(--ha-radius-md)" />
+              <div style={{ flex: 1 }}>
+                <Skeleton width="60%" height={14} style={{ marginBottom: 8 }} />
+                <Skeleton width="30%" height={12} />
               </div>
             </div>
           ))}
         </div>
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          icon={<Bell size={26} />}
+          title={tab === 'all' ? 'No notifications yet' : `No ${TABS.find((t) => t.key === tab)?.label?.toLowerCase() || ''} notifications`}
+          description="New activity across your property will appear here."
+        />
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {filtered.map((n) => {
+            const TIcon = TYPE_ICON[n.type] || Bell;
+            return (
+              <div
+                key={n.id}
+                className="ha-card"
+                role={!n.isRead ? 'button' : undefined}
+                tabIndex={!n.isRead ? 0 : undefined}
+                onClick={() => !n.isRead && markRead(n.id)}
+                onKeyDown={(e) => {
+                  if (!n.isRead && (e.key === 'Enter' || e.key === ' ')) {
+                    e.preventDefault();
+                    markRead(n.id);
+                  }
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 12,
+                  padding: '14px 16px',
+                  cursor: n.isRead ? 'default' : 'pointer',
+                  background: n.isRead ? 'var(--ha-surface)' : 'var(--ha-primary-soft)',
+                  borderColor: n.isRead ? 'var(--ha-border)' : 'transparent',
+                }}
+              >
+                <span
+                  aria-hidden="true"
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 'var(--ha-radius-md)',
+                    background: 'var(--ha-surface-sunken)',
+                    color: 'var(--ha-text-muted)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <TIcon size={18} />
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p className="ha-body-strong" style={{ margin: 0, color: 'var(--ha-text)' }}>{n.title || n.message}</p>
+                  {n.title && n.message && n.title !== n.message && (
+                    <p className="ha-small" style={{ margin: '2px 0 0', color: 'var(--ha-text-subtle)' }}>{n.message}</p>
+                  )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+                    <span className="ha-small" style={{ color: 'var(--ha-text-subtle)' }}>{timeAgo(n.createdAt)}</span>
+                    {n.priority && <Badge tone={PRIORITY_TONE[n.priority] || 'warning'}>{n.priority}</Badge>}
+                    {n.isRead && <Check size={13} aria-label="Read" style={{ color: 'var(--ha-text-subtle)' }} />}
+                  </div>
+                </div>
+                {!n.isRead && <span aria-label="Unread" style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--ha-primary)', marginTop: 6, flexShrink: 0 }} />}
+              </div>
+            );
+          })}
+        </div>
       )}
+
+      <ConfirmDialog
+        isOpen={confirmClear}
+        onClose={() => setConfirmClear(false)}
+        onConfirm={() => {
+          clearAll();
+          setConfirmClear(false);
+        }}
+        variant="danger"
+        title="Clear all notifications?"
+        message="All notifications will be permanently removed from this list."
+        confirmText="Clear All"
+      />
     </div>
   );
 };

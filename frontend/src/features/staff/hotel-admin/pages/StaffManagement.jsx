@@ -1,363 +1,428 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'react-toastify';
-import { useStaffAuth } from '../../../../core/context/StaffAuthContext';
+import {
+  Users,
+  UtensilsCrossed,
+  ChefHat,
+  Building2,
+  Sparkles,
+  Briefcase,
+  Lock,
+  User,
+  RefreshCw,
+  Plus,
+  Download,
+  LayoutGrid,
+  List,
+  Mail,
+  Info,
+} from 'lucide-react';
 import { getStaffList, inviteStaff, updateStaffStatus } from '../services/staffApi';
-import './StaffManagement.css';
+import useHotelId from '../hooks/useHotelId';
+import ConfirmDialog from '../../../../components/ConfirmDialog';
+import {
+  PageHeader,
+  Button,
+  Input,
+  Select,
+  Badge,
+  StatCard,
+  StatCardSkeleton,
+  SearchInput,
+  FilterTabs,
+  Segmented,
+  EmptyState,
+  Modal,
+} from '../components/ui';
+import useDebouncedValue from '../hooks/useDebouncedValue';
+import { exportToCsv } from '../utils/csv';
+import '../styles/hotel-admin-tokens.css';
 
-/* ─── Constants ─── */
+/* Roles use lucide icons instead of emoji (§1.6 / §2.3) */
 const ROLES = [
-  { value:'waiter',       label:'Waiter',       icon:'🍽️', color:'#6366f1' },
-  { value:'chief',        label:'Chef',          icon:'👨‍🍳', color:'#f59e0b' },
-  { value:'receptionist', label:'Receptionist',  icon:'🏨', color:'#10b981' },
-  { value:'housekeeper',  label:'Housekeeper',   icon:'🧹', color:'#3b82f6' },
-  { value:'manager',      label:'Manager',       icon:'👔', color:'#8b5cf6' },
-  { value:'security',     label:'Security',      icon:'🔐', color:'#ef4444' },
+  { value: 'waiter', label: 'Waiter', Icon: UtensilsCrossed },
+  { value: 'chief', label: 'Chef', Icon: ChefHat },
+  { value: 'receptionist', label: 'Receptionist', Icon: Building2 },
+  { value: 'housekeeper', label: 'Housekeeper', Icon: Sparkles },
+  { value: 'manager', label: 'Manager', Icon: Briefcase },
+  { value: 'security', label: 'Security', Icon: Lock },
 ];
 
-const DEPTS = ['all','Front Office','Housekeeping','Food & Beverage','Guest Services','Maintenance','Security'];
+const DEPTS = ['all', 'Front Office', 'Housekeeping', 'Food & Beverage', 'Guest Services', 'Maintenance', 'Security'];
 
-const roleMeta = (role) => ROLES.find(r => r.value === role?.toLowerCase()) || { label: role || 'Staff', icon: '👤', color: '#64748b' };
+const roleMeta = (role) => ROLES.find((r) => r.value === role?.toLowerCase()) || { label: role || 'Staff', Icon: User };
+const initials = (name) => (name || '').split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase() || '?';
+const avatarColor = (name) => {
+  const colors = ['#6366f1', '#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ef4444', '#ec4899', '#14b8a6'];
+  return colors[(name || 'A').charCodeAt(0) % colors.length];
+};
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const initials = (name) => (name||'').split(' ').map(p=>p[0]).join('').slice(0,2).toUpperCase() || '?';
+const RoleBadge = ({ role }) => {
+  const rm = roleMeta(role);
+  const RIcon = rm.Icon;
+  return (
+    <span className="ha-badge ha-badge--info" style={{ textTransform: 'none' }}>
+      <RIcon size={12} aria-hidden="true" /> {rm.label}
+    </span>
+  );
+};
 
-/* ══════════════════════════════════════════════════════════════ */
-const StaffManagement = ({ embedded = false }) => {
-  const { activeProperty } = useStaffAuth();
-  const hotelId = activeProperty?._id || activeProperty;
+const StaffManagement = () => {
+  const hotelId = useHotelId();
 
-  const [staff, setStaff]           = useState([]);
-  const [loading, setLoading]       = useState(false);
-  const [actionLoading, setAL]      = useState({});
+  const [staff, setStaff] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState({});
 
-  const [search, setSearch]         = useState('');
-  const [deptFilter, setDeptF]      = useState('all');
-  const [roleFilter, setRoleF]      = useState('all');
-  const [statusFilter, setStatusF]  = useState('all');
-  const [viewMode, setViewMode]     = useState('cards'); // cards | table
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 250);
+  const [deptFilter, setDeptFilter] = useState('all');
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [viewMode, setViewMode] = useState('cards');
 
   const [showInvite, setShowInvite] = useState(false);
-  const [inviteForm, setIForm]      = useState({ fullname:'', email:'', role:'waiter', propertyId:'' });
+  const [inviteForm, setInviteForm] = useState({ fullname: '', email: '', role: 'waiter' });
+  const [inviteErrors, setInviteErrors] = useState({});
 
-  const setAct = (k, v) => setAL(p => ({ ...p, [k]: v }));
+  const [toggleTarget, setToggleTarget] = useState(null);
 
-  /* ─── Fetch ─── */
+  const setAct = (k, v) => setActionLoading((p) => ({ ...p, [k]: v }));
+
   const fetchStaff = useCallback(async () => {
     setLoading(true);
     try {
       const params = {};
-      if (search) params.search = search;
       if (deptFilter !== 'all') params.department = deptFilter;
       const res = await getStaffList(params);
       setStaff(res.data.data || []);
     } catch (e) {
       toast.error(e.response?.data?.message || 'Failed to load staff');
-    } finally { setLoading(false); }
-  }, [search, deptFilter]);
+    } finally {
+      setLoading(false);
+    }
+  }, [deptFilter]);
 
-  useEffect(() => { fetchStaff(); }, [fetchStaff]);
+  useEffect(() => {
+    fetchStaff();
+  }, [fetchStaff]);
 
-  /* ─── Actions ─── */
+  const stats = useMemo(
+    () => ({
+      total: staff.length,
+      active: staff.filter((m) => m.isActive !== false).length,
+      inactive: staff.filter((m) => m.isActive === false).length,
+      pending: staff.filter((m) => m.status?.toLowerCase() === 'pending').length,
+    }),
+    [staff]
+  );
+
+  const filtered = useMemo(() => {
+    const q = debouncedSearch.trim().toLowerCase();
+    return staff.filter((m) => {
+      const name = (m.name || m.fullname || '').toLowerCase();
+      const matchS = !q || name.includes(q) || (m.email || '').toLowerCase().includes(q);
+      const matchD = deptFilter === 'all' || m.department === deptFilter;
+      const matchR = roleFilter === 'all' || m.role?.toLowerCase() === roleFilter;
+      const matchSt = statusFilter === 'all' || (statusFilter === 'active' ? m.isActive !== false : m.isActive === false);
+      return matchS && matchD && matchR && matchSt;
+    });
+  }, [staff, debouncedSearch, deptFilter, roleFilter, statusFilter]);
+
+  const validateInvite = () => {
+    const errs = {};
+    if (!inviteForm.fullname.trim()) errs.fullname = 'Full name is required';
+    if (!inviteForm.email.trim()) errs.email = 'Email is required';
+    else if (!EMAIL_RE.test(inviteForm.email.trim())) errs.email = 'Enter a valid email address';
+    setInviteErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
   const handleInvite = async (e) => {
     e.preventDefault();
+    if (!validateInvite()) return;
     setAct('invite', true);
     try {
       await inviteStaff({ ...inviteForm, propertyId: hotelId });
       toast.success(`Invitation sent to ${inviteForm.email}`);
       setShowInvite(false);
-      setIForm({ fullname:'', email:'', role:'waiter', propertyId:'' });
+      setInviteForm({ fullname: '', email: '', role: 'waiter' });
+      setInviteErrors({});
       fetchStaff();
-    } catch (e) {
-      toast.error(e.response?.data?.message || 'Failed to send invitation');
-    } finally { setAct('invite', false); }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to send invitation');
+    } finally {
+      setAct('invite', false);
+    }
   };
 
-  const handleToggle = async (staffId, isActive, name) => {
-    setAct(staffId, true);
+  const confirmToggle = async () => {
+    if (!toggleTarget) return;
+    const { id, isActive, name } = toggleTarget;
+    setAct(id, true);
     try {
-      await updateStaffStatus(staffId, !isActive);
+      await updateStaffStatus(id, !isActive);
       toast.success(`${name} ${isActive ? 'deactivated' : 'activated'}`);
+      setToggleTarget(null);
       fetchStaff();
-    } catch (e) {
+    } catch {
       toast.error('Status update failed');
-    } finally { setAct(staffId, false); }
+    } finally {
+      setAct(id, false);
+    }
   };
 
-  /* ─── Derived ─── */
-  const filtered = staff.filter(m => {
-    const matchS = !search || (m.name||m.fullname||'').toLowerCase().includes(search.toLowerCase()) || (m.email||'').toLowerCase().includes(search.toLowerCase());
-    const matchD = deptFilter === 'all' || m.department === deptFilter;
-    const matchR = roleFilter === 'all' || m.role?.toLowerCase() === roleFilter;
-    const matchSt = statusFilter === 'all' || (statusFilter === 'active' ? m.isActive !== false : m.isActive === false);
-    return matchS && matchD && matchR && matchSt;
-  });
-
-  const stats = {
-    total:    staff.length,
-    active:   staff.filter(m=>m.isActive!==false).length,
-    inactive: staff.filter(m=>m.isActive===false).length,
-    pending:  staff.filter(m=>m.status?.toLowerCase()==='pending').length,
+  const handleExport = () => {
+    if (filtered.length === 0) {
+      toast.info('No staff to export.');
+      return;
+    }
+    exportToCsv(
+      'staff.csv',
+      ['Name', 'Email', 'Role', 'Department', 'Status', 'Joined'],
+      filtered.map((m) => [
+        m.name || m.fullname || '',
+        m.email || '',
+        roleMeta(m.role).label,
+        m.department || '',
+        m.isActive === false ? 'Inactive' : 'Active',
+        m.joinDate ? new Date(m.joinDate).toLocaleDateString() : '',
+      ])
+    );
+    toast.success(`Exported ${filtered.length} staff to CSV.`);
   };
 
-  /* ─── Avatar color ─── */
-  const avatarColor = (name) => {
-    const colors = ['#6366f1','#10b981','#f59e0b','#3b82f6','#8b5cf6','#ef4444','#ec4899','#14b8a6'];
-    const n = (name||'A').charCodeAt(0);
-    return colors[n % colors.length];
+  const statusFilters = [
+    { value: 'all', label: 'All', count: stats.total },
+    { value: 'active', label: 'Active', count: stats.active },
+    { value: 'inactive', label: 'Inactive', count: stats.inactive },
+  ];
+
+  const renderToggleBtn = (member) => {
+    const name = member.name || member.fullname || 'Unknown';
+    const isActive = member.isActive !== false;
+    return (
+      <Button
+        size="sm"
+        variant={isActive ? 'danger' : 'primary'}
+        onClick={() => setToggleTarget({ id: member._id, isActive, name })}
+        disabled={actionLoading[member._id]}
+      >
+        {actionLoading[member._id] ? '…' : isActive ? 'Deactivate' : 'Activate'}
+      </Button>
+    );
   };
 
-  /* ──────────────── RENDER ──────────────── */
-  const pageContent = (
-    <div className="sm2-root">
-      {/* ── Header ── */}
-      <div className="sm2-header">
-        <div className="sm2-header-left">
-          <div className="sm2-header-icon">
-            <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-          </div>
-          <div>
-            <h1>Staff Management</h1>
-            <p>Manage hotel staff members, roles, and invitations</p>
-          </div>
-        </div>
-        <div className="sm2-header-actions">
-          <div className="sm2-view-toggle">
-            <button className={`sm2-vbtn${viewMode==='cards'?' sm2-vbtn--active':''}`} onClick={()=>setViewMode('cards')}>
-              <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-            </button>
-            <button className={`sm2-vbtn${viewMode==='table'?' sm2-vbtn--active':''}`} onClick={()=>setViewMode('table')}>
-              <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
-            </button>
-          </div>
-          <button className="sm2-btn sm2-btn--ghost" onClick={fetchStaff} disabled={loading}>↺ Refresh</button>
-          <button className="sm2-btn sm2-btn--primary" onClick={()=>setShowInvite(true)}>+ Invite Staff</button>
-        </div>
+  return (
+    <div className="ha-page">
+      <PageHeader
+        title="Staff Management"
+        subtitle="Manage staff members, roles, and invitations."
+        actions={
+          <>
+            <Button variant="secondary" onClick={fetchStaff}>
+              <RefreshCw size={16} aria-hidden="true" /> Refresh
+            </Button>
+            <Button variant="secondary" onClick={handleExport}>
+              <Download size={16} aria-hidden="true" /> Export
+            </Button>
+            <Button variant="primary" onClick={() => setShowInvite(true)}>
+              <Plus size={16} aria-hidden="true" /> Invite Staff
+            </Button>
+          </>
+        }
+        toolbar={
+          <>
+            <div className="ha-toolbar__group">
+              <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name or email…" ariaLabel="Search staff" />
+              <Select value={deptFilter} onChange={(e) => setDeptFilter(e.target.value)} aria-label="Filter by department">
+                {DEPTS.map((d) => <option key={d} value={d}>{d === 'all' ? 'All Departments' : d}</option>)}
+              </Select>
+              <Select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} aria-label="Filter by role">
+                <option value="all">All Roles</option>
+                {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+              </Select>
+              <Segmented
+                options={[
+                  { value: 'cards', label: 'Cards', icon: <LayoutGrid size={15} aria-hidden="true" /> },
+                  { value: 'table', label: 'Table', icon: <List size={15} aria-hidden="true" /> },
+                ]}
+                value={viewMode}
+                onChange={setViewMode}
+                ariaLabel="Staff view"
+              />
+            </div>
+            <FilterTabs options={statusFilters} value={statusFilter} onChange={setStatusFilter} ariaLabel="Filter staff by status" />
+          </>
+        }
+      />
+
+      <div className="ha-kpi-grid" style={{ marginBottom: 24 }}>
+        {loading && staff.length === 0 ? (
+          Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)
+        ) : (
+          <>
+            <StatCard icon={<Users size={22} />} iconBg="linear-gradient(135deg,#6366f1,#4f46e5)" label="Total Staff" value={stats.total} />
+            <StatCard icon={<User size={22} />} iconBg="var(--ha-success)" label="Active" value={stats.active} />
+            <StatCard icon={<Lock size={22} />} iconBg="var(--ha-danger)" label="Inactive" value={stats.inactive} />
+            <StatCard icon={<Info size={22} />} iconBg="var(--ha-warning)" label="Pending" value={stats.pending} />
+          </>
+        )}
       </div>
 
-      {/* ── Stats ── */}
-      <div className="sm2-stats">
-        {[
-          { label:'Total Staff', value:stats.total,    color:'#6366f1', icon:'👥' },
-          { label:'Active',      value:stats.active,   color:'#10b981', icon:'✅' },
-          { label:'Inactive',    value:stats.inactive, color:'#ef4444', icon:'🔴' },
-          { label:'Pending',     value:stats.pending,  color:'#f59e0b', icon:'⏳' },
-        ].map(s=>(
-          <div key={s.label} className="sm2-stat" style={{'--c':s.color}}>
-            <span className="sm2-stat-ico">{s.icon}</span>
-            <div className="sm2-stat-val">{s.value}</div>
-            <div className="sm2-stat-lbl">{s.label}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* ── Filters ── */}
-      <div className="sm2-filters">
-        <div className="sm2-search-wrap">
-          <svg className="sm2-search-ico" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="11" cy="11" r="8"/><path strokeLinecap="round" d="M21 21l-4.35-4.35"/></svg>
-          <input className="sm2-search" placeholder="Search by name or email…" value={search} onChange={e=>setSearch(e.target.value)}/>
-        </div>
-        <select className="sm2-sel" value={deptFilter} onChange={e=>setDeptF(e.target.value)}>
-          {DEPTS.map(d=><option key={d} value={d}>{d === 'all' ? 'All Departments' : d}</option>)}
-        </select>
-        <select className="sm2-sel" value={roleFilter} onChange={e=>setRoleF(e.target.value)}>
-          <option value="all">All Roles</option>
-          {ROLES.map(r=><option key={r.value} value={r.value}>{r.label}</option>)}
-        </select>
-        <select className="sm2-sel" value={statusFilter} onChange={e=>setStatusF(e.target.value)}>
-          <option value="all">All Status</option>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-        </select>
-      </div>
-
-      {/* ── Content ── */}
-      {loading && !staff.length ? (
-        <div className="sm2-loading"><div className="sm2-spinner"/><span>Loading staff…</span></div>
-      ) : filtered.length === 0 ? (
-        <div className="sm2-empty">
-          <span className="sm2-empty-ico">👥</span>
-          <h3>{staff.length === 0 ? 'No Staff Yet' : 'No Matching Staff'}</h3>
-          <p>{staff.length === 0 ? 'Invite your first staff member to get started' : 'Try adjusting your search or filters'}</p>
-          {staff.length === 0 && <button className="sm2-btn sm2-btn--primary" onClick={()=>setShowInvite(true)}>+ Invite First Staff</button>}
-        </div>
+      {filtered.length === 0 && !loading ? (
+        <EmptyState
+          icon={<Users size={26} />}
+          title={staff.length === 0 ? 'No staff yet' : 'No matching staff'}
+          description={staff.length === 0 ? 'Invite your first staff member to get started.' : 'Try adjusting your search or filters.'}
+          action={staff.length === 0 ? <Button variant="primary" size="sm" onClick={() => setShowInvite(true)}><Plus size={15} aria-hidden="true" /> Invite Staff</Button> : null}
+        />
       ) : viewMode === 'cards' ? (
-        /* ── CARDS VIEW ── */
-        <div className="sm2-grid">
-          {filtered.map(member => {
-            const rm = roleMeta(member.role);
+        <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))' }}>
+          {filtered.map((member) => {
             const name = member.name || member.fullname || 'Unknown';
             const isActive = member.isActive !== false;
-            const ac = avatarColor(name);
             return (
-              <div key={member._id} className={`sm2-card${!isActive?' sm2-card--inactive':''}`}>
-                <div className="sm2-card-top">
-                  <div className="sm2-avatar" style={{background:ac}}>
+              <div key={member._id} className="ha-card ha-card--pad" style={{ opacity: isActive ? 1 : 0.75, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ width: 44, height: 44, borderRadius: 12, background: avatarColor(name), color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }} aria-hidden="true">
                     {initials(name)}
-                  </div>
-                  <div className="sm2-member-info">
-                    <div className="sm2-member-name">{name}</div>
-                    <div className="sm2-member-email">{member.email}</div>
-                  </div>
-                  <span className={`sm2-status-dot ${isActive?'sm2-status-dot--active':'sm2-status-dot--inactive'}`}/>
-                </div>
-
-                <div className="sm2-card-details">
-                  <div className="sm2-detail">
-                    <span className="sm2-detail-label">Role</span>
-                    <span className="sm2-role-badge" style={{color:rm.color,background:rm.color+'15'}}>
-                      {rm.icon} {rm.label}
-                    </span>
-                  </div>
-                  {member.department && (
-                    <div className="sm2-detail">
-                      <span className="sm2-detail-label">Department</span>
-                      <span className="sm2-detail-val">{member.department}</span>
-                    </div>
-                  )}
-                  {member.phone && (
-                    <div className="sm2-detail">
-                      <span className="sm2-detail-label">Phone</span>
-                      <span className="sm2-detail-val">{member.phone}</span>
-                    </div>
-                  )}
-                  {member.joinDate && (
-                    <div className="sm2-detail">
-                      <span className="sm2-detail-label">Joined</span>
-                      <span className="sm2-detail-val">{new Date(member.joinDate).toLocaleDateString()}</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="sm2-card-footer">
-                  <span className={`sm2-status-badge ${isActive?'sm2-status-badge--active':'sm2-status-badge--inactive'}`}>
-                    {isActive ? '● Active' : '● Inactive'}
                   </span>
-                  <button
-                    className={`sm2-toggle-btn ${isActive?'sm2-toggle-btn--deactivate':'sm2-toggle-btn--activate'}`}
-                    onClick={()=>handleToggle(member._id, isActive, name)}
-                    disabled={actionLoading[member._id]}
-                  >
-                    {actionLoading[member._id] ? '…' : isActive ? 'Deactivate' : 'Activate'}
-                  </button>
+                  <div style={{ minWidth: 0 }}>
+                    <div className="ha-body-strong" style={{ color: 'var(--ha-text)' }}>{name}</div>
+                    <div className="ha-small" style={{ color: 'var(--ha-text-subtle)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.email}</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <RoleBadge role={member.role} />
+                  {member.department && <Badge tone="neutral">{member.department}</Badge>}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--ha-border)', paddingTop: 12 }}>
+                  <Badge tone={isActive ? 'success' : 'danger'}>{isActive ? 'Active' : 'Inactive'}</Badge>
+                  {renderToggleBtn(member)}
                 </div>
               </div>
             );
           })}
         </div>
       ) : (
-        /* ── TABLE VIEW ── */
-        <div className="sm2-table-wrap">
-          <table className="sm2-table">
-            <thead>
-              <tr>
-                <th>Staff Member</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Department</th>
-                <th>Status</th>
-                <th>Joined</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(member => {
-                const rm = roleMeta(member.role);
-                const name = member.name || member.fullname || 'Unknown';
-                const isActive = member.isActive !== false;
-                const ac = avatarColor(name);
-                return (
-                  <tr key={member._id} className={!isActive?'sm2-tr-inactive':''}>
-                    <td>
-                      <div className="sm2-tbl-member">
-                        <div className="sm2-avatar sm2-avatar--sm" style={{background:ac}}>{initials(name)}</div>
-                        <span className="sm2-member-name">{name}</span>
-                      </div>
-                    </td>
-                    <td className="sm2-muted">{member.email}</td>
-                    <td>
-                      <span className="sm2-role-badge" style={{color:rm.color,background:rm.color+'15'}}>
-                        {rm.icon} {rm.label}
-                      </span>
-                    </td>
-                    <td className="sm2-muted">{member.department || '—'}</td>
-                    <td>
-                      <span className={`sm2-status-badge ${isActive?'sm2-status-badge--active':'sm2-status-badge--inactive'}`}>
-                        {isActive ? '● Active' : '● Inactive'}
-                      </span>
-                    </td>
-                    <td className="sm2-muted">{member.joinDate ? new Date(member.joinDate).toLocaleDateString() : '—'}</td>
-                    <td>
-                      <button
-                        className={`sm2-toggle-btn ${isActive?'sm2-toggle-btn--deactivate':'sm2-toggle-btn--activate'}`}
-                        onClick={()=>handleToggle(member._id, isActive, name)}
-                        disabled={actionLoading[member._id]}
-                      >
-                        {actionLoading[member._id] ? '…' : isActive ? 'Deactivate' : 'Activate'}
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* ══ INVITE MODAL ══ */}
-      {showInvite && (
-        <div className="sm2-overlay" onClick={()=>setShowInvite(false)}>
-          <div className="sm2-modal" onClick={e=>e.stopPropagation()}>
-            <div className="sm2-modal-hd">
-              <div>
-                <h2>Invite Staff Member</h2>
-                <p>An email invite will be sent to complete registration</p>
-              </div>
-              <button className="sm2-close" onClick={()=>setShowInvite(false)}>✕</button>
-            </div>
-            <form onSubmit={handleInvite} className="sm2-form">
-              <div className="sm2-fg">
-                <label>Full Name *</label>
-                <input required placeholder="Enter full name" value={inviteForm.fullname} onChange={e=>setIForm(p=>({...p,fullname:e.target.value}))}/>
-              </div>
-              <div className="sm2-fg">
-                <label>Email Address *</label>
-                <input required type="email" placeholder="staff@hotel.com" value={inviteForm.email} onChange={e=>setIForm(p=>({...p,email:e.target.value}))}/>
-              </div>
-              <div className="sm2-fg">
-                <label>Role *</label>
-                <div className="sm2-role-grid">
-                  {ROLES.map(r=>(
-                    <button type="button" key={r.value}
-                      className={`sm2-role-card${inviteForm.role===r.value?' sm2-role-card--sel':''}`}
-                      style={inviteForm.role===r.value?{borderColor:r.color,background:r.color+'12',color:r.color}:{}}
-                      onClick={()=>setIForm(p=>({...p,role:r.value}))}
-                    >
-                      <span>{r.icon}</span>
-                      <span>{r.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="sm2-invite-note">
-                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                <span>The staff member will receive an email with instructions to set up their account and start their role.</span>
-              </div>
-
-              <div className="sm2-modal-ft">
-                <button type="button" className="sm2-btn sm2-btn--ghost" onClick={()=>setShowInvite(false)}>Cancel</button>
-                <button type="submit" className="sm2-btn sm2-btn--primary" disabled={actionLoading.invite}>
-                  {actionLoading.invite ? 'Sending…' : '📧 Send Invitation'}
-                </button>
-              </div>
-            </form>
+        <div className="ha-table-wrap">
+          <div className="ha-table-scroll">
+            <table className="ha-table" style={{ minWidth: 720 }}>
+              <thead>
+                <tr>
+                  {['Staff Member', 'Email', 'Role', 'Department', 'Status', 'Joined', 'Actions'].map((h) => <th key={h} scope="col">{h}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((member) => {
+                  const name = member.name || member.fullname || 'Unknown';
+                  const isActive = member.isActive !== false;
+                  return (
+                    <tr key={member._id} style={{ opacity: isActive ? 1 : 0.7 }}>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <span style={{ width: 32, height: 32, borderRadius: 8, background: avatarColor(name), color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12 }} aria-hidden="true">
+                            {initials(name)}
+                          </span>
+                          <span className="ha-body-strong" style={{ color: 'var(--ha-text)' }}>{name}</span>
+                        </div>
+                      </td>
+                      <td style={{ color: 'var(--ha-text-subtle)' }}>{member.email}</td>
+                      <td><RoleBadge role={member.role} /></td>
+                      <td style={{ color: 'var(--ha-text-subtle)' }}>{member.department || '—'}</td>
+                      <td><Badge tone={isActive ? 'success' : 'danger'}>{isActive ? 'Active' : 'Inactive'}</Badge></td>
+                      <td className="haNum" style={{ color: 'var(--ha-text-subtle)' }}>{member.joinDate ? new Date(member.joinDate).toLocaleDateString() : '—'}</td>
+                      <td>{renderToggleBtn(member)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
+
+      {/* Invite modal */}
+      <Modal
+        isOpen={showInvite}
+        onClose={() => setShowInvite(false)}
+        title="Invite Staff Member"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowInvite(false)} disabled={actionLoading.invite}>Cancel</Button>
+            <Button variant="primary" onClick={handleInvite} disabled={actionLoading.invite}>
+              <Mail size={16} aria-hidden="true" /> {actionLoading.invite ? 'Sending…' : 'Send Invitation'}
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleInvite} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <Input
+            label="Full Name"
+            required
+            placeholder="Enter full name"
+            value={inviteForm.fullname}
+            onChange={(e) => { setInviteForm((p) => ({ ...p, fullname: e.target.value })); setInviteErrors((p) => ({ ...p, fullname: undefined })); }}
+            error={inviteErrors.fullname}
+          />
+          <Input
+            label="Email Address"
+            required
+            type="email"
+            placeholder="staff@hotel.com"
+            value={inviteForm.email}
+            onChange={(e) => { setInviteForm((p) => ({ ...p, email: e.target.value })); setInviteErrors((p) => ({ ...p, email: undefined })); }}
+            error={inviteErrors.email}
+          />
+          <div>
+            <span className="ha-field__label" style={{ display: 'block', marginBottom: 8 }}>Role *</span>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: 8 }}>
+              {ROLES.map((r) => {
+                const RIcon = r.Icon;
+                const active = inviteForm.role === r.value;
+                return (
+                  <button
+                    key={r.value}
+                    type="button"
+                    className={`ha-filter-chip ${active ? 'ha-filter-chip--active' : ''}`}
+                    style={{ height: 40, justifyContent: 'center' }}
+                    onClick={() => setInviteForm((p) => ({ ...p, role: r.value }))}
+                    aria-pressed={active}
+                  >
+                    <RIcon size={15} aria-hidden="true" /> {r.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className="ha-card" style={{ padding: '10px 12px', display: 'flex', gap: 8, alignItems: 'flex-start', color: 'var(--ha-text-subtle)', fontSize: 13 }}>
+            <Info size={16} aria-hidden="true" style={{ flexShrink: 0, marginTop: 1 }} />
+            The staff member will receive an email with instructions to set up their account.
+          </div>
+        </form>
+      </Modal>
+
+      {/* Deactivate/activate confirmation */}
+      <ConfirmDialog
+        isOpen={!!toggleTarget}
+        onClose={() => setToggleTarget(null)}
+        onConfirm={confirmToggle}
+        variant={toggleTarget?.isActive ? 'danger' : 'info'}
+        title={toggleTarget?.isActive ? 'Deactivate staff member?' : 'Activate staff member?'}
+        message={
+          toggleTarget
+            ? toggleTarget.isActive
+              ? `${toggleTarget.name} will lose access to staff systems until reactivated.`
+              : `${toggleTarget.name} will regain access to staff systems.`
+            : ''
+        }
+        confirmText={toggleTarget?.isActive ? 'Deactivate' : 'Activate'}
+        loading={toggleTarget ? actionLoading[toggleTarget.id] : false}
+      />
     </div>
   );
-
-  if (embedded) return pageContent;
-  return pageContent;
 };
 
 export default StaffManagement;

@@ -1,83 +1,128 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'react-toastify';
-import { useStaffAuth } from '../../../../core/context/StaffAuthContext';
 import {
-  getTables, createTable, updateTable, deleteTable, updateTableStatus, generateTableQR, batchCreateTables
+  UtensilsCrossed,
+  QrCode,
+  CheckCircle2,
+  Users,
+  RefreshCw,
+  Plus,
+  Rows3,
+  Pencil,
+  Trash2,
+  Download,
+  Printer,
+  Moon,
+  Sun,
+  Clock,
+  ChefHat,
+  ArrowRight,
+} from 'lucide-react';
+import {
+  getTables, createTable, updateTable, deleteTable, updateTableStatus, generateTableQR, batchCreateTables,
 } from '../services/tableApi';
+import useHotelId from '../hooks/useHotelId';
 import {
-  getMenuItems, getMenuCategories, createMenuItem, updateMenuItem, deleteMenuItem, bulkToggleAvailability
+  getMenuItems, getMenuCategories, createMenuItem, updateMenuItem, deleteMenuItem, bulkToggleAvailability,
 } from '../services/menuApi';
-import './RestaurantManagement.css';
+import ConfirmDialog from '../../../../components/ConfirmDialog';
+import {
+  PageHeader,
+  Button,
+  IconButton,
+  Input,
+  Select,
+  Textarea,
+  Badge,
+  StatCard,
+  StatCardSkeleton,
+  SearchInput,
+  Segmented,
+  EmptyState,
+  Table,
+  THead,
+  Modal,
+} from '../components/ui';
+import useDebouncedValue from '../hooks/useDebouncedValue';
+import '../styles/hotel-admin-tokens.css';
 
-/* ─── helpers ─── */
 const downloadQR = (data, filename) => {
   const a = document.createElement('a');
-  a.href = data; a.download = filename;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  a.href = data;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 };
 
 const printTableQR = (data, tableNumber, hotelName) => {
   const w = window.open('', '_blank');
+  if (!w) { toast.error('Popup blocked. Allow popups to print.'); return; }
   w.document.write(`<!DOCTYPE html><html><head><title>Table ${tableNumber} QR</title>
-  <style>body{display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;font-family:system-ui,sans-serif;background:#f8fafc}
-  .box{padding:40px;background:#fff;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,.1);text-align:center}
-  h1{font-size:28px;font-weight:700;color:#1e293b;margin:0 0 20px}p{color:#64748b;margin:0 0 8px}img{width:200px;height:200px}
-  @media print{body{background:#fff}.box{box-shadow:none}}</style></head>
-  <body><div class="box"><p>${hotelName}</p><h1>Table ${tableNumber}</h1>
-  <img src="${data}" alt="QR"/><p style="margin-top:16px">Scan to view menu &amp; order</p></div>
-  <script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}<\/script>
-  </body></html>`);
+  <style>body{display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;font-family:system-ui,sans-serif;background:#f8fafc}.box{padding:40px;background:#fff;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,.1);text-align:center}h1{font-size:28px;font-weight:700;color:#1e293b;margin:0 0 20px}p{color:#64748b;margin:0 0 8px}img{width:200px;height:200px}@media print{body{background:#fff}.box{box-shadow:none}}</style></head>
+  <body><div class="box"><p>${hotelName}</p><h1>Table ${tableNumber}</h1><img src="${data}" alt="QR"/><p style="margin-top:16px">Scan to view menu &amp; order</p></div>
+  <script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}${'<'}/script></body></html>`);
   w.document.close();
 };
 
 const STATUS_META = {
-  available:   { label: 'Available',   color: '#10b981', bg: 'rgba(16,185,129,.12)' },
-  occupied:    { label: 'Occupied',    color: '#f59e0b', bg: 'rgba(245,158,11,.12)' },
-  reserved:    { label: 'Reserved',    color: '#6366f1', bg: 'rgba(99,102,241,.12)' },
-  maintenance: { label: 'Maintenance', color: '#ef4444', bg: 'rgba(239,68,68,.12)' },
+  available: { label: 'Available', tone: 'success' },
+  occupied: { label: 'Occupied', tone: 'warning' },
+  reserved: { label: 'Reserved', tone: 'info' },
+  maintenance: { label: 'Maintenance', tone: 'danger' },
 };
+const LOC_OPTS = ['indoor', 'outdoor', 'terrace', 'rooftop', 'private', 'bar'];
+const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
-const LOC_OPTS = ['indoor','outdoor','terrace','rooftop','private','bar'];
+const TABS = [
+  { value: 'tables', label: 'Tables', icon: <UtensilsCrossed size={15} aria-hidden="true" /> },
+  { value: 'menu', label: 'Menu', icon: <ChefHat size={15} aria-hidden="true" /> },
+  { value: 'kitchen', label: 'Kitchen', icon: <Clock size={15} aria-hidden="true" /> },
+];
 
-/* ══════════════════════════════════════════════════════════════════ */
-const RestaurantManagement = ({ embedded = false }) => {
-  const { activeProperty } = useStaffAuth();
-  const hotelId = activeProperty?._id || activeProperty;
+const RestaurantManagement = ({ onNavigate }) => {
+  const hotelId = useHotelId();
 
   const [tab, setTab] = useState('tables');
 
-  /* ── tables state ── */
-  const [tables, setTables]           = useState([]);
-  const [tLoading, setTLoading]       = useState(false);
-  const [actionLoading, setAL]        = useState({});
-  const [showTableModal, setSTableM]  = useState(false);
-  const [showBatchModal, setSBatchM]  = useState(false);
-  const [showQRModal, setSQRM]        = useState(false);
-  const [selTable, setSelTable]       = useState(null);
-  const [hotelName, setHotelName]     = useState('');
-  const [tableSearch, setTSearch]     = useState('');
-  const [tableLoc, setTLoc]           = useState('all');
-  const [tableStatus, setTStatus]     = useState('all');
-  const [tableForm, setTForm]         = useState({ tableNumber:'', tableName:'', capacity:4, location:'indoor', description:'', minSpend:0, status:'available' });
-  const [batchForm, setBForm]         = useState({ count:5, startNumber:1, capacity:4, location:'indoor', generateQR:true });
+  /* tables */
+  const [tables, setTables] = useState([]);
+  const [tLoading, setTLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState({});
+  const [showTableModal, setShowTableModal] = useState(false);
+  const [showBatchModal, setShowBatchModal] = useState(false);
+  const [qrTable, setQrTable] = useState(null);
+  const [selTable, setSelTable] = useState(null);
+  const [hotelName, setHotelName] = useState('');
+  const [tableSearch, setTableSearch] = useState('');
+  const dTableSearch = useDebouncedValue(tableSearch, 250);
+  const [tableLoc, setTableLoc] = useState('all');
+  const [tableStatus, setTableStatus] = useState('all');
+  const [tableForm, setTableForm] = useState({ tableNumber: '', tableName: '', capacity: 4, location: 'indoor', description: '', minSpend: 0, status: 'available' });
+  const [tableFormErr, setTableFormErr] = useState({});
+  const [batchForm, setBatchForm] = useState({ count: 5, startNumber: 1, capacity: 4, location: 'indoor', generateQR: true });
+  const [deleteTable_, setDeleteTable_] = useState(null);
 
-  /* ── menu state ── */
-  const [menuItems, setMenuItems]     = useState([]);
-  const [menuCats, setMenuCats]       = useState([]);
-  const [mLoading, setMLoading]       = useState(false);
-  const [menuSearch, setMSearch]      = useState('');
-  const [menuCat, setMCat]            = useState('all');
-  const [menuAvail, setMAvail]        = useState('all');
-  const [showMenuModal, setSMenuM]    = useState(false);
-  const [selMenu, setSelMenu]         = useState(null);
-  const [menuForm, setMForm]          = useState({ name:'', category:'', price:'', description:'', isAvailable:true, preparationTime:'' });
-  const [menuImageFile, setMImgFile]  = useState(null);
-  const [menuImagePreview, setMImgPrev] = useState(null);
+  /* menu */
+  const [menuItems, setMenuItems] = useState([]);
+  const [menuCats, setMenuCats] = useState([]);
+  const [mLoading, setMLoading] = useState(false);
+  const [menuSearch, setMenuSearch] = useState('');
+  const dMenuSearch = useDebouncedValue(menuSearch, 250);
+  const [menuCat, setMenuCat] = useState('all');
+  const [menuAvail, setMenuAvail] = useState('all');
+  const [showMenuModal, setShowMenuModal] = useState(false);
+  const [selMenu, setSelMenu] = useState(null);
+  const [menuForm, setMenuForm] = useState({ name: '', category: '', price: '', description: '', isAvailable: true, preparationTime: '' });
+  const [menuFormErr, setMenuFormErr] = useState({});
+  const [menuImageFile, setMenuImageFile] = useState(null);
+  const [menuImagePreview, setMenuImagePreview] = useState(null);
+  const [deleteMenu_, setDeleteMenu_] = useState(null);
+  const [bulkToggle_, setBulkToggle_] = useState(null); // { isAvailable }
 
-  /* ── kitchen state ── */
-  const [kOrders, setKOrders]         = useState([]);
+  const setAct = (key, val) => setActionLoading((p) => ({ ...p, [key]: val }));
 
-  /* ─────────────── TABLE API ─────────────── */
+  /* ── Tables API ── */
   const fetchTables = useCallback(async () => {
     if (!hotelId) return;
     setTLoading(true);
@@ -86,16 +131,23 @@ const RestaurantManagement = ({ embedded = false }) => {
       const data = res.data.data || [];
       setTables(data);
       if (data[0]?.hotel?.name) setHotelName(data[0].hotel.name);
-    } catch (e) { toast.error(e.response?.data?.message || 'Failed to load tables'); }
-    finally { setTLoading(false); }
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to load tables');
+    } finally {
+      setTLoading(false);
+    }
   }, [hotelId]);
 
-  useEffect(() => { if (tab === 'tables') fetchTables(); }, [tab, fetchTables]);
-
-  const setAct = (key, val) => setAL(p => ({ ...p, [key]: val }));
+  useEffect(() => {
+    if (tab === 'tables') fetchTables();
+  }, [tab, fetchTables]);
 
   const handleTableSubmit = async (e) => {
     e.preventDefault();
+    if (!tableForm.tableNumber.trim()) {
+      setTableFormErr({ tableNumber: 'Table number is required' });
+      return;
+    }
     setAct('submit', true);
     try {
       if (selTable) {
@@ -105,10 +157,14 @@ const RestaurantManagement = ({ embedded = false }) => {
         await createTable({ ...tableForm, hotelId });
         toast.success('Table created');
       }
-      setSTableM(false); setSelTable(null);
+      setShowTableModal(false);
+      setSelTable(null);
       fetchTables();
-    } catch (e) { toast.error(e.response?.data?.message || 'Failed'); }
-    finally { setAct('submit', false); }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed');
+    } finally {
+      setAct('submit', false);
+    }
   };
 
   const handleBatchCreate = async (e) => {
@@ -117,547 +173,510 @@ const RestaurantManagement = ({ embedded = false }) => {
     try {
       const res = await batchCreateTables({ ...batchForm, hotelId });
       toast.success(`${res.data.createdCount || batchForm.count} tables created`);
-      setSBatchM(false); fetchTables();
-    } catch (e) { toast.error(e.response?.data?.message || 'Batch failed'); }
-    finally { setAct('batch', false); }
+      setShowBatchModal(false);
+      fetchTables();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Batch failed');
+    } finally {
+      setAct('batch', false);
+    }
   };
 
-  const handleDelTable = async (id, num) => {
-    if (!window.confirm(`Delete Table ${num}?`)) return;
-    setAct(id, true);
+  const confirmDelTable = async () => {
+    if (!deleteTable_) return;
+    setAct('delTable', true);
     try {
-      await deleteTable(id); toast.success('Table deleted'); fetchTables();
-    } catch (e) { toast.error(e.response?.data?.message || 'Delete failed'); }
-    finally { setAct(id, false); }
+      await deleteTable(deleteTable_._id);
+      toast.success('Table deleted');
+      setDeleteTable_(null);
+      fetchTables();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Delete failed');
+    } finally {
+      setAct('delTable', false);
+    }
   };
 
   const handleStatusChange = async (id, status) => {
     setAct(`s_${id}`, true);
     try {
-      await updateTableStatus(id, status); toast.success(`Status → ${status}`); fetchTables();
-    } catch (e) { toast.error('Status update failed'); }
-    finally { setAct(`s_${id}`, false); }
+      await updateTableStatus(id, status);
+      toast.success(`Status → ${status}`);
+      fetchTables();
+    } catch {
+      toast.error('Status update failed');
+    } finally {
+      setAct(`s_${id}`, false);
+    }
   };
 
   const handleGenQR = async (id) => {
     setAct(`qr_${id}`, true);
     try {
-      await generateTableQR(id); toast.success('QR generated'); fetchTables();
-    } catch (e) { toast.error('QR generation failed'); }
-    finally { setAct(`qr_${id}`, false); }
+      await generateTableQR(id);
+      toast.success('QR generated');
+      fetchTables();
+    } catch {
+      toast.error('QR generation failed');
+    } finally {
+      setAct(`qr_${id}`, false);
+    }
   };
 
-  const openEdit = (t) => {
+  const openTableEdit = (t) => {
     setSelTable(t);
-    setTForm({ tableNumber:t.tableNumber||'', tableName:t.tableName||'', capacity:t.capacity||4,
-      location:t.location||'indoor', description:t.description||'', minSpend:t.minSpend||0, status:t.status||'available' });
-    setSTableM(true);
+    setTableForm({ tableNumber: t.tableNumber || '', tableName: t.tableName || '', capacity: t.capacity || 4, location: t.location || 'indoor', description: t.description || '', minSpend: t.minSpend || 0, status: t.status || 'available' });
+    setTableFormErr({});
+    setShowTableModal(true);
   };
-
-  const openCreate = () => {
+  const openTableCreate = () => {
     setSelTable(null);
-    setTForm({ tableNumber:'', tableName:'', capacity:4, location:'indoor', description:'', minSpend:0, status:'available' });
-    setSTableM(true);
+    setTableForm({ tableNumber: '', tableName: '', capacity: 4, location: 'indoor', description: '', minSpend: 0, status: 'available' });
+    setTableFormErr({});
+    setShowTableModal(true);
   };
 
-  /* ─────────────── MENU API ─────────────── */
+  /* ── Menu API ── */
   const fetchMenu = useCallback(async () => {
     if (!hotelId) return;
     setMLoading(true);
     try {
-      const [mRes, cRes] = await Promise.all([
-        getMenuItems({ hotelId, available: 'all' }),
-        getMenuCategories()
-      ]);
+      const [mRes, cRes] = await Promise.all([getMenuItems({ hotelId, available: 'all' }), getMenuCategories()]);
       setMenuItems(mRes.data.menuItems || []);
       setMenuCats(cRes.data.categories || []);
-    } catch (e) { toast.error('Failed to load menu'); }
-    finally { setMLoading(false); }
+    } catch {
+      toast.error('Failed to load menu');
+    } finally {
+      setMLoading(false);
+    }
   }, [hotelId]);
 
-  useEffect(() => { if (tab === 'menu') fetchMenu(); }, [tab, fetchMenu]);
+  useEffect(() => {
+    if (tab === 'menu') fetchMenu();
+  }, [tab, fetchMenu]);
 
   const handleMenuSubmit = async (e) => {
     e.preventDefault();
+    const errs = {};
+    if (!menuForm.name.trim()) errs.name = 'Item name is required';
+    if (!menuForm.category) errs.category = 'Category is required';
+    if (menuForm.price === '' || Number(menuForm.price) < 0) errs.price = 'Valid price required';
+    if (Object.keys(errs).length) {
+      setMenuFormErr(errs);
+      return;
+    }
     setAct('msubmit', true);
     try {
       const payload = { ...menuForm, hotelId, price: Number(menuForm.price), imageFile: menuImageFile };
       if (selMenu) {
-        await updateMenuItem(selMenu._id, payload); toast.success('Menu item updated');
+        await updateMenuItem(selMenu._id, payload);
+        toast.success('Menu item updated');
       } else {
-        await createMenuItem(payload); toast.success('Menu item created');
+        await createMenuItem(payload);
+        toast.success('Menu item created');
       }
-      setSMenuM(false); setSelMenu(null); setMImgFile(null); setMImgPrev(null); fetchMenu();
-    } catch (e) { toast.error(e.response?.data?.message || 'Failed'); }
-    finally { setAct('msubmit', false); }
+      setShowMenuModal(false);
+      setSelMenu(null);
+      setMenuImageFile(null);
+      setMenuImagePreview(null);
+      fetchMenu();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed');
+    } finally {
+      setAct('msubmit', false);
+    }
   };
 
   const handleMenuImageChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { toast.error('Image must be under 5MB'); return; }
-    setMImgFile(file);
-    setMImgPrev(URL.createObjectURL(file));
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be under 5MB');
+      return;
+    }
+    setMenuImageFile(file);
+    setMenuImagePreview(URL.createObjectURL(file));
   };
 
-  const handleDelMenu = async (id, name) => {
-    if (!window.confirm(`Delete "${name}"?`)) return;
-    setAct(`m_${id}`, true);
+  const confirmDelMenu = async () => {
+    if (!deleteMenu_) return;
+    setAct('delMenu', true);
     try {
-      await deleteMenuItem(id); toast.success('Deleted'); fetchMenu();
-    } catch (e) { toast.error('Delete failed'); }
-    finally { setAct(`m_${id}`, false); }
+      await deleteMenuItem(deleteMenu_._id);
+      toast.success('Deleted');
+      setDeleteMenu_(null);
+      fetchMenu();
+    } catch {
+      toast.error('Delete failed');
+    } finally {
+      setAct('delMenu', false);
+    }
   };
 
-  const handleBulkToggle = async (isAvailable) => {
-    const label = isAvailable ? 'mark ALL menu items as available' : 'close the kitchen (mark ALL items unavailable)';
-    if (!window.confirm(`Are you sure you want to ${label}?`)) return;
+  const confirmBulkToggle = async () => {
+    if (!bulkToggle_) return;
     setAct('bulkToggle', true);
     try {
-      const res = await bulkToggleAvailability({ hotelId, isAvailable });
+      const res = await bulkToggleAvailability({ hotelId, isAvailable: bulkToggle_.isAvailable });
       toast.success(res.data.message || 'Availability updated');
+      setBulkToggle_(null);
       fetchMenu();
-    } catch (e) { toast.error(e.response?.data?.message || 'Failed to update availability'); }
-    finally { setAct('bulkToggle', false); }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update availability');
+    } finally {
+      setAct('bulkToggle', false);
+    }
   };
 
   const openMenuEdit = (item) => {
     setSelMenu(item);
-    setMForm({ name:item.name||'', category:item.category||'', price:item.price||'',
-      description:item.description||'', isAvailable:item.isAvailable!==false,
-      preparationTime:item.preparationTime||'' });
-    setMImgFile(null); setMImgPrev(item.image || null);
-    setSMenuM(true);
+    setMenuForm({ name: item.name || '', category: item.category || '', price: item.price || '', description: item.description || '', isAvailable: item.isAvailable !== false, preparationTime: item.preparationTime || '' });
+    setMenuFormErr({});
+    setMenuImageFile(null);
+    setMenuImagePreview(item.image || null);
+    setShowMenuModal(true);
   };
   const openMenuCreate = () => {
     setSelMenu(null);
-    setMForm({ name:'', category:'', price:'', description:'', isAvailable:true, preparationTime:'' });
-    setMImgFile(null); setMImgPrev(null);
-    setSMenuM(true);
+    setMenuForm({ name: '', category: '', price: '', description: '', isAvailable: true, preparationTime: '' });
+    setMenuFormErr({});
+    setMenuImageFile(null);
+    setMenuImagePreview(null);
+    setShowMenuModal(true);
   };
 
-  /* ─────────────── DERIVED ─────────────── */
-  const filteredTables = tables.filter(t => {
-    const matchSearch = !tableSearch || t.tableNumber.toLowerCase().includes(tableSearch.toLowerCase()) || (t.tableName||'').toLowerCase().includes(tableSearch.toLowerCase());
-    const matchLoc = tableLoc === 'all' || t.location === tableLoc;
-    const matchSt = tableStatus === 'all' || t.status === tableStatus;
-    return matchSearch && matchLoc && matchSt;
-  });
+  /* ── Derived ── */
+  const filteredTables = useMemo(() => {
+    const q = dTableSearch.toLowerCase();
+    return tables.filter((t) => {
+      const matchSearch = !q || t.tableNumber.toLowerCase().includes(q) || (t.tableName || '').toLowerCase().includes(q);
+      const matchLoc = tableLoc === 'all' || t.location === tableLoc;
+      const matchSt = tableStatus === 'all' || t.status === tableStatus;
+      return matchSearch && matchLoc && matchSt;
+    });
+  }, [tables, dTableSearch, tableLoc, tableStatus]);
 
-  const filteredMenu = menuItems.filter(m => {
-    const matchS = !menuSearch || m.name.toLowerCase().includes(menuSearch.toLowerCase());
-    const matchC = menuCat === 'all' || m.category === menuCat;
-    const matchA = menuAvail === 'all' || (menuAvail === 'available' ? m.isAvailable : !m.isAvailable);
-    return matchS && matchC && matchA;
-  });
+  const filteredMenu = useMemo(() => {
+    const q = dMenuSearch.toLowerCase();
+    return menuItems.filter((m) => {
+      const matchS = !q || m.name.toLowerCase().includes(q);
+      const matchC = menuCat === 'all' || m.category === menuCat;
+      const matchA = menuAvail === 'all' || (menuAvail === 'available' ? m.isAvailable : !m.isAvailable);
+      return matchS && matchC && matchA;
+    });
+  }, [menuItems, dMenuSearch, menuCat, menuAvail]);
 
-  const tableStats = {
-    total: tables.length,
-    available: tables.filter(t=>t.status==='available').length,
-    occupied: tables.filter(t=>t.status==='occupied').length,
-    reserved: tables.filter(t=>t.status==='reserved').length,
-    withQR: tables.filter(t=>t.qrCodeData).length,
-  };
+  const tableStats = useMemo(
+    () => ({
+      total: tables.length,
+      available: tables.filter((t) => t.status === 'available').length,
+      occupied: tables.filter((t) => t.status === 'occupied').length,
+      withQR: tables.filter((t) => t.qrCodeData).length,
+    }),
+    [tables]
+  );
 
-  /* ══════════════════════════ RENDER ══════════════════════════ */
-  const content = (
-    <div className="rm-root">
-      {/* ── Page Header ── */}
-      <div className="rm-page-header">
-        <div className="rm-page-title">
-          <div className="rm-title-icon"><svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg></div>
-          <div>
-            <h1>Restaurant Management</h1>
-            <p>Tables, menu items, and kitchen overview</p>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Tab Bar ── */}
-      <div className="rm-tabbar">
-        {[['tables','Tables & Layout'],['menu','Menu Items'],['kitchen','Kitchen View']].map(([k,l])=>(
-          <button key={k} className={`rm-tab${tab===k?' rm-tab--active':''}`} onClick={()=>setTab(k)}>{l}</button>
-        ))}
-      </div>
+  return (
+    <div className="ha-page">
+      <PageHeader
+        title="Restaurant"
+        subtitle="Tables, menu items, and kitchen overview."
+        toolbar={<Segmented options={TABS} value={tab} onChange={setTab} ariaLabel="Restaurant view" />}
+      />
 
       {/* ══ TABLES TAB ══ */}
       {tab === 'tables' && (
-        <div className="rm-section">
-          {/* Stats */}
-          <div className="rm-stats-row">
-            {[
-              { label:'Total Tables', value:tableStats.total, icon:'🍽️', accent:'#6366f1' },
-              { label:'Available',    value:tableStats.available, icon:'✅', accent:'#10b981' },
-              { label:'Occupied',     value:tableStats.occupied, icon:'🔴', accent:'#f59e0b' },
-              { label:'With QR',      value:tableStats.withQR, icon:'📱', accent:'#3b82f6' },
-            ].map(s=>(
-              <div key={s.label} className="rm-stat-card" style={{'--accent':s.accent}}>
-                <span className="rm-stat-icon">{s.icon}</span>
-                <div><div className="rm-stat-val">{s.value}</div><div className="rm-stat-lbl">{s.label}</div></div>
-              </div>
-            ))}
-          </div>
-
-          {/* Controls */}
-          <div className="rm-controls">
-            <div className="rm-search-wrap">
-              <svg className="rm-search-ico" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="11" cy="11" r="8"/><path strokeLinecap="round" d="M21 21l-4.35-4.35"/></svg>
-              <input className="rm-search" placeholder="Search tables…" value={tableSearch} onChange={e=>setTSearch(e.target.value)}/>
+        <>
+          <div className="ha-toolbar" style={{ marginBottom: 20 }}>
+            <div className="ha-toolbar__group">
+              <SearchInput value={tableSearch} onChange={(e) => setTableSearch(e.target.value)} placeholder="Search tables…" ariaLabel="Search tables" />
+              <Select value={tableLoc} onChange={(e) => setTableLoc(e.target.value)} aria-label="Filter by location">
+                <option value="all">All Locations</option>
+                {LOC_OPTS.map((l) => <option key={l} value={l}>{cap(l)}</option>)}
+              </Select>
+              <Select value={tableStatus} onChange={(e) => setTableStatus(e.target.value)} aria-label="Filter by status">
+                <option value="all">All Status</option>
+                {Object.entries(STATUS_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+              </Select>
             </div>
-            <select className="rm-select" value={tableLoc} onChange={e=>setTLoc(e.target.value)}>
-              <option value="all">All Locations</option>
-              {LOC_OPTS.map(l=><option key={l} value={l}>{l.charAt(0).toUpperCase()+l.slice(1)}</option>)}
-            </select>
-            <select className="rm-select" value={tableStatus} onChange={e=>setTStatus(e.target.value)}>
-              <option value="all">All Status</option>
-              {Object.entries(STATUS_META).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
-            </select>
-            <div className="rm-ctrl-actions">
-              <button className="rm-btn rm-btn--ghost" onClick={fetchTables} disabled={tLoading}>↺ Refresh</button>
-              <button className="rm-btn rm-btn--secondary" onClick={()=>setSBatchM(true)}>⊞ Batch</button>
-              <button className="rm-btn rm-btn--primary" onClick={openCreate}>+ Add Table</button>
+            <div className="ha-toolbar__group">
+              <Button variant="secondary" onClick={fetchTables} disabled={tLoading}><RefreshCw size={16} aria-hidden="true" /> Refresh</Button>
+              <Button variant="secondary" onClick={() => setShowBatchModal(true)}><Rows3 size={16} aria-hidden="true" /> Batch</Button>
+              <Button variant="primary" onClick={openTableCreate}><Plus size={16} aria-hidden="true" /> Add Table</Button>
             </div>
           </div>
 
-          {/* Grid */}
-          {tLoading ? <div className="rm-loading"><div className="rm-spinner"/><span>Loading tables…</span></div>
-          : filteredTables.length === 0
-          ? <div className="rm-empty"><span className="rm-empty-ico">🍽️</span><h3>No tables found</h3><p>Add your first table or adjust filters</p><button className="rm-btn rm-btn--primary" onClick={openCreate}>+ Add Table</button></div>
-          : (
-            <div className="rm-table-grid">
-              {filteredTables.map(t => {
-                const sm = STATUS_META[t.status] || STATUS_META.available;
-                return (
-                  <div key={t._id} className="rm-tcard">
-                    <div className="rm-tcard-header">
-                      <div className="rm-tcard-num">
-                        <span className="rm-tcard-circle" style={{background:sm.bg,color:sm.color}}>{t.tableNumber}</span>
-                        <div>
-                          <div className="rm-tcard-name">{t.tableName||`Table ${t.tableNumber}`}</div>
-                          <div className="rm-tcard-loc">{t.location}</div>
-                        </div>
-                      </div>
-                      <span className="rm-badge" style={{color:sm.color,background:sm.bg}}>{sm.label}</span>
-                    </div>
+          <div className="ha-kpi-grid" style={{ marginBottom: 24 }}>
+            {tLoading ? (
+              Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)
+            ) : (
+              <>
+                <StatCard icon={<UtensilsCrossed size={22} />} iconBg="linear-gradient(135deg,#6366f1,#4f46e5)" label="Total Tables" value={tableStats.total} />
+                <StatCard icon={<CheckCircle2 size={22} />} iconBg="var(--ha-success)" label="Available" value={tableStats.available} />
+                <StatCard icon={<Users size={22} />} iconBg="var(--ha-warning)" label="Occupied" value={tableStats.occupied} />
+                <StatCard icon={<QrCode size={22} />} iconBg="var(--ha-info)" label="With QR" value={tableStats.withQR} />
+              </>
+            )}
+          </div>
 
-                    <div className="rm-tcard-meta">
-                      <span>👥 {t.capacity} guests</span>
-                      {t.minSpend>0 && <span>💵 Min: NPR {t.minSpend}</span>}
-                      {t.description && <span className="rm-tcard-desc">{t.description}</span>}
-                    </div>
-
-                    {/* QR Zone */}
-                    <div className="rm-tcard-qr">
+          {tLoading ? null : filteredTables.length === 0 ? (
+            <EmptyState icon={<UtensilsCrossed size={26} />} title="No tables found" description="Add your first table or adjust filters." action={<Button variant="primary" size="sm" onClick={openTableCreate}><Plus size={15} aria-hidden="true" /> Add Table</Button>} />
+          ) : (
+            <Table minWidth={780}>
+              <THead>
+                <th scope="col">Table</th>
+                <th scope="col">Location</th>
+                <th scope="col">Capacity</th>
+                <th scope="col">Status</th>
+                <th scope="col">QR</th>
+                <th scope="col">Actions</th>
+              </THead>
+              <tbody>
+                {filteredTables.map((t) => (
+                  <tr key={t._id}>
+                    <td>
+                      <div className="ha-body-strong" style={{ color: 'var(--ha-text)' }}>{t.tableName || `Table ${t.tableNumber}`}</div>
+                      <div className="ha-small haNum" style={{ color: 'var(--ha-text-subtle)' }}>#{t.tableNumber}</div>
+                    </td>
+                    <td style={{ textTransform: 'capitalize' }}>{t.location || '—'}</td>
+                    <td className="haNum">{t.capacity}</td>
+                    <td>
+                      <Select value={t.status} onChange={(e) => handleStatusChange(t._id, e.target.value)} disabled={actionLoading[`s_${t._id}`]} aria-label={`Status for table ${t.tableNumber}`}>
+                        {Object.entries(STATUS_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                      </Select>
+                    </td>
+                    <td>
                       {t.qrCodeData ? (
-                        <div className="rm-qr-preview" onClick={()=>{setSelTable(t);setSQRM(true);}}>
-                          <img src={t.qrCodeData} alt="QR"/>
-                          <span>View QR</span>
-                        </div>
-                      ) : (
-                        <button className="rm-btn rm-btn--sm rm-btn--ghost" onClick={()=>handleGenQR(t._id)} disabled={actionLoading[`qr_${t._id}`]}>
-                          {actionLoading[`qr_${t._id}`]?'Generating…':'📱 Generate QR'}
+                        <button type="button" onClick={() => setQrTable(t)} aria-label={`View QR for table ${t.tableNumber}`} style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0 }}>
+                          <img src={t.qrCodeData} alt="" style={{ width: 44, height: 44, borderRadius: 6 }} />
                         </button>
+                      ) : (
+                        <Button size="sm" variant="secondary" onClick={() => handleGenQR(t._id)} disabled={actionLoading[`qr_${t._id}`]}>
+                          <QrCode size={14} aria-hidden="true" /> {actionLoading[`qr_${t._id}`] ? '…' : 'Generate'}
+                        </Button>
                       )}
-                    </div>
-
-                    {/* Status selector */}
-                    <select className="rm-status-sel" value={t.status} onChange={e=>handleStatusChange(t._id,e.target.value)} disabled={actionLoading[`s_${t._id}`]}>
-                      {Object.entries(STATUS_META).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
-                    </select>
-
-                    {/* Actions */}
-                    <div className="rm-tcard-actions">
-                      <button className="rm-icon-btn" title="Edit" onClick={()=>openEdit(t)}>✏️</button>
-                      {t.qrCodeData && <>
-                        <button className="rm-icon-btn" title="Download QR" onClick={()=>downloadQR(t.qrCodeData,`table-${t.tableNumber}-qr.png`)}>⬇️</button>
-                        <button className="rm-icon-btn" title="Print QR" onClick={()=>printTableQR(t.qrCodeData,t.tableNumber,hotelName)}>🖨️</button>
-                      </>}
-                      <button className="rm-icon-btn rm-icon-btn--danger" title="Delete" onClick={()=>handleDelTable(t._id,t.tableNumber)} disabled={actionLoading[t._id]}>🗑️</button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                    </td>
+                    <td>
+                      <div className="ha-table__row-actions">
+                        {t.qrCodeData && (
+                          <>
+                            <IconButton aria-label={`Download QR for table ${t.tableNumber}`} onClick={() => downloadQR(t.qrCodeData, `table-${t.tableNumber}-qr.png`)}><Download size={16} aria-hidden="true" /></IconButton>
+                            <IconButton aria-label={`Print QR for table ${t.tableNumber}`} onClick={() => printTableQR(t.qrCodeData, t.tableNumber, hotelName)}><Printer size={16} aria-hidden="true" /></IconButton>
+                          </>
+                        )}
+                        <IconButton aria-label={`Edit table ${t.tableNumber}`} onClick={() => openTableEdit(t)}><Pencil size={16} aria-hidden="true" /></IconButton>
+                        <IconButton aria-label={`Delete table ${t.tableNumber}`} onClick={() => setDeleteTable_(t)} style={{ color: 'var(--ha-danger)' }}><Trash2 size={16} aria-hidden="true" /></IconButton>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
           )}
-        </div>
+        </>
       )}
 
       {/* ══ MENU TAB ══ */}
       {tab === 'menu' && (
-        <div className="rm-section">
-          <div className="rm-controls">
-            <div className="rm-search-wrap">
-              <svg className="rm-search-ico" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="11" cy="11" r="8"/><path strokeLinecap="round" d="M21 21l-4.35-4.35"/></svg>
-              <input className="rm-search" placeholder="Search menu…" value={menuSearch} onChange={e=>setMSearch(e.target.value)}/>
+        <>
+          <div className="ha-toolbar" style={{ marginBottom: 20 }}>
+            <div className="ha-toolbar__group">
+              <SearchInput value={menuSearch} onChange={(e) => setMenuSearch(e.target.value)} placeholder="Search menu…" ariaLabel="Search menu" />
+              <Select value={menuCat} onChange={(e) => setMenuCat(e.target.value)} aria-label="Filter by category">
+                <option value="all">All Categories</option>
+                {menuCats.map((c) => <option key={c} value={c}>{c}</option>)}
+              </Select>
+              <Select value={menuAvail} onChange={(e) => setMenuAvail(e.target.value)} aria-label="Filter by availability">
+                <option value="all">All</option>
+                <option value="available">Available</option>
+                <option value="unavailable">Unavailable</option>
+              </Select>
             </div>
-            <select className="rm-select" value={menuCat} onChange={e=>setMCat(e.target.value)}>
-              <option value="all">All Categories</option>
-              {menuCats.map(c=><option key={c} value={c}>{c}</option>)}
-            </select>
-            <select className="rm-select" value={menuAvail} onChange={e=>setMAvail(e.target.value)}>
-              <option value="all">All</option>
-              <option value="available">Available</option>
-              <option value="unavailable">Unavailable</option>
-            </select>
-            <div className="rm-ctrl-actions">
-              <button
-                className="rm-btn rm-btn--ghost"
-                onClick={() => handleBulkToggle(false)}
-                disabled={actionLoading.bulkToggle}
-                title="Mark every menu item unavailable (e.g. kitchen closed for the night)"
-              >
-                🌙 Close Kitchen
-              </button>
-              <button
-                className="rm-btn rm-btn--ghost"
-                onClick={() => handleBulkToggle(true)}
-                disabled={actionLoading.bulkToggle}
-                title="Mark every menu item available (e.g. morning reset)"
-              >
-                ☀️ Mark All Available
-              </button>
-              <button className="rm-btn rm-btn--ghost" onClick={fetchMenu} disabled={mLoading}>↺ Refresh</button>
-              <button className="rm-btn rm-btn--primary" onClick={openMenuCreate}>+ Add Item</button>
+            <div className="ha-toolbar__group">
+              <Button variant="secondary" onClick={() => setBulkToggle_({ isAvailable: false })} disabled={actionLoading.bulkToggle}><Moon size={16} aria-hidden="true" /> Close Kitchen</Button>
+              <Button variant="secondary" onClick={() => setBulkToggle_({ isAvailable: true })} disabled={actionLoading.bulkToggle}><Sun size={16} aria-hidden="true" /> Mark All Available</Button>
+              <Button variant="primary" onClick={openMenuCreate}><Plus size={16} aria-hidden="true" /> Add Item</Button>
             </div>
           </div>
 
-          {mLoading ? <div className="rm-loading"><div className="rm-spinner"/><span>Loading menu…</span></div>
-          : filteredMenu.length === 0
-          ? <div className="rm-empty"><span className="rm-empty-ico">🍜</span><h3>No menu items</h3><p>Add your first menu item</p><button className="rm-btn rm-btn--primary" onClick={openMenuCreate}>+ Add Item</button></div>
-          : (
-            <div className="rm-menu-grid">
-              {filteredMenu.map(item => (
-                <div key={item._id} className={`rm-mcard${!item.isAvailable?' rm-mcard--unavail':''}`}>
-                  <div className="rm-mcard-top">
+          {mLoading ? null : filteredMenu.length === 0 ? (
+            <EmptyState icon={<ChefHat size={26} />} title="No menu items" description="Add your first menu item." action={<Button variant="primary" size="sm" onClick={openMenuCreate}><Plus size={15} aria-hidden="true" /> Add Item</Button>} />
+          ) : (
+            <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))' }}>
+              {filteredMenu.map((item) => (
+                <div key={item._id} className="ha-card ha-card--pad" style={{ opacity: item.isAvailable ? 1 : 0.7, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
                     <div>
-                      <div className="rm-mcard-name">{item.name}</div>
-                      <div className="rm-mcard-cat">{item.category}</div>
+                      <div className="ha-body-strong" style={{ color: 'var(--ha-text)' }}>{item.name}</div>
+                      <div className="ha-small" style={{ color: 'var(--ha-text-subtle)' }}>{item.category}</div>
                     </div>
-                    <span className={`rm-badge ${item.isAvailable?'rm-badge--green':'rm-badge--red'}`}>{item.isAvailable?'Available':'Unavailable'}</span>
+                    <Badge tone={item.isAvailable ? 'success' : 'danger'}>{item.isAvailable ? 'Available' : 'Unavailable'}</Badge>
                   </div>
-                  {item.description && <p className="rm-mcard-desc">{item.description}</p>}
-                  <div className="rm-mcard-footer">
-                    <span className="rm-mcard-price">NPR {Number(item.price).toLocaleString()}</span>
-                    {item.preparationTime && <span className="rm-mcard-time">⏱ {item.preparationTime} min</span>}
-                    <div className="rm-mcard-acts">
-                      <button className="rm-icon-btn" onClick={()=>openMenuEdit(item)}>✏️</button>
-                      <button className="rm-icon-btn rm-icon-btn--danger" onClick={()=>handleDelMenu(item._id,item.name)} disabled={actionLoading[`m_${item._id}`]}>🗑️</button>
+                  {item.description && <p className="ha-small" style={{ color: 'var(--ha-text-muted)' }}>{item.description}</p>}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', gap: 8 }}>
+                    <span className="ha-money haNum" style={{ color: 'var(--ha-text)' }}>Rs. {Number(item.price).toLocaleString('en-IN')}</span>
+                    {item.preparationTime && <span className="ha-small haNum" style={{ color: 'var(--ha-text-subtle)' }}><Clock size={12} aria-hidden="true" /> {item.preparationTime}m</span>}
+                    <div className="ha-table__row-actions">
+                      <IconButton aria-label={`Edit ${item.name}`} onClick={() => openMenuEdit(item)}><Pencil size={16} aria-hidden="true" /></IconButton>
+                      <IconButton aria-label={`Delete ${item.name}`} onClick={() => setDeleteMenu_(item)} style={{ color: 'var(--ha-danger)' }}><Trash2 size={16} aria-hidden="true" /></IconButton>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
           )}
-        </div>
+        </>
       )}
 
       {/* ══ KITCHEN TAB ══ */}
       {tab === 'kitchen' && (
-        <div className="rm-section">
-          <div className="rm-kitchen-info">
-            <div className="rm-kitchen-icon">👨‍🍳</div>
-            <h3>Kitchen Display</h3>
-            <p>Live kitchen orders are managed in the Orders section. Switch to Orders for full kitchen controls.</p>
-            <button className="rm-btn rm-btn--primary" onClick={()=>{}}>Go to Orders</button>
-          </div>
-        </div>
+        <EmptyState
+          icon={<ChefHat size={26} />}
+          title="Kitchen Display"
+          description="Live kitchen orders are managed in the Orders section. Switch to Orders for full kitchen controls."
+          action={<Button variant="primary" size="sm" onClick={() => onNavigate?.('orders')}>Go to Orders <ArrowRight size={15} aria-hidden="true" /></Button>}
+        />
       )}
 
-      {/* ══ TABLE MODAL ══ */}
-      {showTableModal && (
-        <div className="rm-overlay" onClick={()=>setSTableM(false)}>
-          <div className="rm-modal" onClick={e=>e.stopPropagation()}>
-            <div className="rm-modal-header">
-              <h2>{selTable?'Edit Table':'Add New Table'}</h2>
-              <button className="rm-modal-close" onClick={()=>setSTableM(false)}>✕</button>
-            </div>
-            <form onSubmit={handleTableSubmit} className="rm-form">
-              <div className="rm-form-row">
-                <div className="rm-fg">
-                  <label>Table Number *</label>
-                  <input required value={tableForm.tableNumber} onChange={e=>setTForm(p=>({...p,tableNumber:e.target.value}))} placeholder="e.g. 1, A1, VIP-1"/>
-                </div>
-                <div className="rm-fg">
-                  <label>Table Name</label>
-                  <input value={tableForm.tableName} onChange={e=>setTForm(p=>({...p,tableName:e.target.value}))} placeholder="e.g. Corner Table"/>
-                </div>
-              </div>
-              <div className="rm-form-row">
-                <div className="rm-fg">
-                  <label>Capacity *</label>
-                  <input type="number" required min="1" max="50" value={tableForm.capacity} onChange={e=>setTForm(p=>({...p,capacity:+e.target.value}))}/>
-                </div>
-                <div className="rm-fg">
-                  <label>Min Spend (NPR)</label>
-                  <input type="number" min="0" value={tableForm.minSpend} onChange={e=>setTForm(p=>({...p,minSpend:+e.target.value}))}/>
-                </div>
-              </div>
-              <div className="rm-form-row">
-                <div className="rm-fg">
-                  <label>Location</label>
-                  <select value={tableForm.location} onChange={e=>setTForm(p=>({...p,location:e.target.value}))}>
-                    {LOC_OPTS.map(l=><option key={l} value={l}>{l.charAt(0).toUpperCase()+l.slice(1)}</option>)}
-                  </select>
-                </div>
-                <div className="rm-fg">
-                  <label>Status</label>
-                  <select value={tableForm.status} onChange={e=>setTForm(p=>({...p,status:e.target.value}))}>
-                    {Object.entries(STATUS_META).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div className="rm-fg rm-fg--full">
-                <label>Description</label>
-                <textarea rows="2" value={tableForm.description} onChange={e=>setTForm(p=>({...p,description:e.target.value}))} placeholder="Optional notes"/>
-              </div>
-              <div className="rm-modal-footer">
-                <button type="button" className="rm-btn rm-btn--ghost" onClick={()=>setSTableM(false)}>Cancel</button>
-                <button type="submit" className="rm-btn rm-btn--primary" disabled={actionLoading.submit}>
-                  {actionLoading.submit?'Saving…':selTable?'Update Table':'Create Table'}
-                </button>
-              </div>
-            </form>
+      {/* Table modal */}
+      <Modal
+        isOpen={showTableModal}
+        onClose={() => setShowTableModal(false)}
+        title={selTable ? 'Edit Table' : 'Add New Table'}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowTableModal(false)} disabled={actionLoading.submit}>Cancel</Button>
+            <Button variant="primary" onClick={handleTableSubmit} disabled={actionLoading.submit}>{actionLoading.submit ? 'Saving…' : selTable ? 'Update Table' : 'Create Table'}</Button>
+          </>
+        }
+      >
+        <form onSubmit={handleTableSubmit} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 16 }}>
+          <Input label="Table Number" required value={tableForm.tableNumber} onChange={(e) => { setTableForm((p) => ({ ...p, tableNumber: e.target.value })); setTableFormErr({}); }} placeholder="e.g. 1, A1, VIP-1" error={tableFormErr.tableNumber} />
+          <Input label="Table Name" value={tableForm.tableName} onChange={(e) => setTableForm((p) => ({ ...p, tableName: e.target.value }))} placeholder="e.g. Corner Table" />
+          <Input label="Capacity" required type="number" min="1" max="50" value={tableForm.capacity} onChange={(e) => setTableForm((p) => ({ ...p, capacity: +e.target.value }))} />
+          <Input label="Min Spend (NPR)" type="number" min="0" value={tableForm.minSpend} onChange={(e) => setTableForm((p) => ({ ...p, minSpend: +e.target.value }))} />
+          <Select label="Location" value={tableForm.location} onChange={(e) => setTableForm((p) => ({ ...p, location: e.target.value }))}>
+            {LOC_OPTS.map((l) => <option key={l} value={l}>{cap(l)}</option>)}
+          </Select>
+          <Select label="Status" value={tableForm.status} onChange={(e) => setTableForm((p) => ({ ...p, status: e.target.value }))}>
+            {Object.entries(STATUS_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+          </Select>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <Textarea label="Description" rows="2" value={tableForm.description} onChange={(e) => setTableForm((p) => ({ ...p, description: e.target.value }))} placeholder="Optional notes" />
           </div>
-        </div>
-      )}
+        </form>
+      </Modal>
 
-      {/* ══ BATCH MODAL ══ */}
-      {showBatchModal && (
-        <div className="rm-overlay" onClick={()=>setSBatchM(false)}>
-          <div className="rm-modal" onClick={e=>e.stopPropagation()}>
-            <div className="rm-modal-header">
-              <h2>Batch Create Tables</h2>
-              <button className="rm-modal-close" onClick={()=>setSBatchM(false)}>✕</button>
-            </div>
-            <form onSubmit={handleBatchCreate} className="rm-form">
-              <div className="rm-form-row">
-                <div className="rm-fg">
-                  <label>Number of Tables</label>
-                  <input type="number" min="1" max="50" value={batchForm.count} onChange={e=>setBForm(p=>({...p,count:+e.target.value}))}/>
-                </div>
-                <div className="rm-fg">
-                  <label>Starting Number</label>
-                  <input type="number" min="1" value={batchForm.startNumber} onChange={e=>setBForm(p=>({...p,startNumber:+e.target.value}))}/>
-                </div>
-              </div>
-              <div className="rm-form-row">
-                <div className="rm-fg">
-                  <label>Default Capacity</label>
-                  <input type="number" min="1" max="20" value={batchForm.capacity} onChange={e=>setBForm(p=>({...p,capacity:+e.target.value}))}/>
-                </div>
-                <div className="rm-fg">
-                  <label>Location</label>
-                  <select value={batchForm.location} onChange={e=>setBForm(p=>({...p,location:e.target.value}))}>
-                    {LOC_OPTS.map(l=><option key={l} value={l}>{l.charAt(0).toUpperCase()+l.slice(1)}</option>)}
-                  </select>
-                </div>
-              </div>
-              <label className="rm-checkbox">
-                <input type="checkbox" checked={batchForm.generateQR} onChange={e=>setBForm(p=>({...p,generateQR:e.target.checked}))}/>
-                <span>Generate QR codes automatically</span>
-              </label>
-              <div className="rm-batch-preview">
-                Will create tables <strong>{batchForm.startNumber}</strong> → <strong>{batchForm.startNumber+batchForm.count-1}</strong>
-              </div>
-              <div className="rm-modal-footer">
-                <button type="button" className="rm-btn rm-btn--ghost" onClick={()=>setSBatchM(false)}>Cancel</button>
-                <button type="submit" className="rm-btn rm-btn--primary" disabled={actionLoading.batch}>
-                  {actionLoading.batch?'Creating…':`Create ${batchForm.count} Tables`}
-                </button>
-              </div>
-            </form>
+      {/* Batch modal */}
+      <Modal
+        isOpen={showBatchModal}
+        onClose={() => setShowBatchModal(false)}
+        title="Batch Create Tables"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowBatchModal(false)} disabled={actionLoading.batch}>Cancel</Button>
+            <Button variant="primary" onClick={handleBatchCreate} disabled={actionLoading.batch}>{actionLoading.batch ? 'Creating…' : `Create ${batchForm.count} Tables`}</Button>
+          </>
+        }
+      >
+        <form onSubmit={handleBatchCreate} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <Input label="Number of Tables" type="number" min="1" max="50" value={batchForm.count} onChange={(e) => setBatchForm((p) => ({ ...p, count: +e.target.value }))} />
+            <Input label="Starting Number" type="number" min="1" value={batchForm.startNumber} onChange={(e) => setBatchForm((p) => ({ ...p, startNumber: +e.target.value }))} />
+            <Input label="Default Capacity" type="number" min="1" max="20" value={batchForm.capacity} onChange={(e) => setBatchForm((p) => ({ ...p, capacity: +e.target.value }))} />
+            <Select label="Location" value={batchForm.location} onChange={(e) => setBatchForm((p) => ({ ...p, location: e.target.value }))}>
+              {LOC_OPTS.map((l) => <option key={l} value={l}>{cap(l)}</option>)}
+            </Select>
           </div>
-        </div>
-      )}
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: 'var(--ha-text-muted)' }}>
+            <input type="checkbox" checked={batchForm.generateQR} onChange={(e) => setBatchForm((p) => ({ ...p, generateQR: e.target.checked }))} />
+            Generate QR codes automatically
+          </label>
+          <div className="ha-card" style={{ padding: '10px 12px', color: 'var(--ha-text-subtle)', fontSize: 13 }}>
+            Will create tables <strong className="haNum">{batchForm.startNumber}</strong> → <strong className="haNum">{batchForm.startNumber + batchForm.count - 1}</strong>
+          </div>
+        </form>
+      </Modal>
 
-      {/* ══ QR VIEW MODAL ══ */}
-      {showQRModal && selTable && (
-        <div className="rm-overlay" onClick={()=>setSQRM(false)}>
-          <div className="rm-modal rm-modal--qr" onClick={e=>e.stopPropagation()}>
-            <div className="rm-modal-header">
-              <h2>Table {selTable.tableNumber} QR Code</h2>
-              <button className="rm-modal-close" onClick={()=>setSQRM(false)}>✕</button>
-            </div>
-            <div className="rm-qr-view">
-              {selTable.qrCodeData ? <>
-                <img src={selTable.qrCodeData} alt="QR Code" className="rm-qr-big"/>
-                <p className="rm-qr-token">Token: {selTable.uniqueToken}</p>
-                <div className="rm-modal-footer">
-                  <button className="rm-btn rm-btn--ghost" onClick={()=>downloadQR(selTable.qrCodeData,`table-${selTable.tableNumber}-qr.png`)}>⬇️ Download</button>
-                  <button className="rm-btn rm-btn--primary" onClick={()=>printTableQR(selTable.qrCodeData,selTable.tableNumber,hotelName)}>🖨️ Print</button>
-                </div>
-              </> : <p>No QR code generated yet</p>}
-            </div>
+      {/* QR view modal */}
+      <Modal
+        isOpen={!!qrTable}
+        onClose={() => setQrTable(null)}
+        title={qrTable ? `Table ${qrTable.tableNumber} — QR Code` : ''}
+        size="sm"
+        footer={
+          qrTable?.qrCodeData && (
+            <>
+              <Button variant="secondary" onClick={() => downloadQR(qrTable.qrCodeData, `table-${qrTable.tableNumber}-qr.png`)}><Download size={16} aria-hidden="true" /> Download</Button>
+              <Button variant="primary" onClick={() => printTableQR(qrTable.qrCodeData, qrTable.tableNumber, hotelName)}><Printer size={16} aria-hidden="true" /> Print</Button>
+            </>
+          )
+        }
+      >
+        {qrTable?.qrCodeData ? (
+          <div style={{ textAlign: 'center' }}>
+            {hotelName && <p className="ha-small" style={{ color: 'var(--ha-text-subtle)' }}>{hotelName}</p>}
+            <h3 className="ha-h3" style={{ margin: '4px 0 16px' }}>Table {qrTable.tableNumber}</h3>
+            <img src={qrTable.qrCodeData} alt="QR Code" style={{ width: 220, height: 220, borderRadius: 'var(--ha-radius-md)' }} />
+            {qrTable.uniqueToken && <p className="ha-small" style={{ color: 'var(--ha-text-subtle)', marginTop: 12 }}>Token: <code>{qrTable.uniqueToken}</code></p>}
           </div>
-        </div>
-      )}
+        ) : (
+          <p className="ha-body">No QR code generated yet.</p>
+        )}
+      </Modal>
 
-      {/* ══ MENU MODAL ══ */}
-      {showMenuModal && (
-        <div className="rm-overlay" onClick={()=>setSMenuM(false)}>
-          <div className="rm-modal" onClick={e=>e.stopPropagation()}>
-            <div className="rm-modal-header">
-              <h2>{selMenu?'Edit Menu Item':'Add Menu Item'}</h2>
-              <button className="rm-modal-close" onClick={()=>setSMenuM(false)}>✕</button>
-            </div>
-            <form onSubmit={handleMenuSubmit} className="rm-form">
-              <div className="rm-form-row">
-                <div className="rm-fg">
-                  <label>Item Name *</label>
-                  <input required value={menuForm.name} onChange={e=>setMForm(p=>({...p,name:e.target.value}))} placeholder="e.g. Chicken Burger"/>
-                </div>
-                <div className="rm-fg">
-                  <label>Category *</label>
-                  <select required value={menuForm.category} onChange={e=>setMForm(p=>({...p,category:e.target.value}))}>
-                    <option value="" disabled>Select category…</option>
-                    {menuCats.map(c=><option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div className="rm-form-row">
-                <div className="rm-fg">
-                  <label>Price (NPR) *</label>
-                  <input required type="number" min="0" value={menuForm.price} onChange={e=>setMForm(p=>({...p,price:e.target.value}))}/>
-                </div>
-                <div className="rm-fg">
-                  <label>Prep Time (min)</label>
-                  <input type="number" min="0" value={menuForm.preparationTime} onChange={e=>setMForm(p=>({...p,preparationTime:e.target.value}))}/>
-                </div>
-              </div>
-              <div className="rm-fg rm-fg--full">
-                <label>Description</label>
-                <textarea rows="2" value={menuForm.description} onChange={e=>setMForm(p=>({...p,description:e.target.value}))} placeholder="Describe the item"/>
-              </div>
-              <div className="rm-fg rm-fg--full">
-                <label>Item Photo</label>
-                <input type="file" accept="image/jpeg,image/png,image/jpg,image/webp" onChange={handleMenuImageChange}/>
-                {menuImagePreview && (
-                  <img
-                    src={menuImagePreview}
-                    alt="Menu item preview"
-                    style={{ marginTop: 8, width: 120, height: 90, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border-color, #e2e8f0)' }}
-                  />
-                )}
-              </div>
-              <label className="rm-checkbox">
-                <input type="checkbox" checked={menuForm.isAvailable} onChange={e=>setMForm(p=>({...p,isAvailable:e.target.checked}))}/>
-                <span>Mark as Available</span>
-              </label>
-              <div className="rm-modal-footer">
-                <button type="button" className="rm-btn rm-btn--ghost" onClick={()=>setSMenuM(false)}>Cancel</button>
-                <button type="submit" className="rm-btn rm-btn--primary" disabled={actionLoading.msubmit}>
-                  {actionLoading.msubmit?'Saving…':selMenu?'Update Item':'Add Item'}
-                </button>
-              </div>
-            </form>
+      {/* Menu modal */}
+      <Modal
+        isOpen={showMenuModal}
+        onClose={() => setShowMenuModal(false)}
+        title={selMenu ? 'Edit Menu Item' : 'Add Menu Item'}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowMenuModal(false)} disabled={actionLoading.msubmit}>Cancel</Button>
+            <Button variant="primary" onClick={handleMenuSubmit} disabled={actionLoading.msubmit}>{actionLoading.msubmit ? 'Saving…' : selMenu ? 'Update Item' : 'Add Item'}</Button>
+          </>
+        }
+      >
+        <form onSubmit={handleMenuSubmit} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 16 }}>
+          <Input label="Item Name" required value={menuForm.name} onChange={(e) => { setMenuForm((p) => ({ ...p, name: e.target.value })); setMenuFormErr((p) => ({ ...p, name: undefined })); }} placeholder="e.g. Chicken Burger" error={menuFormErr.name} />
+          <Select label="Category" required value={menuForm.category} onChange={(e) => { setMenuForm((p) => ({ ...p, category: e.target.value })); setMenuFormErr((p) => ({ ...p, category: undefined })); }} error={menuFormErr.category}>
+            <option value="" disabled>Select category…</option>
+            {menuCats.map((c) => <option key={c} value={c}>{c}</option>)}
+          </Select>
+          <Input label="Price (NPR)" required type="number" min="0" value={menuForm.price} onChange={(e) => { setMenuForm((p) => ({ ...p, price: e.target.value })); setMenuFormErr((p) => ({ ...p, price: undefined })); }} error={menuFormErr.price} />
+          <Input label="Prep Time (min)" type="number" min="0" value={menuForm.preparationTime} onChange={(e) => setMenuForm((p) => ({ ...p, preparationTime: e.target.value }))} />
+          <div style={{ gridColumn: '1 / -1' }}>
+            <Textarea label="Description" rows="2" value={menuForm.description} onChange={(e) => setMenuForm((p) => ({ ...p, description: e.target.value }))} placeholder="Describe the item" />
           </div>
-        </div>
-      )}
+          <div style={{ gridColumn: '1 / -1' }}>
+            <span className="ha-field__label" style={{ display: 'block', marginBottom: 6 }}>Item Photo</span>
+            <input type="file" accept="image/jpeg,image/png,image/jpg,image/webp" onChange={handleMenuImageChange} />
+            {menuImagePreview && (
+              <img src={menuImagePreview} alt="Menu item preview" style={{ marginTop: 8, width: 120, height: 90, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--ha-border)' }} />
+            )}
+          </div>
+          <label style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: 'var(--ha-text-muted)' }}>
+            <input type="checkbox" checked={menuForm.isAvailable} onChange={(e) => setMenuForm((p) => ({ ...p, isAvailable: e.target.checked }))} />
+            Mark as Available
+          </label>
+        </form>
+      </Modal>
+
+      {/* Confirmations */}
+      <ConfirmDialog isOpen={!!deleteTable_} onClose={() => setDeleteTable_(null)} onConfirm={confirmDelTable} variant="danger" title="Delete table?" message={deleteTable_ ? `Table ${deleteTable_.tableNumber} will be permanently removed.` : ''} confirmText="Delete Table" loading={actionLoading.delTable} />
+      <ConfirmDialog isOpen={!!deleteMenu_} onClose={() => setDeleteMenu_(null)} onConfirm={confirmDelMenu} variant="danger" title="Delete menu item?" message={deleteMenu_ ? `"${deleteMenu_.name}" will be permanently removed from the menu.` : ''} confirmText="Delete Item" loading={actionLoading.delMenu} />
+      <ConfirmDialog
+        isOpen={!!bulkToggle_}
+        onClose={() => setBulkToggle_(null)}
+        onConfirm={confirmBulkToggle}
+        variant={bulkToggle_?.isAvailable ? 'info' : 'warning'}
+        title={bulkToggle_?.isAvailable ? 'Mark all items available?' : 'Close the kitchen?'}
+        message={bulkToggle_?.isAvailable ? 'Every menu item will be marked available.' : 'Every menu item will be marked unavailable until you reopen the kitchen.'}
+        confirmText={bulkToggle_?.isAvailable ? 'Mark All Available' : 'Close Kitchen'}
+        loading={actionLoading.bulkToggle}
+      />
     </div>
   );
-
-  if (embedded) return content;
-  return content;
 };
 
 export default RestaurantManagement;

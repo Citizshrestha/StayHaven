@@ -1,569 +1,473 @@
-import React, { useState, useEffect } from 'react';
-import { useStaffAuth } from '../../../../core/context/StaffAuthContext';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import {
+  BedDouble,
+  CheckCircle2,
+  DoorClosed,
+  Wrench,
+  Plus,
+  Pencil,
+  Eye,
+  Trash2,
+  Download,
+} from 'lucide-react';
+import { toast } from 'react-toastify';
 import {
   getRooms,
   createRoom,
   updateRoom,
   deleteRoom,
 } from '../services/roomApi';
-import './RoomManagement.css';
+import useHotelId from '../hooks/useHotelId';
+import ConfirmDialog from '../../../../components/ConfirmDialog';
+import {
+  PageHeader,
+  Button,
+  IconButton,
+  Input,
+  Select,
+  Textarea,
+  SearchInput,
+  Badge,
+  StatCard,
+  Table,
+  THead,
+  SortableTh,
+  EmptyState,
+  ErrorState,
+  TableSkeleton,
+  StatCardSkeleton,
+  FilterTabs,
+  Pagination,
+  Modal,
+} from '../components/ui';
+import useDebouncedValue from '../hooks/useDebouncedValue';
+import useTableControls from '../hooks/useTableControls';
+import { exportToCsv } from '../utils/csv';
+import '../styles/hotel-admin-tokens.css';
 
-const RoomsManagement = ({ embedded = false }) => {
-  const { activeProperty } = useStaffAuth();
-  const [activeSection, setActiveSection] = useState('rooms');
+const EMPTY_FORM = {
+  roomName: '',
+  roomNumber: '',
+  type: 'Standard',
+  price: '',
+  floor: 1,
+  maxGuests: 2,
+  description: '',
+  amenities: [],
+  bedType: 'Queen',
+  status: 'available',
+};
+
+const RoomsManagement = ({ onCount }) => {
+  const hotelId = useHotelId();
+
+  const [rooms, setRooms] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [rooms, setRooms] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const debouncedSearch = useDebouncedValue(searchQuery, 250);
+
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState('create');
+  const [viewMode, setViewMode] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState(null);
-  const [formData, setFormData] = useState({
-    roomName: '',
-    roomNumber: '',
-    type: 'Standard',
-    price: '',
-    floor: 1,
-    maxGuests: 2,
-    description: '',
-    amenities: [],
-    bedType: 'Queen',
-    status: 'available'
-  });
+  const [formData, setFormData] = useState(EMPTY_FORM);
+  const [formErrors, setFormErrors] = useState({});
+  const [saving, setSaving] = useState(false);
 
-  const hotelId = activeProperty?._id || activeProperty;
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
-  // Navigation items
-  const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-    { id: 'rooms', label: 'Rooms', icon: '🛏' },
-    { id: 'restaurant', label: 'Restaurant', icon: '🍽' },
-    { id: 'orders', label: 'Orders', icon: '📦' },
-    { id: 'stock', label: 'Stock / Inventory', icon: '📋' },
-    { id: 'staff', label: 'Staff Management', icon: '👥' },
-    { id: 'billing', label: 'Billing & Payments', icon: '💰' },
-    { id: 'loyalty', label: 'Loyalty Points', icon: '⭐' },
-    { id: 'reports', label: 'Reports & Analytics', icon: '📈' },
-    { id: 'notifications', label: 'Notifications', icon: '🔔' }
-  ];
-
-  // Fetch rooms on component mount
-  useEffect(() => {
-    if (hotelId && activeSection === 'rooms') {
-      fetchRooms();
-    }
-  }, [hotelId, activeSection]);
-
-  const fetchRooms = async () => {
+  const fetchRooms = useCallback(async () => {
     if (!hotelId) {
       setError('No hotel selected');
+      setLoading(false);
       return;
     }
-
     setLoading(true);
     setError(null);
     try {
       const response = await getRooms({ hotelId });
-      setRooms(response.data.rooms || []);
+      const list = response.data.rooms || [];
+      setRooms(list);
+      onCount?.(list.length);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to fetch rooms');
     } finally {
       setLoading(false);
     }
-  };
+  }, [hotelId, onCount]);
 
-  // Filter rooms based on status and search query
-  const filteredRooms = rooms.filter(room => {
-    const matchesStatus = filterStatus === 'all' || room.status === filterStatus;
-    const matchesSearch = searchQuery === '' ||
-      room.roomNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      room.roomName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      room.type?.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesStatus && matchesSearch;
+  useEffect(() => {
+    fetchRooms();
+  }, [fetchRooms]);
+
+  const roomStats = useMemo(
+    () => ({
+      available: rooms.filter((r) => r.status === 'available').length,
+      occupied: rooms.filter((r) => r.status === 'occupied').length,
+      maintenance: rooms.filter((r) => r.status === 'maintenance').length,
+      total: rooms.length,
+    }),
+    [rooms]
+  );
+
+  const filteredRooms = useMemo(() => {
+    const q = debouncedSearch.trim().toLowerCase();
+    return rooms.filter((room) => {
+      const matchesStatus = filterStatus === 'all' || room.status === filterStatus;
+      const matchesSearch =
+        q === '' ||
+        room.roomNumber?.toLowerCase().includes(q) ||
+        room.roomName?.toLowerCase().includes(q) ||
+        room.type?.toLowerCase().includes(q);
+      return matchesStatus && matchesSearch;
+    });
+  }, [rooms, filterStatus, debouncedSearch]);
+
+  const {
+    paged,
+    page,
+    setPage,
+    pageSize,
+    totalItems,
+    sortKey,
+    sortDir,
+    toggleSort,
+  } = useTableControls(filteredRooms, {
+    pageSize: 10,
+    initialSortKey: 'roomNumber',
+    accessors: {
+      roomNumber: (r) => r.roomNumber,
+      type: (r) => r.type,
+      status: (r) => r.status,
+      price: (r) => Number(r.price) || 0,
+    },
   });
 
-  // Room statistics
-  const roomStats = {
-    available: rooms.filter(room => room.status === 'available').length,
-    occupied: rooms.filter(room => room.status === 'occupied').length,
-    maintenance: rooms.filter(room => room.status === 'maintenance').length,
-    total: rooms.length
-  };
-
-  // Handle navigation click
-  const handleNavigation = (sectionId) => {
-    setActiveSection(sectionId);
-  };
-
-  // Open create modal
-  const handleAddRoom = () => {
+  const openCreate = () => {
     setModalMode('create');
+    setViewMode(false);
     setSelectedRoom(null);
-    setFormData({
-      roomName: '',
-      roomNumber: '',
-      type: 'Standard',
-      price: '',
-      floor: 1,
-      maxGuests: 2,
-      description: '',
-      amenities: [],
-      bedType: 'Queen',
-      status: 'available'
-    });
+    setFormData(EMPTY_FORM);
+    setFormErrors({});
     setShowModal(true);
   };
 
-  // Open edit modal
-  const handleEditRoom = (room) => {
+  const openEdit = (room, readOnly = false) => {
     setModalMode('edit');
+    setViewMode(readOnly);
     setSelectedRoom(room);
     setFormData({
       roomName: room.roomName || '',
       roomNumber: room.roomNumber || '',
       type: room.type || 'Standard',
-      price: room.price || '',
+      price: room.price ?? '',
       floor: room.floor || 1,
       maxGuests: room.maxGuests || 2,
       description: room.description || '',
       amenities: room.amenities || [],
       bedType: room.bedType || 'Queen',
-      status: room.status || 'available'
+      status: room.status || 'available',
     });
+    setFormErrors({});
     setShowModal(true);
   };
 
-  // Handle form input change
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormErrors((prev) => ({ ...prev, [name]: undefined }));
   };
 
-  // Handle form submit
+  const validate = () => {
+    const errs = {};
+    if (!formData.roomNumber.trim()) errs.roomNumber = 'Room number is required';
+    if (!formData.roomName.trim()) errs.roomName = 'Room name is required';
+    const priceNum = Number(formData.price);
+    if (formData.price === '' || Number.isNaN(priceNum)) errs.price = 'Price is required';
+    else if (priceNum < 0) errs.price = 'Price cannot be negative';
+    if (Number(formData.maxGuests) < 1) errs.maxGuests = 'At least 1 guest';
+    // Duplicate room number check (client-side pre-validation)
+    const dup = rooms.find(
+      (r) =>
+        r.roomNumber?.toLowerCase() === formData.roomNumber.trim().toLowerCase() &&
+        r._id !== selectedRoom?._id
+    );
+    if (dup) errs.roomNumber = 'Room number already exists';
+    setFormErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setError(null);
-
+    if (viewMode) return;
+    if (!validate()) return;
+    setSaving(true);
     try {
+      const payload = { ...formData, price: Number(formData.price) };
       if (modalMode === 'create') {
-        await createRoom({ ...formData, hotelId });
+        await createRoom({ ...payload, hotelId });
+        toast.success(`Room ${formData.roomNumber} created`);
       } else {
-        await updateRoom(selectedRoom._id, formData);
+        await updateRoom(selectedRoom._id, payload);
+        toast.success(`Room ${formData.roomNumber} updated`);
       }
       setShowModal(false);
       fetchRooms();
     } catch (err) {
-      setError(err.response?.data?.message || `Failed to ${modalMode} room`);
+      toast.error(err.response?.data?.message || `Failed to ${modalMode} room`);
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
-  // Handle delete room
-  const handleDeleteRoom = async (roomId, roomNumber) => {
-    if (!window.confirm(`Are you sure you want to delete room ${roomNumber}?`)) {
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await deleteRoom(roomId);
+      await deleteRoom(deleteTarget._id);
+      toast.success(`Room ${deleteTarget.roomNumber} deleted`);
+      setDeleteTarget(null);
       fetchRooms();
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to delete room');
+      toast.error(err.response?.data?.message || 'Failed to delete room');
     } finally {
-      setLoading(false);
+      setDeleting(false);
     }
   };
 
-  // Render different content based on active section
-  const renderContent = () => {
-    switch (activeSection) {
-      case 'dashboard':
-        return <div className="page-content">Dashboard Page Content</div>;
-      case 'rooms':
-        return renderRoomsManagement();
-      case 'restaurant':
-        return <div className="page-content">Restaurant Management</div>;
-      case 'orders':
-        return <div className="page-content">Orders Management</div>;
-      case 'stock':
-        return <div className="page-content">Stock / Inventory</div>;
-      case 'staff':
-        return <div className="page-content">Staff Management</div>;
-      case 'billing':
-        return <div className="page-content">Billing & Payments</div>;
-      case 'loyalty':
-        return <div className="page-content">Loyalty Points</div>;
-      case 'reports':
-        return <div className="page-content">Reports & Analytics</div>;
-      case 'notifications':
-        return <div className="page-content">Notifications</div>;
-      default:
-        return renderRoomsManagement();
+  const handleExport = () => {
+    if (filteredRooms.length === 0) {
+      toast.info('No rooms to export.');
+      return;
     }
+    exportToCsv(
+      'rooms.csv',
+      ['Room Number', 'Room Name', 'Type', 'Status', 'Cleanliness', 'Price', 'Floor', 'Max Guests'],
+      filteredRooms.map((r) => [
+        r.roomNumber,
+        r.roomName,
+        r.type,
+        r.status,
+        r.cleanliness || 'clean',
+        r.price,
+        r.floor,
+        r.maxGuests,
+      ])
+    );
+    toast.success(`Exported ${filteredRooms.length} rooms to CSV.`);
   };
 
-  const renderRoomsManagement = () => (
-    <div className="rooms-content">
-      <div className="content-header">
-        <h1>Rooms Management</h1>
-        <p className="subtitle">Manage all rooms, their status, and details.</p>
-      </div>
-
-      {error && (
-        <div className="error-banner">
-          <span>{error}</span>
-          <button onClick={() => setError(null)}>✕</button>
-        </div>
-      )}
-
-      {/* KPI Cards - 4 Column Grid */}
-      <div className="kpi-grid">
-        <div className="kpi-card">
-          <div className="kpi-content">
-            <div className="kpi-icon total">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                <polyline points="9 22 9 12 15 12 15 22"/>
-              </svg>
-            </div>
-            <div className="kpi-info">
-              <div className="kpi-label">Total Rooms</div>
-              <div className="kpi-value">{roomStats.total}</div>
-            </div>
-          </div>
-          <div className="kpi-badge trend">+12%</div>
-        </div>
-
-        <div className="kpi-card">
-          <div className="kpi-content">
-            <div className="kpi-icon available">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
-            </div>
-            <div className="kpi-info">
-              <div className="kpi-label">Available</div>
-              <div className="kpi-value">{roomStats.available}</div>
-            </div>
-          </div>
-          <div className="kpi-badge active">Active</div>
-        </div>
-
-        <div className="kpi-card">
-          <div className="kpi-content">
-            <div className="kpi-icon occupied">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-              </svg>
-            </div>
-            <div className="kpi-info">
-              <div className="kpi-label">Occupied</div>
-              <div className="kpi-value">{roomStats.occupied}</div>
-            </div>
-          </div>
-          <div className="kpi-badge in-use">In use</div>
-        </div>
-
-        <div className="kpi-card">
-          <div className="kpi-content">
-            <div className="kpi-icon maintenance">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-              </svg>
-            </div>
-            <div className="kpi-info">
-              <div className="kpi-label">Under Maintenance</div>
-              <div className="kpi-value">{roomStats.maintenance}</div>
-            </div>
-          </div>
-          <div className="kpi-badge ongoing">Ongoing</div>
-        </div>
-      </div>
-
-      {/* Room Details Table Section */}
-      <div className="room-details-section">
-        <div className="section-header-new">
-          <h2 className="section-title">Room Details</h2>
-
-          <div className="section-center">
-            <input
-              type="text"
-              className="search-input"
-              placeholder="Search rooms..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            <div className="filter-pills">
-              <button
-                className={`filter-pill ${filterStatus === 'all' ? 'active' : ''}`}
-                onClick={() => setFilterStatus('all')}
-              >
-                All Rooms
-              </button>
-              <button
-                className={`filter-pill ${filterStatus === 'available' ? 'active' : ''}`}
-                onClick={() => setFilterStatus('available')}
-              >
-                Available
-              </button>
-              <button
-                className={`filter-pill ${filterStatus === 'occupied' ? 'active' : ''}`}
-                onClick={() => setFilterStatus('occupied')}
-              >
-                Occupied
-              </button>
-              <button
-                className={`filter-pill ${filterStatus === 'maintenance' ? 'active' : ''}`}
-                onClick={() => setFilterStatus('maintenance')}
-              >
-                Maintenance
-              </button>
-            </div>
-          </div>
-
-          <button className="btn-add-room" onClick={handleAddRoom}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="12" y1="5" x2="12" y2="19"/>
-              <line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-            Add Room
-          </button>
-        </div>
-
-        <div className="table-wrapper">
-          <table className="premium-table">
-            <thead>
-              <tr>
-                <th>ROOM NUMBER</th>
-                <th>ROOM TYPE</th>
-                <th>STATUS</th>
-                <th>CLEANLINESS</th>
-                <th>PRICE</th>
-                <th>ACTIONS</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan="6" className="loading-cell">Loading rooms...</td>
-                </tr>
-              ) : filteredRooms.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="empty-cell">
-                    {searchQuery ? 'No rooms match your search' : 'No rooms found'}
-                  </td>
-                </tr>
-              ) : (
-                filteredRooms.map((room, index) => (
-                  <tr key={room._id} className={index % 2 === 0 ? 'even-row' : 'odd-row'}>
-                    <td className="room-number-cell">{room.roomNumber}</td>
-                    <td className="room-type-cell">{room.type}</td>
-                    <td>
-                      <span className={`status-pill ${room.status}`}>
-                        {room.status === 'available' && 'AVAILABLE'}
-                        {room.status === 'occupied' && 'OCCUPIED'}
-                        {room.status === 'maintenance' && 'MAINTENANCE'}
-                        {room.status === 'cleaning' && 'CLEANING'}
-                        {room.status === 'reserved' && 'RESERVED'}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`cleanliness-pill ${room.cleanliness || 'clean'}`}>
-                        {(room.cleanliness || 'clean') === 'clean' ? 'CLEAN' : 'DIRTY'}
-                      </span>
-                    </td>
-                    <td className="price-cell">Rs. {room.price?.toLocaleString()}</td>
-                    <td>
-                      <div className="action-btns">
-                        <button
-                          className="btn-action edit"
-                          onClick={() => handleEditRoom(room)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          className="btn-action view"
-                          onClick={() => handleEditRoom(room)}
-                        >
-                          View
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-
-  if (embedded) return renderRoomsManagement();
+  const statusFilters = [
+    { value: 'all', label: 'All', count: roomStats.total },
+    { value: 'available', label: 'Available', count: roomStats.available },
+    { value: 'occupied', label: 'Occupied', count: roomStats.occupied },
+    { value: 'maintenance', label: 'Maintenance', count: roomStats.maintenance },
+  ];
 
   return (
-    <div className="rooms-management">
-      {/* Sidebar Navigation */}
-      <div className="sidebar">
-        <div className="sidebar-header">
-          <div className="admin-info">
-            <h2>Hotel Admin</h2>
-            <p className="admin-role">Hotel Admin</p>
-          </div>
-        </div>
-        <nav className="sidebar-nav">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              className={`nav-item ${activeSection === item.id ? 'active' : ''}`}
-              onClick={() => handleNavigation(item.id)}
-            >
-              <span className="nav-icon">{item.icon}</span>
-              <span className="nav-label">{item.label}</span>
-            </button>
-          ))}
-        </nav>
-      </div>
-
-      {/* Main Content */}
-      <div className="main-content">
-        {renderContent()}
-      </div>
-
-      {/* Room Modal */}
-      {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>{modalMode === 'create' ? 'Add New Room' : 'Edit Room'}</h2>
-              <button className="modal-close" onClick={() => setShowModal(false)}>✕</button>
+    <div className="ha-page">
+      <PageHeader
+        title="Rooms"
+        subtitle="Manage rooms, availability, and pricing."
+        actions={
+          <>
+            <Button variant="secondary" onClick={handleExport}>
+              <Download size={16} aria-hidden="true" /> Export
+            </Button>
+            <Button variant="primary" onClick={openCreate}>
+              <Plus size={16} aria-hidden="true" /> Add Room
+            </Button>
+          </>
+        }
+        toolbar={
+          <>
+            <div className="ha-toolbar__group">
+              <SearchInput
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by number, name, or type…"
+                ariaLabel="Search rooms"
+              />
             </div>
-            <form onSubmit={handleSubmit}>
-              <div className="form-grid">
-                <div className="form-group">
-                  <label>Room Number *</label>
-                  <input
-                    type="text"
-                    name="roomNumber"
-                    value={formData.roomNumber}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Room Name *</label>
-                  <input
-                    type="text"
-                    name="roomName"
-                    value={formData.roomName}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Room Type *</label>
-                  <select
-                    name="type"
-                    value={formData.type}
-                    onChange={handleInputChange}
-                    required
-                  >
-                    <option value="Standard">Standard</option>
-                    <option value="Deluxe">Deluxe</option>
-                    <option value="Suite">Suite</option>
-                    <option value="single">Single</option>
-                    <option value="double">Double</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Price (NPR) *</label>
-                  <input
-                    type="number"
-                    name="price"
-                    value={formData.price}
-                    onChange={handleInputChange}
-                    required
-                    min="0"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Floor</label>
-                  <input
-                    type="number"
-                    name="floor"
-                    value={formData.floor}
-                    onChange={handleInputChange}
-                    min="1"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Max Guests</label>
-                  <input
-                    type="number"
-                    name="maxGuests"
-                    value={formData.maxGuests}
-                    onChange={handleInputChange}
-                    min="1"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Bed Type</label>
-                  <select
-                    name="bedType"
-                    value={formData.bedType}
-                    onChange={handleInputChange}
-                  >
-                    <option value="Single">Single</option>
-                    <option value="Double">Double</option>
-                    <option value="Queen">Queen</option>
-                    <option value="King">King</option>
-                    <option value="Twin">Twin</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Status</label>
-                  <select
-                    name="status"
-                    value={formData.status}
-                    onChange={handleInputChange}
-                  >
-                    <option value="available">Available</option>
-                    <option value="occupied">Occupied</option>
-                    <option value="maintenance">Maintenance</option>
-                    <option value="cleaning">Cleaning</option>
-                  </select>
-                </div>
-                <div className="form-group full-width">
-                  <label>Description</label>
-                  <textarea
-                    name="description"
-                    value={formData.description}
-                    onChange={handleInputChange}
-                    rows="3"
-                  />
-                </div>
-              </div>
-              <div className="modal-actions">
-                <button type="button" className="btn-secondary" onClick={() => setShowModal(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn-primary" disabled={loading}>
-                  {loading ? 'Saving...' : modalMode === 'create' ? 'Create Room' : 'Update Room'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+            <FilterTabs
+              options={statusFilters}
+              value={filterStatus}
+              onChange={setFilterStatus}
+              ariaLabel="Filter rooms by status"
+            />
+          </>
+        }
+      />
+
+      {/* KPI row */}
+      <div className="ha-kpi-grid" style={{ marginBottom: 24 }}>
+        {loading ? (
+          Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)
+        ) : (
+          <>
+            <StatCard icon={<BedDouble size={22} />} iconBg="linear-gradient(135deg,#6366f1,#4f46e5)" label="Total Rooms" value={roomStats.total} />
+            <StatCard icon={<CheckCircle2 size={22} />} iconBg="var(--ha-success)" label="Available" value={roomStats.available} />
+            <StatCard icon={<DoorClosed size={22} />} iconBg="var(--ha-info)" label="Occupied" value={roomStats.occupied} />
+            <StatCard icon={<Wrench size={22} />} iconBg="var(--ha-warning)" label="Under Maintenance" value={roomStats.maintenance} />
+          </>
+        )}
+      </div>
+
+      {/* Table */}
+      {error ? (
+        <ErrorState description={error} onRetry={fetchRooms} />
+      ) : (
+        <>
+          <Table minWidth={720}>
+            <THead>
+              <SortableTh sortKey="roomNumber" activeKey={sortKey} dir={sortDir} onSort={toggleSort}>Room No.</SortableTh>
+              <SortableTh sortKey="type" activeKey={sortKey} dir={sortDir} onSort={toggleSort}>Type</SortableTh>
+              <SortableTh sortKey="status" activeKey={sortKey} dir={sortDir} onSort={toggleSort}>Status</SortableTh>
+              <th scope="col">Cleanliness</th>
+              <SortableTh sortKey="price" activeKey={sortKey} dir={sortDir} onSort={toggleSort}>Price</SortableTh>
+              <th scope="col">Actions</th>
+            </THead>
+            {loading ? (
+              <TableSkeleton rows={6} cols={6} />
+            ) : (
+              <tbody>
+                {paged.length === 0 ? (
+                  <tr>
+                    <td colSpan={6}>
+                      <EmptyState
+                        icon={<BedDouble size={26} />}
+                        title={debouncedSearch || filterStatus !== 'all' ? 'No matching rooms' : 'No rooms yet'}
+                        description={
+                          debouncedSearch || filterStatus !== 'all'
+                            ? 'Try adjusting your search or filters.'
+                            : 'Add your first room to get started.'
+                        }
+                        action={
+                          !debouncedSearch && filterStatus === 'all' ? (
+                            <Button variant="primary" size="sm" onClick={openCreate}>
+                              <Plus size={15} aria-hidden="true" /> Add Room
+                            </Button>
+                          ) : null
+                        }
+                      />
+                    </td>
+                  </tr>
+                ) : (
+                  paged.map((room) => (
+                    <tr key={room._id}>
+                      <td>
+                        <span className="ha-body-strong haNum" style={{ color: 'var(--ha-text)' }}>
+                          {room.roomNumber}
+                        </span>
+                        {room.roomName && (
+                          <div className="ha-small" style={{ color: 'var(--ha-text-subtle)' }}>{room.roomName}</div>
+                        )}
+                      </td>
+                      <td>{room.type}</td>
+                      <td><Badge status={room.status} /></td>
+                      <td>
+                        <Badge tone={(room.cleanliness || 'clean') === 'clean' ? 'success' : 'warning'}>
+                          {(room.cleanliness || 'clean') === 'clean' ? 'Clean' : 'Dirty'}
+                        </Badge>
+                      </td>
+                      <td className="ha-money haNum">Rs. {Number(room.price || 0).toLocaleString('en-IN')}</td>
+                      <td>
+                        <div className="ha-table__row-actions">
+                          <IconButton aria-label={`View room ${room.roomNumber}`} onClick={() => openEdit(room, true)}>
+                            <Eye size={16} aria-hidden="true" />
+                          </IconButton>
+                          <IconButton aria-label={`Edit room ${room.roomNumber}`} onClick={() => openEdit(room, false)}>
+                            <Pencil size={16} aria-hidden="true" />
+                          </IconButton>
+                          <IconButton
+                            aria-label={`Delete room ${room.roomNumber}`}
+                            onClick={() => setDeleteTarget(room)}
+                            style={{ color: 'var(--ha-danger)' }}
+                          >
+                            <Trash2 size={16} aria-hidden="true" />
+                          </IconButton>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            )}
+          </Table>
+          {!loading && (
+            <Pagination page={page} pageSize={pageSize} totalItems={totalItems} onPageChange={setPage} itemLabel="rooms" />
+          )}
+        </>
       )}
+
+      {/* Create / Edit / View modal */}
+      <Modal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        title={viewMode ? `Room ${formData.roomNumber}` : modalMode === 'create' ? 'Add New Room' : 'Edit Room'}
+        size="lg"
+        footer={
+          !viewMode ? (
+            <>
+              <Button variant="secondary" onClick={() => setShowModal(false)} disabled={saving}>Cancel</Button>
+              <Button variant="primary" onClick={handleSubmit} disabled={saving}>
+                {saving ? 'Saving…' : modalMode === 'create' ? 'Create Room' : 'Update Room'}
+              </Button>
+            </>
+          ) : (
+            <Button variant="secondary" onClick={() => setShowModal(false)}>Close</Button>
+          )
+        }
+      >
+        <form onSubmit={handleSubmit}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 16 }}>
+            <Input label="Room Number" name="roomNumber" required value={formData.roomNumber} onChange={handleInputChange} error={formErrors.roomNumber} disabled={viewMode} />
+            <Input label="Room Name" name="roomName" required value={formData.roomName} onChange={handleInputChange} error={formErrors.roomName} disabled={viewMode} />
+            <Select label="Room Type" name="type" required value={formData.type} onChange={handleInputChange} disabled={viewMode}>
+              <option value="Standard">Standard</option>
+              <option value="Deluxe">Deluxe</option>
+              <option value="Suite">Suite</option>
+              <option value="single">Single</option>
+              <option value="double">Double</option>
+            </Select>
+            <Input label="Price (NPR)" name="price" type="number" required min="0" value={formData.price} onChange={handleInputChange} error={formErrors.price} disabled={viewMode} />
+            <Input label="Floor" name="floor" type="number" min="1" value={formData.floor} onChange={handleInputChange} disabled={viewMode} />
+            <Input label="Max Guests" name="maxGuests" type="number" min="1" value={formData.maxGuests} onChange={handleInputChange} error={formErrors.maxGuests} disabled={viewMode} />
+            <Select label="Bed Type" name="bedType" value={formData.bedType} onChange={handleInputChange} disabled={viewMode}>
+              <option value="Single">Single</option>
+              <option value="Double">Double</option>
+              <option value="Queen">Queen</option>
+              <option value="King">King</option>
+              <option value="Twin">Twin</option>
+            </Select>
+            <Select label="Status" name="status" value={formData.status} onChange={handleInputChange} disabled={viewMode}>
+              <option value="available">Available</option>
+              <option value="occupied">Occupied</option>
+              <option value="maintenance">Maintenance</option>
+              <option value="cleaning">Cleaning</option>
+            </Select>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <Textarea label="Description" name="description" rows="3" value={formData.description} onChange={handleInputChange} disabled={viewMode} />
+            </div>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Delete confirmation */}
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        variant="danger"
+        title="Delete room?"
+        message={deleteTarget ? `Room ${deleteTarget.roomNumber} will be permanently removed.` : ''}
+        confirmText="Delete Room"
+        loading={deleting}
+      />
     </div>
   );
 };

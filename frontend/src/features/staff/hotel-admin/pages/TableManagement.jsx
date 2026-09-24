@@ -1,88 +1,110 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'react-toastify';
-import { useStaffAuth } from '../../../../core/context/StaffAuthContext';
+import {
+  UtensilsCrossed,
+  QrCode,
+  Users,
+  CheckCircle2,
+  RefreshCw,
+  Plus,
+  Rows3,
+  Pencil,
+  Trash2,
+  Download,
+  Printer,
+  RotateCcw,
+  Smartphone,
+} from 'lucide-react';
 import {
   getTables, createTable, updateTable, deleteTable,
-  generateTableQR, updateTableStatus, batchCreateTables
+  generateTableQR, updateTableStatus, batchCreateTables,
 } from '../services/tableApi';
-import './TableManagement.css';
+import useHotelId from '../hooks/useHotelId';
+import ConfirmDialog from '../../../../components/ConfirmDialog';
+import {
+  PageHeader,
+  Button,
+  IconButton,
+  Input,
+  Select,
+  Textarea,
+  Badge,
+  StatCard,
+  StatCardSkeleton,
+  SearchInput,
+  FilterTabs,
+  EmptyState,
+  Table,
+  THead,
+  Modal,
+} from '../components/ui';
+import useDebouncedValue from '../hooks/useDebouncedValue';
+import '../styles/hotel-admin-tokens.css';
 
-/* ─── QR utilities ─── */
 const downloadQRCode = (base64Data, filename) => {
   const link = document.createElement('a');
-  link.href = base64Data; link.download = filename;
-  document.body.appendChild(link); link.click(); document.body.removeChild(link);
+  link.href = base64Data;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 };
 
 const printQRCode = (base64Data, tableNumber, hotelName) => {
   const w = window.open('', '_blank');
+  if (!w) { toast.error('Popup blocked. Allow popups to print.'); return; }
   w.document.write(`<!DOCTYPE html><html><head><title>Table ${tableNumber}</title>
-  <style>
-    *{margin:0;padding:0;box-sizing:border-box}
-    body{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f8fafc;font-family:system-ui,sans-serif}
-    .box{background:#fff;border-radius:20px;box-shadow:0 8px 40px rgba(0,0,0,.12);padding:40px 48px;text-align:center}
-    .hotel{font-size:14px;color:#64748b;margin-bottom:6px;font-weight:500}
-    .num{font-size:32px;font-weight:800;color:#1e293b;margin-bottom:24px}
-    .qr{width:220px;height:220px;border-radius:12px}
-    .hint{margin-top:20px;font-size:13px;color:#94a3b8}
-    @media print{body{background:#fff}.box{box-shadow:none}}
-  </style></head><body>
-  <div class="box">
-    <p class="hotel">${hotelName}</p>
-    <h1 class="num">Table ${tableNumber}</h1>
-    <img src="${base64Data}" class="qr" alt="QR"/>
-    <p class="hint">Scan to view menu &amp; place your order</p>
-  </div>
-  <script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}<\/script>
-  </body></html>`);
+  <style>*{margin:0;padding:0;box-sizing:border-box}body{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f8fafc;font-family:system-ui,sans-serif}.box{background:#fff;border-radius:20px;box-shadow:0 8px 40px rgba(0,0,0,.12);padding:40px 48px;text-align:center}.hotel{font-size:14px;color:#64748b;margin-bottom:6px;font-weight:500}.num{font-size:32px;font-weight:800;color:#1e293b;margin-bottom:24px}.qr{width:220px;height:220px;border-radius:12px}.hint{margin-top:20px;font-size:13px;color:#94a3b8}@media print{body{background:#fff}.box{box-shadow:none}}</style>
+  </head><body><div class="box"><p class="hotel">${hotelName}</p><h1 class="num">Table ${tableNumber}</h1><img src="${base64Data}" class="qr" alt="QR"/><p class="hint">Scan to view menu &amp; place your order</p></div>
+  <script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}${'<'}/script></body></html>`);
   w.document.close();
 };
 
 const LOC_OPTS = [
-  { value:'', label:'All Locations' },
-  { value:'indoor', label:'Indoor' },
-  { value:'outdoor', label:'Outdoor' },
-  { value:'terrace', label:'Terrace' },
-  { value:'rooftop', label:'Rooftop' },
-  { value:'private', label:'Private' },
-  { value:'bar', label:'Bar' },
+  { value: 'indoor', label: 'Indoor' },
+  { value: 'outdoor', label: 'Outdoor' },
+  { value: 'terrace', label: 'Terrace' },
+  { value: 'rooftop', label: 'Rooftop' },
+  { value: 'private', label: 'Private' },
+  { value: 'bar', label: 'Bar' },
 ];
 
 const STATUS_META = {
-  available:   { label:'Available', dot:'#10b981', bg:'rgba(16,185,129,.12)' },
-  occupied:    { label:'Occupied', dot:'#f59e0b', bg:'rgba(245,158,11,.12)' },
-  reserved:    { label:'Reserved', dot:'#6366f1', bg:'rgba(99,102,241,.12)' },
-  maintenance: { label:'Maintenance', dot:'#ef4444', bg:'rgba(239,68,68,.12)' },
+  available: { label: 'Available', tone: 'success' },
+  occupied: { label: 'Occupied', tone: 'warning' },
+  reserved: { label: 'Reserved', tone: 'info' },
+  maintenance: { label: 'Maintenance', tone: 'danger' },
 };
 
-/* ══════════════════════════════════════════════════════════════════ */
+const EMPTY_FORM = { tableNumber: '', tableName: '', capacity: 4, location: 'indoor', description: '', minSpend: 0, status: 'available' };
+
 const TableManagement = () => {
-  const { activeProperty } = useStaffAuth();
-  const hotelId = activeProperty?._id || activeProperty;
+  const hotelId = useHotelId();
 
-  const [tables, setTables]         = useState([]);
-  const [loading, setLoading]       = useState(true);
-  const [actionLoading, setAL]      = useState({});
-  const [hotelName, setHotelName]   = useState('');
+  const [tables, setTables] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState({});
+  const [hotelName, setHotelName] = useState('');
 
-  // filters
-  const [search, setSearch]         = useState('');
-  const [locFilter, setLocFilter]   = useState('');
-  const [stFilter, setStFilter]     = useState('');
-  const [qrFilter, setQrFilter]     = useState('all'); // all | with-qr | no-qr
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 250);
+  const [locFilter, setLocFilter] = useState('');
+  const [stFilter, setStFilter] = useState('');
+  const [qrFilter, setQrFilter] = useState('all');
 
-  // modals
-  const [showModal, setShowModal]         = useState(false);
-  const [showBatch, setShowBatch]         = useState(false);
-  const [showQR, setShowQR]               = useState(false);
-  const [selTable, setSelTable]           = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [showBatch, setShowBatch] = useState(false);
+  const [selTable, setSelTable] = useState(null);
+  const [qrTable, setQrTable] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
-  const [form, setForm] = useState({ tableNumber:'', tableName:'', capacity:4, location:'indoor', description:'', minSpend:0, status:'available' });
-  const [batch, setBatch] = useState({ count:5, startNumber:1, capacity:4, location:'indoor', generateQR:true });
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [formErrors, setFormErrors] = useState({});
+  const [batch, setBatch] = useState({ count: 5, startNumber: 1, capacity: 4, location: 'indoor', generateQR: true });
 
-  const setAct = (k, v) => setAL(p => ({ ...p, [k]: v }));
+  const setAct = (k, v) => setActionLoading((p) => ({ ...p, [k]: v }));
 
-  /* ─── Fetch ─── */
   const fetchTables = useCallback(async () => {
     if (!hotelId) { setLoading(false); return; }
     setLoading(true);
@@ -95,26 +117,56 @@ const TableManagement = () => {
       }
     } catch (e) {
       toast.error(e.response?.data?.message || 'Failed to load tables');
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   }, [hotelId]);
 
-  useEffect(() => { fetchTables(); }, [fetchTables]);
+  useEffect(() => {
+    fetchTables();
+  }, [fetchTables]);
 
-  /* ─── CRUD ─── */
+  const stats = useMemo(
+    () => ({
+      total: tables.length,
+      withQR: tables.filter((t) => t.qrCodeData).length,
+      noQR: tables.filter((t) => !t.qrCodeData).length,
+      capacity: tables.reduce((s, t) => s + (t.capacity || 0), 0),
+      available: tables.filter((t) => t.status === 'available').length,
+    }),
+    [tables]
+  );
+
+  const filtered = useMemo(() => {
+    const q = debouncedSearch.toLowerCase();
+    return tables.filter((t) => {
+      const matchS = !q || t.tableNumber.toLowerCase().includes(q) || (t.tableName || '').toLowerCase().includes(q) || (t.location || '').toLowerCase().includes(q);
+      const matchL = !locFilter || t.location === locFilter;
+      const matchSt = !stFilter || t.status === stFilter;
+      const matchQR = qrFilter === 'all' || (qrFilter === 'with-qr' ? !!t.qrCodeData : !t.qrCodeData);
+      return matchS && matchL && matchSt && matchQR;
+    });
+  }, [tables, debouncedSearch, locFilter, stFilter, qrFilter]);
+
   const openCreate = () => {
     setSelTable(null);
-    setForm({ tableNumber:'', tableName:'', capacity:4, location:'indoor', description:'', minSpend:0, status:'available' });
+    setForm(EMPTY_FORM);
+    setFormErrors({});
     setShowModal(true);
   };
   const openEdit = (t) => {
     setSelTable(t);
-    setForm({ tableNumber:t.tableNumber||'', tableName:t.tableName||'', capacity:t.capacity||4, location:t.location||'indoor', description:t.description||'', minSpend:t.minSpend||0, status:t.status||'available' });
+    setForm({ tableNumber: t.tableNumber || '', tableName: t.tableName || '', capacity: t.capacity || 4, location: t.location || 'indoor', description: t.description || '', minSpend: t.minSpend || 0, status: t.status || 'available' });
+    setFormErrors({});
     setShowModal(true);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.tableNumber.trim()) { toast.error('Table number is required'); return; }
+    if (!form.tableNumber.trim()) {
+      setFormErrors({ tableNumber: 'Table number is required' });
+      return;
+    }
     setAct('submit', true);
     try {
       if (selTable) {
@@ -124,18 +176,24 @@ const TableManagement = () => {
         const res = await createTable({ ...form, hotelId });
         if (res.data.success) { toast.success('Table created'); fetchTables(); setShowModal(false); }
       }
-    } catch (e) { toast.error(e.response?.data?.message || 'Operation failed'); }
-    finally { setAct('submit', false); }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Operation failed');
+    } finally {
+      setAct('submit', false);
+    }
   };
 
-  const handleDelete = async (id, num) => {
-    if (!window.confirm(`Delete Table ${num}? This cannot be undone.`)) return;
-    setAct(id, true);
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      const res = await deleteTable(id);
-      if (res.data.success) { toast.success('Table deleted'); fetchTables(); }
-    } catch (e) { toast.error(e.response?.data?.message || 'Delete failed'); }
-    finally { setAct(id, false); }
+      const res = await deleteTable(deleteTarget._id);
+      if (res.data.success) { toast.success('Table deleted'); setDeleteTarget(null); fetchTables(); }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Delete failed');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleStatusChange = async (id, newStatus) => {
@@ -143,8 +201,11 @@ const TableManagement = () => {
     try {
       const res = await updateTableStatus(id, newStatus);
       if (res.data.success) { toast.success(`Status → ${newStatus}`); fetchTables(); }
-    } catch (e) { toast.error('Status update failed'); }
-    finally { setAct(`s_${id}`, false); }
+    } catch {
+      toast.error('Status update failed');
+    } finally {
+      setAct(`s_${id}`, false);
+    }
   };
 
   const handleGenQR = async (id) => {
@@ -152,8 +213,11 @@ const TableManagement = () => {
     try {
       const res = await generateTableQR(id);
       if (res.data.success) { toast.success('QR code generated'); fetchTables(); }
-    } catch (e) { toast.error('QR generation failed'); }
-    finally { setAct(`qr_${id}`, false); }
+    } catch {
+      toast.error('QR generation failed');
+    } finally {
+      setAct(`qr_${id}`, false);
+    }
   };
 
   const handleBatch = async (e) => {
@@ -163,338 +227,255 @@ const TableManagement = () => {
       const res = await batchCreateTables({ ...batch, hotelId });
       if (res.data.success) {
         toast.success(`${res.data.createdCount || batch.count} tables created`);
-        fetchTables(); setShowBatch(false);
+        fetchTables();
+        setShowBatch(false);
       }
-    } catch (e) { toast.error(e.response?.data?.message || 'Batch failed'); }
-    finally { setAct('batch', false); }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Batch failed');
+    } finally {
+      setAct('batch', false);
+    }
   };
 
-  /* ─── Derived ─── */
-  const filtered = tables.filter(t => {
-    const s = search.toLowerCase();
-    const matchS = !s || t.tableNumber.toLowerCase().includes(s) || (t.tableName||'').toLowerCase().includes(s) || (t.location||'').toLowerCase().includes(s);
-    const matchL = !locFilter || t.location === locFilter;
-    const matchSt = !stFilter || t.status === stFilter;
-    const matchQR = qrFilter === 'all' || (qrFilter === 'with-qr' ? !!t.qrCodeData : !t.qrCodeData);
-    return matchS && matchL && matchSt && matchQR;
-  });
+  const qrFilterOptions = [
+    { value: 'all', label: 'All', count: stats.total },
+    { value: 'with-qr', label: 'Has QR', count: stats.withQR },
+    { value: 'no-qr', label: 'No QR', count: stats.noQR },
+  ];
 
-  const stats = {
-    total: tables.length,
-    withQR: tables.filter(t=>t.qrCodeData).length,
-    noQR: tables.filter(t=>!t.qrCodeData).length,
-    capacity: tables.reduce((s,t)=>s+(t.capacity||0),0),
-    available: tables.filter(t=>t.status==='available').length,
-    occupied: tables.filter(t=>t.status==='occupied').length,
-  };
-
-  /* ──────────────────── RENDER ──────────────────── */
   return (
-    <div className="tm2-root">
+    <div className="ha-page">
+      <PageHeader
+        title="Table QR Codes"
+        subtitle="Manage restaurant tables and generate ordering QR codes."
+        actions={
+          <>
+            <Button variant="secondary" onClick={fetchTables} disabled={loading}>
+              <RefreshCw size={16} aria-hidden="true" /> Refresh
+            </Button>
+            <Button variant="secondary" onClick={() => setShowBatch(true)}>
+              <Rows3 size={16} aria-hidden="true" /> Batch Create
+            </Button>
+            <Button variant="primary" onClick={openCreate}>
+              <Plus size={16} aria-hidden="true" /> Add Table
+            </Button>
+          </>
+        }
+        toolbar={
+          <>
+            <div className="ha-toolbar__group">
+              <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search tables…" ariaLabel="Search tables" />
+              <Select value={locFilter} onChange={(e) => setLocFilter(e.target.value)} aria-label="Filter by location">
+                <option value="">All Locations</option>
+                {LOC_OPTS.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
+              </Select>
+              <Select value={stFilter} onChange={(e) => setStFilter(e.target.value)} aria-label="Filter by status">
+                <option value="">All Status</option>
+                {Object.entries(STATUS_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+              </Select>
+            </div>
+            <FilterTabs options={qrFilterOptions} value={qrFilter} onChange={setQrFilter} ariaLabel="Filter by QR presence" />
+          </>
+        }
+      />
 
-      {/* ── Header ── */}
-      <div className="tm2-header">
-        <div className="tm2-header-left">
-          <div className="tm2-header-icon">
-            <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
-          </div>
-          <div>
-            <h1>Table QR Codes</h1>
-            <p>Manage restaurant tables and generate QR codes for ordering</p>
-          </div>
-        </div>
-        <div className="tm2-header-actions">
-          <button className="tm2-btn tm2-btn--ghost" onClick={fetchTables} disabled={loading}>↺ Refresh</button>
-          <button className="tm2-btn tm2-btn--secondary" onClick={()=>setShowBatch(true)}>⊞ Batch Create</button>
-          <button className="tm2-btn tm2-btn--primary" onClick={openCreate}>+ Add Table</button>
-        </div>
+      <div className="ha-kpi-grid" style={{ marginBottom: 24, gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))' }}>
+        {loading ? (
+          Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)
+        ) : (
+          <>
+            <StatCard icon={<UtensilsCrossed size={22} />} iconBg="linear-gradient(135deg,#6366f1,#4f46e5)" label="Total Tables" value={stats.total} />
+            <StatCard icon={<QrCode size={22} />} iconBg="var(--ha-success)" label="With QR" value={stats.withQR} />
+            <StatCard icon={<CheckCircle2 size={22} />} iconBg="var(--ha-info)" label="Available" value={stats.available} />
+            <StatCard icon={<Users size={22} />} iconBg="var(--ha-warning)" label="Total Capacity" value={stats.capacity} />
+          </>
+        )}
       </div>
 
-      {/* ── Stats ── */}
-      <div className="tm2-stats">
-        {[
-          { label:'Total Tables', value:stats.total, icon:'🍽️', color:'#6366f1' },
-          { label:'With QR Code', value:stats.withQR, icon:'📱', color:'#10b981' },
-          { label:'No QR Yet',    value:stats.noQR,   icon:'⚠️', color:'#f59e0b' },
-          { label:'Available',    value:stats.available, icon:'✅', color:'#10b981' },
-          { label:'Occupied',     value:stats.occupied, icon:'🔴', color:'#ef4444' },
-          { label:'Total Capacity', value:stats.capacity, icon:'👥', color:'#3b82f6' },
-        ].map(s=>(
-          <div key={s.label} className="tm2-stat" style={{'--c':s.color}}>
-            <span className="tm2-stat-ico">{s.icon}</span>
-            <div className="tm2-stat-val">{s.value}</div>
-            <div className="tm2-stat-lbl">{s.label}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* ── Filters ── */}
-      <div className="tm2-filters">
-        <div className="tm2-search-wrap">
-          <svg className="tm2-search-ico" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="11" cy="11" r="8"/><path strokeLinecap="round" d="M21 21l-4.35-4.35"/></svg>
-          <input className="tm2-search" placeholder="Search tables…" value={search} onChange={e=>setSearch(e.target.value)}/>
-        </div>
-        <select className="tm2-sel" value={locFilter} onChange={e=>setLocFilter(e.target.value)}>
-          {LOC_OPTS.map(l=><option key={l.value} value={l.value}>{l.label}</option>)}
-        </select>
-        <select className="tm2-sel" value={stFilter} onChange={e=>setStFilter(e.target.value)}>
-          <option value="">All Status</option>
-          {Object.entries(STATUS_META).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
-        </select>
-        <div className="tm2-qr-filter">
-          {[['all','All'],['with-qr','Has QR'],['no-qr','No QR']].map(([k,l])=>(
-            <button key={k} className={`tm2-qr-btn${qrFilter===k?' tm2-qr-btn--active':''}`} onClick={()=>setQrFilter(k)}>{l}</button>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Content ── */}
-      {loading ? (
-        <div className="tm2-loading"><div className="tm2-spinner"/><span>Loading tables…</span></div>
-      ) : filtered.length === 0 ? (
-        <div className="tm2-empty">
-          <span className="tm2-empty-ico">🍽️</span>
-          <h3>{tables.length === 0 ? 'No Tables Yet' : 'No Matching Tables'}</h3>
-          <p>{tables.length === 0 ? 'Start by adding tables or batch-creating them.' : 'Try adjusting your search or filters.'}</p>
-          {tables.length === 0 && <button className="tm2-btn tm2-btn--primary" onClick={openCreate}>+ Add First Table</button>}
-        </div>
+      {loading ? null : filtered.length === 0 ? (
+        <EmptyState
+          icon={<UtensilsCrossed size={26} />}
+          title={tables.length === 0 ? 'No tables yet' : 'No matching tables'}
+          description={tables.length === 0 ? 'Start by adding tables or batch-creating them.' : 'Try adjusting your search or filters.'}
+          action={tables.length === 0 ? <Button variant="primary" size="sm" onClick={openCreate}><Plus size={15} aria-hidden="true" /> Add Table</Button> : null}
+        />
       ) : (
-        <div className="tm2-grid">
-          {filtered.map(table => {
-            const sm = STATUS_META[table.status] || STATUS_META.available;
-            return (
-              <div key={table._id} className="tm2-card">
-                {/* Card Header */}
-                <div className="tm2-card-top">
-                  <div className="tm2-card-id">
-                    <div className="tm2-card-num" style={{background:sm.bg, color:sm.dot}}>
-                      {table.tableNumber}
-                    </div>
-                    <div>
-                      <div className="tm2-card-name">{table.tableName || `Table ${table.tableNumber}`}</div>
-                      <div className="tm2-card-meta">
-                        {table.location && <span className="tm2-tag">{table.location}</span>}
-                        <span className="tm2-tag">👥 {table.capacity}</span>
-                        {table.minSpend > 0 && <span className="tm2-tag">Min: NPR {table.minSpend}</span>}
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:6}}>
-                    <span className="tm2-badge" style={{color:sm.dot,background:sm.bg}}>
-                      <span className="tm2-dot" style={{background:sm.dot}}/>
-                      {sm.label}
-                    </span>
-                    {!table.isActive && <span className="tm2-badge tm2-badge--inactive">Inactive</span>}
-                  </div>
-                </div>
-
-                {/* Description */}
-                {table.description && <p className="tm2-desc">{table.description}</p>}
-
-                {/* QR Section */}
-                <div className="tm2-qr-zone">
-                  {table.qrCodeData ? (
-                    <div className="tm2-qr-box" onClick={()=>{setSelTable(table);setShowQR(true);}}>
-                      <img src={table.qrCodeData} alt="QR Code"/>
-                      <div className="tm2-qr-overlay">
-                        <span>View Full QR</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="tm2-qr-placeholder">
-                      <div className="tm2-qr-pl-icon">📱</div>
-                      <p>No QR Code</p>
-                      <button className="tm2-btn tm2-btn--sm tm2-btn--primary" onClick={()=>handleGenQR(table._id)} disabled={actionLoading[`qr_${table._id}`]}>
-                        {actionLoading[`qr_${table._id}`] ? 'Generating…' : 'Generate QR'}
+        <Table minWidth={820}>
+          <THead>
+            <th scope="col">Table</th>
+            <th scope="col">Location</th>
+            <th scope="col">Capacity</th>
+            <th scope="col">Status</th>
+            <th scope="col">QR</th>
+            <th scope="col">Actions</th>
+          </THead>
+          <tbody>
+            {filtered.map((table) => {
+              return (
+                <tr key={table._id}>
+                  <td>
+                    <div className="ha-body-strong" style={{ color: 'var(--ha-text)' }}>{table.tableName || `Table ${table.tableNumber}`}</div>
+                    <div className="ha-small haNum" style={{ color: 'var(--ha-text-subtle)' }}>#{table.tableNumber}{table.minSpend > 0 ? ` · Min Rs. ${table.minSpend}` : ''}</div>
+                  </td>
+                  <td style={{ textTransform: 'capitalize' }}>{table.location || '—'}</td>
+                  <td className="haNum">{table.capacity}</td>
+                  <td>
+                    <Select
+                      value={table.status}
+                      onChange={(e) => handleStatusChange(table._id, e.target.value)}
+                      disabled={actionLoading[`s_${table._id}`]}
+                      aria-label={`Status for table ${table.tableNumber}`}
+                      className="ha-select"
+                    >
+                      {Object.entries(STATUS_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                    </Select>
+                  </td>
+                  <td>
+                    {table.qrCodeData ? (
+                      <button type="button" onClick={() => setQrTable(table)} aria-label={`View QR for table ${table.tableNumber}`} style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0 }}>
+                        <img src={table.qrCodeData} alt="" style={{ width: 44, height: 44, borderRadius: 6 }} />
                       </button>
+                    ) : (
+                      <Badge tone="warning">No QR</Badge>
+                    )}
+                  </td>
+                  <td>
+                    <div className="ha-table__row-actions">
+                      {table.qrCodeData ? (
+                        <>
+                          <IconButton aria-label={`Download QR for table ${table.tableNumber}`} onClick={() => downloadQRCode(table.qrCodeData, `table-${table.tableNumber}-qr.png`)}>
+                            <Download size={16} aria-hidden="true" />
+                          </IconButton>
+                          <IconButton aria-label={`Print QR for table ${table.tableNumber}`} onClick={() => printQRCode(table.qrCodeData, table.tableNumber, hotelName)}>
+                            <Printer size={16} aria-hidden="true" />
+                          </IconButton>
+                          <IconButton aria-label={`Regenerate QR for table ${table.tableNumber}`} onClick={() => handleGenQR(table._id)} disabled={actionLoading[`qr_${table._id}`]}>
+                            <RotateCcw size={16} aria-hidden="true" />
+                          </IconButton>
+                        </>
+                      ) : (
+                        <Button size="sm" variant="secondary" onClick={() => handleGenQR(table._id)} disabled={actionLoading[`qr_${table._id}`]}>
+                          <QrCode size={14} aria-hidden="true" /> {actionLoading[`qr_${table._id}`] ? '…' : 'Generate'}
+                        </Button>
+                      )}
+                      <IconButton aria-label={`Edit table ${table.tableNumber}`} onClick={() => openEdit(table)}>
+                        <Pencil size={16} aria-hidden="true" />
+                      </IconButton>
+                      <IconButton aria-label={`Delete table ${table.tableNumber}`} onClick={() => setDeleteTarget(table)} style={{ color: 'var(--ha-danger)' }}>
+                        <Trash2 size={16} aria-hidden="true" />
+                      </IconButton>
                     </div>
-                  )}
-                </div>
-
-                {/* Status Change */}
-                <div className="tm2-status-row">
-                  <label className="tm2-status-label">Status:</label>
-                  <select
-                    className="tm2-status-sel"
-                    value={table.status}
-                    onChange={e=>handleStatusChange(table._id, e.target.value)}
-                    disabled={actionLoading[`s_${table._id}`]}
-                    style={{borderColor:sm.dot+'44'}}
-                  >
-                    {Object.entries(STATUS_META).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
-                  </select>
-                  {actionLoading[`s_${table._id}`] && <div className="tm2-mini-spin"/>}
-                </div>
-
-                {/* Actions */}
-                <div className="tm2-card-actions">
-                  <button className="tm2-act-btn" title="Edit Table" onClick={()=>openEdit(table)}>
-                    <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                    Edit
-                  </button>
-                  {table.qrCodeData && <>
-                    <button className="tm2-act-btn" title="Download QR" onClick={()=>downloadQRCode(table.qrCodeData,`table-${table.tableNumber}-qr.png`)}>
-                      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                      Download
-                    </button>
-                    <button className="tm2-act-btn" title="Print QR" onClick={()=>printQRCode(table.qrCodeData,table.tableNumber,hotelName)}>
-                      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                      Print
-                    </button>
-                    <button className="tm2-act-btn" title="Regenerate QR" onClick={()=>handleGenQR(table._id)} disabled={actionLoading[`qr_${table._id}`]}>
-                      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                      Regen QR
-                    </button>
-                  </>}
-                  <button className="tm2-act-btn tm2-act-btn--danger" title="Delete" onClick={()=>handleDelete(table._id,table.tableNumber)} disabled={actionLoading[table._id]}>
-                    <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                    Delete
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </Table>
       )}
 
-      {/* ══ CREATE / EDIT MODAL ══ */}
-      {showModal && (
-        <div className="tm2-overlay" onClick={()=>setShowModal(false)}>
-          <div className="tm2-modal" onClick={e=>e.stopPropagation()}>
-            <div className="tm2-modal-hd">
-              <h2>{selTable ? 'Edit Table' : 'Add New Table'}</h2>
-              <button className="tm2-close" onClick={()=>setShowModal(false)}>✕</button>
-            </div>
-            <form onSubmit={handleSubmit} className="tm2-form">
-              <div className="tm2-form-row">
-                <div className="tm2-fg">
-                  <label>Table Number *</label>
-                  <input required placeholder="e.g. 1, A1, VIP-1" value={form.tableNumber} onChange={e=>setForm(p=>({...p,tableNumber:e.target.value}))}/>
-                </div>
-                <div className="tm2-fg">
-                  <label>Table Name</label>
-                  <input placeholder="e.g. Corner Table" value={form.tableName} onChange={e=>setForm(p=>({...p,tableName:e.target.value}))}/>
-                </div>
-              </div>
-              <div className="tm2-form-row">
-                <div className="tm2-fg">
-                  <label>Capacity *</label>
-                  <input required type="number" min="1" max="50" value={form.capacity} onChange={e=>setForm(p=>({...p,capacity:+e.target.value}))}/>
-                </div>
-                <div className="tm2-fg">
-                  <label>Min Spend (NPR)</label>
-                  <input type="number" min="0" value={form.minSpend} onChange={e=>setForm(p=>({...p,minSpend:+e.target.value}))}/>
-                </div>
-              </div>
-              <div className="tm2-form-row">
-                <div className="tm2-fg">
-                  <label>Location</label>
-                  <select value={form.location} onChange={e=>setForm(p=>({...p,location:e.target.value}))}>
-                    {LOC_OPTS.filter(l=>l.value).map(l=><option key={l.value} value={l.value}>{l.label}</option>)}
-                  </select>
-                </div>
-                <div className="tm2-fg">
-                  <label>Status</label>
-                  <select value={form.status} onChange={e=>setForm(p=>({...p,status:e.target.value}))}>
-                    {Object.entries(STATUS_META).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div className="tm2-fg">
-                <label>Description</label>
-                <textarea rows="2" placeholder="Optional notes about this table" value={form.description} onChange={e=>setForm(p=>({...p,description:e.target.value}))}/>
-              </div>
-              <div className="tm2-modal-ft">
-                <button type="button" className="tm2-btn tm2-btn--ghost" onClick={()=>setShowModal(false)}>Cancel</button>
-                <button type="submit" className="tm2-btn tm2-btn--primary" disabled={actionLoading.submit}>
-                  {actionLoading.submit ? 'Saving…' : selTable ? 'Update Table' : 'Create Table'}
-                </button>
-              </div>
-            </form>
+      {/* Create / edit modal */}
+      <Modal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        title={selTable ? 'Edit Table' : 'Add New Table'}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowModal(false)} disabled={actionLoading.submit}>Cancel</Button>
+            <Button variant="primary" onClick={handleSubmit} disabled={actionLoading.submit}>{actionLoading.submit ? 'Saving…' : selTable ? 'Update Table' : 'Create Table'}</Button>
+          </>
+        }
+      >
+        <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 16 }}>
+          <Input label="Table Number" required placeholder="e.g. 1, A1, VIP-1" value={form.tableNumber} onChange={(e) => { setForm((p) => ({ ...p, tableNumber: e.target.value })); setFormErrors({}); }} error={formErrors.tableNumber} />
+          <Input label="Table Name" placeholder="e.g. Corner Table" value={form.tableName} onChange={(e) => setForm((p) => ({ ...p, tableName: e.target.value }))} />
+          <Input label="Capacity" required type="number" min="1" max="50" value={form.capacity} onChange={(e) => setForm((p) => ({ ...p, capacity: +e.target.value }))} />
+          <Input label="Min Spend (NPR)" type="number" min="0" value={form.minSpend} onChange={(e) => setForm((p) => ({ ...p, minSpend: +e.target.value }))} />
+          <Select label="Location" value={form.location} onChange={(e) => setForm((p) => ({ ...p, location: e.target.value }))}>
+            {LOC_OPTS.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
+          </Select>
+          <Select label="Status" value={form.status} onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))}>
+            {Object.entries(STATUS_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+          </Select>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <Textarea label="Description" rows="2" placeholder="Optional notes about this table" value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} />
           </div>
-        </div>
-      )}
+        </form>
+      </Modal>
 
-      {/* ══ BATCH MODAL ══ */}
-      {showBatch && (
-        <div className="tm2-overlay" onClick={()=>setShowBatch(false)}>
-          <div className="tm2-modal" onClick={e=>e.stopPropagation()}>
-            <div className="tm2-modal-hd">
-              <h2>Batch Create Tables</h2>
-              <button className="tm2-close" onClick={()=>setShowBatch(false)}>✕</button>
-            </div>
-            <form onSubmit={handleBatch} className="tm2-form">
-              <div className="tm2-form-row">
-                <div className="tm2-fg">
-                  <label>Number of Tables</label>
-                  <input type="number" min="1" max="50" value={batch.count} onChange={e=>setBatch(p=>({...p,count:+e.target.value}))}/>
-                </div>
-                <div className="tm2-fg">
-                  <label>Starting Number</label>
-                  <input type="number" min="1" value={batch.startNumber} onChange={e=>setBatch(p=>({...p,startNumber:+e.target.value}))}/>
-                </div>
-              </div>
-              <div className="tm2-form-row">
-                <div className="tm2-fg">
-                  <label>Default Capacity</label>
-                  <input type="number" min="1" max="20" value={batch.capacity} onChange={e=>setBatch(p=>({...p,capacity:+e.target.value}))}/>
-                </div>
-                <div className="tm2-fg">
-                  <label>Location</label>
-                  <select value={batch.location} onChange={e=>setBatch(p=>({...p,location:e.target.value}))}>
-                    {LOC_OPTS.filter(l=>l.value).map(l=><option key={l.value} value={l.value}>{l.label}</option>)}
-                  </select>
-                </div>
-              </div>
-              <label className="tm2-chk">
-                <input type="checkbox" checked={batch.generateQR} onChange={e=>setBatch(p=>({...p,generateQR:e.target.checked}))}/>
-                <span>Generate QR codes automatically for all tables</span>
-              </label>
-              <div className="tm2-preview-box">
-                Will create tables <strong>{batch.startNumber}</strong> through <strong>{batch.startNumber+batch.count-1}</strong>
-                {batch.generateQR && ' with QR codes'}
-              </div>
-              <div className="tm2-modal-ft">
-                <button type="button" className="tm2-btn tm2-btn--ghost" onClick={()=>setShowBatch(false)}>Cancel</button>
-                <button type="submit" className="tm2-btn tm2-btn--primary" disabled={actionLoading.batch}>
-                  {actionLoading.batch ? 'Creating…' : `Create ${batch.count} Tables`}
-                </button>
-              </div>
-            </form>
+      {/* Batch modal */}
+      <Modal
+        isOpen={showBatch}
+        onClose={() => setShowBatch(false)}
+        title="Batch Create Tables"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowBatch(false)} disabled={actionLoading.batch}>Cancel</Button>
+            <Button variant="primary" onClick={handleBatch} disabled={actionLoading.batch}>{actionLoading.batch ? 'Creating…' : `Create ${batch.count} Tables`}</Button>
+          </>
+        }
+      >
+        <form onSubmit={handleBatch} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <Input label="Number of Tables" type="number" min="1" max="50" value={batch.count} onChange={(e) => setBatch((p) => ({ ...p, count: +e.target.value }))} />
+            <Input label="Starting Number" type="number" min="1" value={batch.startNumber} onChange={(e) => setBatch((p) => ({ ...p, startNumber: +e.target.value }))} />
+            <Input label="Default Capacity" type="number" min="1" max="20" value={batch.capacity} onChange={(e) => setBatch((p) => ({ ...p, capacity: +e.target.value }))} />
+            <Select label="Location" value={batch.location} onChange={(e) => setBatch((p) => ({ ...p, location: e.target.value }))}>
+              {LOC_OPTS.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
+            </Select>
           </div>
-        </div>
-      )}
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: 'var(--ha-text-muted)' }}>
+            <input type="checkbox" checked={batch.generateQR} onChange={(e) => setBatch((p) => ({ ...p, generateQR: e.target.checked }))} />
+            Generate QR codes automatically for all tables
+          </label>
+          <div className="ha-card" style={{ padding: '10px 12px', color: 'var(--ha-text-subtle)', fontSize: 13 }}>
+            Will create tables <strong className="haNum">{batch.startNumber}</strong> through <strong className="haNum">{batch.startNumber + batch.count - 1}</strong>
+            {batch.generateQR && ' with QR codes'}.
+          </div>
+        </form>
+      </Modal>
 
-      {/* ══ QR VIEW MODAL ══ */}
-      {showQR && selTable && (
-        <div className="tm2-overlay" onClick={()=>setShowQR(false)}>
-          <div className="tm2-modal tm2-modal--qr" onClick={e=>e.stopPropagation()}>
-            <div className="tm2-modal-hd">
-              <h2>Table {selTable.tableNumber} — QR Code</h2>
-              <button className="tm2-close" onClick={()=>setShowQR(false)}>✕</button>
-            </div>
-            <div className="tm2-qr-full-view">
-              {selTable.qrCodeData ? <>
-                <div className="tm2-qr-card">
-                  {hotelName && <p className="tm2-qr-hotel">{hotelName}</p>}
-                  <h3 className="tm2-qr-title">Table {selTable.tableNumber}</h3>
-                  <img src={selTable.qrCodeData} alt="QR Code" className="tm2-qr-img"/>
-                  <p className="tm2-qr-hint">Scan to view menu &amp; order</p>
-                </div>
-                {selTable.uniqueToken && <p className="tm2-qr-token">Token: <code>{selTable.uniqueToken}</code></p>}
-                <div className="tm2-modal-ft">
-                  <button className="tm2-btn tm2-btn--ghost" onClick={()=>downloadQRCode(selTable.qrCodeData,`table-${selTable.tableNumber}-qr.png`)}>
-                    ⬇️ Download PNG
-                  </button>
-                  <button className="tm2-btn tm2-btn--primary" onClick={()=>printQRCode(selTable.qrCodeData,selTable.tableNumber,hotelName)}>
-                    🖨️ Print QR
-                  </button>
-                </div>
-              </> : <p style={{padding:24,color:'#64748b'}}>No QR code generated yet.</p>}
-            </div>
+      {/* QR view modal */}
+      <Modal
+        isOpen={!!qrTable}
+        onClose={() => setQrTable(null)}
+        title={qrTable ? `Table ${qrTable.tableNumber} — QR Code` : ''}
+        size="sm"
+        footer={
+          qrTable?.qrCodeData && (
+            <>
+              <Button variant="secondary" onClick={() => downloadQRCode(qrTable.qrCodeData, `table-${qrTable.tableNumber}-qr.png`)}>
+                <Download size={16} aria-hidden="true" /> Download
+              </Button>
+              <Button variant="primary" onClick={() => printQRCode(qrTable.qrCodeData, qrTable.tableNumber, hotelName)}>
+                <Printer size={16} aria-hidden="true" /> Print
+              </Button>
+            </>
+          )
+        }
+      >
+        {qrTable?.qrCodeData ? (
+          <div style={{ textAlign: 'center' }}>
+            {hotelName && <p className="ha-small" style={{ color: 'var(--ha-text-subtle)' }}>{hotelName}</p>}
+            <h3 className="ha-h3" style={{ margin: '4px 0 16px' }}>Table {qrTable.tableNumber}</h3>
+            <img src={qrTable.qrCodeData} alt="QR Code" style={{ width: 220, height: 220, borderRadius: 'var(--ha-radius-md)' }} />
+            <p className="ha-small" style={{ color: 'var(--ha-text-subtle)', marginTop: 12 }}>Scan to view menu & order</p>
           </div>
-        </div>
-      )}
+        ) : (
+          <p className="ha-body" style={{ color: 'var(--ha-text-subtle)' }}><Smartphone size={16} aria-hidden="true" /> No QR code generated yet.</p>
+        )}
+      </Modal>
+
+      {/* Delete confirm */}
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        variant="danger"
+        title="Delete table?"
+        message={deleteTarget ? `Table ${deleteTarget.tableNumber} will be permanently removed. This cannot be undone.` : ''}
+        confirmText="Delete Table"
+        loading={deleting}
+      />
     </div>
   );
 };
