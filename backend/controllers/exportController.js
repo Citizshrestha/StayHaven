@@ -3,55 +3,26 @@ import { Invoice } from "../models/invoice.schema.js";
 import { Guest } from "../models/guest.schema.js";
 import { Room } from "../models/room.schema.js";
 import { Hotel } from "../models/hotel.schema.js";
+import { scopeFilter, inScope } from "./receptionScope.js";
 import { PaymentTransaction } from "../models/paymentTransaction.schema.js";
 import { jsPDF } from "jspdf";
 import "jspdf-autotable";
 
-// Multi-tenancy helpers
-const getUserRole = (req) => req.user?.role?.name || req.user?.companyRole;
-
-const getAssignedHotelIds = (req) => {
-  const assigned = req.user?.assignedProperties || [];
-  return assigned
-    .map((p) => (typeof p === "object" ? p?._id?.toString() : p?.toString()))
-    .filter(Boolean);
-};
-
+// Multi-tenancy helper
 const assertHotelAccess = async (req, hotelId) => {
-  const role = getUserRole(req);
-
-  // Superadmins should NOT have access to hotel-specific financial data
-  // They can manage hotels (approve/reject) but cannot view bookings, revenue, etc.
-  if (role === "admin" || role === "superadmin") {
-    throw Object.assign(new Error("Superadmins cannot access hotel-specific operational data"), { status: 403 });
+  // Same rule as every reception endpoint: the hotel must be inside the caller's scope.
+  if (!inScope(req, hotelId)) {
+    throw Object.assign(new Error("Not authorized for this hotel"), { status: 403 });
   }
-
-  const assignedHotelIds = getAssignedHotelIds(req);
-  const userCompany = req.user?.company?._id?.toString?.() || req.user?.company?.toString?.() || req.user?.company;
-
   const hotel = await Hotel.findById(hotelId).select("company");
   if (!hotel) {
     throw Object.assign(new Error("Hotel not found"), { status: 404 });
   }
-
-  if (role === "receptionist" && assignedHotelIds.length > 0 && !assignedHotelIds.includes(hotelId.toString())) {
-    throw Object.assign(new Error("Not authorized for this hotel"), { status: 403 });
-  }
-
-  if (role !== "owner" && userCompany && hotel.company?.toString() !== userCompany.toString()) {
-    throw Object.assign(new Error("Not authorized for this hotel company"), { status: 403 });
-  }
-
   return hotel;
 };
 
-// Helper: get context from request
-const getCtx = (req) => {
-  const user = req.user;
-  const hotel = req._scopedHotelId || req.query.hotelId || user?.assignedProperties?.[0]?._id;
-  const company = req.query.companyId || user?.company?._id || user?.company;
-  return { hotel, company };
-};
+// Every export filters with scopeFilter(req): the caller's hotels only
+// (see receptionScope.js); company never comes from the query string.
 
 /**
  * Convert data to CSV format
@@ -67,6 +38,9 @@ function convertToCSV(data, headers) {
         let value = row[h.key];
         if (value === null || value === undefined) value = "";
         if (typeof value === "string") {
+          // Neutralise spreadsheet formulas (CSV injection): a cell starting
+          // with = + - @ or a control char is prefixed with an apostrophe.
+          if (/^[=+\-@\t\r]/.test(value)) value = `'${value}`;
           // Escape quotes and wrap in quotes
           value = value.replace(/"/g, '""');
         }
@@ -83,10 +57,9 @@ function convertToCSV(data, headers) {
  */
 export const exportBookingsCSV = async (req, res) => {
   try {
-    const { hotel, company } = getCtx(req);
     const { startDate, endDate, status } = req.query;
 
-    const filter = company ? { company } : hotel ? { hotel } : {};
+    const filter = scopeFilter(req);
 
     if (status && status !== "all") filter.status = status;
     if (startDate || endDate) {
@@ -154,10 +127,9 @@ export const exportBookingsCSV = async (req, res) => {
  */
 export const exportInvoicesCSV = async (req, res) => {
   try {
-    const { hotel, company } = getCtx(req);
     const { startDate, endDate, status } = req.query;
 
-    const filter = company ? { company } : hotel ? { hotel } : {};
+    const filter = scopeFilter(req);
 
     if (status && status !== "all") filter.status = status;
     if (startDate || endDate) {
@@ -229,10 +201,9 @@ export const exportInvoicesCSV = async (req, res) => {
  */
 export const exportGuestsCSV = async (req, res) => {
   try {
-    const { hotel, company } = getCtx(req);
     const { tier, status } = req.query;
 
-    const filter = company ? { company } : hotel ? { hotel } : {};
+    const filter = scopeFilter(req);
 
     if (tier && tier !== "all") filter.membershipTier = tier;
     if (status && status !== "all") filter.status = status;
@@ -288,10 +259,9 @@ export const exportGuestsCSV = async (req, res) => {
  */
 export const exportRevenueCSV = async (req, res) => {
   try {
-    const { hotel, company } = getCtx(req);
     const { year, month } = req.query;
 
-    const filter = company ? { company } : hotel ? { hotel } : {};
+    const filter = scopeFilter(req);
 
     // Date filter
     const now = new Date();
@@ -399,6 +369,9 @@ export const exportRevenueCSV = async (req, res) => {
 export const generateInvoicePDF = async (req, res) => {
   try {
     const { invoiceId } = req.params;
+    if (!/^[a-f\d]{24}$/i.test(String(invoiceId))) {
+      return res.status(404).json({ success: false, message: "Invoice not found" });
+    }
 
     const invoice = await Invoice.findById(invoiceId)
       .populate("booking", "bookingId checkIn checkOut")
@@ -495,10 +468,9 @@ export const generateInvoicePDF = async (req, res) => {
  */
 export const generateOccupancyReportPDF = async (req, res) => {
   try {
-    const { hotel, company } = getCtx(req);
     const { month, year } = req.query;
 
-    const filter = company ? { company } : hotel ? { hotel } : {};
+    const filter = scopeFilter(req);
     const targetMonth = month ? parseInt(month) - 1 : new Date().getMonth();
     const targetYear = year ? parseInt(year) : new Date().getFullYear();
 

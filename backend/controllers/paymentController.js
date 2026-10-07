@@ -12,6 +12,7 @@ import { finalizeStripeBookingPayment } from "./webhookController.js";
 import { createStripePaymentIntent } from "../services/paymentGatewayService.js";
 import { CardPaymentAttempt } from "../models/cardPaymentAttempt.schema.js";
 import { finalizeCardPayment } from "../services/cardPaymentService.js";
+import { getReceptionScope, scopeFilter, inScope } from "./receptionScope.js";
 
 // Only used for webhook signature verification (stripe.webhooks.constructEvent),
 // which needs a Stripe client but never creates or reads real payment data
@@ -20,49 +21,23 @@ import { finalizeCardPayment } from "../services/cardPaymentService.js";
 // there is exactly one place that shapes amount/currency for a live charge.
 const stripe = process.env.STRIPE_SECRET_KEY ? stripeLib(process.env.STRIPE_SECRET_KEY) : null;
 
-// Helper: get context from request
+// Helper: the caller's reception property scope (see receptionScope.js).
+// Company comes from the authenticated user only, never from the query.
 const getCtx = (req) => {
-  const user = req.user;
-  const hotel = req._scopedHotelId || req.query.hotelId || user?.assignedProperties?.[0]?._id;
-  const company = req.query.companyId || user?.company?._id || user?.company;
-  return { hotel, company, userId: user?._id, userName: user?.fullname };
+  const scope = getReceptionScope(req);
+  return { hotel: scope.hotel, company: scope.company, userId: scope.userId, userName: scope.userName };
 };
 
-// Multi-tenancy helpers
-const getUserRole = (req) => req.user?.role?.name || req.user?.companyRole;
-
-const getAssignedHotelIds = (req) => {
-  const assigned = req.user?.assignedProperties || [];
-  return assigned
-    .map((p) => (typeof p === "object" ? p?._id?.toString() : p?.toString()))
-    .filter(Boolean);
-};
-
+// Multi-tenancy helper: the hotel must be inside the caller's reception scope
+// (owners/admins: their company's hotels; everyone else: their assignments).
 const assertHotelAccess = async (req, hotelId) => {
-  const role = getUserRole(req);
-
-  // Superadmins should NOT have access to hotel-specific financial data
-  // They can manage hotels (approve/reject) but cannot view bookings, revenue, etc.
-  if (role === "admin" || role === "superadmin") {
-    throw Object.assign(new Error("Superadmins cannot access hotel-specific operational data"), { status: 403 });
+  if (!hotelId || !inScope(req, hotelId)) {
+    throw Object.assign(new Error("Not authorized for this hotel"), { status: 403 });
   }
-
-  const assignedHotelIds = getAssignedHotelIds(req);
-  const userCompany = req.user?.company?._id?.toString?.() || req.user?.company?.toString?.() || req.user?.company;
-
   const hotel = await Hotel.findById(hotelId).select("company");
   if (!hotel) {
     throw Object.assign(new Error("Hotel not found"), { status: 404 });
   }
-
-  if (role === "receptionist" && assignedHotelIds.length > 0 && !assignedHotelIds.includes(hotelId.toString())) {
-    throw Object.assign(new Error("Not authorized for this hotel"), { status: 403 });
-  }
-
-  if (role !== "owner" && userCompany && hotel.company?.toString() !== userCompany.toString()) {
-    throw Object.assign(new Error("Not authorized for this hotel company"), { status: 403 });
-  }
-
   return hotel;
 };
 
@@ -533,8 +508,7 @@ export const approveRefund = async (req, res) => {
  */
 export const getPendingRefunds = async (req, res) => {
   try {
-    const { hotel, company } = getCtx(req);
-    const filter = company ? { company } : hotel ? { hotel } : {};
+    const filter = scopeFilter(req);
     filter.status = "refund-requested";
     filter.type = "refund";
 

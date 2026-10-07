@@ -17,24 +17,39 @@ import { notifyRequestDevice } from "./roomRequestController.js";
 import { createNotificationInternal } from "./notificationController.js";
 import { sendEmail } from "../config/nodemailer.js";
 import { paginateQuery, parsePaginationParams, MAX_PAGE_SIZE } from "../utils/pagination.js";
+import {
+  getReceptionScope, scopeFilter, inScope, searchRegex, escapeHtml, clampInt,
+  dayRange, monthStart, localWeekday,
+} from "./receptionScope.js";
 
-// Helper: get hotel & company from staff user (uses property-scope middleware result)
+// Helper: the caller's property scope (see receptionScope.js). `hotel` is the
+// single active hotel when one is selected, otherwise null; `filter` always
+// restricts queries to the hotels this user may see.
 const getCtx = (req) => {
-  const user = req.user;
-  // Prefer the scoped hotel from enforcePropertyScope middleware
-  const hotel = req._scopedHotelId || req.query.hotelId || req.params.hotelId || user?.assignedProperties?.[0]?._id || user?.assignedProperties?.[0];
-  const company = user?.company?._id || user?.company;
-  return { hotel, company, userId: user?._id, userName: user?.fullname };
+  const scope = getReceptionScope(req);
+  return {
+    hotel: scope.hotel,
+    company: scope.company,
+    filter: scopeFilter(req),
+    timezone: scope.timezone,
+    userId: scope.userId,
+    userName: scope.userName,
+  };
 };
 
-// Helper: start/end of today
-const todayRange = () => {
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
-  const end = new Date();
-  end.setHours(23, 59, 59, 999);
-  return { start, end };
-};
+// Helper: start/end of today in the hotel's timezone
+const todayRange = (req) => dayRange(getReceptionScope(req).timezone);
+
+const notFound = (res, what = "Resource") => res.status(404).json({ success: false, message: `${what} not found` });
+const isId = (id) => mongoose.isValidObjectId(id);
+
+// Find a document by id only when it belongs to one of the caller's hotels.
+const findScoped = (Model, req, id) => (isId(id) ? Model.findOne({ _id: id, ...scopeFilter(req) }) : Promise.resolve(null));
+
+const ROOM_STATUSES = ["available", "occupied", "maintenance", "cleaning", "reserved"];
+const HOUSEKEEPING_STATUSES = ["needs-cleaning", "in-progress", "clean", "inspected", "maintenance"];
+const HOUSEKEEPING_PRIORITIES = ["normal", "medium", "high"];
+const CHECKIN_FROM = ["Confirmed", "Pending"];
 
 // Helper: log activity
 const logActivity = async (data) => {
@@ -66,7 +81,7 @@ const GUEST_COMMUNICATION_TEMPLATES = {
     key: "payment_reminder",
     label: "Pending Payment Reminder",
     subject: "Payment reminder for booking {{bookingId}}",
-    body: `Hi {{guestName}},\n\nThis is a gentle reminder for pending payment on your booking.\n\nBooking: {{bookingId}}\nRoom: {{roomNumber}}\nTotal Amount: ₹{{totalAmount}}\nStatus: {{paymentStatus}}\n\nPlease contact front desk for assistance.\n\nThank you,\n{{hotelName}} Billing Desk`,
+    body: `Hi {{guestName}},\n\nThis is a gentle reminder for pending payment on your booking.\n\nBooking: {{bookingId}}\nRoom: {{roomNumber}}\nTotal Amount: Rs. {{totalAmount}}\nStatus: {{paymentStatus}}\n\nPlease contact front desk for assistance.\n\nThank you,\n{{hotelName}} Billing Desk`,
   },
 };
 
@@ -83,19 +98,10 @@ const renderTemplate = (text, variables) => {
 
 export const getDashboardSummary = async (req, res) => {
   try {
-    const { hotel, company } = getCtx(req);
-    const { start, end } = todayRange();
-    const yesterday = new Date(start);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayEnd = new Date(yesterday);
-    yesterdayEnd.setHours(23, 59, 59, 999);
-
-    // Build a filter that works inside $match (must use ObjectId for aggregation)
-    const filter = company
-      ? { company: new mongoose.Types.ObjectId(String(company)) }
-      : hotel
-        ? { hotel: new mongoose.Types.ObjectId(String(hotel)) }
-        : {};
+    // scopeFilter() already holds ObjectIds, so it works inside $match.
+    const { filter, timezone } = getCtx(req);
+    const { start, end } = todayRange(req);
+    const { start: yesterday, end: yesterdayEnd } = dayRange(timezone, -1);
 
     // ── 1. Single Booking aggregation with $facet (replaces 13 individual queries) ──
     const [bookingStats] = await Booking.aggregate([
@@ -144,7 +150,7 @@ export const getDashboardSummary = async (req, res) => {
 
     // ── 2. Single Room aggregation (replaces 3 countDocuments calls) ──
     const roomAgg = await Room.aggregate([
-      { $match: company ? { company: filter.company } : hotel ? { hotel: filter.hotel } : {} },
+      { $match: filter },
       {
         $group: {
           _id: "$status",
@@ -161,11 +167,7 @@ export const getDashboardSummary = async (req, res) => {
     // ── 3. Sparkline: batched 7-day aggregation using $facet (replaces 28 queries) ──
     const sparkDayBounds = [];
     for (let i = 6; i >= 0; i--) {
-      const dayStart = new Date(start);
-      dayStart.setDate(dayStart.getDate() - i);
-      dayStart.setHours(0, 0, 0, 0);
-      const dayEnd = new Date(dayStart);
-      dayEnd.setHours(23, 59, 59, 999);
+      const { start: dayStart, end: dayEnd } = dayRange(timezone, -i);
       sparkDayBounds.push({ dayStart, dayEnd });
     }
 
@@ -216,7 +218,9 @@ export const getDashboardSummary = async (req, res) => {
     const revenue = bookingStats.todayRevenue?.[0]?.total || 0;
     const yRevenue = bookingStats.yesterdayRevenue?.[0]?.total || 0;
     const occupancy = totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0;
-    const yOccupancy = totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0; // approx
+    // Trend compares booking-based occupancy for today vs yesterday (same measure on both sides).
+    const occToday = sparklineData.occupancy[6] || 0;
+    const yOccupancy = sparklineData.occupancy[5] || 0;
 
     const calcDelta = (today, yesterday) => {
       if (yesterday === 0) return today > 0 ? "+100%" : "0%";
@@ -224,17 +228,18 @@ export const getDashboardSummary = async (req, res) => {
       return diff >= 0 ? `+${diff}%` : `${diff}%`;
     };
 
-    const formatRevenue = (v) => v >= 1000 ? `₹${(v / 1000).toFixed(1)}k` : `₹${v}`;
+    const formatRevenue = (v) => `Rs. ${Math.round(Number(v) || 0).toLocaleString("en-IN")}`;
 
     res.json({
       success: true,
       data: {
         checkIns: { value: todayCheckIns, total: todayCheckIns + totalArrivals, trend: calcDelta(todayCheckIns, yesterdayCheckIns_), up: todayCheckIns >= yesterdayCheckIns_, sparkline: sparklineData.checkIns },
         checkOuts: { value: todayCheckOuts, total: todayCheckOuts + totalDepartures, trend: calcDelta(todayCheckOuts, yesterdayCheckOuts_), up: todayCheckOuts >= yesterdayCheckOuts_, sparkline: sparklineData.checkOuts },
-        occupancy: { value: occupancy, trend: calcDelta(occupancy, yOccupancy), up: occupancy >= yOccupancy, sparkline: sparklineData.occupancy },
-        revenue: { value: formatRevenue(revenue), trend: calcDelta(revenue, yRevenue), up: revenue >= yRevenue, sparkline: sparklineData.revenue },
-        pendingPayments: { value: pendingPayments, trend: `${pendingPayments}`, up: false },
-        availableRooms: { value: availableRooms, trend: `${availableRooms}`, up: false },
+        occupancy: { value: occupancy, trend: calcDelta(occToday, yOccupancy), up: occToday >= yOccupancy, sparkline: sparklineData.occupancy },
+        revenue: { value: formatRevenue(revenue), amount: revenue, trend: calcDelta(revenue, yRevenue), up: revenue >= yRevenue, sparkline: sparklineData.revenue },
+        // No day-over-day history is tracked for these two, so no trend is reported.
+        pendingPayments: { value: pendingPayments, trend: null, up: false },
+        availableRooms: { value: availableRooms, trend: null, up: false },
         totalRooms,
       },
     });
@@ -245,8 +250,7 @@ export const getDashboardSummary = async (req, res) => {
 
 export const getLiveRoomStatus = async (req, res) => {
   try {
-    const { hotel, company } = getCtx(req);
-    const filter = company ? { company } : hotel ? { hotel } : {};
+    const { filter } = getCtx(req);
 
     const [statusCounts, totalRooms] = await Promise.all([
       Room.aggregate([
@@ -279,8 +283,7 @@ export const getLiveRoomStatus = async (req, res) => {
 
 export const getWeeklyOccupancy = async (req, res) => {
   try {
-    const { hotel, company } = getCtx(req);
-    const filter = company ? { company } : hotel ? { hotel } : {};
+    const { filter, timezone } = getCtx(req);
     const totalRooms = await Room.countDocuments(filter) || 1;
 
     const days = [];
@@ -288,11 +291,8 @@ export const getWeeklyOccupancy = async (req, res) => {
     const fullNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
     for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      d.setHours(0, 0, 0, 0);
-      const dEnd = new Date(d);
-      dEnd.setHours(23, 59, 59, 999);
+      const { start: d, end: dEnd } = dayRange(timezone, -i);
+      const weekday = localWeekday(d, timezone);
 
       const occupied = await Booking.countDocuments({
         ...filter,
@@ -302,8 +302,8 @@ export const getWeeklyOccupancy = async (req, res) => {
       });
 
       days.push({
-        day: dayNames[d.getDay()],
-        name: fullNames[d.getDay()],
+        day: dayNames[weekday],
+        name: fullNames[weekday],
         value: Math.round((occupied / totalRooms) * 100),
       });
     }
@@ -317,12 +317,8 @@ export const getWeeklyOccupancy = async (req, res) => {
 
 export const getRevenueSplit = async (req, res) => {
   try {
-    const { hotel, company } = getCtx(req);
-    const filter = company ? { company } : hotel ? { hotel } : {};
-
-    const thisMonth = new Date();
-    thisMonth.setDate(1);
-    thisMonth.setHours(0, 0, 0, 0);
+    const { filter, timezone } = getCtx(req);
+    const thisMonth = monthStart(timezone);
 
     // Room revenue from bookings
     const roomRevenue = await Booking.aggregate([
@@ -332,14 +328,8 @@ export const getRevenueSplit = async (req, res) => {
     const roomTotal = roomRevenue[0]?.total || 0;
 
     // Food & beverage revenue from orders (dineIn + roomService).
-    // Orders carry `hotel`, not `company` — matching on company returned 0.
-    let orderFilter = {};
-    if (company) {
-      const companyHotels = await Hotel.find({ company }).select("_id").lean();
-      orderFilter = { hotel: { $in: companyHotels.map((h) => h._id) } };
-    } else if (hotel) {
-      orderFilter = { hotel: new mongoose.Types.ObjectId(String(hotel._id || hotel)) };
-    }
+    // Orders carry `hotel` only, which is exactly what the scope filters on.
+    const orderFilter = scopeFilter(req);
     const foodRevenue = await Order.aggregate([
       {
         $match: {
@@ -383,9 +373,8 @@ export const getRevenueSplit = async (req, res) => {
 
 export const getTodayArrivals = async (req, res) => {
   try {
-    const { hotel, company } = getCtx(req);
-    const { start, end } = todayRange();
-    const filter = company ? { company } : hotel ? { hotel } : {};
+    const { filter, timezone } = getCtx(req);
+    const { start, end } = todayRange(req);
 
     const arrivals = await Booking.find({
       ...filter,
@@ -411,7 +400,7 @@ export const getTodayArrivals = async (req, res) => {
         type: b.room?.type || b.room?.roomName || "",
         number: b.room?.roomNumber || "",
       },
-      expectedTime: b.expectedArrivalTime || new Date(b.checkIn).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false }),
+      expectedTime: b.expectedArrivalTime || new Date(b.checkIn).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: timezone }),
       nights: b.durationNights || Math.ceil((b.checkOut - b.checkIn) / (1000 * 60 * 60 * 24)),
       status: b.status === "Checked-In" ? "checked-in" : b.status === "Confirmed" ? "expected" : "arrived",
       source: b.bookingSource || "web",
@@ -434,9 +423,8 @@ export const getTodayArrivals = async (req, res) => {
 
 export const getTodayDepartures = async (req, res) => {
   try {
-    const { hotel, company } = getCtx(req);
-    const { start, end } = todayRange();
-    const filter = company ? { company } : hotel ? { hotel } : {};
+    const { filter, timezone } = getCtx(req);
+    const { start, end } = todayRange(req);
 
     const departures = await Booking.find({
       ...filter,
@@ -463,10 +451,10 @@ export const getTodayDepartures = async (req, res) => {
         type: b.room?.type || b.room?.roomName || "",
         number: b.room?.roomNumber || "",
       },
-      checkOutTime: new Date(b.checkOut).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false }),
+      checkOutTime: new Date(b.checkOut).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: timezone }),
       stayDuration: b.durationNights || Math.ceil((b.checkOut - b.checkIn) / (1000 * 60 * 60 * 24)),
       status: b.status === "Checked-Out" ? "checked-out" : "in-room",
-      balance: b.paymentStatus === "paid" ? 0 : b.totalAmount || 0,
+      balance: b.paymentStatus === "paid" ? 0 : Math.max(0, (b.totalAmount || 0) - (b.paidAmount || 0)),
       source: b.bookingSource || "web",
       paymentStatus: b.paymentStatus,
     }));
@@ -488,16 +476,54 @@ export const getTodayDepartures = async (req, res) => {
    CHECK-IN / CHECK-OUT ACTIONS
    ═══════════════════════════════════════ */
 
+/**
+ * Route guard that runs BEFORE preventDoubleCheckIn (which flips the room to
+ * "occupied" as a side effect): ownership, status transition, arrival window
+ * and room readiness are all rejected here without touching any data.
+ */
+export const validateCheckIn = async (req, res, next) => {
+  try {
+    const { bookingId } = req.params;
+    const booking = await findScoped(Booking, req, bookingId);
+    if (!booking) return notFound(res, "Booking");
+    if (booking.status === "Checked-In") {
+      return res.status(409).json({ success: false, message: "Guest is already checked in." });
+    }
+    if (!CHECKIN_FROM.includes(booking.status)) {
+      return res.status(409).json({ success: false, message: `A ${booking.status.toLowerCase()} booking cannot be checked in.` });
+    }
+    const { timezone } = getCtx(req);
+    const { end: todayEnd } = dayRange(timezone);
+    if (booking.checkIn > todayEnd) {
+      const day = booking.checkIn.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: timezone });
+      return res.status(409).json({ success: false, message: `This booking arrives on ${day}. Check-in opens on the arrival day.` });
+    }
+    if (booking.checkOut <= new Date()) {
+      return res.status(409).json({ success: false, message: "This stay has already ended. Update the dates before checking in." });
+    }
+    if (booking.room) {
+      const room = await Room.findById(booking.room).select("roomNumber status").lean();
+      if (room && ["cleaning", "maintenance"].includes(room.status)) {
+        return res.status(409).json({ success: false, message: `Room ${room.roomNumber} is not ready (${room.status}). Mark it clean or change the room first.` });
+      }
+    }
+    next();
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 export const performCheckIn = async (req, res) => {
   const session = await mongoose.startSession();
   try {
     const { bookingId } = req.params;
-    const { hotel, userId, userName } = getCtx(req);
+    const { userId, userName } = getCtx(req);
     const expectedVersion = req.body?.__v; // optimistic locking
 
     await session.withTransaction(async () => {
       const booking = await Booking.findById(bookingId).populate("room").populate("guest").session(session);
-      if (!booking) throw Object.assign(new Error("Booking not found"), { status: 404 });
+      // Property-scope validation: booking must belong to one of the caller's hotels
+      if (!booking || !inScope(req, booking.hotel)) throw Object.assign(new Error("Booking not found"), { status: 404 });
 
       // Optimistic locking: reject if version mismatch
       if (expectedVersion !== undefined && booking.__v !== expectedVersion) {
@@ -508,10 +534,8 @@ export const performCheckIn = async (req, res) => {
       if (booking.status === "Checked-In") {
         throw Object.assign(new Error("Guest is already checked in."), { status: 409 });
       }
-
-      // Property-scope validation: booking must belong to assigned hotel
-      if (hotel && booking.hotel.toString() !== hotel.toString()) {
-        throw Object.assign(new Error("Booking does not belong to your assigned property."), { status: 403 });
+      if (!CHECKIN_FROM.includes(booking.status)) {
+        throw Object.assign(new Error(`A ${booking.status.toLowerCase()} booking cannot be checked in.`), { status: 409 });
       }
 
       booking.status = "Checked-In";
@@ -557,12 +581,13 @@ export const performCheckOut = async (req, res) => {
   const session = await mongoose.startSession();
   try {
     const { bookingId } = req.params;
-    const { hotel, userId, userName } = getCtx(req);
+    const { userId, userName } = getCtx(req);
     const expectedVersion = req.body?.__v;
+    if (!isId(bookingId)) return notFound(res, "Booking");
 
     await session.withTransaction(async () => {
       const booking = await Booking.findById(bookingId).populate("room").populate("guest").session(session);
-      if (!booking) throw Object.assign(new Error("Booking not found"), { status: 404 });
+      if (!booking || !inScope(req, booking.hotel)) throw Object.assign(new Error("Booking not found"), { status: 404 });
 
       if (expectedVersion !== undefined && booking.__v !== expectedVersion) {
         throw Object.assign(new Error("Booking was modified by another user. Please refresh and try again."), { status: 409 });
@@ -572,8 +597,9 @@ export const performCheckOut = async (req, res) => {
         throw Object.assign(new Error("Guest is already checked out."), { status: 409 });
       }
 
-      if (hotel && booking.hotel.toString() !== hotel.toString()) {
-        throw Object.assign(new Error("Booking does not belong to your assigned property."), { status: 403 });
+      // Only an in-house stay can be checked out (not pending, cancelled or no-show).
+      if (booking.status !== "Checked-In") {
+        throw Object.assign(new Error(`A ${booking.status.toLowerCase()} booking cannot be checked out. Check the guest in first.`), { status: 409 });
       }
 
       booking.status = "Checked-Out";
@@ -638,10 +664,16 @@ export const getGuestCommunicationTemplates = async (_req, res) => {
 export const sendGuestCommunication = async (req, res) => {
   try {
     const { bookingId, templateKey, customSubject, customBody } = req.body;
-    const { hotel: scopedHotel, userId, userName } = getCtx(req);
+    const { userId, userName } = getCtx(req);
 
-    if (!bookingId) {
+    if (!bookingId || !isId(bookingId)) {
       return res.status(400).json({ success: false, message: "bookingId is required" });
+    }
+    if ((customSubject && typeof customSubject !== "string") || (customBody && typeof customBody !== "string")) {
+      return res.status(400).json({ success: false, message: "Subject and message must be text." });
+    }
+    if (String(customSubject || "").length > 200 || String(customBody || "").length > 5000) {
+      return res.status(400).json({ success: false, message: "Subject is limited to 200 characters and the message to 5000." });
     }
 
     const booking = await Booking.findById(bookingId)
@@ -654,8 +686,8 @@ export const sendGuestCommunication = async (req, res) => {
       return res.status(404).json({ success: false, message: "Booking not found" });
     }
 
-    if (scopedHotel && booking.hotel?._id?.toString() !== scopedHotel.toString()) {
-      return res.status(403).json({ success: false, message: "Booking does not belong to your assigned property." });
+    if (!inScope(req, booking.hotel?._id || booking.hotel)) {
+      return notFound(res, "Booking");
     }
 
     const template = GUEST_COMMUNICATION_TEMPLATES[templateKey] || GUEST_COMMUNICATION_TEMPLATES.checkin_welcome;
@@ -686,7 +718,8 @@ export const sendGuestCommunication = async (req, res) => {
       to: guestEmail,
       subject,
       text: body,
-      html: `<div style="font-family: Inter, Arial, sans-serif; line-height: 1.6; color: #0f172a; white-space: pre-wrap;">${body.replace(/\n/g, "<br />")}</div>`,
+      // Guest names and staff-typed text are escaped so they can't inject markup into the email.
+      html: `<div style="font-family: Inter, Arial, sans-serif; line-height: 1.6; color: #0f172a; white-space: pre-wrap;">${escapeHtml(body).replace(/\n/g, "<br />")}</div>`,
     });
 
     if (!emailResult?.success) {
@@ -728,12 +761,11 @@ export const sendGuestCommunication = async (req, res) => {
 
 export const getReservations = async (req, res) => {
   try {
-    const { hotel, company } = getCtx(req);
+    const { filter, timezone } = getCtx(req);
     const { status, search, dateRange } = req.query;
     
     // Parse pagination params (enforces 100 max limit)
     const pagination = parsePaginationParams(req);
-    const filter = company ? { company } : hotel ? { hotel } : {};
 
     if (status && status !== "all") {
       const statusMap = {
@@ -742,27 +774,27 @@ export const getReservations = async (req, res) => {
         "Checked Out": "Checked-Out",
         "Pending": "Pending",
         "Cancelled": "Cancelled",
+        "No Show": "No-Show",
       };
-      filter.status = statusMap[status] || status;
+      filter.status = String(statusMap[status] || status);
     }
 
-    if (search) {
+    const rx = searchRegex(search);
+    if (rx) {
       filter.$or = [
-        { "guestInfo.name": { $regex: search, $options: "i" } },
-        { bookingId: { $regex: search, $options: "i" } },
-        { confirmationCode: { $regex: search, $options: "i" } },
+        { "guestInfo.name": rx },
+        { "guestInfo.email": rx },
+        { "guestInfo.phone": rx },
+        { bookingId: rx },
+        { confirmationCode: rx },
       ];
     }
 
     if (dateRange && dateRange !== "all") {
-      const now = new Date();
       if (dateRange === "thisMonth") {
-        filter.checkIn = { $gte: new Date(now.getFullYear(), now.getMonth(), 1) };
+        filter.checkIn = { $gte: monthStart(timezone) };
       } else if (dateRange === "lastMonth") {
-        filter.checkIn = {
-          $gte: new Date(now.getFullYear(), now.getMonth() - 1, 1),
-          $lt: new Date(now.getFullYear(), now.getMonth(), 1),
-        };
+        filter.checkIn = { $gte: monthStart(timezone, -1), $lt: monthStart(timezone) };
       }
     }
 
@@ -817,22 +849,19 @@ export const getReservations = async (req, res) => {
 
 export const getRoomsList = async (req, res) => {
   try {
-    const { hotel, company } = getCtx(req);
-    const { status, floor, type, search, sort = "roomNumber" } = req.query;
-    const filter = company ? { company } : hotel ? { hotel } : {};
+    const { filter } = getCtx(req);
+    const { status, floor, type, search, sort } = req.query;
 
-    if (status && status !== "all") filter.status = status;
-    if (floor && floor !== "all") filter.floor = parseInt(floor);
-    if (type && type !== "all") filter.type = type;
-    if (search) {
-      filter.$or = [
-        { roomNumber: { $regex: search, $options: "i" } },
-        { roomName: { $regex: search, $options: "i" } },
-        { type: { $regex: search, $options: "i" } },
-      ];
+    if (status && status !== "all") filter.status = String(status);
+    if (floor && floor !== "all") filter.floor = clampInt(floor, 0, -10, 500);
+    if (type && type !== "all") filter.type = String(type);
+    const rx = searchRegex(search);
+    if (rx) {
+      filter.$or = [{ roomNumber: rx }, { roomName: rx }, { type: rx }];
     }
-
-    const rooms = await Room.find(filter).sort(sort).lean();
+    // Only allow sorting on known fields (sort strings can otherwise reach arbitrary paths).
+    const SORTS = { roomNumber: "roomNumber", floor: "floor", type: "type", status: "status", price: "price", "-price": "-price" };
+    const rooms = await Room.find(filter).sort(SORTS[sort] || "roomNumber").lean();
 
     // Get current occupants for occupied rooms
     const occupiedRoomIds = rooms.filter((r) => r.status === "occupied").map((r) => r._id);
@@ -877,9 +906,9 @@ export const getRoomsList = async (req, res) => {
         status: r.status,
         basePrice: r.price,
         maxGuests: r.maxGuests || r.capacity?.adults || 2,
-        beds: r.bedType || "Queen",
+        beds: r.bedType || null,
         amenities: r.amenities || [],
-        rating: r.rating || 4.0,
+        rating: r.rating ?? null,
         lastCleaned: r.lastCleaned || r.updatedAt,
         guest: booking
           ? {
@@ -921,22 +950,16 @@ export const getRoomsList = async (req, res) => {
 
 export const getGuestsList = async (req, res) => {
   try {
-    const { hotel, company } = getCtx(req);
+    const { filter, timezone } = getCtx(req);
     const { status, tier, search } = req.query;
     
     // Parse pagination params (enforces 100 max limit)
     const pagination = parsePaginationParams(req);
-    const filter = company ? { company } : hotel ? { hotel } : {};
-
-    if (status && status !== "all") filter.status = status;
-    if (tier && tier !== "all") filter.membershipTier = tier;
-    if (search) {
-      filter.$or = [
-        { fullName: { $regex: search, $options: "i" } },
-        { email: { $regex: search, $options: "i" } },
-        { phone: { $regex: search, $options: "i" } },
-        { guestId: { $regex: search, $options: "i" } },
-      ];
+    if (status && status !== "all") filter.status = String(status);
+    if (tier && tier !== "all") filter.membershipTier = String(tier);
+    const rx = searchRegex(search);
+    if (rx) {
+      filter.$or = [{ fullName: rx }, { email: rx }, { phone: rx }, { guestId: rx }];
     }
 
     // Get stats in parallel with paginated query
@@ -950,10 +973,7 @@ export const getGuestsList = async (req, res) => {
       }),
       Guest.countDocuments({ ...filter, status: "In-House" }),
       Guest.countDocuments({ ...filter, vipStatus: true }),
-      Guest.countDocuments({
-        ...filter,
-        createdAt: { $gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) },
-      }),
+      Guest.countDocuments({ ...filter, createdAt: { $gte: monthStart(timezone) } }),
     ]);
 
     const formatted = result.items.map((g) => ({
@@ -996,7 +1016,8 @@ export const getGuestsList = async (req, res) => {
 
 export const getGuestById = async (req, res) => {
   try {
-    const guest = await Guest.findById(req.params.id)
+    if (!isId(req.params.id)) return notFound(res, "Guest");
+    const guest = await Guest.findOne({ _id: req.params.id, ...scopeFilter(req) })
       .populate("currentBooking", "checkIn checkOut bookingId")
       .lean();
     if (!guest) return res.status(404).json({ success: false, message: "Guest not found" });
@@ -1012,25 +1033,17 @@ export const getGuestById = async (req, res) => {
 
 export const getHousekeepingTasks = async (req, res) => {
   try {
-    const { hotel, company } = getCtx(req);
+    const { filter } = getCtx(req);
     const { status, floor, priority, search } = req.query;
-    const filter = company ? { company } : hotel ? { hotel } : {};
 
     if (status && status !== "all") {
-      if (status.includes(',')) {
-        filter.status = { $in: status.split(',').map(s => s.trim()) };
-      } else {
-        filter.status = status;
-      }
+      filter.status = { $in: String(status).split(",").map((s) => s.trim()) };
     }
-    if (floor && floor !== "all") filter.floor = parseInt(floor);
-    if (priority && priority !== "all") filter.priority = priority;
-    if (search) {
-      filter.$or = [
-        { roomNumber: { $regex: search, $options: "i" } },
-        { roomType: { $regex: search, $options: "i" } },
-        { assignedToName: { $regex: search, $options: "i" } },
-      ];
+    if (floor && floor !== "all") filter.floor = clampInt(floor, 0, -10, 500);
+    if (priority && priority !== "all") filter.priority = String(priority);
+    const rx = searchRegex(search);
+    if (rx) {
+      filter.$or = [{ roomNumber: rx }, { roomType: rx }, { assignedToName: rx }];
     }
 
     const tasks = await HousekeepingTask.find(filter)
@@ -1075,25 +1088,52 @@ export const getHousekeepingTasks = async (req, res) => {
 export const updateHousekeepingTask = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, assignedTo, priority, notes } = req.body;
+    const { status, assignedTo, priority, notes } = req.body || {};
     const { userId, userName } = getCtx(req);
+
+    if (status !== undefined && !HOUSEKEEPING_STATUSES.includes(status)) {
+      return res.status(400).json({ success: false, message: `Status must be one of: ${HOUSEKEEPING_STATUSES.join(", ")}` });
+    }
+    if (priority !== undefined && !HOUSEKEEPING_PRIORITIES.includes(priority)) {
+      return res.status(400).json({ success: false, message: `Priority must be one of: ${HOUSEKEEPING_PRIORITIES.join(", ")}` });
+    }
+    if (notes !== undefined && (typeof notes !== "string" || notes.length > 1000)) {
+      return res.status(400).json({ success: false, message: "Notes must be text of at most 1000 characters." });
+    }
+
+    const existing = await findScoped(HousekeepingTask, req, id);
+    if (!existing) return notFound(res, "Task");
 
     const update = {};
     if (status) update.status = status;
-    if (assignedTo) update.assignedTo = assignedTo;
+    if (assignedTo) {
+      // Only staff of the same company assigned to this task's hotel can take it.
+      const assignee = isId(assignedTo)
+        ? await User.findOne({ _id: assignedTo, company: getCtx(req).company, assignedProperties: existing.hotel, staffRemovedAt: null }).select("fullname").lean()
+        : null;
+      if (!assignee) return res.status(400).json({ success: false, message: "Choose a staff member of this hotel." });
+      update.assignedTo = assignee._id;
+      update.assignedToName = assignee.fullname;
+    }
     if (priority) update.priority = priority;
-    if (notes) update.notes = notes;
+    if (notes !== undefined) update.notes = notes.trim();
 
     if (status === "in-progress") update.startedAt = new Date();
     if (status === "clean" || status === "inspected") update.completedAt = new Date();
 
-    const task = await HousekeepingTask.findByIdAndUpdate(id, update, { new: true })
+    const task = await HousekeepingTask.findOneAndUpdate({ _id: existing._id }, update, { new: true, runValidators: true })
       .populate("assignedTo", "fullname profilePicture");
 
-    if (!task) return res.status(404).json({ success: false, message: "Task not found" });
+    if (!task) return notFound(res, "Task");
 
     if (status === "clean" || status === "inspected") {
-      await Room.findByIdAndUpdate(task.room, { lastCleaned: new Date() });
+      // A cleaned room becomes bookable again, unless a guest is still in it.
+      await Room.updateOne({ _id: task.room, hotel: task.hotel }, { lastCleaned: new Date() });
+      const inHouse = await Booking.exists({ room: task.room, status: "Checked-In" });
+      if (!inHouse) {
+        const freed = await Room.updateOne({ _id: task.room, hotel: task.hotel, status: "cleaning" }, { status: "available" });
+        if (freed.modifiedCount) emitToHotel(task.hotel.toString(), "room-update", { roomId: task.room, status: "available" });
+      }
     }
 
     await logActivity({
@@ -1123,8 +1163,7 @@ export const updateHousekeepingTask = async (req, res) => {
 
 export const getGuestRequests = async (req, res) => {
   try {
-    const { hotel, company } = getCtx(req);
-    const filter = company ? { company } : hotel ? { hotel } : {};
+    const { filter } = getCtx(req);
     filter.status = { $in: ["open", "assigned"] };
 
     const requests = await GuestRequest.find(filter)
@@ -1142,14 +1181,9 @@ export const getGuestRequests = async (req, res) => {
   }
 };
 
-// Scope for request writes: the caller's company, else their hotel. Never
-// unscoped — an id alone must not let staff edit another hotel's queue.
-const requestScope = (req) => {
-  const { hotel, company } = getCtx(req);
-  if (company) return { company };
-  if (hotel) return { hotel };
-  return { _id: null };
-};
+// Scope for request writes: the caller's hotels. Never unscoped — an id
+// alone must not let staff edit another hotel's queue.
+const requestScope = (req) => scopeFilter(req);
 
 // Tells the guest who raised the request (portal user or room-QR phone).
 const REQUEST_STATUS_TEXT = {
@@ -1186,9 +1220,17 @@ export const assignGuestRequest = async (req, res) => {
     const { userId, userName } = getCtx(req);
     if (!mongoose.isValidObjectId(id)) return res.status(404).json({ success: false, message: "Request not found" });
 
+    let assignee = { _id: userId, fullname: userName };
+    if (assignedTo && String(assignedTo) !== String(userId)) {
+      assignee = isId(assignedTo)
+        ? await User.findOne({ _id: assignedTo, company: getCtx(req).company, staffRemovedAt: null }).select("fullname").lean()
+        : null;
+      if (!assignee) return res.status(400).json({ success: false, message: "Choose a staff member of this hotel." });
+    }
+
     const request = await GuestRequest.findOneAndUpdate(
       { _id: id, ...requestScope(req) },
-      { status: "assigned", assignedTo: assignedTo || userId, assignedToName: userName },
+      { status: "assigned", assignedTo: assignee._id, assignedToName: assignee.fullname },
       { new: true }
     );
 
@@ -1200,7 +1242,7 @@ export const assignGuestRequest = async (req, res) => {
       entityType: "request",
       entityId: request.roomNumber,
       action: "assigned",
-      description: `Guest request for Room ${request.roomNumber} assigned to <strong>${userName || "staff"}</strong>`,
+      description: `Guest request for Room ${request.roomNumber} assigned to <strong>${assignee.fullname || "staff"}</strong>`,
       icon: "Users",
       color: "#06b6d4",
       actor: userId,
@@ -1254,36 +1296,34 @@ export const resolveGuestRequest = async (req, res) => {
 
 export const getInvoices = async (req, res) => {
   try {
-    const { hotel, company } = getCtx(req);
-    const { status, search, page = 1, limit = 30 } = req.query;
-    const filter = company ? { company } : hotel ? { hotel } : {};
+    const { filter, timezone } = getCtx(req);
+    const { status, search } = req.query;
+    const page = clampInt(req.query.page, 1, 1, 100000);
+    // BillingView loads up to 200 cards at once; anything larger is clamped.
+    const limit = clampInt(req.query.limit, 30, 1, 2 * MAX_PAGE_SIZE);
+    const baseFilter = { ...filter };
 
-    if (status && status !== "all") filter.status = status;
-    if (search) {
-      filter.$or = [
-        { invoiceId: { $regex: search, $options: "i" } },
-        { guestName: { $regex: search, $options: "i" } },
-        { bookingRef: { $regex: search, $options: "i" } },
-      ];
+    if (status && status !== "all") filter.status = String(status);
+    const rx = searchRegex(search);
+    if (rx) {
+      filter.$or = [{ invoiceId: rx }, { guestName: rx }, { bookingRef: rx }];
     }
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const skip = (page - 1) * limit;
     const [invoices, total] = await Promise.all([
-      Invoice.find(filter).sort({ issuedAt: -1 }).skip(skip).limit(parseInt(limit)).lean(),
+      Invoice.find(filter).sort({ issuedAt: -1 }).skip(skip).limit(limit).lean(),
       Invoice.countDocuments(filter),
     ]);
 
-    // Summary stats
-    const baseFilter = company ? { company } : hotel ? { hotel } : {};
-    const allInvoices = await Invoice.find(baseFilter).lean();
+    // Summary stats (only the fields the totals need)
+    const allInvoices = await Invoice.find(baseFilter).select("charges.total balance status issuedAt createdAt").lean();
     const totalRevenue = allInvoices.reduce((s, i) => s + (i.charges?.total || 0), 0);
     const pendingTotal = allInvoices.filter((i) => i.status === "pending").reduce((s, i) => s + (i.balance || 0), 0);
     const overdueTotal = allInvoices.filter((i) => i.status === "overdue").reduce((s, i) => s + (i.balance || 0), 0);
 
     // Revenue trend: current month vs previous month
-    const now = new Date();
-    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const thisMonthStart = monthStart(timezone);
+    const prevMonthStart = monthStart(timezone, -1);
     const thisMonthRevenue = allInvoices
       .filter(i => new Date(i.issuedAt || i.createdAt) >= thisMonthStart)
       .reduce((s, i) => s + (i.charges?.total || 0), 0);
@@ -1305,7 +1345,7 @@ export const getInvoices = async (req, res) => {
         thisMonthRevenue,
         prevMonthRevenue,
       },
-      pagination: { page: parseInt(page), limit: parseInt(limit), total, pages: Math.ceil(total / parseInt(limit)) },
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -1314,10 +1354,9 @@ export const getInvoices = async (req, res) => {
 
 export const getBillingSummary = async (req, res) => {
   try {
-    const { hotel, company } = getCtx(req);
-    const filter = company ? { company } : hotel ? { hotel } : {};
+    const { filter } = getCtx(req);
 
-    const invoices = await Invoice.find(filter).lean();
+    const invoices = await Invoice.find(filter).select("paid balance status").lean();
     const totalRevenue = invoices.reduce((s, i) => s + (i.paid || 0), 0);
     const pendingTotal = invoices.filter((i) => i.status === "pending").reduce((s, i) => s + (i.balance || 0), 0);
     const overdueTotal = invoices.filter((i) => i.status === "overdue").reduce((s, i) => s + (i.balance || 0), 0);
@@ -1342,11 +1381,11 @@ export const getBillingSummary = async (req, res) => {
 
 export const getStaffList = async (req, res) => {
   try {
-    const { company, hotel } = getCtx(req);
+    const { company, filter: hotelFilter } = getCtx(req);
     if (!company) return res.status(403).json({ success: false, message: 'Company context is required' });
     const { department, search } = req.query;
     const filter = { company, staffRemovedAt: null };
-    if (hotel) filter.assignedProperties = hotel;
+    filter.assignedProperties = hotelFilter.hotel;
     filter.companyRole = { $exists: true, $ne: null };
 
     if (department && department !== "all") {
@@ -1364,11 +1403,9 @@ export const getStaffList = async (req, res) => {
       }
     }
 
-    if (search) {
-      filter.$or = [
-        { fullname: { $regex: search, $options: "i" } },
-        { email: { $regex: search, $options: "i" } },
-      ];
+    const rx = searchRegex(search);
+    if (rx) {
+      filter.$or = [{ fullname: rx }, { email: rx }];
     }
 
     const staff = await User.find(filter)
@@ -1422,14 +1459,14 @@ function getDepartment(role) {
 
 export const getReportsOverview = async (req, res) => {
   try {
-    const { hotel, company } = getCtx(req);
-    const { start, end } = todayRange();
-    const filter = company ? { company } : hotel ? { hotel } : {};
+    const { filter, timezone } = getCtx(req);
+    const { start, end } = todayRange(req);
+    const { start: yStart, end: yEnd } = dayRange(timezone, -1);
 
     const [
       totalRooms, occupiedRooms, todayCheckInsCompleted, todayCheckInsTotal,
       todayCheckOutsCompleted, todayCheckOutsTotal, currentGuests, vipGuests,
-      roomStatusCounts, housekeepingCounts
+      roomStatusCounts, housekeepingCounts, noShowToday, yesterdayOccupied, lateCheckouts,
     ] = await Promise.all([
       Room.countDocuments(filter),
       Room.countDocuments({ ...filter, status: "occupied" }),
@@ -1437,13 +1474,19 @@ export const getReportsOverview = async (req, res) => {
       Booking.countDocuments({ ...filter, checkIn: { $gte: start, $lte: end } }),
       Booking.countDocuments({ ...filter, status: "Checked-Out", updatedAt: { $gte: start, $lte: end } }),
       Booking.countDocuments({ ...filter, checkOut: { $gte: start, $lte: end } }),
-      Guest.countDocuments({ ...(company ? { company } : {}), status: "In-House" }),
-      Guest.countDocuments({ ...(company ? { company } : {}), vipStatus: true, status: "In-House" }),
+      Guest.countDocuments({ ...filter, status: "In-House" }),
+      Guest.countDocuments({ ...filter, vipStatus: true, status: "In-House" }),
       Room.aggregate([{ $match: filter }, { $group: { _id: "$status", count: { $sum: 1 } } }]),
       HousekeepingTask.aggregate([{ $match: filter }, { $group: { _id: "$status", count: { $sum: 1 } } }]),
+      Booking.countDocuments({ ...filter, status: "No-Show", checkIn: { $gte: start, $lte: end } }),
+      // Rooms that were booked (confirmed or in-house) at any point yesterday.
+      Booking.countDocuments({ ...filter, status: { $in: ["Confirmed", "Checked-In", "Checked-Out"] }, checkIn: { $lte: yEnd }, checkOut: { $gt: yStart } }),
+      // Still in-house although the departure time has passed.
+      Booking.countDocuments({ ...filter, status: "Checked-In", checkOut: { $lt: new Date() } }),
     ]);
 
     const occupancy = totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0;
+    const previousOccupancy = totalRooms > 0 ? Math.min(100, Math.round((yesterdayOccupied / totalRooms) * 100)) : null;
 
     const roomStatusMap = {};
     roomStatusCounts.forEach((s) => { roomStatusMap[s._id] = s.count; });
@@ -1458,7 +1501,7 @@ export const getReportsOverview = async (req, res) => {
     ]);
 
     // Recent activity
-    const activity = await ActivityLog.find(company ? { company } : hotel ? { hotel } : {})
+    const activity = await ActivityLog.find(filter)
       .sort({ createdAt: -1 })
       .limit(6)
       .lean();
@@ -1468,8 +1511,9 @@ export const getReportsOverview = async (req, res) => {
       data: {
         occupancy: {
           current: occupancy,
-          previous: Math.max(0, occupancy - 6),
-          trend: "up",
+          // Yesterday's booking-based occupancy; null when the hotel has no rooms.
+          previous: previousOccupancy,
+          trend: previousOccupancy == null ? null : occupancy >= previousOccupancy ? "up" : "down",
           rooms: {
             occupied: roomStatusMap.occupied || 0,
             available: roomStatusMap.available || 0,
@@ -1477,8 +1521,8 @@ export const getReportsOverview = async (req, res) => {
             reserved: roomStatusMap.reserved || 0,
           }
         },
-        checkIns: { today: todayCheckInsTotal, completed: todayCheckInsCompleted, pending: todayCheckInsTotal - todayCheckInsCompleted, noShow: 0 },
-        checkOuts: { today: todayCheckOutsTotal, completed: todayCheckOutsCompleted, pending: todayCheckOutsTotal - todayCheckOutsCompleted, lateCheckout: 0 },
+        checkIns: { today: todayCheckInsTotal, completed: todayCheckInsCompleted, pending: Math.max(0, todayCheckInsTotal - todayCheckInsCompleted - noShowToday), noShow: noShowToday },
+        checkOuts: { today: todayCheckOutsTotal, completed: todayCheckOutsCompleted, pending: Math.max(0, todayCheckOutsTotal - todayCheckOutsCompleted), lateCheckout: lateCheckouts },
         guestActivity: { currentGuests, vipGuests, newArrivals: todayCheckInsTotal, departures: todayCheckOutsTotal },
         housekeeping: {
           clean: (hkMap.clean || 0) + (hkMap.inspected || 0),
@@ -1516,13 +1560,12 @@ function getRelativeTime(date) {
 
 export const getActivityLog = async (req, res) => {
   try {
-    const { hotel, company } = getCtx(req);
-    const filter = company ? { company } : hotel ? { hotel } : {};
-    const { limit = 20 } = req.query;
+    const { filter } = getCtx(req);
+    const limit = clampInt(req.query.limit, 20, 1, MAX_PAGE_SIZE);
 
     const logs = await ActivityLog.find(filter)
       .sort({ createdAt: -1 })
-      .limit(parseInt(limit))
+      .limit(limit)
       .lean();
 
     res.json({
@@ -1549,16 +1592,28 @@ export const getActivityLog = async (req, res) => {
 export const updateRoomStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status } = req.body || {};
     const { userId, userName } = getCtx(req);
 
-    const room = await Room.findByIdAndUpdate(id, { status }, { new: true });
-    if (!room) return res.status(404).json({ success: false, message: "Room not found" });
-
-    if (status === "available") {
-      room.lastCleaned = new Date();
-      await room.save();
+    if (!ROOM_STATUSES.includes(status)) {
+      return res.status(400).json({ success: false, message: `Status must be one of: ${ROOM_STATUSES.join(", ")}` });
     }
+    const current = await findScoped(Room, req, id);
+    if (!current) return notFound(res, "Room");
+
+    // A room with a guest in it stays occupied (maintenance is still allowed)
+    // until the guest is checked out.
+    if (!["occupied", "maintenance"].includes(status)) {
+      const inHouse = await Booking.exists({ room: current._id, status: "Checked-In" });
+      if (inHouse) {
+        return res.status(409).json({ success: false, message: `Room ${current.roomNumber} has a checked-in guest. Check the guest out first.` });
+      }
+    }
+
+    const update = { status };
+    if (status === "available") update.lastCleaned = new Date();
+    const room = await Room.findOneAndUpdate({ _id: current._id }, update, { new: true, runValidators: true });
+    if (!room) return notFound(res, "Room");
 
     await logActivity({
       hotel: room.hotel,
@@ -1597,8 +1652,8 @@ export const updateGuestStatus = async (req, res) => {
       return res.status(400).json({ success: false, message: "isActive (boolean) is required" });
     }
 
-    const guest = await Guest.findById(id);
-    if (!guest) return res.status(404).json({ success: false, message: "Guest not found" });
+    const guest = await findScoped(Guest, req, id);
+    if (!guest) return notFound(res, "Guest");
 
     guest.isActive = isActive;
     if (!isActive) {
@@ -1642,12 +1697,15 @@ export const flagGuestBlacklist = async (req, res) => {
     if (typeof blacklisted !== "boolean") {
       return res.status(400).json({ success: false, message: "blacklisted (boolean) is required" });
     }
+    if (reason !== undefined && (typeof reason !== "string" || reason.length > 500)) {
+      return res.status(400).json({ success: false, message: "Reason must be text of at most 500 characters." });
+    }
 
-    const guest = await Guest.findById(id);
-    if (!guest) return res.status(404).json({ success: false, message: "Guest not found" });
+    const guest = await findScoped(Guest, req, id);
+    if (!guest) return notFound(res, "Guest");
 
     guest.blacklisted = blacklisted;
-    guest.blacklistReason = blacklisted ? (reason || "") : "";
+    guest.blacklistReason = blacklisted ? (reason || "").trim() : "";
     guest.blacklistedAt = blacklisted ? new Date() : null;
     guest.blacklistedBy = blacklisted ? userId : null;
     await guest.save();
@@ -1684,16 +1742,24 @@ export const flagGuestBlacklist = async (req, res) => {
 export const notifyManagerAboutStaff = async (req, res) => {
   try {
     const { staffId } = req.params;
-    const { reason, urgency = "normal" } = req.body;
-    const { userId, userName, hotel, company } = getCtx(req);
+    const { reason } = req.body || {};
+    const urgency = req.body?.urgency === "high" ? "high" : "normal";
+    const { userId, userName, company, filter: hotelFilter } = getCtx(req);
 
-    if (!reason || !reason.trim()) {
+    if (typeof reason !== "string" || !reason.trim()) {
       return res.status(400).json({ success: false, message: "Reason is required" });
     }
+    if (reason.length > 1000) {
+      return res.status(400).json({ success: false, message: "Reason is limited to 1000 characters." });
+    }
 
-    // Find the staff member being reported
-    const staffMember = await User.findById(staffId).populate("role", "name").lean();
+    // Only staff of the caller's company working at one of the caller's hotels can be reported.
+    const staffMember = isId(staffId)
+      ? await User.findOne({ _id: staffId, company, assignedProperties: hotelFilter.hotel }).populate("role", "name").lean()
+      : null;
     if (!staffMember) return res.status(404).json({ success: false, message: "Staff member not found" });
+    // Log against a hotel the reported member actually works at.
+    const hotel = (staffMember.assignedProperties || []).map(String).find((h) => inScope(req, h));
 
     const staffName = staffMember.fullname || staffMember.username || "Unknown";
     const staffRole = staffMember.companyRole || staffMember.role?.name || "staff";
@@ -1705,7 +1771,7 @@ export const notifyManagerAboutStaff = async (req, res) => {
       entityType: "staff-report",
       entityId: staffId,
       action: "staff-issue-reported",
-      description: `⚠️ <strong>${userName}</strong> reported an issue with <strong>${staffName}</strong> (${staffRole}): "${reason}"`,
+      description: `⚠️ <strong>${userName}</strong> reported an issue with <strong>${staffName}</strong> (${staffRole}): "${reason.trim()}"`,
       icon: "AlertTriangle",
       color: urgency === "high" ? "#dc2626" : "#f59e0b",
       actor: userId,
@@ -1739,15 +1805,19 @@ export const notifyManagerAboutStaff = async (req, res) => {
 
 export const capturePayment = async (req, res) => {
   try {
-    const { bookingId, amount, method, reference, notes } = req.body;
+    const { bookingId, method, reference, notes } = req.body;
+    const amount = Number(req.body?.amount);
     const { userId, userName } = getCtx(req);
 
-    if (!bookingId || !amount || amount <= 0) {
+    if (!bookingId || !Number.isFinite(amount) || amount <= 0) {
       return res.status(400).json({ success: false, message: "bookingId and positive amount are required" });
     }
 
-    const booking = await Booking.findById(bookingId);
-    if (!booking) return res.status(404).json({ success: false, message: "Booking not found" });
+    const booking = await findScoped(Booking, req, bookingId);
+    if (!booking) return notFound(res, "Booking");
+    if (["Cancelled", "No-Show"].includes(booking.status)) {
+      return res.status(409).json({ success: false, message: `Payments can't be recorded on a ${booking.status.toLowerCase()} booking.` });
+    }
 
     const txn = await PaymentTransaction.create({
       hotel: booking.hotel, company: booking.company,
@@ -1787,8 +1857,8 @@ export const refundPayment = async (req, res) => {
     const { reason } = req.body;
     const { userId, userName } = getCtx(req);
 
-    const txn = await PaymentTransaction.findById(id);
-    if (!txn) return res.status(404).json({ success: false, message: "Transaction not found" });
+    const txn = await findScoped(PaymentTransaction, req, id);
+    if (!txn) return notFound(res, "Transaction");
     if (!["captured", "settled"].includes(txn.status)) {
       return res.status(400).json({ success: false, message: `Cannot refund a transaction in '${txn.status}' status` });
     }
@@ -1817,8 +1887,11 @@ export const disputePayment = async (req, res) => {
     const { reason } = req.body;
     const { userId, userName } = getCtx(req);
 
-    const txn = await PaymentTransaction.findById(id);
-    if (!txn) return res.status(404).json({ success: false, message: "Transaction not found" });
+    const txn = await findScoped(PaymentTransaction, req, id);
+    if (!txn) return notFound(res, "Transaction");
+    if (!["captured", "settled"].includes(txn.status)) {
+      return res.status(400).json({ success: false, message: `Cannot dispute a transaction in '${txn.status}' status` });
+    }
 
     txn.status = "disputed";
     txn.disputeReason = reason || "";
@@ -1841,7 +1914,8 @@ export const disputePayment = async (req, res) => {
 export const getBookingPayments = async (req, res) => {
   try {
     const { bookingId } = req.params;
-    const txns = await PaymentTransaction.find({ booking: bookingId })
+    if (!(await findScoped(Booking, req, bookingId))) return notFound(res, "Booking");
+    const txns = await PaymentTransaction.find({ booking: bookingId, ...scopeFilter(req) })
       .sort({ createdAt: -1 }).lean();
 
     const summary = {
@@ -1869,10 +1943,11 @@ export const enqueueOperation = async (req, res) => {
     if (!operationType || !payload) {
       return res.status(400).json({ success: false, message: "operationType and payload are required" });
     }
+    if (!hotel) return res.status(400).json({ success: false, message: "Select a hotel first." });
 
     // Idempotency: if same key exists, return existing op
     if (idempotencyKey) {
-      const existing = await OperationQueue.findOne({ idempotencyKey });
+      const existing = await OperationQueue.findOne({ idempotencyKey: String(idempotencyKey), hotel });
       if (existing) return res.json({ success: true, message: "Operation already queued", data: existing });
     }
 
@@ -1900,8 +1975,8 @@ export const enqueueOperation = async (req, res) => {
 
 export const syncOperations = async (req, res) => {
   try {
-    const { hotel, company, userId, userName } = getCtx(req);
-    const filter = company ? { company, status: "queued" } : hotel ? { hotel, status: "queued" } : { status: "queued" };
+    const { filter: hotelFilter, userId, userName } = getCtx(req);
+    const filter = { ...hotelFilter, status: "queued" };
 
     const ops = await OperationQueue.find(filter)
       .sort({ priority: -1, createdAt: 1 })
@@ -1919,26 +1994,27 @@ export const syncOperations = async (req, res) => {
         let result;
         switch (op.operationType) {
           case "check-in": {
-            const booking = await Booking.findById(op.payload.bookingId);
-            if (booking && booking.status !== "Checked-In") {
+            // The queued op's own hotel bounds which booking it may touch.
+            const booking = isId(op.payload?.bookingId) ? await Booking.findOne({ _id: op.payload.bookingId, hotel: op.hotel }) : null;
+            if (booking && CHECKIN_FROM.includes(booking.status)) {
               booking.status = "Checked-In";
               await booking.save();
               if (booking.room) await Room.findByIdAndUpdate(booking.room, { status: "occupied" });
               result = { bookingId: booking._id, status: "Checked-In" };
             } else {
-              result = { skipped: true, reason: booking ? "Already checked in" : "Booking not found" };
+              result = { skipped: true, reason: booking ? `Booking is ${booking.status}` : "Booking not found" };
             }
             break;
           }
           case "check-out": {
-            const booking = await Booking.findById(op.payload.bookingId);
-            if (booking && booking.status !== "Checked-Out") {
+            const booking = isId(op.payload?.bookingId) ? await Booking.findOne({ _id: op.payload.bookingId, hotel: op.hotel }) : null;
+            if (booking && booking.status === "Checked-In") {
               booking.status = "Checked-Out";
               await booking.save();
               if (booking.room) await Room.findByIdAndUpdate(booking.room, { status: "cleaning" });
               result = { bookingId: booking._id, status: "Checked-Out" };
             } else {
-              result = { skipped: true, reason: booking ? "Already checked out" : "Booking not found" };
+              result = { skipped: true, reason: booking ? `Booking is ${booking.status}` : "Booking not found" };
             }
             break;
           }
@@ -1973,10 +2049,9 @@ export const syncOperations = async (req, res) => {
 
 export const getPendingOperations = async (req, res) => {
   try {
-    const { hotel, company } = getCtx(req);
-    const filter = company ? { company } : hotel ? { hotel } : {};
+    const { filter } = getCtx(req);
     const { status = "queued" } = req.query;
-    if (status !== "all") filter.status = status;
+    if (status !== "all") filter.status = String(status);
 
     const ops = await OperationQueue.find(filter)
       .sort({ priority: -1, createdAt: -1 })
@@ -1998,21 +2073,23 @@ export const closeShift = async (req, res) => {
     const { hotel, company, userId, userName } = getCtx(req);
 
     if (!shiftType) return res.status(400).json({ success: false, message: "shiftType is required" });
+    if (!hotel) return res.status(400).json({ success: false, message: "Select a hotel first." });
 
-    const start = shiftStart ? new Date(shiftStart) : (() => { const d = new Date(); d.setHours(d.getHours() - 8); return d; })();
+    const parsedStart = shiftStart ? new Date(shiftStart) : null;
+    const start = parsedStart && !Number.isNaN(parsedStart.getTime()) ? parsedStart : new Date(Date.now() - 8 * 60 * 60 * 1000);
     const end = new Date();
 
     // Auto-aggregate stats for this shift window
-    const bookingFilter = company ? { company } : hotel ? { hotel } : {};
+    const bookingFilter = scopeFilter(req);
     const [checkIns, checkOuts, paymentTxns, guestReqs, hkTasks] = await Promise.all([
       Booking.countDocuments({ ...bookingFilter, status: "Checked-In", updatedAt: { $gte: start, $lte: end } }),
       Booking.countDocuments({ ...bookingFilter, status: "Checked-Out", updatedAt: { $gte: start, $lte: end } }),
       PaymentTransaction.aggregate([
-        { $match: { ...(company ? { company } : hotel ? { hotel } : {}), status: "captured", createdAt: { $gte: start, $lte: end } } },
+        { $match: { ...bookingFilter, status: "captured", createdAt: { $gte: start, $lte: end } } },
         { $group: { _id: null, total: { $sum: "$amount" }, count: { $sum: 1 } } },
       ]),
-      GuestRequest.countDocuments({ ...(company ? { company } : hotel ? { hotel } : {}), status: "resolved", updatedAt: { $gte: start, $lte: end } }),
-      HousekeepingTask.countDocuments({ ...(company ? { company } : hotel ? { hotel } : {}), status: { $in: ["clean", "inspected"] }, updatedAt: { $gte: start, $lte: end } }),
+      GuestRequest.countDocuments({ ...bookingFilter, status: "resolved", updatedAt: { $gte: start, $lte: end } }),
+      HousekeepingTask.countDocuments({ ...bookingFilter, status: { $in: ["clean", "inspected"] }, updatedAt: { $gte: start, $lte: end } }),
     ]);
 
     const handover = await ShiftHandover.create({
@@ -2053,21 +2130,20 @@ export const closeShift = async (req, res) => {
 
 export const getCurrentShiftSummary = async (req, res) => {
   try {
-    const { hotel, company } = getCtx(req);
+    const { filter: bookingFilter } = getCtx(req);
 
     // Approximate shift start: beginning of last 8-hour window
     const shiftStart = new Date(Date.now() - 8 * 60 * 60 * 1000);
-    const bookingFilter = company ? { company } : hotel ? { hotel } : {};
 
     const [checkIns, checkOuts, paymentTxns, pendingRequests, pendingOps] = await Promise.all([
       Booking.countDocuments({ ...bookingFilter, status: "Checked-In", updatedAt: { $gte: shiftStart } }),
       Booking.countDocuments({ ...bookingFilter, status: "Checked-Out", updatedAt: { $gte: shiftStart } }),
       PaymentTransaction.aggregate([
-        { $match: { ...(company ? { company } : hotel ? { hotel } : {}), status: "captured", createdAt: { $gte: shiftStart } } },
+        { $match: { ...bookingFilter, status: "captured", createdAt: { $gte: shiftStart } } },
         { $group: { _id: null, total: { $sum: "$amount" }, count: { $sum: 1 } } },
       ]),
-      GuestRequest.countDocuments({ ...(company ? { company } : hotel ? { hotel } : {}), status: { $in: ["open", "assigned"] } }),
-      OperationQueue.countDocuments({ ...(company ? { company } : hotel ? { hotel } : {}), status: "queued" }),
+      GuestRequest.countDocuments({ ...bookingFilter, status: { $in: ["open", "assigned"] } }),
+      OperationQueue.countDocuments({ ...bookingFilter, status: "queued" }),
     ]);
 
     res.json({
@@ -2089,20 +2165,20 @@ export const getCurrentShiftSummary = async (req, res) => {
 
 export const getShiftHistory = async (req, res) => {
   try {
-    const { hotel, company } = getCtx(req);
-    const { page = 1, limit = 20 } = req.query;
-    const filter = company ? { company } : hotel ? { hotel } : {};
+    const { filter } = getCtx(req);
+    const page = clampInt(req.query.page, 1, 1, 100000);
+    const limit = clampInt(req.query.limit, 20, 1, MAX_PAGE_SIZE);
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const skip = (page - 1) * limit;
     const [shifts, total] = await Promise.all([
-      ShiftHandover.find(filter).sort({ shiftEnd: -1 }).skip(skip).limit(parseInt(limit)).lean(),
+      ShiftHandover.find(filter).sort({ shiftEnd: -1 }).skip(skip).limit(limit).lean(),
       ShiftHandover.countDocuments(filter),
     ]);
 
     res.json({
       success: true,
       data: shifts,
-      pagination: { page: parseInt(page), limit: parseInt(limit), total, pages: Math.ceil(total / parseInt(limit)) },
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -2111,7 +2187,8 @@ export const getShiftHistory = async (req, res) => {
 
 export const getShiftById = async (req, res) => {
   try {
-    const shift = await ShiftHandover.findById(req.params.id)
+    if (!isId(req.params.id)) return notFound(res, "Shift record");
+    const shift = await ShiftHandover.findOne({ _id: req.params.id, ...scopeFilter(req) })
       .populate("closedBy", "fullname profilePicture")
       .populate("acknowledgedBy", "fullname profilePicture")
       .lean();
@@ -2127,8 +2204,8 @@ export const acknowledgeShift = async (req, res) => {
     const { id } = req.params;
     const { userId, userName } = getCtx(req);
 
-    const shift = await ShiftHandover.findById(id);
-    if (!shift) return res.status(404).json({ success: false, message: "Shift record not found" });
+    const shift = await findScoped(ShiftHandover, req, id);
+    if (!shift) return notFound(res, "Shift record");
     if (shift.status === "acknowledged") {
       return res.status(409).json({ success: false, message: "Shift already acknowledged" });
     }
