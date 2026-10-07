@@ -612,7 +612,7 @@ const CheckInOutView = () => {
 
       {/* Cards Grid */}
       {!isLoading && filteredData.length > 0 && (
-        <div className="cio-cards-grid grid gap-5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))' }}>
+        <div className="cio-cards-grid grid gap-5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(340px, 100%), 1fr))' }}>
           {filteredData.map(item => (
             <div key={item.id} className="cio-card rounded-xl p-5 transition-all duration-200 hover:shadow-lg">
               <div className="cio-card-header flex items-center gap-3 mb-4 pb-4 border-b border-slate-100 dark:border-slate-700">
@@ -639,7 +639,7 @@ const CheckInOutView = () => {
                 )}
                 <div className="cio-guest-info flex flex-col flex-1">
                   <span className="cio-guest-name font-semibold">{item.guest.name}</span>
-                  <span className="cio-booking-id text-sm text-slate-500">{item.bookingId}</span>
+                  <span className="cio-booking-id text-sm text-slate-500" title={item.bookingId}>{item.bookingId}</span>
                 </div>
                 {getStatusBadge(item.status)}
               </div>
@@ -668,7 +668,7 @@ const CheckInOutView = () => {
                 {activeTab === 'departures' && item.balance > 0 && (
                   <div className="cio-info-row cio-balance-warning">
                     <span className="cio-info-label">Outstanding Balance</span>
-                    <span className="cio-info-value cio-balance">₹{item.balance.toLocaleString()}</span>
+                    <span className="cio-info-value cio-balance">Rs. {Number(item.balance || 0).toLocaleString('en-IN')}</span>
                   </div>
                 )}
                 {item.specialRequests && (
@@ -784,7 +784,7 @@ const CheckInOutView = () => {
                       <div className="flex flex-col">
                         <span className="label text-xs text-slate-500">Outstanding Balance</span>
                         <span className={`value text-sm font-medium ${selectedGuest.balance > 0 ? 'warning text-amber-600' : 'success text-green-600'}`}>
-                          {selectedGuest.balance > 0 ? `₹${selectedGuest.balance.toLocaleString()}` : 'Settled'}
+                          {selectedGuest.balance > 0 ? `Rs. ${Number(selectedGuest.balance).toLocaleString('en-IN')}` : 'Settled'}
                         </span>
                       </div>
                     </div>
@@ -793,7 +793,7 @@ const CheckInOutView = () => {
                         <FileText size={18} className="text-slate-500 shrink-0" />
                         <div className="flex flex-col">
                           <span className="label text-xs text-slate-500">Minibar Charges</span>
-                          <span className="value text-sm font-medium">₹{selectedGuest.minibarCharges.toLocaleString()}</span>
+                          <span className="value text-sm font-medium">Rs. {Number(selectedGuest.minibarCharges || 0).toLocaleString('en-IN')}</span>
                         </div>
                       </div>
                     )}

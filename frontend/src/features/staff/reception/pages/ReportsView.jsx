@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import './ReportsView.css';
 import * as receptionApi from '../../../../core/api/services/reception.service';
+import SafeActivityText from '../components/SafeActivityText';
 
 const ReportsView = () => {
   const { isDark } = useTheme();
@@ -404,7 +405,7 @@ const ReportsView = () => {
                         {activity.guest && activity.type === 'housekeeping' && `Room ${activity.room} - ${activity.status}`}
                         {activity.guest && activity.type === 'maintenance' && `Room ${activity.room} - Maintenance ${activity.status}`}
                         {!activity.guest && activity.description && (
-                          <span dangerouslySetInnerHTML={{ __html: activity.description }} />
+                          <span><SafeActivityText text={activity.description} /></span>
                         )}
                         {!activity.guest && !activity.description && `${activity.type} activity`}
                       </span>

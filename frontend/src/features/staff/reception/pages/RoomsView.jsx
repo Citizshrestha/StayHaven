@@ -60,7 +60,8 @@ const RoomsView = () => {
             const res = await receptionApi.getRoomsList();
             if (res?.success && res.data) {
                 const mapped = res.data.map(r => {
-                    const bedRaw = r.beds || r.bedType || 'Queen';
+                    // No bed data → no bed row (don't invent "Queen").
+                    const bedRaw = r.beds || r.bedType || '';
                     const bedFormatted = bedRaw.includes('King') ? (bedRaw.includes('+') || bedRaw.includes('2') ? bedRaw : '1 King')
                         : bedRaw.includes('Queen') ? '1 Queen'
                         : bedRaw.includes('Twin') ? '2 Twin' : bedRaw;
@@ -599,17 +600,19 @@ const RoomsView = () => {
                                 </div>
 
                                 <div className="rv-room-details">
-                                    <div className="rv-room-detail">
-                                        <Bed size={14} />
-                                        <span>{room.beds}</span>
-                                    </div>
+                                    {room.beds && (
+                                        <div className="rv-room-detail">
+                                            <Bed size={14} aria-hidden="true" />
+                                            <span>{room.beds}</span>
+                                        </div>
+                                    )}
                                     <div className="rv-room-detail">
                                         <Users size={14} />
                                         <span>Max {room.maxGuests}</span>
                                     </div>
                                     <div className="rv-room-detail">
                                         <DollarSign size={14} />
-                                        <span>₹{room.basePrice}/night</span>
+                                        <span>Rs. {Number(room.basePrice || 0).toLocaleString('en-IN')}/night</span>
                                     </div>
                                 </div>
 

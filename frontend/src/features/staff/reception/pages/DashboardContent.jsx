@@ -18,6 +18,7 @@ import {
 } from './ActionModals';
 import * as msgService from '../../../../core/api/services/messaging.service';
 import * as receptionApi from '../../../../core/api/services/reception.service';
+import SafeActivityText from '../components/SafeActivityText';
 
 /* ── Guest request rows (portal, room QR) for the dashboard queue ── */
 const REQUEST_ICONS = { 'Room Service': ConciergeBell, 'Checkout': Clock, 'Maintenance': Wrench, 'Amenities': Coffee, 'Other': AlertTriangle };
@@ -272,7 +273,7 @@ const EnhancedDonutChart = ({ segments }) => {
         </div>
         {total > 0 && (
         <span className="sh-v2-badge up">
-          <TrendingUp size={12} /> ₹{total.toLocaleString()}
+          <TrendingUp size={12} /> Rs. {Number(total || 0).toLocaleString('en-IN')}
         </span>
         )}
       </div>
@@ -313,7 +314,7 @@ const EnhancedDonutChart = ({ segments }) => {
               className="sh-v2-center-label">Total</text>
             <text x={cx} y={cy + 12} textAnchor="middle" fontSize="18" fontWeight="800"
               fill="var(--text-primary)" fontFamily="'Plus Jakarta Sans', sans-serif"
-              className="sh-v2-center-value">₹{(total / 1000).toFixed(0)}k</text>
+              className="sh-v2-center-value">Rs. {(total / 1000).toFixed(0)}k</text>
           </svg>
         </div>
 
@@ -328,7 +329,7 @@ const EnhancedDonutChart = ({ segments }) => {
                 <div className="sh-v2-legend-dot" style={{ background: seg.color }} />
                 <span className="sh-v2-legend-label">{seg.label}</span>
                 <div className="sh-v2-legend-right">
-                  <span className="sh-v2-legend-val">₹{(seg.value / 1000).toFixed(0)}k</span>
+                  <span className="sh-v2-legend-val">Rs. {(seg.value / 1000).toFixed(0)}k</span>
                   <span className="sh-v2-legend-pct">{pct}%</span>
                 </div>
               </div>
@@ -583,9 +584,9 @@ const DashboardContent = ({ onNavigate }) => {
             { title: "Check-ins", value: String(s.checkIns?.value ?? 0), sub: `/${s.checkIns?.total ?? 0}`, trend: s.checkIns?.trend ?? '+0%', up: !String(s.checkIns?.trend).startsWith('-'), icon: CalendarCheck, color: '#6366f1', sparkline: s.checkIns?.sparkline ?? [0,0,0,0,0,0,0] },
             { title: "Check-outs", value: String(s.checkOuts?.value ?? 0), sub: `/${s.checkOuts?.total ?? 0}`, trend: s.checkOuts?.trend ?? '+0%', up: !String(s.checkOuts?.trend).startsWith('-'), icon: LogOutIcon, color: '#f97316', sparkline: s.checkOuts?.sparkline ?? [0,0,0,0,0,0,0] },
             { title: "Occupancy", value: String(s.occupancy?.value ?? 0), sub: '%', trend: s.occupancy?.trend ?? '+0%', up: !String(s.occupancy?.trend).startsWith('-'), icon: Building2, color: '#10b981', sparkline: s.occupancy?.sparkline ?? [0,0,0,0,0,0,0] },
-            { title: "Revenue", value: s.revenue?.value ?? '₹0', sub: '', trend: s.revenue?.trend ?? '+0%', up: !String(s.revenue?.trend).startsWith('-'), icon: DollarSign, color: '#8b5cf6', sparkline: s.revenue?.sparkline ?? [0,0,0,0,0,0,0] },
-            { title: "Pending Pay", value: String(s.pendingPayments?.value ?? 0), sub: '', trend: s.pendingPayments?.trend ?? '0', up: !String(s.pendingPayments?.trend).startsWith('+'), icon: CreditCard, color: '#f59e0b', sparkline: s.pendingPayments?.sparkline ?? [0,0,0,0,0,0,0] },
-            { title: "Available", value: String(s.availableRooms?.value ?? 0), sub: '', trend: s.availableRooms?.trend ?? '0', up: false, icon: Bed, color: '#06b6d4', sparkline: s.availableRooms?.sparkline ?? [0,0,0,0,0,0,0] },
+            { title: "Revenue", value: s.revenue?.value ?? 'Rs. 0', sub: '', trend: s.revenue?.trend ?? '+0%', up: !String(s.revenue?.trend).startsWith('-'), icon: DollarSign, color: '#8b5cf6', sparkline: s.revenue?.sparkline ?? [0,0,0,0,0,0,0] },
+            { title: "Pending Pay", value: String(s.pendingPayments?.value ?? 0), sub: '', trend: s.pendingPayments?.trend ?? null, up: false, icon: CreditCard, color: '#f59e0b', sparkline: s.pendingPayments?.sparkline ?? [0,0,0,0,0,0,0] },
+            { title: "Available", value: String(s.availableRooms?.value ?? 0), sub: '', trend: s.availableRooms?.trend ?? null, up: false, icon: Bed, color: '#06b6d4', sparkline: s.availableRooms?.sparkline ?? [0,0,0,0,0,0,0] },
           ]);
           setOccupancyPct(s.occupancy?.value ?? 0);
         }
@@ -961,15 +962,17 @@ const DashboardContent = ({ onNavigate }) => {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
                   <h2 className="sh-kpi-value">
-                    {String(kpi.value).startsWith('₹') ? kpi.value : <AnimatedNumber value={kpi.value} />}
+                    {/^(Rs|₹)/.test(String(kpi.value)) ? kpi.value : <AnimatedNumber value={kpi.value} />}
                   </h2>
                   {kpi.sub && <span className="sh-kpi-sub">{kpi.sub}</span>}
                 </div>
                 <Sparkline data={kpi.sparkline} color={kpi.color} />
-                <div className={`sh-kpi-trend ${kpi.up ? 'up' : 'down'}`}>
-                  {kpi.up ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
-                  <span>{kpi.trend} vs yesterday</span>
-                </div>
+                {kpi.trend != null && (
+                  <div className={`sh-kpi-trend ${kpi.up ? 'up' : 'down'}`}>
+                    {kpi.up ? <ArrowUpRight size={13} aria-hidden="true" /> : <ArrowDownRight size={13} aria-hidden="true" />}
+                    <span>{kpi.trend} vs yesterday</span>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -1161,7 +1164,7 @@ const DashboardContent = ({ onNavigate }) => {
                           <Icon size={16} style={{ color: a.color }} />
                         </div>
                         <div className="sh-activity-content">
-                          <div className="sh-activity-text">{a.live && <span className="sh-activity-live-dot" />}<span dangerouslySetInnerHTML={{ __html: a.text }} /></div>
+                          <div className="sh-activity-text">{a.live && <span className="sh-activity-live-dot" />}<span><SafeActivityText text={a.text} /></span></div>
                           <div className="sh-activity-time">{a.time}</div>
                         </div>
                       </div>

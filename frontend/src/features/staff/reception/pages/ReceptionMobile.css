@@ -1,0 +1,180 @@
+/* ============================================================================
+ * Reception — responsive + touch layer (rules F/G)
+ * Loaded after ReceptionDashboard.css. Every selector is prefixed with
+ * `.reception-dashboard` so it wins over the per-view stylesheets that load
+ * later, without !important.
+ * ========================================================================== */
+
+/* Grid/flex children default to min-width:auto, so one wide row (chip strips,
+   long guest emails) used to push whole columns past the viewport. */
+.reception-dashboard .sh-grid-main > *,
+.reception-dashboard .sh-col > *,
+.reception-dashboard .sh-dual-tables > *,
+.reception-dashboard .sh-bottom-widgets > *,
+.reception-dashboard .sh-kpi-grid > *,
+.reception-dashboard .rv-content-grid > *,
+.reception-dashboard .rv-metrics-grid > * {
+  min-width: 0;
+}
+.reception-dashboard .rv-card { max-width: 100%; overflow-x: auto; }
+
+/* Booking ids (long UUID-style refs) stay on one line with a title tooltip. */
+.reception-dashboard .bv-grid-id {
+  min-width: 0;
+  flex: 1 1 auto;
+  margin-right: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reception-dashboard .cio-guest-info { min-width: 0; }
+.reception-dashboard .cio-booking-id {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 480px) {
+  .reception-dashboard .cio-card { padding: 16px; }
+  .reception-dashboard .cio-card-header { flex-wrap: wrap; }
+}
+
+/* Long names / emails / Devanagari truncate instead of overflowing. */
+.reception-dashboard .bv-guest-details,
+.reception-dashboard .bl-invoice-guest-info {
+  min-width: 0;
+}
+.reception-dashboard .bv-guest-name,
+.reception-dashboard .bv-guest-email,
+.reception-dashboard .bl-guest-name,
+.reception-dashboard .bl-booking-id {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Horizontal chip/action strips scroll inside themselves on phones. */
+@media (max-width: 768px) {
+  .reception-dashboard .sh-quick-actions {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 4px;
+  }
+  .reception-dashboard .sh-quick-actions::-webkit-scrollbar { display: none; }
+  .reception-dashboard .sh-qa-btn { flex: 0 0 auto; }
+
+  /* 16 px page gutters on phones. */
+  .reception-dashboard .sh-dashboard { padding: 16px; }
+
+  /* Modals become full-width sheets with inner scroll and a sticky footer. */
+  .reception-dashboard .bl-modal-content {
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100vh - 32px);
+    max-height: calc(100dvh - 32px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-radius: 16px 16px 0 0;
+    margin-top: auto;
+  }
+  .reception-dashboard .bl-modal-overlay { align-items: flex-end; padding: 0; }
+  .reception-dashboard .bl-modal-actions {
+    position: sticky;
+    bottom: 0;
+    background: var(--bg-surface);
+    padding-top: 12px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    flex-wrap: wrap;
+  }
+  .reception-dashboard .bl-modal-actions > * { flex: 1 1 140px; }
+  .reception-dashboard .bl-modal-body [style*="grid-template-columns: 1fr 1fr"] {
+    grid-template-columns: 1fr !important; /* inline style in BillingView */
+  }
+
+  /* Rooms board: readable two-column grid on phones; status badge wraps under the number. */
+  .reception-dashboard .rv-rooms-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .reception-dashboard .rv-room-header { flex-wrap: wrap; gap: 6px; }
+  .reception-dashboard .rv-room-status { font-size: 12px; max-width: 100%; }
+  .reception-dashboard .rv-room-type-row,
+  .reception-dashboard .rv-room-info { flex-wrap: wrap; gap: 4px; }
+
+  /* Filter rows: search full width, dropdowns side by side. */
+  .reception-dashboard .rv-filter-bar {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .reception-dashboard .rv-filter-bar > .rv-search-wrapper,
+  .reception-dashboard .rv-filter-bar > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+  .reception-dashboard .rv-filter-bar .rv-filter-btn { width: 100%; justify-content: space-between; }
+}
+
+/* Shared messaging FAB sits above the bottom nav instead of on top of it (REQ-reception-3). */
+@media (max-width: 768px) {
+  .reception-dashboard .msg-fab {
+    bottom: calc(var(--sh-mobile-nav-h) + env(safe-area-inset-bottom, 0px) + 12px);
+    right: 16px;
+    width: 52px;
+    height: 52px;
+  }
+}
+
+/* Inputs ≥ 16 px on touch-sized screens (stops iOS zoom on focus). */
+@media (max-width: 1024px), (pointer: coarse) {
+  .reception-dashboard input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  .reception-dashboard select,
+  .reception-dashboard textarea {
+    font-size: 16px;
+  }
+}
+
+/* 44 px tap targets for touch input. */
+@media (pointer: coarse) {
+  .reception-dashboard .reception-main-content button,
+  .reception-dashboard .reception-main-content [role="button"],
+  .reception-dashboard .reception-main-content select {
+    min-height: var(--sh-btn-h-touch);
+  }
+  .reception-dashboard .reception-main-content button:has(> svg:only-child) {
+    min-width: var(--sh-btn-h-touch);
+  }
+}
+
+/* Visible keyboard focus everywhere in the dashboard. */
+.reception-dashboard :is(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent-indigo);
+  outline-offset: 2px;
+}
+
+/* Money and counts line up. */
+.reception-dashboard .sh-kpi-value,
+.reception-dashboard .bl-stat-number,
+.reception-dashboard .bl-amount-row span:last-child {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reception-dashboard *,
+  .reception-dashboard *::before,
+  .reception-dashboard *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Print: only the content, no chrome. */
+@media print {
+  .reception-dashboard .sh-sidebar,
+  .reception-dashboard .sh-mobile-nav,
+  .reception-dashboard .sh-topbar { display: none !important; }
+  .reception-dashboard .reception-main-content { padding: 0; overflow: visible; }
+}

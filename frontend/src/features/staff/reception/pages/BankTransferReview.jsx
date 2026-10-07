@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getPendingBankTransfers, approveBankTransfer, rejectBankTransfer } from '../../../../core/api/services/reception.service';
 
-const money = value => `Rs ${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const money = value => `Rs. ${Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+// 44px touch targets and 16px inputs (no iOS zoom on focus).
+const BTN = 'min-h-[44px] rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50';
+const INPUT = 'mt-1 block w-full min-h-[44px] rounded-lg border border-slate-300 bg-white p-2 text-base';
 
 export default function BankTransferReview({ onSettled }) {
   const [items, setItems] = useState([]);
@@ -56,7 +59,7 @@ export default function BankTransferReview({ onSettled }) {
           <h2 className="text-lg font-semibold text-slate-900">Bank transfers awaiting verification</h2>
           <p className="text-sm text-slate-600">Compare each transfer with the hotel bank statement before approving it. Guests stay unpaid until approval.</p>
         </div>
-        <button type="button" onClick={refresh} disabled={loading || busy} className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 disabled:opacity-50">Refresh</button>
+        <button type="button" onClick={refresh} disabled={loading || busy} className={`${BTN} border border-slate-300 text-slate-700`}>Refresh</button>
       </div>
       {error && <p role="alert" className="mb-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       {loading ? <p className="text-sm text-slate-500">Loading transfers…</p> : items.length === 0 ?
@@ -69,8 +72,8 @@ export default function BankTransferReview({ onSettled }) {
               <p className="text-xs text-slate-500">Submitted {new Date(item.createdAt).toLocaleString()}</p>
             </div>
             <div className="flex gap-2 mt-3 sm:mt-0">
-              <button type="button" onClick={() => choose(item, 'approve')} className="rounded-lg bg-teal-700 px-3 py-2 text-sm font-semibold text-white">Review to approve</button>
-              <button type="button" onClick={() => choose(item, 'reject')} className="rounded-lg border border-red-300 px-3 py-2 text-sm font-semibold text-red-700">Reject</button>
+              <button type="button" onClick={() => choose(item, 'approve')} className={`${BTN} bg-teal-700 text-white`}>Review to approve</button>
+              <button type="button" onClick={() => choose(item, 'reject')} className={`${BTN} border border-red-300 text-red-700`}>Reject</button>
             </div>
           </div>)}
         </div>}
@@ -79,14 +82,14 @@ export default function BankTransferReview({ onSettled }) {
         {selected.action === 'approve' ? <>
           <p className="mt-1 text-sm text-slate-700">Check the bank statement for the exact amount and reference. Approval marks the guest’s bill paid.</p>
           <label className="mt-3 block text-sm font-medium text-slate-800">Reference shown on bank statement
-            <input value={reference} onChange={e => setReference(e.target.value)} autoComplete="off" className="mt-1 block w-full rounded-lg border border-slate-300 bg-white p-2" />
+            <input value={reference} onChange={e => setReference(e.target.value)} autoComplete="off" maxLength={100} className={INPUT} />
           </label>
         </> : <label className="mt-3 block text-sm font-medium text-slate-800">Reason for rejection
-          <input value={reason} onChange={e => setReason(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white p-2" />
+          <input value={reason} onChange={e => setReason(e.target.value)} maxLength={500} className={INPUT} />
         </label>}
         <div className="flex gap-2 mt-3">
-          <button type="button" onClick={submit} disabled={busy} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{busy ? 'Saving…' : selected.action === 'approve' ? 'Confirm verified transfer' : 'Confirm rejection'}</button>
-          <button type="button" onClick={() => setSelected(null)} disabled={busy} className="rounded-lg border border-slate-300 px-4 py-2 text-sm">Cancel</button>
+          <button type="button" onClick={submit} disabled={busy} className={`${BTN} bg-slate-900 text-white`}>{busy ? 'Saving…' : selected.action === 'approve' ? 'Confirm verified transfer' : 'Confirm rejection'}</button>
+          <button type="button" onClick={() => setSelected(null)} disabled={busy} className={`${BTN} border border-slate-300`}>Cancel</button>
         </div>
       </div>}
     </section>
