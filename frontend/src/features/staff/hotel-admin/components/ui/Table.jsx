@@ -12,11 +12,13 @@ import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
  *     <tbody>...</tbody>
  *   </Table>
  */
-export default function Table({ children, className = '', minWidth }) {
+// `stack`: below 640px rows render as cards; each <td> supplies data-label
+// (or data-primary for the card title, data-actions for the action row).
+export default function Table({ children, className = '', minWidth, stack = false }) {
   return (
-    <div className="ha-table-wrap">
+    <div className={`ha-table-wrap${stack ? ' ha-table-wrap--stack' : ''}`}>
       <div className="ha-table-scroll">
-        <table className={`ha-table ${className}`} style={minWidth ? { minWidth } : undefined}>
+        <table className={`ha-table${stack ? ' ha-table--stack' : ''} ${className}`} style={minWidth ? { minWidth } : undefined}>
           {children}
         </table>
       </div>

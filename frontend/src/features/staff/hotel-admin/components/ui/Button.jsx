@@ -10,8 +10,10 @@ const Button = React.forwardRef(function Button(
     variant = 'primary',
     size = 'md',
     block = false,
+    loading = false,
     className = '',
     type = 'button',
+    disabled,
     children,
     ...rest
   },
@@ -28,7 +30,15 @@ const Button = React.forwardRef(function Button(
     .join(' ');
 
   return (
-    <button ref={ref} type={type} className={cls} {...rest}>
+    <button
+      ref={ref}
+      type={type}
+      className={cls}
+      disabled={disabled || loading}
+      aria-busy={loading ? 'true' : undefined}
+      {...rest}
+    >
+      {loading && <span className="ha-btn__spinner" aria-hidden="true" />}
       {children}
     </button>
   );

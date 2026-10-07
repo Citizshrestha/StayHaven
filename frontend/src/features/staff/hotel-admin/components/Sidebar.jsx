@@ -35,6 +35,28 @@ import styles from './Sidebar.module.css';
  *   onToggleCollapse   toggle icon-rail
  *   onMobileClose      close off-canvas drawer (mobile)
  */
+const NavItem = ({ id, label, Icon, iconClass, badge, badgeClass, activeSection, onNav, collapsed }) => {
+  const active = activeSection === id;
+  return (
+    <button
+      type="button"
+      className={`${styles.navItem}${active ? ` ${styles.active}` : ''}`}
+      onClick={() => onNav(id)}
+      aria-current={active ? 'page' : undefined}
+      title={collapsed ? label : undefined}
+      aria-label={badge > 0 ? `${label}, ${badge}` : undefined}
+    >
+      <span className={`${styles.iconWrap} ${styles[iconClass]}`}>
+        {React.createElement(Icon, { size: 16, strokeWidth: 2, 'aria-hidden': true })}
+      </span>
+      <span className={styles.navLabel}>{label}</span>
+      {badge !== undefined && badge !== null && badge > 0 && (
+        <span className={`${styles.badge} ${styles[badgeClass]}`} aria-hidden="true">{badge}</span>
+      )}
+    </button>
+  );
+};
+
 const Sidebar = ({
   activeSection,
   onNavigate,
@@ -52,30 +74,14 @@ const Sidebar = ({
   const adminName = staffUser?.fullname || 'Admin';
   const avatarInitial = adminName.charAt(0).toUpperCase();
 
-  const isActive = (id) => activeSection === id;
-
   const handleNav = (id) => {
     onNavigate(id);
     onMobileClose?.();
   };
 
-  const NavItem = ({ id, label, Icon, iconClass, badge, badgeClass }) => (
-    <button
-      type="button"
-      className={`${styles.navItem}${isActive(id) ? ` ${styles.active}` : ''}`}
-      onClick={() => handleNav(id)}
-      aria-current={isActive(id) ? 'page' : undefined}
-      title={collapsed ? label : undefined}
-    >
-      <span className={`${styles.iconWrap} ${styles[iconClass]}`}>
-        {React.createElement(Icon, { size: 16, strokeWidth: 2, 'aria-hidden': true })}
-      </span>
-      <span className={styles.navLabel}>{label}</span>
-      {badge !== undefined && badge !== null && badge > 0 && (
-        <span className={`${styles.badge} ${styles[badgeClass]}`}>{badge}</span>
-      )}
-    </button>
-  );
+  // Shared props for every nav item (NavItem lives outside render so focus
+  // isn't lost when badge counts update).
+  const nav = { activeSection, onNav: handleNav, collapsed };
 
   return (
     <aside
@@ -117,29 +123,29 @@ const Sidebar = ({
         </button>
 
         <span className={`${styles.sectionLabel} ${styles.sectionLabelFirst}`}>Main</span>
-        <NavItem id="dashboard" label="Dashboard" Icon={LayoutGrid} iconClass="iconDashboard" />
-        <NavItem id="rooms" label="Rooms" Icon={BedDouble} iconClass="iconRooms" badge={roomCount} badgeClass="badgeGreen" />
+        <NavItem {...nav} id="dashboard" label="Dashboard" Icon={LayoutGrid} iconClass="iconDashboard" />
+        <NavItem {...nav} id="rooms" label="Rooms" Icon={BedDouble} iconClass="iconRooms" badge={roomCount} badgeClass="badgeGreen" />
 
         <span className={styles.sectionLabel}>Operations</span>
-        <NavItem id="restaurant" label="Restaurant" Icon={UtensilsCrossed} iconClass="iconRestaurant" />
-        <NavItem id="tables" label="Table QR Codes" Icon={QrCode} iconClass="iconTableQR" />
-        <NavItem id="roomqr" label="Room QR Codes" Icon={QrCode} iconClass="iconRoomQR" />
-        <NavItem id="orders" label="Orders" Icon={ShoppingBag} iconClass="iconOrders" badge={activeOrders} badgeClass="badgeAmber" />
-        <NavItem id="stock" label="Stock / Inventory" Icon={Package} iconClass="iconStock" />
+        <NavItem {...nav} id="restaurant" label="Restaurant" Icon={UtensilsCrossed} iconClass="iconRestaurant" />
+        <NavItem {...nav} id="tables" label="Table QR Codes" Icon={QrCode} iconClass="iconTableQR" />
+        <NavItem {...nav} id="roomqr" label="Room QR Codes" Icon={QrCode} iconClass="iconRoomQR" />
+        <NavItem {...nav} id="orders" label="Orders" Icon={ShoppingBag} iconClass="iconOrders" badge={activeOrders} badgeClass="badgeAmber" />
+        <NavItem {...nav} id="stock" label="Stock / Inventory" Icon={Package} iconClass="iconStock" />
 
         <span className={styles.sectionLabel}>People</span>
-        <NavItem id="staff" label="Staff Management" Icon={Users} iconClass="iconStaff" />
+        <NavItem {...nav} id="staff" label="Staff Management" Icon={Users} iconClass="iconStaff" />
 
         <span className={styles.sectionLabel}>Finance</span>
-        <NavItem id="billing" label="Billing & Payments" Icon={CreditCard} iconClass="iconBilling" />
-        <NavItem id="loyalty" label="Loyalty Points" Icon={Star} iconClass="iconLoyalty" />
+        <NavItem {...nav} id="billing" label="Billing & Payments" Icon={CreditCard} iconClass="iconBilling" />
+        <NavItem {...nav} id="loyalty" label="Loyalty Points" Icon={Star} iconClass="iconLoyalty" />
 
         <span className={styles.sectionLabel}>Insights</span>
-        <NavItem id="reports" label="Reports & Analytics" Icon={BarChart3} iconClass="iconReports" />
+        <NavItem {...nav} id="reports" label="Reports & Analytics" Icon={BarChart3} iconClass="iconReports" />
 
         <hr className={styles.divider} />
 
-        <NavItem id="notifications" label="Notifications" Icon={Bell} iconClass="iconNotifications" badge={unreadCount} badgeClass="badgeRed" />
+        <NavItem {...nav} id="notifications" label="Notifications" Icon={Bell} iconClass="iconNotifications" badge={unreadCount} badgeClass="badgeRed" />
       </nav>
 
       {/* ── Footer — Profile + Theme toggle + Logout ── */}
@@ -152,12 +158,11 @@ const Sidebar = ({
           </div>
         </div>
 
-        {!collapsed && (
-          <div className={styles.themeRow}>
-            <span className={styles.themeRowLabel}>Theme</span>
-            <ThemeToggle />
-          </div>
-        )}
+        {/* Theme toggle stays reachable in the collapsed rail too */}
+        <div className={styles.themeRow}>
+          {!collapsed && <span className={styles.themeRowLabel}>Theme</span>}
+          <ThemeToggle />
+        </div>
 
         <button type="button" className={styles.navItem} onClick={onLogout} style={{ marginTop: '6px' }} title={collapsed ? 'Logout' : undefined}>
           <span className={`${styles.iconWrap} ${styles.iconLogout}`}>

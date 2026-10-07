@@ -22,7 +22,7 @@ import {
   deleteStockItem,
   adjustStockQuantity,
 } from '../services/stockApi';
-import ConfirmDialog from '../../../../shared/components/ConfirmDialog';
+import ConfirmDialog from '../components/ui/ConfirmModal';
 import {
   PageHeader,
   Button,

@@ -68,8 +68,17 @@ const HoteladminDashboard = () => {
   useEffect(() => {
     const onHashChange = () => {
       const newHash = window.location.hash.replace('#', '') || 'dashboard';
-      setActiveSection(SECTION_TITLES[newHash] ? newHash : 'dashboard');
+      if (!SECTION_TITLES[newHash]) {
+        // Unknown section: show the dashboard and fix the URL too
+        window.history.replaceState(null, '', '#dashboard');
+        setActiveSection('dashboard');
+        return;
+      }
+      setActiveSection(newHash);
     };
+    // An invalid hash on first load is corrected the same way
+    const initial = window.location.hash.replace('#', '');
+    if (initial && !SECTION_TITLES[initial]) window.history.replaceState(null, '', '#dashboard');
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
@@ -92,21 +101,66 @@ const HoteladminDashboard = () => {
     if (typeof stats?.totalRooms === 'number') setRoomCount(stats.totalRooms);
     if (typeof stats?.activeOrders === 'number') setActiveOrders(stats.activeOrders);
   }).current;
+  // setState setters are stable: passing them directly avoids an inline
+  // callback that made Rooms/Orders re-fetch on every parent render.
+  const onRoomCount = setRoomCount;
+  const onActiveCount = setActiveOrders;
+
+  // Mobile drawer: Esc closes, focus moves into the drawer and back to the
+  // hamburger, and the main column is inert while it is open.
+  const hamburgerRef = useRef(null);
+  const drawerRef = useRef(null);
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    if (mobileOpen) {
+      wasOpen.current = true;
+      const first = drawerRef.current?.querySelector('button, a[href]');
+      first?.focus();
+      const onKey = (e) => {
+        if (e.key === 'Escape') { setMobileOpen(false); return; }
+        if (e.key !== 'Tab' || !drawerRef.current) return;
+        const nodes = Array.from(drawerRef.current.querySelectorAll('button:not([disabled]), a[href], input, [tabindex]:not([tabindex="-1"])'))
+          .filter((n) => n.offsetParent !== null);
+        if (!nodes.length) return;
+        const firstNode = nodes[0];
+        const lastNode = nodes[nodes.length - 1];
+        if (e.shiftKey && document.activeElement === firstNode) { e.preventDefault(); lastNode.focus(); }
+        else if (!e.shiftKey && document.activeElement === lastNode) { e.preventDefault(); firstNode.focus(); }
+      };
+      document.addEventListener('keydown', onKey);
+      return () => document.removeEventListener('keydown', onKey);
+    }
+    if (wasOpen.current) {
+      wasOpen.current = false;
+      hamburgerRef.current?.focus();
+    }
+    return undefined;
+  }, [mobileOpen]);
+
+  // Hide the off-canvas drawer from keyboard/AT while it is closed on phones.
+  const [isPhone, setIsPhone] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    const onChange = () => setIsPhone(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  const drawerHidden = isPhone && !mobileOpen;
 
   const renderContent = () => {
     switch (activeSection) {
       case 'dashboard':
         return <DashboardHome onNavigate={handleNavigation} onStats={onDashboardStats} />;
       case 'rooms':
-        return <RoomsManagement embedded onCount={(n) => setRoomCount(n)} />;
+        return <RoomsManagement embedded onCount={onRoomCount} />;
       case 'restaurant':
-        return <RestaurantManagement embedded />;
+        return <RestaurantManagement embedded onNavigate={handleNavigation} />;
       case 'tables':
         return <TableManagement embedded />;
       case 'roomqr':
         return <RoomQRManagement embedded />;
       case 'orders':
-        return <OrderManagement embedded onActiveCount={(n) => setActiveOrders(n)} />;
+        return <OrderManagement embedded onActiveCount={onActiveCount} />;
       case 'stock':
         return <StockManagement embedded />;
       case 'staff':
@@ -137,9 +191,14 @@ const HoteladminDashboard = () => {
 
         {/* Sidebar */}
         <div
+          ref={drawerRef}
+          id="ha-nav-drawer"
           className="ha-shell__sidebar"
           data-collapsed={railCollapsed ? 'true' : 'false'}
           data-open={mobileOpen ? 'true' : 'false'}
+          inert={drawerHidden ? true : undefined}
+          aria-hidden={drawerHidden ? 'true' : undefined}
+          {...(isPhone && mobileOpen ? { role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Navigation' } : {})}
         >
           <Sidebar
             activeSection={activeSection}
@@ -156,14 +215,17 @@ const HoteladminDashboard = () => {
         </div>
 
         {/* Main column */}
-        <div className="ha-shell__main">
+        <div className="ha-shell__main" inert={isPhone && mobileOpen ? true : undefined}>
           {/* Mobile top bar */}
           <div className="ha-topbar">
             <button
+              ref={hamburgerRef}
               type="button"
               className="ha-icon-btn ha-icon-btn--bordered"
               onClick={() => setMobileOpen(true)}
               aria-label="Open navigation menu"
+              aria-expanded={mobileOpen}
+              aria-controls="ha-nav-drawer"
             >
               <Menu size={20} aria-hidden="true" />
             </button>

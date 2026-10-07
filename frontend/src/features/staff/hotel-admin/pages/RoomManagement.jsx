@@ -18,7 +18,7 @@ import {
   deleteRoom,
 } from '../services/roomApi';
 import useHotelId from '../hooks/useHotelId';
-import ConfirmDialog from '../../../../shared/components/ConfirmDialog';
+import ConfirmDialog from '../components/ui/ConfirmModal';
 import {
   PageHeader,
   Button,
@@ -45,18 +45,71 @@ import useTableControls from '../hooks/useTableControls';
 import { exportToCsv } from '../utils/csv';
 import '../styles/hotel-admin-tokens.css';
 
+// Values must match the enum in backend/models/room.schema.js
+const ROOM_TYPES = [
+  { value: 'single', label: 'Single' },
+  { value: 'double', label: 'Double' },
+  { value: 'deluxe', label: 'Deluxe' },
+  { value: 'suite', label: 'Suite' },
+  { value: 'villa', label: 'Villa' },
+  { value: 'Standard Twin', label: 'Standard Twin' },
+  { value: 'Standard Queen', label: 'Standard Queen' },
+  { value: 'Deluxe King', label: 'Deluxe King' },
+  { value: 'Executive Suite', label: 'Executive Suite' },
+  { value: 'Ocean View', label: 'Ocean View' },
+  { value: 'Garden View', label: 'Garden View' },
+  { value: 'Presidential Suite', label: 'Presidential Suite' },
+];
+const typeLabel = (v) => ROOM_TYPES.find((t) => t.value === v)?.label || v || '—';
+
+// Admins may only set these; occupied/reserved come from bookings.
+const EDITABLE_STATUSES = [
+  { value: 'available', label: 'Available' },
+  { value: 'maintenance', label: 'Maintenance' },
+  { value: 'cleaning', label: 'Cleaning' },
+];
+const STATUS_LABEL = { available: 'Available', occupied: 'Occupied', reserved: 'Reserved', maintenance: 'Maintenance', cleaning: 'Cleaning' };
+
+// Numbers stay strings in the form until submit.
 const EMPTY_FORM = {
   roomName: '',
   roomNumber: '',
-  type: 'Standard',
+  type: 'double',
   price: '',
-  floor: 1,
-  maxGuests: 2,
+  floor: '1',
+  maxGuests: '2',
   description: '',
   amenities: [],
   bedType: 'Queen',
   status: 'available',
 };
+
+const isInt = (s) => /^\d+$/.test(String(s).trim());
+const ROOM_ACCESSORS = {
+  roomNumber: (r) => r.roomNumber,
+  type: (r) => typeLabel(r.type),
+  status: (r) => r.status,
+  price: (r) => Number(r.price) || 0,
+};
+
+// Mirrors roomController validateRoomInput
+function validateRoomForm(form, rooms, selfId) {
+  const errs = {};
+  const num = form.roomNumber.trim();
+  if (!num) errs.roomNumber = 'Room number is required';
+  else if (num.length > 20) errs.roomNumber = 'Use 20 characters or fewer';
+  else if (rooms.some((r) => r._id !== selfId && String(r.roomNumber).trim().toLowerCase() === num.toLowerCase())) errs.roomNumber = `Room ${num} already exists`;
+  if (!form.roomName.trim()) errs.roomName = 'Room name is required';
+  else if (form.roomName.trim().length > 100) errs.roomName = 'Use 100 characters or fewer';
+  if (!ROOM_TYPES.some((t) => t.value === form.type)) errs.type = 'Choose a room type';
+  const price = String(form.price).trim();
+  if (price === '') errs.price = 'Price is required';
+  else if (!/^\d+(\.\d{1,2})?$/.test(price) || Number(price) > 10000000) errs.price = 'Enter 0 to 10,000,000 (max 2 decimals)';
+  if (String(form.floor).trim() !== '' && (!isInt(form.floor) || Number(form.floor) > 200)) errs.floor = 'Floor must be a whole number from 0 to 200';
+  if (!isInt(form.maxGuests) || Number(form.maxGuests) < 1 || Number(form.maxGuests) > 20) errs.maxGuests = 'Max guests must be 1 to 20';
+  if (form.description.length > 1000) errs.description = 'Use 1,000 characters or fewer';
+  return errs;
+}
 
 const RoomsManagement = ({ onCount }) => {
   const hotelId = useHotelId();
@@ -75,6 +128,7 @@ const RoomsManagement = ({ onCount }) => {
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [formErrors, setFormErrors] = useState({});
+  const [formAlert, setFormAlert] = useState('');
   const [saving, setSaving] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -108,7 +162,9 @@ const RoomsManagement = ({ onCount }) => {
     () => ({
       available: rooms.filter((r) => r.status === 'available').length,
       occupied: rooms.filter((r) => r.status === 'occupied').length,
+      reserved: rooms.filter((r) => r.status === 'reserved').length,
       maintenance: rooms.filter((r) => r.status === 'maintenance').length,
+      cleaning: rooms.filter((r) => r.status === 'cleaning').length,
       total: rooms.length,
     }),
     [rooms]
@@ -122,7 +178,7 @@ const RoomsManagement = ({ onCount }) => {
         q === '' ||
         room.roomNumber?.toLowerCase().includes(q) ||
         room.roomName?.toLowerCase().includes(q) ||
-        room.type?.toLowerCase().includes(q);
+        typeLabel(room.type).toLowerCase().includes(q);
       return matchesStatus && matchesSearch;
     });
   }, [rooms, filterStatus, debouncedSearch]);
@@ -139,13 +195,13 @@ const RoomsManagement = ({ onCount }) => {
   } = useTableControls(filteredRooms, {
     pageSize: 10,
     initialSortKey: 'roomNumber',
-    accessors: {
-      roomNumber: (r) => r.roomNumber,
-      type: (r) => r.type,
-      status: (r) => r.status,
-      price: (r) => Number(r.price) || 0,
-    },
+    accessors: ROOM_ACCESSORS,
   });
+
+  // A filter or search change always starts from page 1
+  useEffect(() => {
+    setPage(1);
+  }, [filterStatus, debouncedSearch, setPage]);
 
   const openCreate = () => {
     setModalMode('create');
@@ -153,6 +209,7 @@ const RoomsManagement = ({ onCount }) => {
     setSelectedRoom(null);
     setFormData(EMPTY_FORM);
     setFormErrors({});
+    setFormAlert('');
     setShowModal(true);
   };
 
@@ -163,16 +220,17 @@ const RoomsManagement = ({ onCount }) => {
     setFormData({
       roomName: room.roomName || '',
       roomNumber: room.roomNumber || '',
-      type: room.type || 'Standard',
-      price: room.price ?? '',
-      floor: room.floor || 1,
-      maxGuests: room.maxGuests || 2,
+      type: room.type || 'double',
+      price: String(room.price ?? ''),
+      floor: String(room.floor ?? 1),
+      maxGuests: String(room.maxGuests ?? 2),
       description: room.description || '',
       amenities: room.amenities || [],
       bedType: room.bedType || 'Queen',
       status: room.status || 'available',
     });
     setFormErrors({});
+    setFormAlert('');
     setShowModal(true);
   };
 
@@ -182,43 +240,40 @@ const RoomsManagement = ({ onCount }) => {
     setFormErrors((prev) => ({ ...prev, [name]: undefined }));
   };
 
-  const validate = () => {
-    const errs = {};
-    if (!formData.roomNumber.trim()) errs.roomNumber = 'Room number is required';
-    if (!formData.roomName.trim()) errs.roomName = 'Room name is required';
-    const priceNum = Number(formData.price);
-    if (formData.price === '' || Number.isNaN(priceNum)) errs.price = 'Price is required';
-    else if (priceNum < 0) errs.price = 'Price cannot be negative';
-    if (Number(formData.maxGuests) < 1) errs.maxGuests = 'At least 1 guest';
-    // Duplicate room number check (client-side pre-validation)
-    const dup = rooms.find(
-      (r) =>
-        r.roomNumber?.toLowerCase() === formData.roomNumber.trim().toLowerCase() &&
-        r._id !== selectedRoom?._id
-    );
-    if (dup) errs.roomNumber = 'Room number already exists';
-    setFormErrors(errs);
-    return Object.keys(errs).length === 0;
-  };
-
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (viewMode) return;
-    if (!validate()) return;
+    e?.preventDefault();
+    if (viewMode || saving) return;
+    const errs = validateRoomForm(formData, rooms, selectedRoom?._id);
+    setFormErrors(errs);
+    if (Object.keys(errs).length) return;
     setSaving(true);
+    setFormAlert('');
     try {
-      const payload = { ...formData, price: Number(formData.price) };
+      const payload = {
+        roomNumber: formData.roomNumber.trim(),
+        roomName: formData.roomName.trim(),
+        type: formData.type,
+        price: Number(formData.price),
+        floor: String(formData.floor).trim() === '' ? 1 : Number(formData.floor),
+        maxGuests: Number(formData.maxGuests),
+        description: formData.description.trim(),
+        bedType: formData.bedType,
+        // occupied/reserved are booking-driven: only send status when admin-editable
+        ...(EDITABLE_STATUSES.some((s) => s.value === formData.status) ? { status: formData.status } : {}),
+      };
       if (modalMode === 'create') {
         await createRoom({ ...payload, hotelId });
-        toast.success(`Room ${formData.roomNumber} created`);
+        toast.success(`Room ${payload.roomNumber} created`);
       } else {
         await updateRoom(selectedRoom._id, payload);
-        toast.success(`Room ${formData.roomNumber} updated`);
+        toast.success(`Room ${payload.roomNumber} updated`);
       }
       setShowModal(false);
       fetchRooms({ silent: true });
     } catch (err) {
-      toast.error(err.response?.data?.message || `Failed to ${modalMode} room`);
+      const data = err.response?.data;
+      if (data?.errors) setFormErrors(data.errors);
+      setFormAlert(data?.message || `Could not ${modalMode === 'create' ? 'create' : 'update'} the room. Please try again.`);
     } finally {
       setSaving(false);
     }
@@ -244,16 +299,16 @@ const RoomsManagement = ({ onCount }) => {
       toast.info('No rooms to export.');
       return;
     }
+    // Cleanliness isn't tracked on rooms, so it is no longer exported/shown.
     exportToCsv(
       'rooms.csv',
-      ['Room Number', 'Room Name', 'Type', 'Status', 'Cleanliness', 'Price', 'Floor', 'Max Guests'],
+      ['Room Number', 'Room Name', 'Type', 'Status', 'Price (NPR)', 'Floor', 'Max Guests'],
       filteredRooms.map((r) => [
         r.roomNumber,
         r.roomName,
-        r.type,
-        r.status,
-        r.cleanliness || 'clean',
-        r.price,
+        typeLabel(r.type),
+        STATUS_LABEL[r.status] || r.status,
+        Number(r.price) || 0,
         r.floor,
         r.maxGuests,
       ])
@@ -265,8 +320,14 @@ const RoomsManagement = ({ onCount }) => {
     { value: 'all', label: 'All', count: roomStats.total },
     { value: 'available', label: 'Available', count: roomStats.available },
     { value: 'occupied', label: 'Occupied', count: roomStats.occupied },
+    { value: 'reserved', label: 'Reserved', count: roomStats.reserved },
     { value: 'maintenance', label: 'Maintenance', count: roomStats.maintenance },
+    { value: 'cleaning', label: 'Cleaning', count: roomStats.cleaning },
   ];
+
+  const filtersActive = !!(debouncedSearch || filterStatus !== 'all');
+  // A status the admin can't pick (occupied/reserved) is shown read-only.
+  const statusLocked = modalMode === 'edit' && !EDITABLE_STATUSES.some((s) => s.value === formData.status);
 
   return (
     <div className="ha-page">
@@ -311,47 +372,44 @@ const RoomsManagement = ({ onCount }) => {
           <>
             <StatCard icon={<BedDouble size={22} />} iconBg="linear-gradient(135deg,#6366f1,#4f46e5)" label="Total Rooms" value={roomStats.total} />
             <StatCard icon={<CheckCircle2 size={22} />} iconBg="var(--ha-success)" label="Available" value={roomStats.available} />
-            <StatCard icon={<DoorClosed size={22} />} iconBg="var(--ha-info)" label="Occupied" value={roomStats.occupied} />
-            <StatCard icon={<Wrench size={22} />} iconBg="var(--ha-warning)" label="Under Maintenance" value={roomStats.maintenance} />
+            <StatCard icon={<DoorClosed size={22} />} iconBg="var(--ha-info)" label="Occupied / Reserved" value={roomStats.occupied + roomStats.reserved} />
+            <StatCard icon={<Wrench size={22} />} iconBg="var(--ha-warning)" label="Maintenance / Cleaning" value={roomStats.maintenance + roomStats.cleaning} />
           </>
         )}
       </div>
 
       {/* Table */}
       {error ? (
-        <ErrorState description={error} onRetry={fetchRooms} />
+        <ErrorState description={error} onRetry={() => fetchRooms()} />
       ) : (
         <>
-          <Table minWidth={720}>
+          <Table minWidth={680} stack>
             <THead>
               <SortableTh sortKey="roomNumber" activeKey={sortKey} dir={sortDir} onSort={toggleSort}>Room No.</SortableTh>
               <SortableTh sortKey="type" activeKey={sortKey} dir={sortDir} onSort={toggleSort}>Type</SortableTh>
               <SortableTh sortKey="status" activeKey={sortKey} dir={sortDir} onSort={toggleSort}>Status</SortableTh>
-              <th scope="col">Cleanliness</th>
               <SortableTh sortKey="price" activeKey={sortKey} dir={sortDir} onSort={toggleSort}>Price</SortableTh>
               <th scope="col">Actions</th>
             </THead>
             {loading ? (
-              <TableSkeleton rows={6} cols={6} />
+              <TableSkeleton rows={6} cols={5} />
             ) : (
               <tbody>
                 {paged.length === 0 ? (
                   <tr>
-                    <td colSpan={6}>
+                    <td colSpan={5}>
                       <EmptyState
                         icon={<BedDouble size={26} />}
-                        title={debouncedSearch || filterStatus !== 'all' ? 'No matching rooms' : 'No rooms yet'}
-                        description={
-                          debouncedSearch || filterStatus !== 'all'
-                            ? 'Try adjusting your search or filters.'
-                            : 'Add your first room to get started.'
-                        }
+                        title={filtersActive ? 'No matching rooms' : 'No rooms yet'}
+                        description={filtersActive ? 'Try a different search or clear the filters.' : 'Add your first room to get started.'}
                         action={
-                          !debouncedSearch && filterStatus === 'all' ? (
+                          filtersActive ? (
+                            <Button variant="secondary" size="sm" onClick={() => { setSearchQuery(''); setFilterStatus('all'); }}>Clear filters</Button>
+                          ) : (
                             <Button variant="primary" size="sm" onClick={openCreate}>
                               <Plus size={15} aria-hidden="true" /> Add Room
                             </Button>
-                          ) : null
+                          )
                         }
                       />
                     </td>
@@ -359,34 +417,30 @@ const RoomsManagement = ({ onCount }) => {
                 ) : (
                   paged.map((room) => (
                     <tr key={room._id}>
-                      <td>
+                      <td data-primary>
                         <span className="ha-body-strong haNum" style={{ color: 'var(--ha-text)' }}>
-                          {room.roomNumber}
+                          Room {room.roomNumber}
                         </span>
                         {room.roomName && (
-                          <div className="ha-small" style={{ color: 'var(--ha-text-subtle)' }}>{room.roomName}</div>
+                          <div className="ha-small" style={{ color: 'var(--ha-text-subtle)', overflowWrap: 'anywhere' }}>{room.roomName}</div>
                         )}
                       </td>
-                      <td>{room.type}</td>
-                      <td><Badge status={room.status} /></td>
-                      <td>
-                        <Badge tone={(room.cleanliness || 'clean') === 'clean' ? 'success' : 'warning'}>
-                          {(room.cleanliness || 'clean') === 'clean' ? 'Clean' : 'Dirty'}
-                        </Badge>
-                      </td>
-                      <td className="ha-money haNum">Rs. {Number(room.price || 0).toLocaleString('en-IN')}</td>
-                      <td>
+                      <td data-label="Type">{typeLabel(room.type)}</td>
+                      <td data-label="Status"><Badge status={room.status}>{STATUS_LABEL[room.status] || room.status}</Badge></td>
+                      <td data-label="Price" className="ha-money haNum">Rs. {Number(room.price || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
+                      <td data-actions>
                         <div className="ha-table__row-actions">
-                          <IconButton aria-label={`View room ${room.roomNumber}`} onClick={() => openEdit(room, true)}>
+                          <IconButton aria-label={`View room ${room.roomNumber}`} title="View" onClick={() => openEdit(room, true)}>
                             <Eye size={16} aria-hidden="true" />
                           </IconButton>
-                          <IconButton aria-label={`Edit room ${room.roomNumber}`} onClick={() => openEdit(room, false)}>
+                          <IconButton aria-label={`Edit room ${room.roomNumber}`} title="Edit" onClick={() => openEdit(room, false)}>
                             <Pencil size={16} aria-hidden="true" />
                           </IconButton>
                           <IconButton
                             aria-label={`Delete room ${room.roomNumber}`}
+                            title="Delete"
                             onClick={() => setDeleteTarget(room)}
-                            style={{ color: 'var(--ha-danger)' }}
+                            style={{ color: 'var(--ha-danger-text)' }}
                           >
                             <Trash2 size={16} aria-hidden="true" />
                           </IconButton>
@@ -408,53 +462,76 @@ const RoomsManagement = ({ onCount }) => {
       <Modal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
-        title={viewMode ? `Room ${formData.roomNumber}` : modalMode === 'create' ? 'Add New Room' : 'Edit Room'}
+        title={viewMode ? `Room ${formData.roomNumber}` : modalMode === 'create' ? 'Add New Room' : `Edit room ${selectedRoom?.roomNumber || ''}`}
         size="lg"
+        busy={saving}
         footer={
           !viewMode ? (
             <>
               <Button variant="secondary" onClick={() => setShowModal(false)} disabled={saving}>Cancel</Button>
-              <Button variant="primary" onClick={handleSubmit} disabled={saving}>
+              <Button variant="primary" type="submit" form="ha-room-form" loading={saving}>
                 {saving ? 'Saving…' : modalMode === 'create' ? 'Create Room' : 'Update Room'}
               </Button>
             </>
           ) : (
-            <Button variant="secondary" onClick={() => setShowModal(false)}>Close</Button>
+            <>
+              <Button variant="secondary" onClick={() => setShowModal(false)}>Close</Button>
+              <Button variant="primary" onClick={() => setViewMode(false)}><Pencil size={16} aria-hidden="true" /> Edit</Button>
+            </>
           )
         }
       >
-        <form onSubmit={handleSubmit}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 16 }}>
-            <Input label="Room Number" name="roomNumber" required value={formData.roomNumber} onChange={handleInputChange} error={formErrors.roomNumber} disabled={viewMode} />
-            <Input label="Room Name" name="roomName" required value={formData.roomName} onChange={handleInputChange} error={formErrors.roomName} disabled={viewMode} />
-            <Select label="Room Type" name="type" required value={formData.type} onChange={handleInputChange} disabled={viewMode}>
-              <option value="Standard">Standard</option>
-              <option value="Deluxe">Deluxe</option>
-              <option value="Suite">Suite</option>
-              <option value="single">Single</option>
-              <option value="double">Double</option>
+        {viewMode ? (
+          <dl className="ha-dl">
+            <div><dt>Room number</dt><dd className="haNum">{formData.roomNumber}</dd></div>
+            <div><dt>Room name</dt><dd>{formData.roomName || '—'}</dd></div>
+            <div><dt>Type</dt><dd>{typeLabel(formData.type)}</dd></div>
+            <div><dt>Status</dt><dd><Badge status={formData.status}>{STATUS_LABEL[formData.status] || formData.status}</Badge></dd></div>
+            <div><dt>Price per night</dt><dd className="haNum">Rs. {Number(formData.price || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</dd></div>
+            <div><dt>Floor</dt><dd className="haNum">{formData.floor}</dd></div>
+            <div><dt>Max guests</dt><dd className="haNum">{formData.maxGuests}</dd></div>
+            <div><dt>Bed type</dt><dd>{formData.bedType || '—'}</dd></div>
+            <div className="ha-dl__full"><dt>Description</dt><dd>{formData.description || '—'}</dd></div>
+          </dl>
+        ) : (
+          <form id="ha-room-form" onSubmit={handleSubmit} noValidate className="ha-form-grid">
+            <p className="ha-form-section-title">Identity</p>
+            <Input label="Room Number" name="roomNumber" required maxLength={20} autoComplete="off" value={formData.roomNumber} onChange={handleInputChange} error={formErrors.roomNumber} />
+            <Input label="Room Name" name="roomName" required maxLength={100} value={formData.roomName} onChange={handleInputChange} error={formErrors.roomName} placeholder="e.g. Deluxe King with balcony" />
+            <Select label="Room Type" name="type" required value={formData.type} onChange={handleInputChange} error={formErrors.type}>
+              {ROOM_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
             </Select>
-            <Input label="Price (NPR)" name="price" type="number" required min="0" value={formData.price} onChange={handleInputChange} error={formErrors.price} disabled={viewMode} />
-            <Input label="Floor" name="floor" type="number" min="1" value={formData.floor} onChange={handleInputChange} disabled={viewMode} />
-            <Input label="Max Guests" name="maxGuests" type="number" min="1" value={formData.maxGuests} onChange={handleInputChange} error={formErrors.maxGuests} disabled={viewMode} />
-            <Select label="Bed Type" name="bedType" value={formData.bedType} onChange={handleInputChange} disabled={viewMode}>
+            <Select label="Bed Type" name="bedType" value={formData.bedType} onChange={handleInputChange}>
               <option value="Single">Single</option>
               <option value="Double">Double</option>
               <option value="Queen">Queen</option>
               <option value="King">King</option>
               <option value="Twin">Twin</option>
             </Select>
-            <Select label="Status" name="status" value={formData.status} onChange={handleInputChange} disabled={viewMode}>
-              <option value="available">Available</option>
-              <option value="occupied">Occupied</option>
-              <option value="maintenance">Maintenance</option>
-              <option value="cleaning">Cleaning</option>
-            </Select>
-            <div style={{ gridColumn: '1 / -1' }}>
-              <Textarea label="Description" name="description" rows="3" value={formData.description} onChange={handleInputChange} disabled={viewMode} />
+
+            <p className="ha-form-section-title">Pricing & capacity</p>
+            <Input label="Price per night (NPR)" name="price" required inputMode="decimal" value={formData.price} onChange={handleInputChange} error={formErrors.price} hint="0 to 10,000,000" />
+            <Input label="Max Guests" name="maxGuests" required inputMode="numeric" value={formData.maxGuests} onChange={handleInputChange} error={formErrors.maxGuests} hint="1–20 guests" />
+            <Input label="Floor" name="floor" inputMode="numeric" value={formData.floor} onChange={handleInputChange} error={formErrors.floor} hint="0 = ground floor" />
+
+            {statusLocked ? (
+              <div className="ha-field">
+                <span className="ha-field__label">Status</span>
+                <span><Badge status={formData.status}>{STATUS_LABEL[formData.status] || formData.status}</Badge></span>
+                <span className="ha-field__hint">Set by bookings. Check the guest out at reception to change it.</span>
+              </div>
+            ) : (
+              <Select label="Status" name="status" value={formData.status} onChange={handleInputChange} error={formErrors.status}>
+                {EDITABLE_STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+              </Select>
+            )}
+
+            <div className="ha-form-grid__full">
+              <Textarea label="Description" name="description" rows="3" maxLength={1000} counter value={formData.description} onChange={handleInputChange} error={formErrors.description} />
             </div>
-          </div>
-        </form>
+            {formAlert && <div className="ha-alert ha-alert--danger ha-form-grid__full" role="alert">{formAlert}</div>}
+          </form>
+        )}
       </Modal>
 
       {/* Delete confirmation */}
@@ -463,8 +540,8 @@ const RoomsManagement = ({ onCount }) => {
         onClose={() => setDeleteTarget(null)}
         onConfirm={confirmDelete}
         variant="danger"
-        title="Delete room?"
-        message={deleteTarget ? `Room ${deleteTarget.roomNumber} will be permanently removed.` : ''}
+        title={deleteTarget ? `Delete room ${deleteTarget.roomNumber}?` : ''}
+        message={deleteTarget ? `Room ${deleteTarget.roomNumber} and its QR code are removed permanently. Rooms with active bookings or open orders can't be deleted.` : ''}
         confirmText="Delete Room"
         loading={deleting}
       />

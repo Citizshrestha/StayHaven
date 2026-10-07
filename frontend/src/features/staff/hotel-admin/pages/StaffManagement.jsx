@@ -23,7 +23,7 @@ import {
 import { getStaffList, inviteStaff, resendStaffInvite, updateStaffStatus, editStaff, removeStaff } from '../services/staffApi';
 import useHotelId from '../hooks/useHotelId';
 import { useStaffAuth } from '../../../../core/context/StaffAuthContext';
-import ConfirmDialog from '../../../../shared/components/ConfirmDialog';
+import ConfirmDialog from '../components/ui/ConfirmModal';
 import {
   PageHeader,
   Button,

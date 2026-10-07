@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { getRooms, generateRoomQR, batchGenerateRoomQR, toggleRoomQR } from '../services/roomApi';
 import useHotelId from '../hooks/useHotelId';
-import ConfirmDialog from '../../../../shared/components/ConfirmDialog';
+import ConfirmDialog from '../components/ui/ConfirmModal';
 import {
   PageHeader,
   Button,
@@ -27,43 +27,25 @@ import {
   Select,
   FilterTabs,
   EmptyState,
+  ErrorState,
+  Skeleton,
   Modal,
 } from '../components/ui';
 import useDebouncedValue from '../hooks/useDebouncedValue';
+import { useStaffAuth } from '../../../../core/context/StaffAuthContext';
+import { downloadQrImage, printQrSheet } from '../utils/qr';
 import '../styles/hotel-admin-tokens.css';
 
-/* ─── QR utilities (kept from original — real print/download) ─── */
-const downloadQRCode = (data, filename) => {
-  const a = document.createElement('a');
-  a.href = data;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-};
-
-const printQRCode = (data, roomNumber, hotelName) => {
-  const w = window.open('', '_blank');
-  if (!w) { toast.error('Popup blocked. Allow popups to print.'); return; }
-  w.document.write(`<!DOCTYPE html><html><head><title>Room ${roomNumber}</title>
-  <style>*{margin:0;padding:0;box-sizing:border-box}body{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f8fafc;font-family:system-ui,sans-serif}.box{background:#fff;border-radius:20px;box-shadow:0 8px 40px rgba(0,0,0,.12);padding:40px 48px;text-align:center}.hotel{font-size:14px;color:#64748b;margin-bottom:6px}.num{font-size:32px;font-weight:800;color:#1e293b;margin-bottom:24px}.qr{width:220px;height:220px;border-radius:12px}.hint{margin-top:20px;font-size:13px;color:#94a3b8}@media print{body{background:#fff}.box{box-shadow:none}}</style>
-  </head><body><div class="box"><p class="hotel">${hotelName}</p><h1 class="num">Room ${roomNumber}</h1><img src="${data}" class="qr" alt="QR"/><p class="hint">Scan for room service &amp; amenities</p></div>
-  <script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}${'<'}/script></body></html>`);
-  w.document.close();
-};
-
-const printAllQRCodes = (rooms, hotelName) => {
-  const withQR = rooms.filter((r) => r.qrCodeImage);
-  if (!withQR.length) { toast.error('No QR codes to print'); return; }
-  const w = window.open('', '_blank');
-  if (!w) { toast.error('Popup blocked. Allow popups to print.'); return; }
-  w.document.write(`<!DOCTYPE html><html><head><title>All Room QR Codes — ${hotelName}</title>
-  <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:system-ui,sans-serif;padding:24px}.header{text-align:center;margin-bottom:36px}.header h1{font-size:24px;font-weight:800;color:#1e293b}.header p{color:#64748b;margin-top:6px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}.item{text-align:center;padding:20px;border:1px solid #e2e8f0;border-radius:12px;page-break-inside:avoid}.item h3{font-size:15px;font-weight:700;color:#1e293b;margin-bottom:10px}.item img{width:130px;height:130px}.item p{margin-top:8px;font-size:11px;color:#94a3b8}</style>
-  </head><body><div class="header"><h1>${hotelName}</h1><p>Room QR Codes — ${new Date().toLocaleDateString()}</p></div>
-  <div class="grid">${withQR.map((r) => `<div class="item"><h3>Room ${r.roomNumber}</h3><img src="${r.qrCodeImage}" alt="QR"/><p>Scan for room service</p></div>`).join('')}</div>
-  <script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}${'<'}/script></body></html>`);
-  w.document.close();
-};
+const ROOM_HINT = 'Scan for room service & amenities';
+const printRoom = (room, hotelName) =>
+  printQrSheet({ items: [{ label: `Room ${room.roomNumber}`, image: room.qrCodeImage }], hotelName, hint: ROOM_HINT, title: `Room ${room.roomNumber}` });
+const printAllRooms = (rooms, hotelName) =>
+  printQrSheet({
+    items: rooms.filter((r) => r.qrCodeImage && r.isQrActive !== false).map((r) => ({ label: `Room ${r.roomNumber}`, image: r.qrCodeImage })),
+    hotelName,
+    hint: ROOM_HINT,
+    title: `${hotelName ? `${hotelName} · ` : ''}Room QR codes`,
+  });
 
 const roomTypeLabel = (type) => {
   if (!type) return 'Room';
@@ -72,11 +54,14 @@ const roomTypeLabel = (type) => {
 
 const RoomQRManagement = () => {
   const hotelId = useHotelId();
+  const { staffUser } = useStaffAuth();
 
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [actionLoading, setActionLoading] = useState({});
-  const [hotelName, setHotelName] = useState('');
+  const [hotelName, setHotelName] = useState(staffUser?.activeProperty?.name || '');
+  const [regenRoom, setRegenRoom] = useState(null);
 
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
@@ -112,6 +97,7 @@ const RoomQRManagement = () => {
   const fetchRooms = useCallback(async () => {
     if (!hotelId) { setLoading(false); return; }
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await getRooms({ hotelId });
       if (res.data.success) {
@@ -120,7 +106,7 @@ const RoomQRManagement = () => {
         if (data[0]?.hotel?.name) setHotelName(data[0].hotel.name);
       }
     } catch (e) {
-      toast.error(e.response?.data?.message || 'Failed to load rooms');
+      setLoadError(e.response?.data?.message || 'Failed to load rooms');
     } finally {
       setLoading(false);
     }
@@ -145,20 +131,26 @@ const RoomQRManagement = () => {
 
   const filtered = useMemo(() => {
     const q = debouncedSearch.trim().toLowerCase();
-    return rooms.filter((r) => {
-      const matchF = filter === 'all' || (filter === 'with-qr' ? !!r.qrCodeImage : !r.qrCodeImage);
-      const matchS = !q || String(r.roomNumber).toLowerCase().includes(q);
-      const matchT = typeFilter === 'all' || r.type === typeFilter;
-      return matchF && matchS && matchT;
-    });
+    return rooms
+      .filter((r) => {
+        const matchF = filter === 'all'
+          || (filter === 'with-qr' && !!r.qrCodeImage)
+          || (filter === 'without-qr' && !r.qrCodeImage)
+          || (filter === 'inactive' && !!r.qrCodeImage && r.isQrActive === false);
+        const matchS = !q || String(r.roomNumber).toLowerCase().includes(q) || (r.roomName || '').toLowerCase().includes(q) || (r.type || '').toLowerCase().includes(q);
+        const matchT = typeFilter === 'all' || r.type === typeFilter;
+        return matchF && matchS && matchT;
+      })
+      .sort((a, b) => String(a.roomNumber).localeCompare(String(b.roomNumber), undefined, { numeric: true }));
   }, [rooms, filter, debouncedSearch, typeFilter]);
 
-  const handleGenQR = async (roomId) => {
+  const handleGenQR = async (roomId, regenerate = false) => {
     setAct(`qr_${roomId}`, true);
     try {
-      const res = await generateRoomQR(roomId);
+      const res = await generateRoomQR(roomId, regenerate);
       if (res.data.success) {
-        toast.success('QR code generated');
+        toast.success(regenerate ? 'New QR issued. The old code no longer works.' : 'QR code generated');
+        setRegenRoom(null);
         // Merge the returned QR fields into just this room. The controller sets
         // isQrActive=true on generate, so reflect that locally too.
         const updated = res.data.room || {};
@@ -182,7 +174,9 @@ const RoomQRManagement = () => {
     try {
       const res = await batchGenerateRoomQR(hotelId);
       if (res.data.success) {
-        toast.success(`${res.data.successCount || stats.noQR} QR codes generated`);
+        const n = res.data.successCount ?? 0;
+        if (res.data.errorCount) toast.warning(`${n} QR code(s) generated, ${res.data.errorCount} failed`);
+        else toast.success(`${n} QR code${n === 1 ? '' : 's'} generated`);
         // Many rooms change at once — refresh in place without the skeleton flash.
         await refetchSilently();
       }
@@ -202,8 +196,8 @@ const RoomQRManagement = () => {
         // Reflect the server's authoritative new state on just this room.
         patchRoom(roomId, { isQrActive: res.data.isQrActive });
       }
-    } catch {
-      toast.error('Status update failed');
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Status update failed');
     } finally {
       setAct(`tog_${roomId}`, false);
     }
@@ -213,6 +207,7 @@ const RoomQRManagement = () => {
     { value: 'all', label: 'All Rooms', count: stats.total },
     { value: 'with-qr', label: 'With QR', count: stats.withQR },
     { value: 'without-qr', label: 'No QR', count: stats.noQR },
+    { value: 'inactive', label: 'Inactive', count: stats.inactive },
   ];
 
   const pct = stats.total ? Math.round((stats.withQR / stats.total) * 100) : 0;
@@ -227,11 +222,11 @@ const RoomQRManagement = () => {
             <Button variant="secondary" onClick={fetchRooms} disabled={loading}>
               <RefreshCw size={16} aria-hidden="true" /> Refresh
             </Button>
-            <Button variant="secondary" onClick={() => printAllQRCodes(rooms, hotelName)} disabled={!stats.withQR}>
+            <Button variant="secondary" onClick={() => printAllRooms(rooms, hotelName)} disabled={!stats.active}>
               <Printer size={16} aria-hidden="true" /> Print All
             </Button>
-            <Button variant="primary" onClick={() => setConfirmBatch(true)} disabled={actionLoading.batch || !stats.noQR}>
-              <Zap size={16} aria-hidden="true" /> {actionLoading.batch ? 'Generating…' : `Generate All (${stats.noQR})`}
+            <Button variant="primary" onClick={() => setConfirmBatch(true)} disabled={!stats.noQR} loading={actionLoading.batch}>
+              {!actionLoading.batch && <Zap size={16} aria-hidden="true" />} {actionLoading.batch ? 'Generating…' : `Generate All (${stats.noQR})`}
             </Button>
           </>
         }
@@ -276,14 +271,29 @@ const RoomQRManagement = () => {
         </div>
       )}
 
-      {loading ? null : filtered.length === 0 ? (
+      {loadError ? (
+        <ErrorState description={loadError} onRetry={fetchRooms} />
+      ) : loading ? (
+        <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fill,minmax(min(240px,100%),1fr))' }} aria-busy="true" aria-label="Loading rooms">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="ha-card ha-card--pad" style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
+              <Skeleton width="50%" height={16} />
+              <Skeleton width={120} height={120} />
+              <Skeleton width="80%" height={32} />
+            </div>
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
         <EmptyState
           icon={<BedDouble size={26} />}
-          title={rooms.length === 0 ? 'No rooms found' : 'No matching rooms'}
-          description={rooms.length === 0 ? 'Add rooms in Room Management first.' : 'Try adjusting your filters.'}
+          title={rooms.length === 0 ? 'No rooms yet' : 'No matching rooms'}
+          description={rooms.length === 0 ? 'Add rooms first, then generate their QR codes here.' : 'Try a different search or clear the filters.'}
+          action={rooms.length === 0
+            ? <Button variant="primary" size="sm" onClick={() => { window.location.hash = '#rooms'; }}>Go to Rooms</Button>
+            : <Button variant="secondary" size="sm" onClick={() => { setSearch(''); setFilter('all'); setTypeFilter('all'); }}>Clear filters</Button>}
         />
       ) : (
-        <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fill,minmax(240px,1fr))' }}>
+        <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fill,minmax(min(240px,100%),1fr))' }}>
           {filtered.map((room) => {
             const hasQR = !!room.qrCodeImage;
             const isActive = room.isQrActive !== false;
@@ -303,9 +313,9 @@ const RoomQRManagement = () => {
                       type="button"
                       onClick={() => setSelRoom(room)}
                       aria-label={`Enlarge QR for room ${room.roomNumber}`}
-                      style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0 }}
+                      style={{ border: 'none', background: '#fff', cursor: 'pointer', padding: 6, borderRadius: 'var(--ha-radius-sm)', lineHeight: 0 }}
                     >
-                      <img src={room.qrCodeImage} alt={`QR for room ${room.roomNumber}`} style={{ width: 120, height: 120, borderRadius: 'var(--ha-radius-sm)' }} />
+                      <img src={room.qrCodeImage} alt={`QR for room ${room.roomNumber}`} width={120} height={120} loading="lazy" style={{ width: 120, height: 120, opacity: isActive ? 1 : 0.4 }} />
                     </button>
                   ) : (
                     <div style={{ textAlign: 'center', color: 'var(--ha-text-subtle)' }}>
@@ -315,9 +325,9 @@ const RoomQRManagement = () => {
                   )}
                 </div>
 
-                {room.floor && (
+                {(room.floor != null || room.price) && (
                   <div className="ha-small haNum" style={{ color: 'var(--ha-text-subtle)', textAlign: 'center' }}>
-                    Floor {room.floor}{room.price ? ` · Rs. ${Number(room.price).toLocaleString('en-IN')}` : ''}
+                    {[room.floor != null ? `Floor ${room.floor}` : null, room.price ? `Rs. ${Number(room.price).toLocaleString('en-IN')}` : null].filter(Boolean).join(' · ')}
                   </div>
                 )}
 
@@ -328,14 +338,14 @@ const RoomQRManagement = () => {
                         {isActive ? <PowerOff size={14} aria-hidden="true" /> : <Power size={14} aria-hidden="true" />}
                         {isActive ? 'Deactivate' : 'Activate'}
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => downloadQRCode(room.qrCodeImage, `room-${room.roomNumber}-qr.png`)}>
+                      <Button size="sm" variant="ghost" onClick={() => downloadQrImage(room.qrCodeImage, `room-${room.roomNumber}-qr.png`)} aria-label={`Download QR for room ${room.roomNumber}`}>
                         <Download size={14} aria-hidden="true" /> Download
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => printQRCode(room.qrCodeImage, room.roomNumber, hotelName)}>
+                      <Button size="sm" variant="ghost" onClick={() => printRoom(room, hotelName)} aria-label={`Print QR for room ${room.roomNumber}`}>
                         <Printer size={14} aria-hidden="true" /> Print
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => handleGenQR(room._id)} disabled={actionLoading[`qr_${room._id}`]}>
-                        <RotateCcw size={14} aria-hidden="true" /> Regen
+                      <Button size="sm" variant="ghost" onClick={() => setRegenRoom(room)} disabled={actionLoading[`qr_${room._id}`]} aria-label={`Regenerate QR for room ${room.roomNumber}`}>
+                        <RotateCcw size={14} aria-hidden="true" /> Regenerate
                       </Button>
                     </>
                   ) : (
@@ -359,10 +369,10 @@ const RoomQRManagement = () => {
         footer={
           selRoom?.qrCodeImage && (
             <>
-              <Button variant="secondary" onClick={() => downloadQRCode(selRoom.qrCodeImage, `room-${selRoom.roomNumber}-qr.png`)}>
+              <Button variant="secondary" onClick={() => downloadQrImage(selRoom.qrCodeImage, `room-${selRoom.roomNumber}-qr.png`)}>
                 <Download size={16} aria-hidden="true" /> Download
               </Button>
-              <Button variant="primary" onClick={() => printQRCode(selRoom.qrCodeImage, selRoom.roomNumber, hotelName)}>
+              <Button variant="primary" onClick={() => printRoom(selRoom, hotelName)}>
                 <Printer size={16} aria-hidden="true" /> Print
               </Button>
             </>
@@ -373,7 +383,9 @@ const RoomQRManagement = () => {
           <div style={{ textAlign: 'center' }}>
             {hotelName && <p className="ha-small" style={{ color: 'var(--ha-text-subtle)' }}>{hotelName}</p>}
             <h3 className="ha-h3" style={{ margin: '4px 0 16px' }}>Room {selRoom.roomNumber}</h3>
-            <img src={selRoom.qrCodeImage} alt="QR Code" style={{ width: 220, height: 220, borderRadius: 'var(--ha-radius-md)' }} />
+            <div style={{ display: 'inline-block', background: '#fff', padding: 12, borderRadius: 'var(--ha-radius-md)' }}>
+              <img src={selRoom.qrCodeImage} alt={`QR code for room ${selRoom.roomNumber}`} width={220} height={220} style={{ width: 220, height: 220, maxWidth: '100%', display: 'block' }} />
+            </div>
             <p className="ha-small" style={{ color: 'var(--ha-text-subtle)', marginTop: 12 }}>Scan for room service & amenities</p>
           </div>
         ) : (
@@ -390,6 +402,18 @@ const RoomQRManagement = () => {
         title="Generate QR codes?"
         message={`QR codes will be generated for ${stats.noQR} room${stats.noQR > 1 ? 's' : ''} that don't have one yet.`}
         confirmText="Generate All"
+      />
+
+      {/* Regenerate confirm */}
+      <ConfirmDialog
+        isOpen={!!regenRoom}
+        onClose={() => setRegenRoom(null)}
+        onConfirm={() => regenRoom && handleGenQR(regenRoom._id, true)}
+        variant="warning"
+        title={regenRoom ? `Regenerate QR for room ${regenRoom.roomNumber}?` : ''}
+        message="A new QR code is issued and the current one stops working immediately. Replace the printed code in the room afterwards."
+        confirmText="Regenerate QR"
+        loading={!!(regenRoom && actionLoading[`qr_${regenRoom._id}`])}
       />
     </div>
   );
