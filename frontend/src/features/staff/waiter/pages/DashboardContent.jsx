@@ -43,6 +43,8 @@ const DashboardContent = ({ orders, error, activeFilter, setActiveFilter, onMark
               : `Table ${order.tableNumber}`;
           return String(table) === String(areaName) || String(room) === String(areaName) || String(location) === String(areaName) || String(areaName).toLowerCase().includes(String(table).toLowerCase());
         })
+      : activeFilter === "preparing"
+      ? orders.filter((order) => order.status === "confirmed" || order.status === "preparing")
       : orders.filter((order) => order.status === activeFilter)
   ).sort((a, b) => {
     // Real orders (isReal: true) come first
@@ -68,7 +70,7 @@ const DashboardContent = ({ orders, error, activeFilter, setActiveFilter, onMark
 
   // Responsive Inline Styles
   const containerStyle = {
-    paddingBottom: isMobile ? "7rem" : "0",
+    paddingBottom: isMobile ? "1rem" : "0",
     backgroundColor: "var(--bg-secondary)",
     fontFamily: "'Nunito', sans-serif",
   };
@@ -78,17 +80,17 @@ const DashboardContent = ({ orders, error, activeFilter, setActiveFilter, onMark
     top: 0,
     zIndex: 20,
     backgroundColor: "var(--bg-secondary)",
-    padding: isMobile ? "16px" : isTablet ? "24px 32px 20px 32px" : "32px 48px 24px 48px",
+    padding: isMobile ? "12px 16px 4px" : isTablet ? "24px 32px 20px 32px" : "32px 48px 24px 48px",
   };
 
   const titleSectionStyle = {
     display: "flex",
-    flexDirection: isMobile ? "column" : "row",
-    alignItems: isMobile ? "stretch" : "flex-start",
+    flexDirection: "row",
+    alignItems: isMobile ? "center" : "flex-start",
     justifyContent: "space-between",
-    gap: isMobile ? "16px" : "0",
-    marginBottom: isMobile ? "20px" : "32px",
-    flexWrap: "wrap",
+    gap: isMobile ? "12px" : "0",
+    marginBottom: isMobile ? "8px" : "32px",
+    flexWrap: isMobile ? "nowrap" : "wrap",
   };
 
   const titleRowStyle = {
@@ -99,7 +101,7 @@ const DashboardContent = ({ orders, error, activeFilter, setActiveFilter, onMark
   };
 
   const menuButtonStyle = {
-    display: isMobile ? "flex" : "none",
+    display: "none", // phones use the MobileHeader menu button
     alignItems: "center",
     justifyContent: "center",
     width: "40px",
@@ -114,10 +116,10 @@ const DashboardContent = ({ orders, error, activeFilter, setActiveFilter, onMark
   };
 
   const titleStyle = {
-    fontSize: isMobile ? "28px" : isTablet ? "32px" : "40px",
+    fontSize: isMobile ? "22px" : isTablet ? "32px" : "40px",
     fontWeight: "800",
     color: isDark ? "#ffffff" : "#000000",
-    marginBottom: "8px",
+    marginBottom: isMobile ? "2px" : "8px",
     letterSpacing: "-0.025em",
     lineHeight: "1.1",
   };
@@ -130,7 +132,8 @@ const DashboardContent = ({ orders, error, activeFilter, setActiveFilter, onMark
 
   const refreshButtonStyle = {
     padding: isMobile ? "10px 16px" : "12px 24px",
-    backgroundColor: "#10B981",
+    minHeight: "44px",
+    backgroundColor: "#059669",
     color: "white",
     borderRadius: "12px",
     display: "flex",
@@ -143,7 +146,8 @@ const DashboardContent = ({ orders, error, activeFilter, setActiveFilter, onMark
     fontWeight: "700",
     fontSize: "14px",
     boxShadow: "0 4px 6px -1px rgba(16, 185, 129, 0.1), 0 2px 4px -1px rgba(16, 185, 129, 0.06)",
-    width: isMobile ? "100%" : "auto",
+    width: isMobile ? "44px" : "auto",
+    flexShrink: 0,
   };
 
   const filterContainerStyle = {
@@ -157,10 +161,11 @@ const DashboardContent = ({ orders, error, activeFilter, setActiveFilter, onMark
   };
 
   const getFilterButtonStyle = (isActive) => ({
-    padding: isMobile ? "8px 12px" : "12px 24px",
+    padding: isMobile ? "10px 14px" : "12px 24px",
+    minHeight: "44px",
     borderRadius: "12px",
     fontWeight: "700",
-    fontSize: isMobile ? "12px" : "14px",
+    fontSize: isMobile ? "14px" : "14px",
     display: "flex",
     alignItems: "center",
     gap: isMobile ? "4px" : "8px",
@@ -175,7 +180,7 @@ const DashboardContent = ({ orders, error, activeFilter, setActiveFilter, onMark
   });
 
   const ordersGridStyle = {
-    padding: isMobile ? "0 16px 80px 16px" : isTablet ? "0 32px 32px 32px" : "0 48px 32px 48px",
+    padding: isMobile ? "0 16px 16px 16px" : isTablet ? "0 32px 32px 32px" : "0 48px 32px 48px",
   };
 
   const ordersListStyle = {
@@ -193,6 +198,8 @@ const DashboardContent = ({ orders, error, activeFilter, setActiveFilter, onMark
           <div style={titleRowStyle}>
             {/* Mobile Menu Button */}
             <button
+              type="button"
+              aria-label="Open menu"
               onClick={onMenuToggle}
               style={menuButtonStyle}
               onMouseEnter={(e) => {
@@ -212,7 +219,7 @@ const DashboardContent = ({ orders, error, activeFilter, setActiveFilter, onMark
             {/* Title */}
             <div style={{ flex: 1 }}>
               <h1 style={titleStyle}>Waiter Dashboard</h1>
-              <p style={subtitleStyle}>Real-time view of orders and table statuses.</p>
+              {!isMobile && <p style={subtitleStyle}>Real-time view of orders and table statuses.</p>}
             </div>
           </div>
 
@@ -225,9 +232,11 @@ const DashboardContent = ({ orders, error, activeFilter, setActiveFilter, onMark
               cursor: isRefreshing ? 'not-allowed' : 'pointer'
             }}
             disabled={isRefreshing}
+            type="button"
+            aria-label={isRefreshing ? "Refreshing orders" : "Refresh orders"}
           >
-            <RefreshCw size={20} style={{ animation: isRefreshing ? 'spin 1s linear infinite' : 'none' }} />
-            <span>{isRefreshing ? 'Refreshing...' : 'Refresh Orders'}</span>
+            <RefreshCw size={20} className="waiter-spin" style={{ animation: isRefreshing ? 'spin 1s linear infinite' : 'none' }} />
+            {!isMobile && <span>{isRefreshing ? 'Refreshing...' : 'Refresh Orders'}</span>}
           </button>
         </div>
 
@@ -241,6 +250,7 @@ const DashboardContent = ({ orders, error, activeFilter, setActiveFilter, onMark
               <button
                 key={filter.id}
                 onClick={() => setActiveFilter(filter.id)}
+                aria-pressed={isActive}
                 style={getFilterButtonStyle(isActive)}
               >
                 <Icon size={16} />
@@ -275,8 +285,20 @@ const DashboardContent = ({ orders, error, activeFilter, setActiveFilter, onMark
         {filteredOrders.length === 0 && !error && (
           <div style={{ textAlign: "center", padding: "48px 0" }}>
             <p style={{ color: isDark ? "#ffffff" : "#000000", fontSize: "18px", fontWeight: "600" }}>
-              No orders found
+              {activeFilter === "all" ? "No orders yet" : "No orders match this filter"}
             </p>
+            <p style={{ color: isDark ? "#CBD5E1" : "#4B5563", fontSize: "14px", marginTop: "8px" }}>
+              {activeFilter === "all" ? "New orders show up here as soon as they are placed. Tap + to take one." : "Try another tab to see the rest."}
+            </p>
+            {activeFilter !== "all" && (
+              <button
+                type="button"
+                onClick={() => setActiveFilter("all")}
+                style={{ marginTop: "16px", minHeight: "44px", padding: "10px 20px", borderRadius: "12px", border: "none", backgroundColor: "#059669", color: "#fff", fontWeight: 700, fontSize: "14px", cursor: "pointer" }}
+              >
+                Show all orders
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -286,6 +308,10 @@ const DashboardContent = ({ orders, error, activeFilter, setActiveFilter, onMark
         @keyframes spin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .waiter-spin { animation: none !important; }
         }
 
         .scrollbar-hide::-webkit-scrollbar {

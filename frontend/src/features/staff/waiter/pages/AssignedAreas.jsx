@@ -208,13 +208,16 @@ const AssignedAreas = ({ orders = [], onFilterByArea, onClose }) => {
         </div>
         {onClose && (
           <button
+            type="button"
+            aria-label="Close"
             onClick={onClose}
             style={{
               background: 'var(--bg-tertiary)',
               border: 'none',
               borderRadius: '50%',
-              width: '40px',
-              height: '40px',
+              width: '44px',
+              height: '44px',
+              flexShrink: 0,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',

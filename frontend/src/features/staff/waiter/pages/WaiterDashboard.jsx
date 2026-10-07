@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Sidebar from "./Sidebar";
 import MobileHeader from "./MobileHeader";
 import DashboardContent from "./DashboardContent";
@@ -12,9 +12,13 @@ import { useOrderContext } from "../../../../core/context/useOrderContext";
 import { useSocket } from "../../../../core/context/SocketContext";
 import { useNotifications } from "../../../../core/context/useNotifications";
 import { useTheme } from "../../../../core/hooks/useTheme";
+import { getActiveProperty } from "../../../../core/api/services/staffAccount.service";
+import axiosClient from "../../../../core/api/client";
 import MessagingPanel from "../../../../shared/components/MessagingPanel";
 import TableBillsPanel from "../../../../shared/components/dining/TableBillsPanel";
 import { Plus } from "lucide-react";
+import "./WaiterShell.css";
+import useSocketTokenKeepAlive from "./useSocketTokenKeepAlive";
 import useSettingsAutoRefresh from "../../../../core/hooks/useSettingsAutoRefresh";
 
 const WaiterDashboard = () => {
@@ -42,7 +46,46 @@ const WaiterDashboard = () => {
   } = useNotifications();
 
   // Socket.io for order refresh (notifications handled by context)
-  const { subscribe } = useSocket();
+  const { subscribe, isConnected, socket } = useSocket();
+  useSocketTokenKeepAlive(socket);
+  const hotelName = getActiveProperty()?.name;
+
+  // The Calls badge must show the real number of open calls. NotificationContext adds +1 for
+  // every 'new-waiter-call' it hears (the server sends that event twice, to two rooms) and
+  // never loads calls that were already open, so re-sync the count from the server shortly
+  // after each call event, on first load and after a reconnect.
+  const syncTimer = useRef(null);
+  const syncCallCount = useCallback(async () => {
+    const hotelId = getActiveProperty()?._id;
+    if (!hotelId) return;
+    try {
+      const res = await axiosClient.get("/api/v1/staff/waiter-calls", { params: { hotelId } });
+      if (res.data?.success) setWaiterCallCount((res.data.calls || []).filter((c) => c.status === "open").length);
+    } catch {
+      /* keep the last known count; the Calls view shows the error */
+    }
+  }, [setWaiterCallCount]);
+  const scheduleCallSync = useCallback(() => {
+    clearTimeout(syncTimer.current);
+    syncTimer.current = setTimeout(syncCallCount, 500);
+  }, [syncCallCount]);
+
+  useEffect(() => {
+    syncCallCount();
+    return () => clearTimeout(syncTimer.current);
+  }, [syncCallCount]);
+
+  useEffect(() => {
+    if (!subscribe) return undefined;
+    const offs = ["new-waiter-call", "waiter-call-acknowledged", "waiter-call-resolved"].map((evt) => subscribe(evt, scheduleCallSync));
+    return () => offs.forEach((off) => typeof off === "function" && off());
+  }, [subscribe, scheduleCallSync]);
+
+  const wasConnected = useRef(isConnected);
+  useEffect(() => {
+    if (isConnected && !wasConnected.current) scheduleCallSync();
+    wasConnected.current = isConnected;
+  }, [isConnected, scheduleCallSync]);
 
   useEffect(() => {
     // Only prevent body scroll on desktop (lg and above)
@@ -134,7 +177,7 @@ const WaiterDashboard = () => {
       case "notifications":
         return (
           <NotificationPanel
-            notifications={notifications.slice(0, 5)}
+            notifications={notifications}
             onMarkRead={markRead}
             onMarkAllRead={markAllRead}
             onClose={() => setActiveView("dashboard")}
@@ -177,7 +220,7 @@ const WaiterDashboard = () => {
         backgroundColor: "var(--bg-secondary)",
         color: "var(--text-primary)",
       }}
-      className="h-[100dvh] flex flex-col overflow-hidden overflow-x-hidden lg:flex-row lg:h-screen"
+      className="waiter-shell h-[100dvh] flex flex-col overflow-hidden overflow-x-hidden lg:flex-row lg:h-screen"
     >
       {/* Sidebar - Hidden on mobile, visible flex item on desktop */}
       <aside
@@ -197,23 +240,38 @@ const WaiterDashboard = () => {
         />
       </aside>
 
+      {/* Compact top bar on phones/tablets: menu, hotel, connection status, alerts */}
+      <MobileHeader
+        hotelName={hotelName}
+        isConnected={isConnected}
+        notificationCount={unreadCount}
+        onMenu={() => setIsMobileMenuOpen(true)}
+        onNotifications={() => setActiveView("notifications")}
+      />
+
       {/* Main Content Area - Flex grow to fill space */}
-      <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain relative w-full pb-24 lg:pb-0 lg:h-full">
+      <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain relative w-full pb-28 lg:pb-0 lg:h-full">
         {/* Main Content - switches based on activeView */}
         {renderMainContent()}
       </main>
 
       {/* Mobile Menu Overlay */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
+        <div
+          className="fixed inset-0 z-50 lg:hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Menu"
+          onKeyDown={(e) => { if (e.key === "Escape") setIsMobileMenuOpen(false); }}
+        >
           {/* Background Overlay */}
           <div
-            className="absolute inset-0 bg-black bg-opacity-50"
+            className="absolute inset-0 bg-black/50"
             onClick={() => setIsMobileMenuOpen(false)}
           />
 
           {/* Sidebar Drawer */}
-          <div className="absolute left-0 top-0 bottom-0 w-64 shadow-xl"
+          <div className="absolute left-0 top-0 bottom-0 w-72 max-w-[85vw] overflow-y-auto shadow-xl"
             style={{
               backgroundColor: "var(--bg-primary)",
             }}
@@ -248,17 +306,22 @@ const WaiterDashboard = () => {
       </aside>
 
       {/* Mobile Floating Action Button - Only visible on mobile */}
+      {!isMobileMenuOpen && (
       <button
+        type="button"
         onClick={() => setShowOrderForm(true)}
-        className="lg:hidden fixed z-50 w-14 h-14 bg-emerald-500 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-emerald-600 active:scale-95 transition-all"
+        aria-label="New order"
+        className="lg:hidden fixed z-50 w-14 h-14 text-white rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-all motion-reduce:transition-none"
         style={{
-          bottom: "80px",
+          bottom: "calc(72px + env(safe-area-inset-bottom, 0px))",
           right: "16px",
-          boxShadow: "0 4px 14px rgba(16, 185, 129, 0.4)",
+          backgroundColor: "#059669",
+          boxShadow: "0 4px 14px rgba(5, 150, 105, 0.45)",
         }}
       >
         <Plus size={28} strokeWidth={2.5} />
       </button>
+      )}
 
       {/* Order Form Modal */}
       {showOrderForm && (
@@ -272,8 +335,6 @@ const WaiterDashboard = () => {
           onViewChange={handleViewChange}
           notificationCount={unreadCount}
           waiterCallCount={waiterCallCount}
-          onMessagingToggle={() => setIsMessagingOpen(prev => !prev)}
-          unreadMessageCount={0}
         />
       </nav>
 
@@ -281,7 +342,7 @@ const WaiterDashboard = () => {
       <MessagingPanel
         isOpen={isMessagingOpen}
         onToggle={() => setIsMessagingOpen(prev => !prev)}
-        showFab={true}
+        showFab={!isMobileMenuOpen}
       />
     </div>
   );

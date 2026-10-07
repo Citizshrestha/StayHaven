@@ -1,0 +1,31 @@
+/* Waiter dashboard shell: small overrides that only apply while the waiter dashboard is mounted. */
+
+@media (max-width: 1023px) {
+  /* NotificationContext shows a fixed "Sound alerts are paused" button at bottom-left (z-index 9999).
+     On phones it sat on top of the bottom navigation and hid three of the five tabs.
+     Lift it above the nav and keep it clear of the floating "New order" button. */
+  body:has(.waiter-shell) button[style*="z-index: 9999"][style*="position: fixed"] {
+    bottom: calc(76px + env(safe-area-inset-bottom, 0px)) !important;
+    max-width: calc(100vw - 96px);
+    min-height: 44px;
+    text-align: left;
+    line-height: 1.25;
+  }
+}
+
+/* Keyboard focus is always visible inside the waiter dashboard. */
+.waiter-shell :focus-visible {
+  outline: 2px solid #059669;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .waiter-shell *,
+  .waiter-shell *::before,
+  .waiter-shell *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
