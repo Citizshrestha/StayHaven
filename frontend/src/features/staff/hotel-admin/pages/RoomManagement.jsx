@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   BedDouble,
   CheckCircle2,
@@ -130,6 +130,8 @@ const RoomsManagement = ({ onCount }) => {
   const [formErrors, setFormErrors] = useState({});
   const [formAlert, setFormAlert] = useState('');
   const [saving, setSaving] = useState(false);
+  // Synchronous guard: state updates are async, so two clicks in one tick would both pass saving.
+  const savingRef = useRef(false);
 
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
@@ -246,6 +248,8 @@ const RoomsManagement = ({ onCount }) => {
     const errs = validateRoomForm(formData, rooms, selectedRoom?._id);
     setFormErrors(errs);
     if (Object.keys(errs).length) return;
+    if (savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     setFormAlert('');
     try {
@@ -275,6 +279,7 @@ const RoomsManagement = ({ onCount }) => {
       if (data?.errors) setFormErrors(data.errors);
       setFormAlert(data?.message || `Could not ${modalMode === 'create' ? 'create' : 'update'} the room. Please try again.`);
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };

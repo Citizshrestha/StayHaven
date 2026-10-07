@@ -26,6 +26,7 @@ import {
 import useDebouncedValue from '../hooks/useDebouncedValue';
 import useTableControls from '../hooks/useTableControls';
 import { exportToCsv } from '../utils/csv';
+import { escapeHtml } from '../utils/html';
 
 /* ============================================================================
  * ⚠️  MOCK DATA — [NEEDS BACKEND]
@@ -133,18 +134,18 @@ function BillingPreview() {
       return;
     }
     w.document.write(`
-      <html><head><title>Invoice ${invoice.id}</title>
+      <html><head><title>Invoice ${escapeHtml(invoice.id)}</title>
       <style>body{font-family:Inter,Arial,sans-serif;padding:32px;color:#111827}
       h1{font-size:20px}table{width:100%;border-collapse:collapse;margin-top:16px}
       td,th{padding:8px 12px;border:1px solid #e5e7eb;text-align:left}
       th{background:#f3f4f6}</style></head>
-      <body><h1>Invoice ${invoice.id}</h1>
+      <body><h1>Invoice ${escapeHtml(invoice.id)}</h1>
       <table><tbody>
-      <tr><th>Guest</th><td>${invoice.guest}</td></tr>
-      <tr><th>Amount</th><td>${rs(invoice.amount)}</td></tr>
-      <tr><th>Status</th><td>${invoice.status}</td></tr>
-      <tr><th>Date</th><td>${invoice.date}</td></tr>
-      <tr><th>Method</th><td>${invoice.method}</td></tr>
+      <tr><th>Guest</th><td>${escapeHtml(invoice.guest)}</td></tr>
+      <tr><th>Amount</th><td>${escapeHtml(rs(invoice.amount))}</td></tr>
+      <tr><th>Status</th><td>${escapeHtml(invoice.status)}</td></tr>
+      <tr><th>Date</th><td>${escapeHtml(invoice.date)}</td></tr>
+      <tr><th>Method</th><td>${escapeHtml(invoice.method)}</td></tr>
       </tbody></table></body></html>`);
     w.document.close();
     setTimeout(() => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { toast } from 'react-toastify';
 import {
   UtensilsCrossed,
@@ -134,6 +134,8 @@ const TableManagement = ({ embedded = false }) => {
   const [batchErrors, setBatchErrors] = useState({});
 
   const setAct = (k, v) => setActionLoading((p) => ({ ...p, [k]: v }));
+  // Synchronous in-flight guard for submit/batch (state updates are async)
+  const inFlight = useRef(new Set());
 
   const fetchTables = useCallback(async ({ silent = false } = {}) => {
     if (!hotelId) { setLoading(false); return; }
@@ -225,6 +227,8 @@ const TableManagement = ({ embedded = false }) => {
       status: form.status,
       description: form.description.trim(),
     };
+    if (inFlight.current.has('submit')) return;
+    inFlight.current.add('submit');
     setAct('submit', true);
     setFormAlert('');
     try {
@@ -242,6 +246,7 @@ const TableManagement = ({ embedded = false }) => {
       if (data?.errors) setFormErrors(data.errors);
       setFormAlert(data?.message || 'Could not save the table. Please try again.');
     } finally {
+      inFlight.current.delete('submit');
       setAct('submit', false);
     }
   };
@@ -323,6 +328,8 @@ const TableManagement = ({ embedded = false }) => {
     if (actionLoading.batch) return;
     const errs = validateBatch(batch);
     if (Object.keys(errs).length) { setBatchErrors(errs); return; }
+    if (inFlight.current.has('batch')) return;
+    inFlight.current.add('batch');
     setAct('batch', true);
     try {
       const res = await batchCreateTables({
@@ -342,6 +349,7 @@ const TableManagement = ({ embedded = false }) => {
       if (data?.errors) setBatchErrors(data.errors);
       toast.error(data?.message || 'Batch failed');
     } finally {
+      inFlight.current.delete('batch');
       setAct('batch', false);
     }
   };
