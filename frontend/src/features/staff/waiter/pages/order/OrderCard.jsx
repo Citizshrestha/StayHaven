@@ -204,30 +204,44 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
 
   const getStatusStyles = (status) => {
     switch (status) {
+      // Status colours follow the shared contract: pending amber, confirmed blue,
+      // preparing indigo, ready green, delivered teal, cancelled red. Always with a text label.
       case "new":
         return {
-          backgroundColor: "#DBEAFE",
-          color: "#2563EB",
+          backgroundColor: "#FEF3C7",
+          color: "#92400E",
           label: "New",
+        };
+      case "confirmed":
+        return {
+          backgroundColor: "#DBEAFE",
+          color: "#1D4ED8",
+          label: "Confirmed",
         };
       case "preparing":
         return {
-          backgroundColor: "#FEF3C7",
-          color: "#D97706",
+          backgroundColor: "#E0E7FF",
+          color: "#4338CA",
           label: "Preparing",
         };
       case "ready":
         return {
           backgroundColor: "#D1FAE5",
-          color: "#059669",
+          color: "#047857",
           label: "Ready for Pickup",
         };
       case "delivered":
         return {
-          backgroundColor: "#D1FAE5",
-          color: "#059669",
+          backgroundColor: "#CCFBF1",
+          color: "#0F766E",
           label: "Delivered ✓",
           isDelivered: true,
+        };
+      case "cancelled":
+        return {
+          backgroundColor: "#FEE2E2",
+          color: "#B91C1C",
+          label: "Cancelled",
         };
       default:
         return {
@@ -274,9 +288,9 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
   };
 
   const badgeStyle = {
-    padding: isMobile ? "3px 8px" : "4px 12px",
+    padding: isMobile ? "4px 10px" : "4px 12px",
     borderRadius: "8px",
-    fontSize: isMobile ? "11px" : "12px",
+    fontSize: "12px",
     fontWeight: "700",
     backgroundColor: statusStyle.backgroundColor,
     color: statusStyle.color,
@@ -284,7 +298,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
 
   const metaStyle = {
     color: secondaryText,
-    fontSize: isMobile ? "12px" : "14px",
+    fontSize: "14px",
     fontWeight: "600",
   };
 
@@ -299,7 +313,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
 
   const itemsStyle = {
     color: secondaryText,
-    fontSize: isMobile ? "13px" : "14px",
+    fontSize: "14px",
     lineHeight: "1.5",
     marginBottom: isMobile ? "16px" : "24px",
     flex: 1,
@@ -315,12 +329,13 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
 
   const primaryButtonStyle = {
     flex: isMobile ? "none" : 1,
-    padding: isMobile ? "10px 16px" : "12px 24px",
-    backgroundColor: "#10B981",
+    minHeight: "44px",
+    padding: isMobile ? "12px 16px" : "12px 24px",
+    backgroundColor: "#047857",
     color: "white",
     borderRadius: "9999px",
     fontWeight: "700",
-    fontSize: isMobile ? "13px" : "14px",
+    fontSize: "14px",
     border: "none",
     cursor: "pointer",
     transition: "background-color 0.2s",
@@ -330,12 +345,13 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
 
   const secondaryButtonStyle = {
     flex: isMobile ? "none" : 1,
-    padding: isMobile ? "10px 16px" : "12px 24px",
+    minHeight: "44px",
+    padding: isMobile ? "12px 16px" : "12px 24px",
     backgroundColor: "var(--bg-tertiary)",
     color: "var(--text-secondary)",
     borderRadius: "9999px",
     fontWeight: "700",
-    fontSize: isMobile ? "13px" : "14px",
+    fontSize: "14px",
     border: "none",
     cursor: "pointer",
     transition: "background-color 0.2s",
@@ -344,12 +360,13 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
   };
 
   const standaloneButtonStyle = {
-    padding: isMobile ? "10px 20px" : "12px 28px",
-    backgroundColor: "#10B981",
+    minHeight: "44px",
+    padding: isMobile ? "12px 20px" : "12px 28px",
+    backgroundColor: "#047857",
     color: "white",
     borderRadius: "12px",
     fontWeight: "700",
-    fontSize: isMobile ? "13px" : "14px",
+    fontSize: "14px",
     border: "none",
     cursor: "pointer",
     transition: "all 0.2s",
@@ -463,8 +480,14 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
       {/* Three-dot Menu Button */}
       <div ref={menuRef} style={{ position: "absolute", top: "16px", right: "16px", zIndex: 10 }}>
         <button
+          type="button"
+          aria-label="Order actions"
+          aria-haspopup="menu"
+          aria-expanded={showMenu}
           onClick={() => setShowMenu(!showMenu)}
           style={{
+            minWidth: "44px",
+            minHeight: "44px",
             background: isDark ? "#111827" : "var(--card-bg)",
             border: `1px solid ${isDark ? "#334155" : "var(--border-color)"}`,
             borderRadius: "8px",
@@ -619,9 +642,9 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
             maxWidth: "280px",
           }}>
             <div style={{
-              fontSize: "11px",
+              fontSize: "12px",
               fontWeight: "700",
-              color: isDark ? "#FCD34D" : "#B45309",
+              color: isDark ? "#FCD34D" : "#92400E",
               marginBottom: "4px",
               textTransform: "uppercase",
               letterSpacing: "0.5px",
@@ -684,7 +707,8 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                     flex: 1,
                     minWidth: isMobile ? "100%" : "120px",
                     padding: "10px 16px",
-                    backgroundColor: "#10B981",
+                    minHeight: "44px",
+                    backgroundColor: "#047857",
                     color: "white",
                     border: "none",
                     borderRadius: "10px",
@@ -707,7 +731,8 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                     flex: 1,
                     minWidth: isMobile ? "100%" : "120px",
                     padding: "10px 16px",
-                    backgroundColor: "#3B82F6",
+                    minHeight: "44px",
+                    backgroundColor: "#1D4ED8",
                     color: "white",
                     border: "none",
                     borderRadius: "10px",
@@ -747,10 +772,10 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
               </button>
               <div style={{
                 padding: "10px 16px",
-                backgroundColor: "#FEF3C7",
+                backgroundColor: order.status === "cancelled" ? "#FEE2E2" : order.status === "confirmed" ? "#DBEAFE" : "#FEF3C7",
                 borderRadius: "10px",
-                fontSize: "13px",
-                color: "#92400E",
+                fontSize: "14px",
+                color: order.status === "cancelled" ? "#B91C1C" : order.status === "confirmed" ? "#1D4ED8" : "#92400E",
                 fontWeight: "600",
                 display: "flex",
                 alignItems: "center",
@@ -760,6 +785,16 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
                   <>
                     <span style={{ fontSize: "16px" }}>⏳</span>
                     <span>Waiting for kitchen</span>
+                  </>
+                ) : order.status === "cancelled" ? (
+                  <>
+                    <span style={{ fontSize: "16px" }} aria-hidden="true">✕</span>
+                    <span>Order cancelled</span>
+                  </>
+                ) : order.status === "confirmed" ? (
+                  <>
+                    <span style={{ fontSize: "16px" }} aria-hidden="true">✓</span>
+                    <span>Kitchen accepted</span>
                   </>
                 ) : (
                   <>
@@ -781,7 +816,7 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
           <ItemCarousel
             items={order.items}
             width={isMobile ? "100%" : isTablet ? 180 : 240}
-            height={isMobile ? 200 : 180}
+            height={isMobile ? 140 : 180}
           />
         ) : (
           <img src={order.image} alt="Food" style={imageStyle} />

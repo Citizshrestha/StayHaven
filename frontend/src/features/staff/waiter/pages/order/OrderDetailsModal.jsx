@@ -84,9 +84,10 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false, onPrintBill, on
   };
 
   const getOrderTypeLabel = () => {
-    const type = order.orderType?.toLowerCase() || order.table?.toLowerCase() || "";
+    // orderType is "dineIn" | "roomService" | "takeaway"; the mapped `table` label ("Table T2") is the fallback.
+    const type = (order.orderType || order.table || "").toLowerCase();
     if (type.includes("room")) return "Room Service";
-    if (type.includes("table")) return "Dine In";
+    if (type.includes("dine") || type.includes("table")) return "Dine In";
     return "Takeaway";
   };
 
