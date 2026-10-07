@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -22,6 +22,7 @@ import { NotificationProvider } from "../core/context/NotificationContext";
 // CORE - Routes (Guards & Protection)
 // ============================================
 import ProtectedStaffRoute from "../core/routes/ProtectedStaffRoute";
+import { DASHBOARD_ROLES } from "../core/routes/staffRoleRoutes";
 import ProtectedGuestRoute from "../core/routes/ProtectedGuestRoute";
 
 // ============================================
@@ -181,7 +182,28 @@ const Layout = ({ children }) => {
 // ============================================
 // Main App Component
 // ============================================
+const NARROW_QUERY = "(max-width: 640px)";
+const useIsNarrowViewport = () => {
+  const [narrow, setNarrow] = useState(() => typeof window !== "undefined" && window.matchMedia?.(NARROW_QUERY).matches);
+  useEffect(() => {
+    const mq = window.matchMedia?.(NARROW_QUERY);
+    if (!mq) return undefined;
+    const onChange = () => setNarrow(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return narrow;
+};
+
+// Per-route boundary: a crash in one page shows the fallback inside the app
+// shell (providers, sockets and auth stay alive) and resets on navigation.
+const RouteErrorBoundary = ({ children }) => {
+  const { pathname } = useLocation();
+  return <ErrorBoundary resetKey={pathname}>{children}</ErrorBoundary>;
+};
+
 const App = () => {
+  const isNarrowViewport = useIsNarrowViewport();
   // Fetch CSRF token on app initialization
   useEffect(() => {
     const initializeCsrf = async () => {
@@ -208,6 +230,7 @@ const App = () => {
                   <div className="w-screen min-h-screen overflow-x-hidden bg-white">
                     <MaintenanceGate>
                     <Layout>
+                      <RouteErrorBoundary>
                       <Routes>
                       {/* ================================ */}
                       {/* PUBLIC ROUTES - No Auth Required */}
@@ -252,7 +275,7 @@ const App = () => {
                       <Route
                         path="/waiter-dashboard"
                         element={
-                          <ProtectedStaffRoute allowedRoles={["waiter"]}>
+                          <ProtectedStaffRoute allowedRoles={DASHBOARD_ROLES.waiter}>
                             <WaiterDashboard />
                           </ProtectedStaffRoute>
                         }
@@ -262,7 +285,7 @@ const App = () => {
                       <Route
                         path="/kitchen-dashboard"
                         element={
-                          <ProtectedStaffRoute allowedRoles={["chief"]}>
+                          <ProtectedStaffRoute allowedRoles={DASHBOARD_ROLES.kitchen}>
                             <KitchenDashboard />
                           </ProtectedStaffRoute>
                         }
@@ -272,7 +295,7 @@ const App = () => {
                       <Route
                         path="/reception-dashboard"
                         element={
-                          <ProtectedStaffRoute allowedRoles={["receptionist", "manager", "admin", "owner"]}>
+                          <ProtectedStaffRoute allowedRoles={DASHBOARD_ROLES.reception}>
                             <ReceptionDashboard />
                           </ProtectedStaffRoute>
                         }
@@ -282,7 +305,7 @@ const App = () => {
                       <Route
                         path="/superadmindashboard"
                         element={
-                          <ProtectedStaffRoute allowedRoles={["superadmin"]}>
+                          <ProtectedStaffRoute allowedRoles={DASHBOARD_ROLES.superadmin}>
                             <SuperadminDashboard />
                           </ProtectedStaffRoute>
                         }
@@ -290,7 +313,7 @@ const App = () => {
                       <Route
                         path="/usermanagement"
                         element={
-                          <ProtectedStaffRoute allowedRoles={["superadmin"]}>
+                          <ProtectedStaffRoute allowedRoles={DASHBOARD_ROLES.superadmin}>
                             <UserManagement />
                           </ProtectedStaffRoute>
                         }
@@ -298,7 +321,7 @@ const App = () => {
                       <Route
                         path="/hotelmanagement"
                         element={
-                          <ProtectedStaffRoute allowedRoles={["superadmin"]}>
+                          <ProtectedStaffRoute allowedRoles={DASHBOARD_ROLES.superadmin}>
                             <HotelManagement />
                           </ProtectedStaffRoute>
                         }
@@ -307,7 +330,7 @@ const App = () => {
                       <Route
                         path="/contentmanagement"
                         element={
-                          <ProtectedStaffRoute allowedRoles={["superadmin"]}>
+                          <ProtectedStaffRoute allowedRoles={DASHBOARD_ROLES.superadmin}>
                             <ContentManagement />
                           </ProtectedStaffRoute>
                         }
@@ -315,7 +338,7 @@ const App = () => {
                       <Route
                         path="/finance"
                         element={
-                          <ProtectedStaffRoute allowedRoles={["superadmin"]}>
+                          <ProtectedStaffRoute allowedRoles={DASHBOARD_ROLES.superadmin}>
                             <Finance />
                           </ProtectedStaffRoute>
                         }
@@ -323,7 +346,7 @@ const App = () => {
                       <Route
                         path="/reviews"
                         element={
-                          <ProtectedStaffRoute allowedRoles={["superadmin"]}>
+                          <ProtectedStaffRoute allowedRoles={DASHBOARD_ROLES.superadmin}>
                             <ReviewModeration />
                           </ProtectedStaffRoute>
                         }
@@ -331,7 +354,7 @@ const App = () => {
                       <Route
                         path="/system-config"
                         element={
-                          <ProtectedStaffRoute allowedRoles={["superadmin"]}>
+                          <ProtectedStaffRoute allowedRoles={DASHBOARD_ROLES.superadmin}>
                             <SystemConfiguration />
                           </ProtectedStaffRoute>
                         }
@@ -341,7 +364,7 @@ const App = () => {
                       <Route
                         path="/hoteladmin-dashboard"
                         element={
-                          <ProtectedStaffRoute allowedRoles={['owner', 'hoteladmin', 'admin', 'manager']}>
+                          <ProtectedStaffRoute allowedRoles={DASHBOARD_ROLES.hotelAdmin}>
                             <HoteladminDashboard />
                           </ProtectedStaffRoute>
                         }
@@ -385,6 +408,7 @@ const App = () => {
                       {/* ================================ */}
                       <Route path="*" element={<NotFound />} />
                     </Routes>
+                      </RouteErrorBoundary>
                   </Layout>
                   </MaintenanceGate>
                 </div>
@@ -395,7 +419,7 @@ const App = () => {
 
         {/* Toast Container */}
         <ToastContainer
-          position="top-right"
+          position={isNarrowViewport ? "top-center" : "top-right"}
           autoClose={4000}
           hideProgressBar={true}
           newestOnTop={true}
@@ -406,8 +430,11 @@ const App = () => {
           pauseOnHover
           theme="colored"
           style={{
-            zIndex: 9999,
-            top: '80px' // Add top offset to the container instead of margin to each toast
+            // Above every modal/dialog layer (ConfirmDialog overlay is 9999).
+            zIndex: 10050,
+            // Clear dashboard top bars; on phones sit just under the status bar.
+            top: isNarrowViewport ? 'calc(8px + env(safe-area-inset-top))' : '80px',
+            ...(isNarrowViewport ? { width: 'calc(100vw - 32px)', left: '50%', transform: 'translateX(-50%)' } : {}),
           }}
           toastStyle={{
             maxWidth: '400px',

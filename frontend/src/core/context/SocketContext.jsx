@@ -22,6 +22,7 @@ import { useLocation } from "react-router-dom";
 import { io } from "socket.io-client";
 import { getActiveProperty, getCurrentStaffUser } from "../api/services/staffAccount.service";
 import { getSocketUrl } from "../utils/apiConfig";
+import { refreshSession } from "../api/client";
 import { useStaffAuth } from "./StaffAuthContext";
 
 /**
@@ -132,9 +133,18 @@ export const SocketProvider = ({ children }) => {
           role: "qr-guest",
         };
 
+    // auth as a function: socket.io calls it on every (re)connect, so a token
+    // rotated by the HTTP client is picked up instead of the stale one
+    // captured when the socket was created.
+    const currentAuth = (cb) => cb({
+      ...authPayload,
+      ...(isStaffUser ? { token: sessionStorage.getItem("staffAccessToken") || undefined } : {}),
+      ...(isGuestUser ? { token: localStorage.getItem("accessToken") || undefined } : {}),
+    });
+
     // Create socket connection
     const socketInstance = io(SOCKET_URL, {
-      auth: authPayload,
+      auth: currentAuth,
       reconnection: true,
       // Staff dashboards stay open all day: never give up reconnecting (the
       // old limit of 5 attempts meant a short outage or backend restart left
@@ -174,14 +184,37 @@ export const SocketProvider = ({ children }) => {
       }
     });
 
+    // The server ends a socket when its access token expires ("io server
+    // disconnect") and rejects handshakes with an expired token; socket.io does
+    // not retry either case by itself. Refresh the session, then reconnect.
+    let disposed = false;
+    let authRetries = 0;
+    const reconnectWithFreshToken = async () => {
+      if (disposed || authRetries >= 3) return;
+      authRetries += 1;
+      if (isStaffUser || isGuestUser) {
+        try {
+          await refreshSession(isStaffUser ? "staff" : "guest");
+        } catch {
+          // Refresh failed (signed out elsewhere); the HTTP client handles logout.
+          return;
+        }
+      }
+      if (!disposed) setTimeout(() => !disposed && socketInstance.connect(), 500 * authRetries);
+    };
+
+    socketInstance.on("connect", () => { authRetries = 0; });
+
     // Connection lost
-    socketInstance.on("disconnect", () => {
+    socketInstance.on("disconnect", (reason) => {
       setIsConnected(false);
+      if (reason === "io server disconnect") reconnectWithFreshToken();
     });
 
     // Connection error
-    socketInstance.on("connect_error", () => {
+    socketInstance.on("connect_error", (error) => {
       setIsConnected(false);
+      if (error?.message === "Not authorized") reconnectWithFreshToken();
     });
 
     // Store socket instance
@@ -189,6 +222,7 @@ export const SocketProvider = ({ children }) => {
 
     // Cleanup on identity change (logout, user switch) or unmount
     return () => {
+      disposed = true;
       socketInstance.removeAllListeners();
       socketInstance.disconnect();
       setSocket(null);

@@ -49,28 +49,21 @@ router.get("/", async (req, res) => {
     const healthData = {
       status: isHealthy ? "healthy" : "unhealthy",
       timestamp: new Date().toISOString(),
-      version: process.env.npm_package_version || "1.0.0",
-      environment: process.env.NODE_ENV || "development",
-      uptime: {
-        seconds: uptimeSeconds,
-        formatted: uptimeFormatted,
-      },
       database: {
         status: dbStatus,
         healthy: dbHealthy,
       },
-      memory: {
-        rss: `${memoryUsageMB.rss} MB`,
-        heapTotal: `${memoryUsageMB.heapTotal} MB`,
-        heapUsed: `${memoryUsageMB.heapUsed} MB`,
-        external: `${memoryUsageMB.external} MB`,
-      },
-      responseTime: `${responseTime}ms`,
     };
 
-    // Log unhealthy status
+    // Version, environment, uptime and memory are reconnaissance data; they are
+    // logged (and served on the superadmin-only /health/detailed), not public.
     if (!isHealthy) {
-      logger.warn("Health check failed", { healthData });
+      logger.warn("Health check failed", {
+        healthData,
+        uptime: uptimeFormatted,
+        memory: memoryUsageMB,
+        responseTime: `${responseTime}ms`,
+      });
     }
 
     return res.status(statusCode).json(healthData);

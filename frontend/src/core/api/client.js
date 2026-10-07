@@ -31,6 +31,9 @@ export const refreshSession = (scope) => {
 };
 
 const staffPath = /^\/api\/v1\/(?:staff|reception|profile|superadmin|tables|rooms|bookings|company|seed)(?:\/|$)|^\/api\/v1\/(?:users|hotels)\/admin(?:\/|$)/;
+// CMS content: public reads stay anonymous; admin reads and every write are superadmin (staff) calls.
+const isStaffContentRequest = (config, path) => /^\/api\/v1\/content\//.test(path) &&
+  (String(config.method || 'get').toLowerCase() !== 'get' || /\/admin(?:\/|$)|\/approved-hotels$/.test(path));
 const publicAuthPath = /^\/api\/v1\/auth\/(?:login|register|google-login|sendResetPasswordOtp|verifyResetPasswordOtp|resetPassword|sendSignupOtp|verifySignupOtp|refresh|logout)(?:\/|$)|^\/api\/v1\/staff\/(?:login|refresh-token|logout|forgot-password|reset-password|complete-onboard|verify-invite)(?:\/|$)/;
 const requestPath = (config) => {
   const base = `${String(config.baseURL || getApiBaseUrl()).replace(/\/+$/, '')}/`;
@@ -57,8 +60,9 @@ export const createApiClient = ({ authScope, ...options } = {}) => {
   client.interceptors.request.use((config) => {
     const supplied = config.headers.Authorization || config.headers.authorization;
     const staffToken = sessionStorage.getItem('staffAccessToken');
+    const path = requestPath(config);
     const scope = config._authScope || authScope ||
-      (staffPath.test(requestPath(config)) || (staffToken && supplied === `Bearer ${staffToken}`) ? 'staff' : 'guest');
+      (staffPath.test(path) || isStaffContentRequest(config, path) || (staffToken && supplied === `Bearer ${staffToken}`) ? 'staff' : 'guest');
     config._authScope = scope;
     const { storage, key } = session(scope);
     const token = storage.getItem(key);

@@ -1,10 +1,13 @@
-import React from 'react';
+import React, { useId, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { AlertTriangle, Info, Loader2 } from 'lucide-react';
 import { useTheme } from '../../core/hooks/useTheme';
+import useModalA11y from '../hooks/useModalA11y';
 import './ConfirmDialog.css';
 
 /**
- * Reusable confirmation dialog component
+ * Reusable confirmation dialog component (role="alertdialog", rendered in a
+ * portal, focus starts on Cancel, Esc/backdrop cancel unless loading).
  *
  * @param {boolean} isOpen - Whether the dialog is visible
  * @param {function} onClose - Callback when dialog is closed/cancelled
@@ -30,6 +33,18 @@ const ConfirmDialog = ({
   loading = false,
 }) => {
   const { isDark } = useTheme();
+  const dialogRef = useRef(null);
+  const cancelRef = useRef(null);
+  const titleId = useId();
+  const messageId = useId();
+
+  const handleCancel = () => {
+    if (!loading && onClose) {
+      onClose();
+    }
+  };
+
+  useModalA11y(dialogRef, { isOpen, onClose: handleCancel, canClose: !loading, initialFocusRef: cancelRef });
 
   if (!isOpen) return null;
 
@@ -39,27 +54,28 @@ const ConfirmDialog = ({
     }
   };
 
-  const handleCancel = () => {
-    if (!loading && onClose) {
-      onClose();
-    }
-  };
-
   const getIcon = () => {
     switch (variant) {
       case 'danger':
       case 'warning':
-        return <AlertTriangle size={24} />;
+        return <AlertTriangle size={24} aria-hidden="true" />;
       case 'info':
-        return <Info size={24} />;
+        return <Info size={24} aria-hidden="true" />;
       default:
-        return <AlertTriangle size={24} />;
+        return <AlertTriangle size={24} aria-hidden="true" />;
     }
   };
 
-  return (
+  return createPortal(
     <div className="confirm-dialog-overlay" onClick={handleCancel}>
       <div
+        ref={dialogRef}
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={messageId}
+        aria-busy={loading || undefined}
+        tabIndex={-1}
         className={`confirm-dialog ${isDark ? 'dark' : ''}`}
         onClick={(e) => e.stopPropagation()}
       >
@@ -68,8 +84,8 @@ const ConfirmDialog = ({
             {getIcon()}
           </div>
           <div className="confirm-dialog-content">
-            <h3 className="confirm-dialog-title">{title}</h3>
-            <p className="confirm-dialog-message">{message}</p>
+            <h3 id={titleId} className="confirm-dialog-title">{title}</h3>
+            <p id={messageId} className="confirm-dialog-message">{message}</p>
           </div>
         </div>
 
@@ -81,6 +97,8 @@ const ConfirmDialog = ({
 
         <div className="confirm-dialog-footer">
           <button
+            ref={cancelRef}
+            type="button"
             className="confirm-dialog-btn confirm-dialog-btn-cancel"
             onClick={handleCancel}
             disabled={loading}
@@ -88,16 +106,18 @@ const ConfirmDialog = ({
             {cancelText}
           </button>
           <button
+            type="button"
             className={`confirm-dialog-btn confirm-dialog-btn-confirm ${variant}`}
             onClick={handleConfirm}
             disabled={loading}
           >
-            {loading && <Loader2 size={16} className="confirm-dialog-spinner" />}
+            {loading && <Loader2 size={16} className="confirm-dialog-spinner" aria-hidden="true" />}
             {loading ? 'Processing...' : confirmText}
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

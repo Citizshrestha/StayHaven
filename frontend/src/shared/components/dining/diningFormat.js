@@ -39,7 +39,7 @@ export const dateTime = (value) => {
 export const errorText = (err, fallback = "Something went wrong") =>
   err?.response?.data?.message || err?.message || fallback;
 
-const esc = (value) =>
+export const esc = (value) =>
   String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 const PRINT_CSS = `
@@ -50,7 +50,8 @@ const PRINT_CSS = `
   @media print{@page{size:80mm auto;margin:0}}
 `;
 
-const openPrintWindow = (title, body) => {
+/** Writes an (already escaped) body into a print popup. Returns false if the popup was blocked. */
+export const openPrintWindow = (title, body) => {
   const win = window.open("", "_blank", "width=420,height=700");
   if (!win) return false;
   win.document.open();

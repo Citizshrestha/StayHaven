@@ -3,9 +3,17 @@ import jwt from 'jsonwebtoken';
 import { User } from '../models/user.schema.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { getAccessTokenSecret } from '../utils/tokenUtils.js';
+import { STAFF_ROLES } from '../utils/staffRoleRoutes.js';
+import { validateCsrfToken } from './csrf.js';
+
+const UNSAFE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 export const protect = asyncHandler(async (req, res, next) => {
+  // Router-level and route-level protect() may both run; verify only once.
+  if (req.authVerified && req.user) return next();
+
   let token;
+  let fromCookie = false;
 
   // Check for token in Authorization header first
   if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
@@ -14,6 +22,7 @@ export const protect = asyncHandler(async (req, res, next) => {
   // Fallback: check for token in cookies
   else if (req.cookies && req.cookies.accessToken) {
     token = req.cookies.accessToken;
+    fromCookie = true;
   }
 
   if (!token) {
@@ -77,8 +86,25 @@ export const protect = asyncHandler(async (req, res, next) => {
     throw error;
   }
 
+  req.authVerified = true;
+  // Ambient-credential (cookie-only) writes need the double-submit CSRF token;
+  // Bearer requests can't be forged cross-site and are unaffected.
+  if (fromCookie && UNSAFE_METHODS.has(req.method)) return validateCsrfToken(req, res, next);
   next();
 });
+
+// Every hotel-staff role (incl. roles without a dashboard yet) plus superadmin.
+const STAFF_API_ROLES = new Set([...STAFF_ROLES, 'kitchen', 'housekeeping', 'maintenance']);
+
+// Staff-only routers: a guest account's access token (same JWT format, same
+// User collection) must not reach staff APIs that only call protect().
+export const requireStaffRole = (req, res, next) => {
+  const role = req.user?.role?.name || req.user?.companyRole;
+  if (!role || !STAFF_API_ROLES.has(role)) {
+    return res.status(403).json({ success: false, message: 'Staff account required' });
+  }
+  next();
+};
 
 export const authorize = (...roles) => {
   return asyncHandler(async (req, res, next) => {

@@ -85,7 +85,7 @@ import {
   getUnreadCount,
   createNotification,
 } from "../controllers/notificationController.js";
-import { protect, authorize } from "../middleware/authMiddleware.js";
+import { protect, authorize, requireStaffRole } from "../middleware/authMiddleware.js";
 import { upload } from "../middleware/upload.js";
 import { authLimiter, passwordResetLimiter, sensitiveOpLimiter, writeOperationLimiter, batchLimiter } from "../middleware/rateLimiter.js";
 import { sanitizeAll } from "../middleware/sanitization.js";
@@ -103,11 +103,14 @@ router.get("/verify-invite/:token", verifyInviteToken);
 router.post("/complete-onboard", authLimiter, completeOnBoarding);
 router.post("/forgot-password", passwordResetLimiter, forgotPassword);
 router.post("/reset-password", passwordResetLimiter, resetPassword);
+// Logout identifies the session itself (an expired access token or the refresh
+// cookie is enough) so the server-side refresh token is always revoked.
+router.post("/logout", staffLogout);
 
 
-// PROTECTED ROUTES (Requires valid access token)
+// PROTECTED ROUTES (Requires valid access token from a staff account)
+router.use(protect, requireStaffRole);
 router.get("/me", protect, getStaffProfile);
-router.post("/logout", protect, staffLogout);
 router.put("/change-password", protect, writeOperationLimiter, changePassword);
 router.patch("/profile-picture", protect, writeOperationLimiter, upload.single("profilePicture"), updateProfilePicture);
 router.patch("/profile", protect, writeOperationLimiter, updateStaffProfile);
@@ -120,7 +123,7 @@ router.get("/menu-categories", protect, getMenuCategories);
 router.post(
   "/menu-items",
   protect,
-  authorize("owner", "manager", "admin"),
+  authorize("owner", "manager", "admin", "hoteladmin"),
   writeOperationLimiter,
   upload.single("image"),
   createMenuItem
@@ -128,21 +131,21 @@ router.post(
 router.put(
   "/menu-items/bulk-toggle",
   protect,
-  authorize("owner", "manager", "admin"),
+  authorize("owner", "manager", "admin", "hoteladmin"),
   writeOperationLimiter,
   bulkToggleAvailability
 );
 router.put(
   "/menu-items/reorder",
   protect,
-  authorize("owner", "manager", "admin"),
+  authorize("owner", "manager", "admin", "hoteladmin"),
   writeOperationLimiter,
   reorderMenuItems
 );
 router.put(
   "/menu-items/:itemId",
   protect,
-  authorize("owner", "manager", "admin"),
+  authorize("owner", "manager", "admin", "hoteladmin"),
   writeOperationLimiter,
   upload.single("image"),
   updateMenuItem
@@ -150,7 +153,7 @@ router.put(
 router.delete(
   "/menu-items/:itemId",
   protect,
-  authorize("owner", "manager", "admin"),
+  authorize("owner", "manager", "admin", "hoteladmin"),
   writeOperationLimiter,
   deleteMenuItem
 );
@@ -172,10 +175,12 @@ router.get("/orders", protect, getOrders);
 router.get("/orders/:orderId", protect, getOrderById);
 
 // Update order status - ONLY waiter, chief, manager can update (NOT receptionist)
+// (owner/admin/hoteladmin added: the hotel-admin OrderManagement screen advances
+// orders; per-role transitions are enforced in the controller)
 router.put(
   "/orders/:orderId/status",
   protect,
-  authorize("waiter", "chief", "manager"),
+  authorize("waiter", "chief", "manager", "owner", "admin", "hoteladmin"),
   writeOperationLimiter,
   updateOrderStatus
 );
@@ -185,7 +190,7 @@ router.put(
 router.post(
   "/orders/:orderId/cancel",
   protect,
-  authorize("owner", "admin", "manager", "waiter", "chief"),
+  authorize("owner", "admin", "manager", "waiter", "chief", "hoteladmin"),
   writeOperationLimiter,
   cancelOrder
 );
@@ -234,7 +239,7 @@ router.delete('/manage/:propertyId/:staffId', protect, authorize('manager', 'hot
 router.post(
   "/register",
   protect,
-  authorize("manager", "admin", "owner"),
+  authorize("manager", "admin", "owner", "hoteladmin"),
   sensitiveOpLimiter,
   registerStaff
 );
@@ -258,14 +263,14 @@ router.post(
 router.get(
   "/pending-invites",
   protect,
-  authorize("manager", "admin", "owner"),
+  authorize("manager", "admin", "owner", "hoteladmin"),
   getPendingInvites
 );
 
 router.delete(
   "/invite/:staffId",
   protect,
-  authorize("manager", "admin", "owner"),
+  authorize("manager", "admin", "owner", "hoteladmin"),
   writeOperationLimiter,
   deleteInvite
 );
@@ -273,7 +278,7 @@ router.delete(
 router.get(
   "/property/:propertyId",
   protect,
-  authorize("manager", "admin", "owner"),
+  authorize("manager", "admin", "owner", "hoteladmin"),
   getPropertyStaff
 );
 

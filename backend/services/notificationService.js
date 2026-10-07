@@ -287,8 +287,14 @@ export const sendWhatsApp = async ({ to, message }) => {
 /**
  * Generate HTML email template for bill
  */
+// Customer names, item names and hotel details are user-controlled: escape all of them.
+const escapeHtml = (value) =>
+  String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const money2 = (value) => (Number(value) || 0).toFixed(2);
+
 export const generateBillEmailHTML = (billData) => {
-  const { orderNumber, hotelName, hotelAddress, hotelPhone, location, customerName, items, subtotal, tax, total, date } = billData;
+  const { orderNumber, hotelName, hotelAddress, hotelPhone, location, customerName, items, subtotal, tax, total, date, taxRate, serviceCharge, serviceChargeRate } = billData;
+  const e = escapeHtml;
 
   return `
 <!DOCTYPE html>
@@ -296,7 +302,7 @@ export const generateBillEmailHTML = (billData) => {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bill - Order #${orderNumber}</title>
+  <title>Bill - Order #${e(orderNumber)}</title>
   <style>
     body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
     .header { text-align: center; border-bottom: 2px solid #0EA5A0; padding-bottom: 20px; margin-bottom: 20px; }
@@ -317,15 +323,15 @@ export const generateBillEmailHTML = (billData) => {
 </head>
 <body>
   <div class="header">
-    <div class="hotel-name">${hotelName}</div>
-    <div class="hotel-info">${hotelAddress}<br>Tel: ${hotelPhone}</div>
+    <div class="hotel-name">${e(hotelName)}</div>
+    <div class="hotel-info">${e(hotelAddress)}<br>Tel: ${e(hotelPhone)}</div>
   </div>
 
   <div class="bill-details">
-    <div><strong>Bill No:</strong> <span>#${orderNumber}</span></div>
-    <div><strong>Date:</strong> <span>${new Date(date).toLocaleString('en-NP')}</span></div>
-    <div><strong>Location:</strong> <span>${location}</span></div>
-    <div><strong>Customer:</strong> <span>${customerName}</span></div>
+    <div><strong>Bill No:</strong> <span>#${e(orderNumber)}</span></div>
+    <div><strong>Date:</strong> <span>${e(new Date(date).toLocaleString('en-NP'))}</span></div>
+    <div><strong>Location:</strong> <span>${e(location)}</span></div>
+    <div><strong>Customer:</strong> <span>${e(customerName)}</span></div>
   </div>
 
   <table class="items-table">
@@ -340,19 +346,19 @@ export const generateBillEmailHTML = (billData) => {
     <tbody>
       ${items.map(item => `
         <tr>
-          <td>${item.name}</td>
-          <td style="text-align: center;">${item.quantity}</td>
-          <td style="text-align: right;">Rs. ${item.price.toFixed(2)}</td>
-          <td style="text-align: right;">Rs. ${item.total.toFixed(2)}</td>
+          <td>${e(item.name)}</td>
+          <td style="text-align: center;">${e(item.quantity)}</td>
+          <td style="text-align: right;">Rs. ${money2(item.price)}</td>
+          <td style="text-align: right;">Rs. ${money2(item.total)}</td>
         </tr>
       `).join('')}
     </tbody>
   </table>
 
   <div class="totals">
-    <div><span>Subtotal:</span> <span>Rs. ${subtotal.toFixed(2)}</span></div>
-    <div><span>VAT (13%):</span> <span>Rs. ${tax.toFixed(2)}</span></div>
-    <div class="grand-total"><span>GRAND TOTAL:</span> <span>Rs. ${total.toFixed(2)}</span></div>
+    <div><span>Subtotal:</span> <span>Rs. ${money2(subtotal)}</span></div>${serviceCharge > 0 ? `<div><span>Service charge (${e(serviceChargeRate)}%):</span> <span>Rs. ${money2(serviceCharge)}</span></div>` : ""}
+    <div><span>VAT (${e(taxRate ?? 13)}%):</span> <span>Rs. ${money2(tax)}</span></div>
+    <div class="grand-total"><span>GRAND TOTAL:</span> <span>Rs. ${money2(total)}</span></div>
   </div>
 
   <div class="payment-note">

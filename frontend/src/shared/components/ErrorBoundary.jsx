@@ -42,6 +42,14 @@ class ErrorBoundary extends React.Component {
     }
   }
 
+  componentDidUpdate(prevProps) {
+    // Route-level boundaries pass resetKey={pathname}: navigating away from
+    // the crashed page clears the fallback instead of requiring a reload.
+    if (this.state.hasError && prevProps.resetKey !== this.props.resetKey) {
+      this.setState({ hasError: false, error: null, errorInfo: null, errorId: null });
+    }
+  }
+
   handleReload = () => {
     window.location.reload();
   };
@@ -54,10 +62,10 @@ class ErrorBoundary extends React.Component {
     if (this.state.hasError) {
       // Custom fallback UI
       return (
-        <div className={styles.errorContainer}>
+        <div className={styles.errorContainer} role="alert">
           <div className={styles.errorCard}>
             <div className={styles.iconWrapper}>
-              <AlertTriangle className={styles.icon} />
+              <AlertTriangle className={styles.icon} aria-hidden="true" />
             </div>
 
             <h1 className={styles.title}>Oops! Something went wrong</h1>
@@ -88,11 +96,11 @@ class ErrorBoundary extends React.Component {
             )}
 
             <div className={styles.actions}>
-              <button onClick={this.handleReload} className={styles.primaryButton}>
+              <button type="button" onClick={this.handleReload} className={styles.primaryButton}>
                 <RefreshCw className={styles.buttonIcon} />
                 Reload Page
               </button>
-              <button onClick={this.handleGoHome} className={styles.secondaryButton}>
+              <button type="button" onClick={this.handleGoHome} className={styles.secondaryButton}>
                 <Home className={styles.buttonIcon} />
                 Go to Home
               </button>

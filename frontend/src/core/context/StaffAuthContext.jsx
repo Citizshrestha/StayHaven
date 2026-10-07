@@ -1,13 +1,25 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
-import { refreshSession } from "../api/client";
+import apiClient, { refreshSession } from "../api/client";
 
 
 // Create the context
 const StaffAuthContext = createContext(null);
 
-// Token refresh interval (refresh 5 minutes before expiry for 1-hour token)
-const TOKEN_REFRESH_INTERVAL = 55 * 60 * 1000; // 55 minutes
+// Refresh this long before the access token's own `exp` (the server decides the
+// lifetime via JWT_EXPIRE, so a fixed page-load interval drifts or overshoots).
+const REFRESH_LEAD_MS = 60 * 1000;
+const MIN_REFRESH_DELAY_MS = 5 * 1000;
+const FALLBACK_REFRESH_DELAY_MS = 10 * 60 * 1000;
+
+const tokenExpiresAt = (token) => {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+    return Number.isFinite(payload.exp) ? payload.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+};
 
 export const StaffAuthProvider = ({ children }) => {
   const [staffUser, setStaffUser] = useState(null);
@@ -33,20 +45,37 @@ export const StaffAuthProvider = ({ children }) => {
     }
   }, []);
 
-  // Setup proactive token refresh timer
+  // Proactive refresh, scheduled from the current token's `exp` and re-armed
+  // after every refresh (including ones done by the 401 interceptor).
   const setupRefreshTimer = useCallback(() => {
-    // Clear existing timer
     if (refreshTimerRef.current) {
-      clearInterval(refreshTimerRef.current);
+      clearTimeout(refreshTimerRef.current);
     }
-    
-    // Set up new timer for proactive refresh
-    refreshTimerRef.current = setInterval(() => {
-      const hasToken = sessionStorage.getItem("staffAccessToken");
-      if (hasToken) {
-        refreshToken();
+    const schedule = () => {
+      const token = sessionStorage.getItem("staffAccessToken");
+      if (!token) {
+        refreshTimerRef.current = null;
+        return;
       }
-    }, TOKEN_REFRESH_INTERVAL);
+      const expiresAt = tokenExpiresAt(token);
+      const delay = expiresAt
+        ? Math.max(MIN_REFRESH_DELAY_MS, expiresAt - Date.now() - REFRESH_LEAD_MS)
+        : FALLBACK_REFRESH_DELAY_MS;
+      refreshTimerRef.current = setTimeout(async () => {
+        // Skip if another request already rotated the token in the meantime.
+        const current = sessionStorage.getItem("staffAccessToken");
+        const currentExpiry = current && tokenExpiresAt(current);
+        if (current && (!currentExpiry || currentExpiry - Date.now() <= REFRESH_LEAD_MS + MIN_REFRESH_DELAY_MS)) {
+          // A failed refresh stops the timer; the 401 interceptor owns recovery.
+          if (!(await refreshToken())) {
+            refreshTimerRef.current = null;
+            return;
+          }
+        }
+        schedule();
+      }, delay);
+    };
+    schedule();
   }, [refreshToken]);
 
   // Check for existing session on mount
@@ -87,7 +116,7 @@ export const StaffAuthProvider = ({ children }) => {
     // Cleanup timer on unmount
     return () => {
       if (refreshTimerRef.current) {
-        clearInterval(refreshTimerRef.current);
+        clearTimeout(refreshTimerRef.current);
       }
     };
   }, [setupRefreshTimer]);
@@ -100,18 +129,28 @@ export const StaffAuthProvider = ({ children }) => {
     if (userData.activeProperty) {
       sessionStorage.setItem("activeProperty", JSON.stringify(userData.activeProperty));
     }
-    // Setup proactive refresh timer after login
-    setupRefreshTimer();
+    // Setup proactive refresh timer after login (next tick: some callers store
+    // the access token right after calling login()).
+    setTimeout(setupRefreshTimer, 0);
   };
   
-  // Logout function - clears all auth data
+  // Logout: clears local auth data immediately (callers navigate right after)
+  // and revokes the refresh token on the server. The returned promise settles
+  // when the server call finishes; it never rejects.
   const logout = () => {
     // Clear refresh timer
     if (refreshTimerRef.current) {
-      clearInterval(refreshTimerRef.current);
+      clearTimeout(refreshTimerRef.current);
       refreshTimerRef.current = null;
     }
-    
+
+    const token = sessionStorage.getItem("staffAccessToken");
+    const revoke = token
+      ? apiClient.post("/api/v1/staff/logout", {}, {
+          headers: { Authorization: `Bearer ${token}` }, timeout: 8000,
+        }).then(() => undefined, () => undefined) // offline / already signed out
+      : Promise.resolve();
+
     setStaffUser(null);
     sessionStorage.removeItem("staffUser");
     sessionStorage.removeItem("staffRole");
@@ -124,6 +163,7 @@ export const StaffAuthProvider = ({ children }) => {
     localStorage.removeItem("staffRole");
     localStorage.removeItem("activeProperty");
     localStorage.removeItem("restaurant_orders");
+    return revoke;
   };
 
   // Update user data (e.g., after profile update)

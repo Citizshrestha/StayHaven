@@ -2,377 +2,447 @@
  * Professional Bill Preview Modal
  * Industry-standard invoice design with print and send functionality
  * Used across Waiter, Receptionist, and Admin dashboards
+ *
+ * VAT / service charge come from the hotel's restaurant billing settings
+ * (GET /api/v1/staff/dining/settings), never a hard-coded rate. Everything that
+ * reaches the print window is HTML-escaped.
  */
 
-import React, { useState, useRef } from 'react';
-import { X, Printer, Send, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { X, Printer, Send, CheckCircle, AlertCircle, Loader2, RefreshCw } from 'lucide-react';
 import { toast } from 'react-toastify';
 import PropTypes from 'prop-types';
+import apiClient from '../../core/api/client';
+import useModalA11y from '../hooks/useModalA11y';
+import { esc, money, openPrintWindow } from './dining/diningFormat';
 
-const BillPreviewModal = ({ 
-  order, 
-  hotel, 
-  onClose, 
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+
+const formatDate = (value) => {
+  const d = new Date(value);
+  return Number.isNaN(d.getTime())
+    ? '—'
+    : d.toLocaleString('en-NP', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+};
+
+const resolveHotelId = (order, hotel) => {
+  const fromOrder = order?.hotel?._id || (typeof order?.hotel === 'string' ? order.hotel : null) || order?.hotelId;
+  if (fromOrder) return String(fromOrder);
+  if (hotel?._id) return String(hotel._id);
+  try {
+    return JSON.parse(sessionStorage.getItem('activeProperty') || 'null')?._id || null;
+  } catch {
+    return null;
+  }
+};
+
+// Same formula as backend/services/diningBilling.js computeTotals (no discount).
+const computeBill = (items, charges) => {
+  const subtotal = round2(items.reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 0), 0));
+  if (!charges) return { subtotal, serviceCharge: null, tax: null, total: null };
+  const serviceCharge = round2((subtotal * (Number(charges.serviceChargeRate) || 0)) / 100);
+  const taxBase = round2(subtotal + (charges.taxOnServiceCharge !== false ? serviceCharge : 0));
+  const tax = round2((taxBase * (Number(charges.taxRate) || 0)) / 100);
+  return { subtotal, serviceCharge, tax, total: round2(subtotal + serviceCharge + tax) };
+};
+
+const locationLabel = (order) => (order.orderType === 'takeaway'
+  ? 'Takeaway'
+  : order.orderType === 'roomService'
+    ? `Room ${order.roomNumber ?? '—'}`
+    : `Table ${order.tableNumber ?? '—'}`);
+
+const BillPreviewModal = ({
+  order,
+  hotel,
+  onClose,
   onSendBill,
-  isOpen 
+  isOpen
 }) => {
   const [sendMethod, setSendMethod] = useState('app');
   const [email, setEmail] = useState(order?.customerEmail || '');
+  const [emailError, setEmailError] = useState('');
   const [sending, setSending] = useState(false);
-  const printRef = useRef();
+  const [charges, setCharges] = useState(null);
+  const [chargesState, setChargesState] = useState('loading'); // loading | ready | error
+  const dialogRef = useRef(null);
+  const closeRef = useRef(null);
+  const titleId = useId();
+  const emailId = useId();
+  const emailErrorId = useId();
+
+  const hotelId = resolveHotelId(order, hotel);
+  const handleClose = useCallback(() => {
+    if (!sending) onClose();
+  }, [sending, onClose]);
+
+  useModalA11y(dialogRef, { isOpen: Boolean(isOpen && order), onClose: handleClose, canClose: !sending, initialFocusRef: closeRef });
+
+  const loadCharges = useCallback(async () => {
+    if (!hotelId) {
+      setChargesState('error');
+      return;
+    }
+    setChargesState('loading');
+    try {
+      const { data } = await apiClient.get('/api/v1/staff/dining/settings', { params: { hotelId } });
+      setCharges(data?.data || null);
+      setChargesState(data?.data ? 'ready' : 'error');
+    } catch {
+      setChargesState('error');
+    }
+  }, [hotelId]);
+
+  useEffect(() => {
+    if (isOpen && order) loadCharges();
+  }, [isOpen, order, loadCharges]);
+
+  const items = useMemo(() => (Array.isArray(order?.items) ? order.items : []), [order]);
+  const bill = useMemo(() => computeBill(items, chargesState === 'ready' ? charges : null), [items, charges, chargesState]);
 
   if (!isOpen || !order) return null;
 
-  // Calculate bill details
-  const subtotal = order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const taxRate = 0.13; // 13% VAT in Nepal
-  const tax = subtotal * taxRate;
-  const serviceCharge = 0; // Can be configured
-  const grandTotal = subtotal + tax + serviceCharge;
-
   const isPaid = order.paymentStatus === 'paid';
   const billSent = order.billSent;
+  const hotelName = hotel?.name || order.hotel?.name || '';
+  const hotelAddress = hotel?.location?.address || hotel?.address || '';
+  const hotelPhone = hotel?.contact?.phone || hotel?.phone || '';
+  const totalsReady = chargesState === 'ready';
 
-  // Handle print
+  // Handle print (escaped HTML in a popup; reports a blocked popup instead of crashing)
   const handlePrint = () => {
-    const printContent = printRef.current;
-    const printWindow = window.open('', '', 'height=600,width=800');
-    
-    printWindow.document.write('<html><head><title>Bill #' + order.orderNumber + '</title>');
-    printWindow.document.write(`
-      <style>
-        body { font-family: 'Courier New', monospace; padding: 20px; }
-        .bill-container { max-width: 400px; margin: 0 auto; }
-        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px dashed #000; padding-bottom: 10px; }
-        .hotel-name { font-size: 20px; font-weight: bold; margin-bottom: 5px; }
-        .hotel-info { font-size: 12px; }
-        .bill-details { margin: 15px 0; font-size: 12px; }
-        .bill-details div { display: flex; justify-content: space-between; margin: 5px 0; }
-        .items-table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 12px; }
-        .items-table th { text-align: left; border-bottom: 1px solid #000; padding: 5px 0; }
-        .items-table td { padding: 5px 0; }
-        .totals { margin-top: 15px; border-top: 1px solid #000; padding-top: 10px; }
-        .totals div { display: flex; justify-content: space-between; margin: 5px 0; }
-        .grand-total { font-weight: bold; font-size: 14px; border-top: 2px solid #000; padding-top: 10px; margin-top: 10px; }
-        .footer { text-align: center; margin-top: 20px; font-size: 11px; border-top: 2px dashed #000; padding-top: 10px; }
-        @media print {
-          body { margin: 0; }
-          .no-print { display: none; }
-        }
-      </style>
-    `);
-    printWindow.document.write('</head><body>');
-    printWindow.document.write(printContent.innerHTML);
-    printWindow.document.write('</body></html>');
-    printWindow.document.close();
-    printWindow.print();
+    if (!totalsReady) {
+      toast.error('Tax settings are still loading. Try again in a moment.');
+      return;
+    }
+    const rows = items.map((item) => `<tr><td>${esc(item.quantity)} × ${esc(item.name)}<br><span class="muted">@ ${esc(money(item.price))}</span></td><td class="r">${esc(money((Number(item.price) || 0) * (Number(item.quantity) || 0)))}</td></tr>`).join('');
+    const row = (label, value, cls = '') => `<tr class="${cls}"><td>${esc(label)}</td><td class="r">${esc(value)}</td></tr>`;
+    const body = `
+      <h1>${esc(hotelName || 'Restaurant')}</h1>
+      ${hotelAddress ? `<div class="c muted">${esc(hotelAddress)}</div>` : ''}
+      ${hotelPhone ? `<div class="c muted">Tel ${esc(hotelPhone)}</div>` : ''}
+      <hr>
+      <div class="c b">BILL #${esc(order.orderNumber)}</div>
+      <div>${esc(locationLabel(order))} · ${esc(order.customerName || 'Guest')}</div>
+      <div class="muted">${esc(formatDate(order.createdAt))}</div>
+      <hr>
+      <table>${rows}</table>
+      <hr>
+      <table>
+        ${row('Subtotal', money(bill.subtotal))}
+        ${bill.serviceCharge ? row(`Service charge (${charges.serviceChargeRate}%)`, money(bill.serviceCharge)) : ''}
+        ${row(`VAT (${charges.taxRate}%)`, money(bill.tax))}
+        ${row('TOTAL', money(bill.total), 'b big')}
+      </table>
+      ${isPaid ? `<hr><div class="c b">PAID ${esc(formatDate(order.paidAt))}</div>` : ''}
+      <hr>
+      <div class="c">Thank you for your visit!</div>
+    `;
+    if (!openPrintWindow(`Bill #${order.orderNumber}`, body)) {
+      toast.error('Allow pop-ups for this site to print the bill.');
+    }
   };
 
   // Handle send bill
   const handleSendBill = async () => {
-    // Validate based on method
-    if (sendMethod === 'email' && !email) {
-      toast.error('Please enter email address');
+    if (sending) return;
+    if (sendMethod === 'email') {
+      const value = email.trim();
+      if (!EMAIL_PATTERN.test(value) || value.length > 254) {
+        setEmailError('Enter a valid email address, for example name@example.com.');
+        return;
+      }
+    }
+    setEmailError('');
+
+    const orderId = order._id || order.id;
+    if (!orderId) {
+      toast.error('This order has not been saved yet, so its bill cannot be sent.');
       return;
     }
 
     try {
       setSending(true);
-      const orderId = order._id || order.id;
-
-      console.log('🔍 Send Bill Debug:', {
-        order,
-        orderId,
-        hasId: !!order.id,
-        has_id: !!order._id,
-        orderKeys: Object.keys(order),
-      });
-
-      if (!orderId) {
-        console.error('❌ Order ID not found. Order object:', order);
-        toast.error('Order ID not found');
-        setSending(false);
-        return;
-      }
-
       await onSendBill(orderId, {
         method: sendMethod,
-        email: sendMethod === 'email' ? email : undefined,
+        email: sendMethod === 'email' ? email.trim() : undefined,
       });
 
-      const methodLabel = sendMethod === 'app' ? 'app notification' : sendMethod;
-      toast.success(`📧 Bill sent successfully via ${methodLabel}! Guest will make the payment.`);
-      setTimeout(() => onClose(), 1500);
+      const methodLabel = sendMethod === 'app' ? 'app notification' : 'email';
+      toast.success(`Bill sent via ${methodLabel}. The guest can now pay.`);
+      setSending(false);
+      onClose();
     } catch (error) {
-      console.error('Send bill error:', error);
       toast.error(error.response?.data?.message || 'Failed to send bill');
-    } finally {
       setSending(false);
     }
   };
 
-  return (
+  const methodButton = (value, label, icon) => (
+    <button
+      type="button"
+      onClick={() => setSendMethod(value)}
+      aria-pressed={sendMethod === value}
+      disabled={sending}
+      className={`min-h-[44px] px-4 py-3 rounded-lg font-medium transition-all flex items-center justify-center gap-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 ${
+        sendMethod === value
+          ? 'bg-teal-600 text-white shadow-md'
+          : 'bg-teal-50 text-teal-800 hover:bg-teal-100 border border-teal-200 dark:bg-teal-950/40 dark:text-teal-200 dark:border-teal-800 dark:hover:bg-teal-900/50'
+      }`}
+    >
+      <span className="text-lg" aria-hidden="true">{icon}</span>
+      <span>{label}</span>
+    </button>
+  );
+
+  const amount = (value) => (value == null ? '…' : money(value));
+
+  return createPortal(
     <div
-      className="fixed inset-0 flex items-center justify-center z-50 p-4"
-      style={{ backgroundColor: 'transparent' }}
-      onClick={onClose}
+      className="fixed inset-0 z-[1000] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/50"
+      onClick={handleClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border-2 border-gray-200"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-busy={sending || undefined}
+        tabIndex={-1}
+        className="bg-white text-slate-900 dark:bg-slate-900 dark:text-slate-100 w-full sm:max-w-2xl rounded-t-2xl sm:rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col max-h-[calc(100vh-32px)] max-h-[calc(100dvh-32px)] focus:outline-none"
         onClick={(event) => event.stopPropagation()}
       >
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between z-10">
-          <h2 className="text-2xl font-bold text-gray-900">Bill Preview</h2>
+        <div className="shrink-0 border-b border-slate-200 dark:border-slate-700 px-4 sm:px-6 py-3 flex items-center justify-between">
+          <h2 id={titleId} className="text-xl sm:text-2xl font-bold">Bill Preview</h2>
           <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            ref={closeRef}
+            type="button"
+            onClick={handleClose}
+            disabled={sending}
+            aria-label="Close bill preview"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600"
           >
-            <X className="w-6 h-6 text-gray-600" />
+            <X className="w-6 h-6 text-slate-600 dark:text-slate-300" aria-hidden="true" />
           </button>
         </div>
 
-        {/* Bill Content - Printable */}
-        <div ref={printRef} className="p-8">
-          <div className="bill-container max-w-md mx-auto">
-            {/* Header */}
-            <div className="header text-center mb-6 pb-4 border-b-2 border-dashed border-gray-400">
-              <div className="hotel-name text-2xl font-bold text-gray-900 mb-2">
-                {hotel?.name || 'Test Hotel'}
+        {/* Scrollable body: bill + send options */}
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+          <div className="p-4 sm:p-8">
+            <div className="max-w-md mx-auto">
+              {/* Header */}
+              <div className="text-center mb-6 pb-4 border-b-2 border-dashed border-slate-300 dark:border-slate-600">
+                <div className="text-2xl font-bold mb-2 break-words">{hotelName || 'Restaurant'}</div>
+                <div className="text-sm text-slate-600 dark:text-slate-400">
+                  {hotelAddress && <div className="break-words">{hotelAddress}</div>}
+                  {hotelPhone && <div>Tel: {hotelPhone}</div>}
+                </div>
               </div>
-              <div className="hotel-info text-sm text-gray-600">
-                <div>{hotel?.location?.address || '123 Test Street, Dhulikhel, Kathmandu'}</div>
-                <div>Tel: {hotel?.contact?.phone || '+977 1 4321000'}</div>
-              </div>
-            </div>
 
-            {/* Bill Details */}
-            <div className="bill-details text-sm space-y-2 mb-6">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Bill No:</span>
-                <span className="font-semibold">#{order.orderNumber}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Date:</span>
-                <span className="font-semibold">
-                  {new Date(order.createdAt).toLocaleString('en-NP', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Location:</span>
-                <span className="font-semibold">
-                  {order.orderType === 'takeaway'
-                    ? 'Takeaway'
-                    : order.orderType === 'roomService'
-                      ? `Room ${order.roomNumber}`
-                      : `Table ${order.tableNumber}`}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Customer:</span>
-                <span className="font-semibold">{order.customerName || 'Guest'}</span>
-              </div>
-            </div>
-
-            {/* Items Table */}
-            <table className="items-table w-full text-sm mb-6">
-              <thead>
-                <tr className="border-b border-gray-900">
-                  <th className="text-left py-2">ITEM</th>
-                  <th className="text-center py-2">QTY</th>
-                  <th className="text-right py-2">PRICE</th>
-                  <th className="text-right py-2">TOTAL</th>
-                </tr>
-              </thead>
-              <tbody>
-                {order.items.map((item, index) => (
-                  <tr key={index} className="border-b border-gray-200">
-                    <td className="py-2">{item.name}</td>
-                    <td className="text-center py-2">{item.quantity}</td>
-                    <td className="text-right py-2">Nrs {item.price.toFixed(2)}</td>
-                    <td className="text-right py-2 font-semibold">
-                      Nrs {(item.price * item.quantity).toFixed(2)}
-                    </td>
-                  </tr>
+              {/* Bill Details */}
+              <dl className="text-sm space-y-2 mb-6">
+                {[
+                  ['Bill No:', `#${order.orderNumber ?? '—'}`],
+                  ['Date:', formatDate(order.createdAt)],
+                  ['Location:', locationLabel(order)],
+                  ['Customer:', order.customerName || 'Guest'],
+                ].map(([label, value]) => (
+                  <div key={label} className="flex justify-between gap-4">
+                    <dt className="text-slate-600 dark:text-slate-400">{label}</dt>
+                    <dd className="font-semibold text-right break-words min-w-0">{value}</dd>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </dl>
 
-            {/* Totals */}
-            <div className="totals space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Subtotal:</span>
-                <span className="font-semibold">Nrs {subtotal.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">VAT (13%):</span>
-                <span className="font-semibold">Nrs {tax.toFixed(2)}</span>
-              </div>
-              {serviceCharge > 0 && (
+              {/* Items Table */}
+              <table className="w-full text-sm mb-6">
+                <thead>
+                  <tr className="border-b border-slate-900 dark:border-slate-300">
+                    <th scope="col" className="text-left py-2">ITEM</th>
+                    <th scope="col" className="text-center py-2">QTY</th>
+                    <th scope="col" className="text-right py-2 hidden sm:table-cell">PRICE</th>
+                    <th scope="col" className="text-right py-2">TOTAL</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((item, index) => (
+                    <tr key={item._id || item.id || index} className="border-b border-slate-200 dark:border-slate-700">
+                      <td className="py-2 pr-2 break-words">{item.name}</td>
+                      <td className="text-center py-2 tabular-nums">{item.quantity}</td>
+                      <td className="text-right py-2 tabular-nums hidden sm:table-cell whitespace-nowrap">{money(item.price)}</td>
+                      <td className="text-right py-2 font-semibold tabular-nums whitespace-nowrap">
+                        {money((Number(item.price) || 0) * (Number(item.quantity) || 0))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {/* Totals */}
+              <div className="space-y-2 text-sm tabular-nums" aria-live="polite">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Service Charge:</span>
-                  <span className="font-semibold">Nrs {serviceCharge.toFixed(2)}</span>
+                  <span className="text-slate-600 dark:text-slate-400">Subtotal:</span>
+                  <span className="font-semibold">{money(bill.subtotal)}</span>
+                </div>
+                {bill.serviceCharge > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-slate-600 dark:text-slate-400">Service charge ({charges.serviceChargeRate}%):</span>
+                    <span className="font-semibold">{money(bill.serviceCharge)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-slate-600 dark:text-slate-400">
+                    VAT{totalsReady ? ` (${charges.taxRate}%)` : ''}:
+                  </span>
+                  <span className="font-semibold">{amount(bill.tax)}</span>
+                </div>
+                <div className="flex justify-between text-lg font-bold border-t-2 border-slate-900 dark:border-slate-300 pt-3 mt-3">
+                  <span>GRAND TOTAL:</span>
+                  <span>{amount(bill.total)}</span>
+                </div>
+                {chargesState === 'loading' && (
+                  <p className="text-xs text-slate-500 dark:text-slate-400" role="status">Loading the hotel&apos;s tax settings…</p>
+                )}
+                {chargesState === 'error' && (
+                  <div className="flex items-center justify-between gap-2 text-xs text-amber-800 dark:text-amber-300" role="alert">
+                    <span>Couldn&apos;t load the hotel&apos;s tax settings, so VAT isn&apos;t shown.</span>
+                    <button type="button" onClick={loadCharges} className="min-h-[36px] px-2 inline-flex items-center gap-1 font-semibold underline">
+                      <RefreshCw className="w-3 h-3" aria-hidden="true" /> Retry
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {isPaid && (
+                <div className="mt-6 p-4 bg-green-50 dark:bg-green-950/40 border-2 border-green-500 rounded-lg">
+                  <div className="flex items-center justify-center gap-2 text-green-700 dark:text-green-300 font-semibold">
+                    <CheckCircle className="w-5 h-5" aria-hidden="true" />
+                    <span>PAID</span>
+                  </div>
+                  <div className="text-center text-sm text-green-700 dark:text-green-300 mt-1">{formatDate(order.paidAt)}</div>
                 </div>
               )}
-              <div className="grand-total flex justify-between text-lg font-bold border-t-2 border-gray-900 pt-3 mt-3">
-                <span>GRAND TOTAL:</span>
-                <span>Nrs {grandTotal.toFixed(2)}</span>
+
+              <div className="text-center mt-6 pt-4 border-t-2 border-dashed border-slate-300 dark:border-slate-600 text-xs text-slate-600 dark:text-slate-400">
+                <div className="mb-2">Thank you for your visit!</div>
+                <div>Please visit again</div>
               </div>
             </div>
+          </div>
 
-            {/* Payment Status */}
-            {isPaid && (
-              <div className="mt-6 p-4 bg-green-50 border-2 border-green-500 rounded-lg">
-                <div className="flex items-center justify-center gap-2 text-green-700 font-semibold">
-                  <CheckCircle className="w-5 h-5" />
-                  <span>PAID</span>
-                </div>
-                <div className="text-center text-sm text-green-600 mt-1">
-                  {new Date(order.paidAt).toLocaleString('en-NP')}
-                </div>
+          <div className="px-4 sm:px-6 pb-4 space-y-4">
+            {billSent && (
+              <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <CheckCircle className="w-5 h-5 text-blue-600 dark:text-blue-300 shrink-0" aria-hidden="true" />
+                <span className="text-sm text-blue-800 dark:text-blue-200 font-medium">
+                  Bill sent on {formatDate(order.billSentAt)}{order.billSentTo?.method ? ` via ${order.billSentTo.method}` : ''}
+                </span>
               </div>
             )}
 
-            {/* Footer */}
-            <div className="footer text-center mt-6 pt-4 border-t-2 border-dashed border-gray-400 text-xs text-gray-600">
-              <div className="mb-2">Thank you for your visit!</div>
-              <div>Please visit again</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Actions - Not Printable */}
-        <div className="no-print sticky bottom-0 bg-gray-50 border-t px-6 py-4 space-y-4">
-          {/* Bill Sent Status */}
-          {billSent && (
-            <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <CheckCircle className="w-5 h-5 text-blue-600" />
-              <span className="text-sm text-blue-800 font-medium">
-                Bill sent on {new Date(order.billSentAt).toLocaleString('en-NP')} via {order.billSentTo?.method}
+            <div className={`flex items-center gap-2 p-3 rounded-lg border ${isPaid
+              ? 'bg-green-50 border-green-200 dark:bg-green-950/40 dark:border-green-800'
+              : 'bg-amber-50 border-amber-200 dark:bg-amber-950/40 dark:border-amber-800'}`}
+            >
+              {isPaid
+                ? <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-300 shrink-0" aria-hidden="true" />
+                : <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-300 shrink-0" aria-hidden="true" />}
+              <span className={`text-sm font-medium ${isPaid ? 'text-green-800 dark:text-green-200' : 'text-amber-800 dark:text-amber-200'}`}>
+                {isPaid ? `Payment received on ${formatDate(order.paidAt)}` : 'Payment pending - Guest will pay after receiving the bill'}
               </span>
             </div>
-          )}
 
-          {/* Payment Status Info */}
-          {!isPaid && (
-            <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-              <AlertCircle className="w-5 h-5 text-amber-600" />
-              <span className="text-sm text-amber-800 font-medium">
-                Payment pending - Guest will pay after receiving the bill
-              </span>
-            </div>
-          )}
+            {!billSent && (
+              <fieldset className="space-y-3" disabled={sending}>
+                <legend className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Send Bill Via:</legend>
+                <div className="grid grid-cols-2 gap-3">
+                  {methodButton('app', 'App Notification', '🔔')}
+                  {methodButton('email', 'Email', '📧')}
+                </div>
 
-          {isPaid && (
-            <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-              <CheckCircle className="w-5 h-5 text-green-600" />
-              <span className="text-sm text-green-800 font-medium">
-                Payment received on {new Date(order.paidAt).toLocaleString('en-NP')}
-              </span>
-            </div>
-          )}
+                {sendMethod === 'email' && (
+                  <div>
+                    <label htmlFor={emailId} className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                      Guest email address
+                    </label>
+                    <input
+                      id={emailId}
+                      type="email"
+                      inputMode="email"
+                      autoComplete="email"
+                      maxLength={254}
+                      required
+                      value={email}
+                      onChange={(e) => { setEmail(e.target.value); if (emailError) setEmailError(''); }}
+                      placeholder="name@example.com"
+                      aria-invalid={emailError ? 'true' : 'false'}
+                      aria-describedby={emailError ? emailErrorId : undefined}
+                      className="w-full min-h-[44px] px-4 py-2 text-base bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                    />
+                    {emailError && <p id={emailErrorId} className="mt-1 text-sm text-red-700 dark:text-red-300">{emailError}</p>}
+                  </div>
+                )}
 
-          {/* Send Method Selection */}
-          {!billSent && (
-            <div className="space-y-3">
-              <label className="block text-sm font-medium text-gray-700">
-                Send Bill Via:
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => setSendMethod('app')}
-                  className={`px-4 py-3 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${
-                    sendMethod === 'app'
-                      ? 'bg-teal-600 text-white shadow-md'
-                      : 'bg-teal-50 text-teal-700 hover:bg-teal-100 border border-teal-200'
-                  }`}
-                >
-                  <span className="text-lg">🔔</span>
-                  <span>App Notification</span>
-                </button>
-                <button
-                  onClick={() => setSendMethod('email')}
-                  className={`px-4 py-3 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${
-                    sendMethod === 'email'
-                      ? 'bg-teal-600 text-white shadow-md'
-                      : 'bg-teal-50 text-teal-700 hover:bg-teal-100 border border-teal-200'
-                  }`}
-                >
-                  <span className="text-lg">📧</span>
-                  <span>Email</span>
-                </button>
-              </div>
-
-              {sendMethod === 'email' && (
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter email address"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                />
-              )}
-
-              {sendMethod === 'app' && (
-                <div className="p-3 bg-teal-50 border border-teal-200 rounded-lg">
-                  <div className="flex items-start gap-2">
-                    <CheckCircle className="w-5 h-5 text-teal-600 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="text-sm text-teal-800 font-medium">
-                        Instant notification to guest dashboard
-                      </p>
-                      <p className="text-xs text-teal-700 mt-1">
-                        Guest will receive the bill notification in their dashboard immediately. No email or phone number required.
-                      </p>
+                {sendMethod === 'app' && (
+                  <div className="p-3 bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <CheckCircle className="w-5 h-5 text-teal-600 dark:text-teal-300 mt-0.5 flex-shrink-0" aria-hidden="true" />
+                      <div>
+                        <p className="text-sm text-teal-800 dark:text-teal-200 font-medium">Instant notification to guest dashboard</p>
+                        <p className="text-xs text-teal-700 dark:text-teal-300 mt-1">
+                          Guest will receive the bill notification in their dashboard immediately. No email or phone number required.
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Action Buttons */}
-          <div className="flex gap-3">
-            <button
-              onClick={handlePrint}
-              className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg transition-all shadow-md hover:shadow-lg"
-            >
-              <Printer className="w-5 h-5" />
-              Print Bill
-            </button>
-
-            <button
-              onClick={handleSendBill}
-              disabled={sending || billSent}
-              className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {sending ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Sending...
-                </>
-              ) : billSent ? (
-                <>
-                  <CheckCircle className="w-5 h-5" />
-                  Bill Sent
-                </>
-              ) : (
-                <>
-                  <Send className="w-5 h-5" />
-                  Send Bill
-                </>
-              )}
-            </button>
+                )}
+              </fieldset>
+            )}
           </div>
         </div>
+
+        {/* Sticky actions */}
+        <div className="shrink-0 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-700 px-4 sm:px-6 py-3 pb-[calc(12px+env(safe-area-inset-bottom))] sm:pb-3 flex gap-3">
+          <button
+            type="button"
+            onClick={handlePrint}
+            disabled={!totalsReady}
+            className="flex-1 min-h-[44px] flex items-center justify-center gap-2 px-4 py-3 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold rounded-lg transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
+          >
+            <Printer className="w-5 h-5" aria-hidden="true" />
+            Print Bill
+          </button>
+
+          <button
+            type="button"
+            onClick={handleSendBill}
+            disabled={sending || billSent}
+            className="flex-1 min-h-[44px] flex items-center justify-center gap-2 px-4 py-3 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-lg transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+          >
+            {sending ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
+                Sending...
+              </>
+            ) : billSent ? (
+              <>
+                <CheckCircle className="w-5 h-5" aria-hidden="true" />
+                Bill Sent
+              </>
+            ) : (
+              <>
+                <Send className="w-5 h-5" aria-hidden="true" />
+                Send Bill
+              </>
+            )}
+          </button>
+        </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
