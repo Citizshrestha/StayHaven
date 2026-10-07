@@ -209,7 +209,6 @@ const App = () => {
     const initializeCsrf = async () => {
       try {
         await fetchCsrfToken();
-        console.log('✅ CSRF token initialized');
       } catch (error) {
         console.error('❌ Failed to initialize CSRF token:', error);
       }

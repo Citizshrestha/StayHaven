@@ -35,7 +35,16 @@ export const initSentry = () => {
     integrations: [Sentry.httpIntegration(), Sentry.expressIntegration()],
 
     // Filter out sensitive data before it ever leaves the process
+    sendDefaultPii: false,
     beforeSend(event) {
+      // Never ship credentials or contact details to Sentry.
+      if (event.request?.headers) {
+        for (const header of Object.keys(event.request.headers)) {
+          if (/^(authorization|cookie|x-csrf-token|csrf-token)$/i.test(header)) event.request.headers[header] = "[REDACTED]";
+        }
+      }
+      if (event.request) delete event.request.cookies;
+      if (event.user) event.user = event.user.id ? { id: event.user.id } : undefined;
       if (event.request?.data) {
         const sensitiveFields = ["password", "token", "apiKey", "secret", "cardNumber", "cvv", "cardDetails"];
         sensitiveFields.forEach((field) => {
