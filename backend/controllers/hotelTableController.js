@@ -1,146 +1,157 @@
 import { HotelTable } from "../models/hotelTable.schema.js";
 import { Hotel } from "../models/hotel.schema.js";
-import { Company } from "../models/company.schema.js";
-import { User } from "../models/user.schema.js";
+import { Order } from "../models/order.schema.js";
+import { DiningSession } from "../models/diningSession.schema.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { generateTableQRCode } from "../utils/qrGenerator.js";
+import {
+  HOTEL_ADMIN_ROLES,
+  assertHotelAccess,
+  getAssignedHotelIds,
+  isHotelAdminRole,
+  isValidId,
+  stripQrSecrets,
+} from "./hotelAdminAccess.js";
 
-// Multi-tenancy helpers
-const getUserRole = (req) => req.user?.role?.name || req.user?.companyRole;
+// Who may do what with tables
+const TABLE_DELETE_ROLES = ["owner", "hoteladmin", "admin"];
+// Front-of-house staff may flip a table's status (seat/free a table)
+const TABLE_STATUS_ROLES = [...HOTEL_ADMIN_ROLES, "waiter", "receptionist"];
 
-const getAssignedHotelIds = (req) => {
-  const assigned = req.user?.assignedProperties || [];
-  return assigned
-    .map((p) => (typeof p === "object" ? p?._id?.toString() : p?.toString()))
-    .filter(Boolean);
+const TABLE_STATUSES = HotelTable.schema.path("status").enumValues;
+const TABLE_LOCATIONS = HotelTable.schema.path("location").enumValues;
+const TABLE_NUMBER_PATTERN = /^[A-Za-z0-9-]+$/;
+const OPEN_ORDER_STATUSES = ["pending", "confirmed", "preparing", "ready"];
+
+const notFound = (res) => res.status(404).json({ success: false, message: "Table not found" });
+
+// Default hotel when the client omits hotelId: the caller's first assigned property.
+const getDefaultHotelId = async (req) => {
+  const [first] = getAssignedHotelIds(req);
+  if (first) return first;
+  const owned = await Hotel.findOne({ owner: req.user._id }).select("_id");
+  return owned?._id?.toString() || null;
 };
 
-const assertHotelAccess = async (req, hotelId) => {
-  const role = getUserRole(req);
+/**
+ * Validates and normalises admin-writable table fields. `partial` skips
+ * required checks (updates). Returns { errors, values }.
+ */
+const validateTableInput = (body, { partial = false } = {}) => {
+  const errors = {};
+  const values = {};
+  const has = (key) => body[key] !== undefined;
 
-  // Platform admins and superadmins have full read/write access to all hotel data
-  if (role === "admin" || role === "superadmin") {
-    const hotel = await Hotel.findById(hotelId).select("company owner");
-    if (!hotel) {
-      throw Object.assign(new Error("Hotel not found"), { status: 404 });
+  if (has("tableNumber") || !partial) {
+    const raw = typeof body.tableNumber === "number" ? String(body.tableNumber) : body.tableNumber;
+    const value = typeof raw === "string" ? raw.trim().toUpperCase() : "";
+    if (!value) errors.tableNumber = "Table number is required";
+    else if (value.length > 20) errors.tableNumber = "Table number must be 20 characters or fewer";
+    else if (!TABLE_NUMBER_PATTERN.test(value)) errors.tableNumber = "Use letters, numbers and dashes only";
+    else values.tableNumber = value;
+  }
+  if (has("tableName")) {
+    if (body.tableName !== null && typeof body.tableName !== "string") errors.tableName = "Table name must be text";
+    else {
+      const value = (body.tableName || "").trim();
+      if (value.length > 60) errors.tableName = "Table name must be 60 characters or fewer";
+      else values.tableName = value;
     }
-    return hotel;
   }
-
-  const assignedHotelIds = getAssignedHotelIds(req);
-  const userCompany = req.user?.company?._id?.toString?.() || req.user?.company?.toString?.() || req.user?.company;
-
-  const hotel = await Hotel.findById(hotelId).select("company owner");
-  if (!hotel) {
-    throw Object.assign(new Error("Hotel not found"), { status: 404 });
+  if (has("description")) {
+    if (body.description !== null && typeof body.description !== "string") errors.description = "Description must be text";
+    else {
+      const value = (body.description || "").trim();
+      if (value.length > 300) errors.description = "Description must be 300 characters or fewer";
+      else values.description = value;
+    }
   }
+  const number = (key, label, { min, max, integer }) => {
+    if (!has(key)) return;
+    const raw = body[key];
+    const value = typeof raw === "number" ? raw : typeof raw === "string" && raw.trim() !== "" ? Number(raw) : NaN;
+    if (!Number.isFinite(value)) errors[key] = `${label} must be a number`;
+    else if (integer && !Number.isInteger(value)) errors[key] = `${label} must be a whole number`;
+    else if (value < min || value > max) errors[key] = `${label} must be between ${min} and ${max.toLocaleString("en-US")}`;
+    else if (!integer && Math.round(value * 100) !== value * 100) errors[key] = `${label} can have at most 2 decimals`;
+    else values[key] = value;
+  };
+  number("capacity", "Capacity", { min: 1, max: 50, integer: true });
+  number("minSpend", "Minimum spend", { min: 0, max: 1_000_000 });
 
-  if (role === "receptionist" && assignedHotelIds.length > 0 && !assignedHotelIds.includes(hotelId.toString())) {
-    throw Object.assign(new Error("Not authorized for this hotel"), { status: 403 });
+  if (has("location")) {
+    if (!TABLE_LOCATIONS.includes(body.location)) errors.location = `Location must be one of: ${TABLE_LOCATIONS.join(", ")}`;
+    else values.location = body.location;
   }
-
-  if (role !== "owner" && userCompany && hotel.company?.toString() !== userCompany.toString()) {
-    throw Object.assign(new Error("Not authorized for this hotel company"), { status: 403 });
+  if (has("status")) {
+    if (!TABLE_STATUSES.includes(body.status)) errors.status = `Status must be one of: ${TABLE_STATUSES.join(", ")}`;
+    else values.status = body.status;
   }
-
-  return hotel;
+  for (const flag of ["isActive", "isQrActive"]) {
+    if (has(flag)) {
+      if (typeof body[flag] !== "boolean") errors[flag] = `${flag} must be true or false`;
+      else values[flag] = body[flag];
+    }
+  }
+  return { errors, values };
 };
 
-const canManageTables = (req) => {
-  const role = getUserRole(req);
-  return ["admin", "superadmin", "owner", "manager"].includes(role);
-};
+const sendValidation = (res, errors) =>
+  res.status(400).json({ success: false, message: Object.values(errors)[0], errors });
 
-const canDeleteTables = (req) => {
-  const role = getUserRole(req);
-  return ["admin", "superadmin", "owner"].includes(role);
-};
+const duplicateResponse = (res, tableNumber) =>
+  res.status(400).json({
+    success: false,
+    message: `Table ${tableNumber} already exists in this hotel`,
+    errors: { tableNumber: `Table ${tableNumber} already exists` },
+  });
 
-// Helper function to get hotel ID from user
-const getHotelFromUser = async (user) => {
-  // Populate assignedProperties if not already
-  const populatedUser = await User.findById(user._id).populate('assignedProperties');
-
-  if (populatedUser.assignedProperties && populatedUser.assignedProperties.length > 0) {
-    return populatedUser.assignedProperties[0];
-  }
-
-  // Fallback: check if user owns any hotels
-  const ownedHotel = await Hotel.findOne({ owner: user._id });
-  if (ownedHotel) {
-    return ownedHotel;
-  }
-
-  return null;
-};
+const findDuplicateTable = (hotelId, tableNumber, excludeId) =>
+  HotelTable.findOne({ hotel: hotelId, tableNumber, ...(excludeId && { _id: { $ne: excludeId } }) })
+    .collation({ locale: "en", strength: 2 })
+    .select("_id");
 
 // @desc    Create a new table
 // @route   POST /api/tables
-// @access  Private (Owner, Manager)
+// @access  Private (hotel-admin roles)
 export const createTable = asyncHandler(async (req, res) => {
-  let {
-    hotelId,
-    tableNumber,
-    tableName,
-    capacity,
-    location,
-    description,
-    minSpend,
-  } = req.body;
+  const hotelId = req.body.hotelId || (await getDefaultHotelId(req));
 
-  // If hotelId not provided, get it from user's assigned properties
   if (!hotelId) {
-    const userHotel = await getHotelFromUser(req.user);
-    if (userHotel) {
-      hotelId = userHotel._id.toString();
-    }
-  }
-
-  // Validate required fields
-  if (!hotelId || !tableNumber) {
     return res.status(400).json({
       success: false,
       message: "Hotel ID and table number are required",
     });
   }
 
-  if (!canManageTables(req)) {
-    return res.status(403).json({
-      success: false,
-      message: "Not authorized to add tables to this hotel",
-    });
+  const hotel = await assertHotelAccess(req, hotelId, { roles: HOTEL_ADMIN_ROLES });
+
+  const { errors, values } = validateTableInput(req.body);
+  if (Object.keys(errors).length) return sendValidation(res, errors);
+
+  if (await findDuplicateTable(hotel._id, values.tableNumber)) {
+    return duplicateResponse(res, values.tableNumber);
   }
 
-  const hotel = await assertHotelAccess(req, hotelId);
-
-  // Check if table number already exists for this hotel
-  const existingTable = await HotelTable.findOne({
-    hotel: hotelId,
-    tableNumber: tableNumber,
-  });
-
-  if (existingTable) {
-    return res.status(400).json({
-      success: false,
-      message: `Table ${tableNumber} already exists in this hotel`,
+  let table;
+  try {
+    table = await HotelTable.create({
+      capacity: 4,
+      location: "indoor",
+      minSpend: 0,
+      ...values,
+      tableName: values.tableName || `Table ${values.tableNumber}`,
+      hotel: hotel._id,
+      company: hotel.company,
+      createdBy: req.user._id,
     });
+  } catch (error) {
+    if (error?.code === 11000) return duplicateResponse(res, values.tableNumber);
+    throw error;
   }
-
-  // Create the table
-  const table = await HotelTable.create({
-    hotel: hotelId,
-    company: hotel.company,
-    tableNumber,
-    tableName: tableName || `Table ${tableNumber}`,
-    capacity: capacity || 4,
-    location: location || 'indoor',
-    description,
-    minSpend: minSpend || 0,
-    createdBy: req.user._id,
-  });
 
   // Generate QR code
-  const { qrCodeData, qrCodeImage } = await generateTableQRCode(table.uniqueToken, hotelId);
+  const { qrCodeData, qrCodeImage } = await generateTableQRCode(table.uniqueToken, hotel._id.toString());
   table.qrCodeData = qrCodeData;
   table.qrCodeImage = qrCodeImage;
   await table.save();
@@ -154,17 +165,10 @@ export const createTable = asyncHandler(async (req, res) => {
 
 // @desc    Get all tables for a hotel
 // @route   GET /api/tables?hotelId=xxx
-// @access  Private (Owner, Manager, Staff)
+// @access  Private (staff assigned to the hotel)
 export const getTables = asyncHandler(async (req, res) => {
-  let { hotelId, status, location, isActive } = req.query;
-
-  // If hotelId not provided, get it from user's assigned properties
-  if (!hotelId) {
-    const userHotel = await getHotelFromUser(req.user);
-    if (userHotel) {
-      hotelId = userHotel._id.toString();
-    }
-  }
+  const { status, location, isActive } = req.query;
+  const hotelId = req.query.hotelId || (await getDefaultHotelId(req));
 
   if (!hotelId) {
     return res.status(400).json({
@@ -173,14 +177,17 @@ export const getTables = asyncHandler(async (req, res) => {
     });
   }
 
+  // CRITICAL: tables carry the guest ordering token; scope reads to the hotel's staff
+  await assertHotelAccess(req, hotelId);
+
   // Build query
   const query = { hotel: hotelId };
 
-  if (status) {
+  if (typeof status === "string" && status) {
     query.status = status;
   }
 
-  if (location) {
+  if (typeof location === "string" && location) {
     query.location = location;
   }
 
@@ -189,6 +196,7 @@ export const getTables = asyncHandler(async (req, res) => {
   }
 
   const tables = await HotelTable.find(query)
+    .collation({ locale: "en", numericOrdering: true })
     .sort({ tableNumber: 1 })
     .populate('hotel', 'name location')
     .populate('createdBy', 'fullname');
@@ -196,96 +204,61 @@ export const getTables = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     count: tables.length,
-    data: tables,
+    data: isHotelAdminRole(req) ? tables : tables.map(stripQrSecrets),
   });
 });
 
 // @desc    Get single table by ID
 // @route   GET /api/tables/:id
-// @access  Private (Owner, Manager, Staff)
+// @access  Private (staff assigned to the hotel)
 export const getTableById = asyncHandler(async (req, res) => {
+  if (!isValidId(req.params.id)) return notFound(res);
   const table = await HotelTable.findById(req.params.id)
     .populate('hotel', 'name location')
     .populate('createdBy', 'fullname');
 
-  if (!table) {
-    return res.status(404).json({
-      success: false,
-      message: "Table not found",
-    });
-  }
+  if (!table) return notFound(res);
 
   // CRITICAL: Validate hotel access - prevents cross-hotel table access
   await assertHotelAccess(req, table.hotel._id || table.hotel);
 
   res.status(200).json({
     success: true,
-    table,
+    table: isHotelAdminRole(req) ? table : stripQrSecrets(table),
   });
 });
 
 // @desc    Update table
 // @route   PUT /api/tables/:id
-// @access  Private (Owner, Manager)
+// @access  Private (hotel-admin roles)
 export const updateTable = asyncHandler(async (req, res) => {
-  const {
-    tableNumber,
-    tableName,
-    capacity,
-    location,
-    status,
-    description,
-    minSpend,
-    isActive,
-    isQrActive,
-  } = req.body;
-
+  if (!isValidId(req.params.id)) return notFound(res);
   const table = await HotelTable.findById(req.params.id);
 
-  if (!table) {
-    return res.status(404).json({
-      success: false,
-      message: "Table not found",
-    });
-  }
+  if (!table) return notFound(res);
 
-  if (!canManageTables(req)) {
-    return res.status(403).json({
-      success: false,
-      message: "Not authorized to update this table",
-    });
-  }
+  const hotel = await assertHotelAccess(req, table.hotel, { roles: HOTEL_ADMIN_ROLES });
 
-  await assertHotelAccess(req, table.hotel);
+  const { errors, values } = validateTableInput(req.body, { partial: true });
+  if (Object.keys(errors).length) return sendValidation(res, errors);
 
   // Check if new table number conflicts with existing
-  if (tableNumber && tableNumber !== table.tableNumber) {
-    const existingTable = await HotelTable.findOne({
-      hotel: table.hotel,
-      tableNumber: tableNumber,
-      _id: { $ne: table._id },
-    });
-
-    if (existingTable) {
-      return res.status(400).json({
-        success: false,
-        message: `Table ${tableNumber} already exists in this hotel`,
-      });
-    }
+  if (values.tableNumber && values.tableNumber !== table.tableNumber &&
+      await findDuplicateTable(table.hotel, values.tableNumber, table._id)) {
+    return duplicateResponse(res, values.tableNumber);
   }
 
-  // Update fields
-  if (tableNumber) table.tableNumber = tableNumber;
-  if (tableName) table.tableName = tableName;
-  if (capacity) table.capacity = capacity;
-  if (location) table.location = location;
-  if (status) table.status = status;
-  if (description !== undefined) table.description = description;
-  if (minSpend !== undefined) table.minSpend = minSpend;
-  if (isActive !== undefined) table.isActive = isActive;
-  if (isQrActive !== undefined) table.isQrActive = isQrActive;
+  // A cleared name falls back to the default label instead of staying stale
+  if (values.tableName === "") values.tableName = `Table ${values.tableNumber || table.tableNumber}`;
+  if (!table.company && hotel?.company) table.company = hotel.company;
+  Object.assign(table, values);
 
-  await table.save();
+  try {
+    await table.save();
+  } catch (error) {
+    if (error?.code === 11000) return duplicateResponse(res, values.tableNumber);
+    throw error;
+  }
 
   res.status(200).json({
     success: true,
@@ -296,27 +269,27 @@ export const updateTable = asyncHandler(async (req, res) => {
 
 // @desc    Delete table
 // @route   DELETE /api/tables/:id
-// @access  Private (Owner, Admin)
+// @access  Private (owner, hoteladmin, admin)
 export const deleteTable = asyncHandler(async (req, res) => {
+  if (!isValidId(req.params.id)) return notFound(res);
   const table = await HotelTable.findById(req.params.id);
 
-  if (!table) {
-    return res.status(404).json({
+  if (!table) return notFound(res);
+
+  await assertHotelAccess(req, table.hotel, { roles: TABLE_DELETE_ROLES });
+
+  const [openSessions, openOrders] = await Promise.all([
+    DiningSession.countDocuments({ table: table._id, status: "open" }),
+    Order.countDocuments({ table: table._id, status: { $in: OPEN_ORDER_STATUSES } }),
+  ]);
+  if (openSessions > 0 || openOrders > 0) {
+    return res.status(400).json({
       success: false,
-      message: "Table not found",
+      message: "This table has an open tab or active orders. Settle them before deleting the table.",
     });
   }
 
-  if (!canDeleteTables(req)) {
-    return res.status(403).json({
-      success: false,
-      message: "Not authorized to delete this table",
-    });
-  }
-
-  await assertHotelAccess(req, table.hotel);
-
-  await HotelTable.findByIdAndDelete(req.params.id);
+  await table.deleteOne();
 
   res.status(200).json({
     success: true,
@@ -326,27 +299,16 @@ export const deleteTable = asyncHandler(async (req, res) => {
 
 // @desc    Generate/Regenerate QR code for a table
 // @route   POST /api/tables/:id/generate-qr
-// @access  Private (Owner, Manager)
+// @access  Private (hotel-admin roles)
 export const generateTableQR = asyncHandler(async (req, res) => {
-  const { regenerate } = req.body; // If true, generate new token
+  const regenerate = req.body?.regenerate === true; // If true, generate new token
 
+  if (!isValidId(req.params.id)) return notFound(res);
   const table = await HotelTable.findById(req.params.id);
 
-  if (!table) {
-    return res.status(404).json({
-      success: false,
-      message: "Table not found",
-    });
-  }
+  if (!table) return notFound(res);
 
-  if (!canManageTables(req)) {
-    return res.status(403).json({
-      success: false,
-      message: "Not authorized to generate QR for this table",
-    });
-  }
-
-  const hotel = await assertHotelAccess(req, table.hotel);
+  const hotel = await assertHotelAccess(req, table.hotel, { roles: HOTEL_ADMIN_ROLES });
 
   // Regenerate token if requested (invalidates old QR codes)
   if (regenerate) {
@@ -376,156 +338,143 @@ export const generateTableQR = asyncHandler(async (req, res) => {
       uniqueToken: table.uniqueToken,
       qrCodeData: table.qrCodeData,
       qrCodeImage: table.qrCodeImage,
+      isQrActive: table.isQrActive,
     },
   });
 });
 
 // @desc    Batch create multiple tables
 // @route   POST /api/tables/batch
-// @access  Private (Owner, Manager)
+// @access  Private (hotel-admin roles)
 export const batchCreateTables = asyncHandler(async (req, res) => {
-  let { hotelId, startNumber, endNumber, prefix, capacity, location, count } = req.body;
+  const { prefix = "", capacity, location } = req.body;
+  const hotelId = req.body.hotelId || (await getDefaultHotelId(req));
+  const toInt = (v) => (typeof v === "number" ? v : typeof v === "string" && v.trim() !== "" ? Number(v) : NaN);
 
-  // If hotelId not provided, get it from user's assigned properties
+  const startNumber = toInt(req.body.startNumber);
+  let endNumber = toInt(req.body.endNumber);
+  const count = req.body.count !== undefined ? toInt(req.body.count) : undefined;
+
   if (!hotelId) {
-    const userHotel = await getHotelFromUser(req.user);
-    if (userHotel) {
-      hotelId = userHotel._id.toString();
-    }
+    return res.status(400).json({ success: false, message: "Hotel ID is required" });
   }
-
-  // Support both count-based and range-based creation
-  if (count && startNumber !== undefined) {
+  if (!Number.isInteger(startNumber) || startNumber < 1 || startNumber > 9999) {
+    return res.status(400).json({ success: false, message: "Start number must be a whole number of 1 or more", errors: { startNumber: "Start number must be a whole number of 1 or more" } });
+  }
+  if (count !== undefined) {
+    if (!Number.isInteger(count) || count < 1 || count > 50) {
+      return res.status(400).json({ success: false, message: "Count must be a whole number between 1 and 50", errors: { count: "Count must be a whole number between 1 and 50" } });
+    }
     endNumber = startNumber + count - 1;
   }
-
-  if (!hotelId || startNumber === undefined || endNumber === undefined) {
-    return res.status(400).json({
-      success: false,
-      message: "Hotel ID, start number, and end number (or count) are required",
-    });
+  if (!Number.isInteger(endNumber) || endNumber < startNumber) {
+    return res.status(400).json({ success: false, message: "End number must be greater than or equal to start number" });
   }
-
-  if (startNumber > endNumber) {
-    return res.status(400).json({
-      success: false,
-      message: "Start number must be less than or equal to end number",
-    });
+  if (endNumber - startNumber + 1 > 50) {
+    return res.status(400).json({ success: false, message: "Cannot create more than 50 tables at once" });
   }
-
-  if (endNumber - startNumber > 50) {
-    return res.status(400).json({
-      success: false,
-      message: "Cannot create more than 50 tables at once",
-    });
+  if (typeof prefix !== "string" || prefix.length > 10 || (prefix && !TABLE_NUMBER_PATTERN.test(prefix))) {
+    return res.status(400).json({ success: false, message: "Prefix must be up to 10 letters, numbers or dashes" });
   }
+  const { errors, values } = validateTableInput({ capacity, location }, { partial: true });
+  if (Object.keys(errors).length) return sendValidation(res, errors);
 
-  if (!canManageTables(req)) {
-    return res.status(403).json({
-      success: false,
-      message: "Not authorized to add tables to this hotel",
-    });
-  }
-
-  const hotel = await assertHotelAccess(req, hotelId);
+  const hotel = await assertHotelAccess(req, hotelId, { roles: HOTEL_ADMIN_ROLES });
 
   const createdTables = [];
-  const errors = [];
+  const skipped = [];
+  const errorsList = [];
 
   for (let i = startNumber; i <= endNumber; i++) {
-    const tableNumber = prefix ? `${prefix}${i}` : `${i}`;
-    
+    const tableNumber = `${prefix}${i}`.toUpperCase();
+
     try {
-      // Check if table exists
-      const exists = await HotelTable.findOne({ hotel: hotelId, tableNumber });
-      if (exists) {
-        errors.push(`Table ${tableNumber} already exists`);
+      if (await findDuplicateTable(hotel._id, tableNumber)) {
+        skipped.push(tableNumber);
         continue;
       }
 
-      // Create table
       const table = await HotelTable.create({
-        hotel: hotelId,
+        hotel: hotel._id,
         company: hotel.company,
         tableNumber,
         tableName: `Table ${tableNumber}`,
-        capacity: capacity || 4,
-        location: location || 'indoor',
+        capacity: values.capacity || 4,
+        location: values.location || 'indoor',
         createdBy: req.user._id,
       });
 
-      // Generate QR code
-      const { qrCodeData, qrCodeImage } = await generateTableQRCode(table.uniqueToken, hotelId);
+      const { qrCodeData, qrCodeImage } = await generateTableQRCode(table.uniqueToken, hotel._id.toString());
       table.qrCodeData = qrCodeData;
       table.qrCodeImage = qrCodeImage;
       await table.save();
 
       createdTables.push(table);
     } catch (error) {
-      errors.push(`Failed to create table ${tableNumber}: ${error.message}`);
+      if (error?.code === 11000) skipped.push(tableNumber);
+      else errorsList.push(`Failed to create table ${tableNumber}: ${error.message}`);
     }
   }
 
-  res.status(201).json({
-    success: true,
-    message: `${createdTables.length} tables created successfully`,
+  const parts = [`${createdTables.length} created`];
+  if (skipped.length) parts.push(`${skipped.length} skipped (already exist)`);
+  if (errorsList.length) parts.push(`${errorsList.length} failed`);
+
+  res.status(createdTables.length ? 201 : 200).json({
+    success: createdTables.length > 0 || errorsList.length === 0,
+    message: parts.join(", "),
     createdCount: createdTables.length,
+    skippedCount: skipped.length,
+    skipped,
     tables: createdTables,
-    errors: errors.length > 0 ? errors : undefined,
+    errors: errorsList.length > 0 ? errorsList : undefined,
   });
 });
 
 // @desc    Update table status (quick update)
 // @route   PATCH /api/tables/:id/status
-// @access  Private (Owner, Manager, Staff)
+// @access  Private (hotel-admin roles, waiter, receptionist)
 export const updateTableStatus = asyncHandler(async (req, res) => {
   const { status } = req.body;
 
-  if (!status || !['available', 'occupied', 'reserved', 'maintenance'].includes(status)) {
+  if (!status || !TABLE_STATUSES.includes(status)) {
     return res.status(400).json({
       success: false,
       message: "Valid status is required (available, occupied, reserved, maintenance)",
     });
   }
 
+  if (!isValidId(req.params.id)) return notFound(res);
   const table = await HotelTable.findById(req.params.id);
 
-  if (!table) {
-    return res.status(404).json({
-      success: false,
-      message: "Table not found",
-    });
-  }
+  if (!table) return notFound(res);
 
   // CRITICAL: Validate hotel access - prevents cross-hotel table modification
-  await assertHotelAccess(req, table.hotel);
+  const hotel = await assertHotelAccess(req, table.hotel, { roles: TABLE_STATUS_ROLES });
 
+  if (!table.company && hotel?.company) table.company = hotel.company;
   table.status = status;
-  await table.save();
+  await table.save({ validateModifiedOnly: true });
 
   res.status(200).json({
     success: true,
     message: `Table status updated to ${status}`,
-    table,
+    table: isHotelAdminRole(req) ? table : stripQrSecrets(table),
   });
 });
 
 // @desc    Get QR code download data for a table
 // @route   GET /api/tables/:id/qr-download
-// @access  Private (Owner, Manager)
+// @access  Private (hotel-admin roles)
 export const getTableQRDownload = asyncHandler(async (req, res) => {
+  if (!isValidId(req.params.id)) return notFound(res);
   const table = await HotelTable.findById(req.params.id)
     .populate('hotel', 'name');
 
-  if (!table) {
-    return res.status(404).json({
-      success: false,
-      message: "Table not found",
-    });
-  }
+  if (!table) return notFound(res);
 
   // CRITICAL: Validate hotel access - prevents cross-hotel QR code access
-  await assertHotelAccess(req, table.hotel._id || table.hotel);
+  await assertHotelAccess(req, table.hotel._id || table.hotel, { roles: HOTEL_ADMIN_ROLES });
 
   if (!table.qrCodeImage) {
     return res.status(400).json({

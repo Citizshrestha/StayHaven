@@ -1,48 +1,98 @@
 import { Room } from "../models/room.schema.js";
-import { Hotel } from "../models/hotel.schema.js";
 import { Booking } from "../models/booking.schema.js";
+import { Order } from "../models/order.schema.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { generateRoomQRCode } from "../utils/qrGenerator.js";
+import {
+  HOTEL_ADMIN_ROLES,
+  assertHotelAccess,
+  isHotelAdminRole,
+  isValidId,
+  stripQrSecrets,
+} from "./hotelAdminAccess.js";
 
-// Helper functions for multi-tenancy
-const getUserRole = (req) => req.user?.role?.name || req.user?.companyRole;
+// Room types accepted by room.schema.js (single source of truth for the UI too)
+const ROOM_TYPES = Room.schema.path("type").enumValues;
+// occupied/reserved are derived from bookings; admins may only set these.
+const ADMIN_ROOM_STATUSES = ["available", "maintenance", "cleaning"];
 
-const getAssignedHotelIds = (req) => {
-  const assigned = req.user?.assignedProperties || [];
-  return assigned
-    .map((p) => (typeof p === "object" ? p?._id?.toString() : p?.toString()))
-    .filter(Boolean);
+const notFound = (res) => res.status(404).json({ success: false, message: "Room not found" });
+
+/**
+ * Validates and normalises the admin-writable room fields. `partial` skips
+ * required checks for updates. Returns { errors, values }.
+ */
+const validateRoomInput = (body, { partial = false } = {}) => {
+  const errors = {};
+  const values = {};
+  const has = (key) => body[key] !== undefined;
+
+  const text = (key, label, max, required) => {
+    if (!has(key)) {
+      if (required && !partial) errors[key] = `${label} is required`;
+      return;
+    }
+    if (typeof body[key] !== "string") { errors[key] = `${label} must be text`; return; }
+    const value = body[key].trim();
+    if (required && !value) errors[key] = `${label} is required`;
+    else if (value.length > max) errors[key] = `${label} must be ${max} characters or fewer`;
+    else values[key] = value;
+  };
+  const number = (key, label, { min, max, integer, required }) => {
+    if (!has(key) || body[key] === "") {
+      if (required && !partial) errors[key] = `${label} is required`;
+      return;
+    }
+    const value = typeof body[key] === "number" ? body[key] : typeof body[key] === "string" ? Number(body[key]) : NaN;
+    if (!Number.isFinite(value)) errors[key] = `${label} must be a number`;
+    else if (integer && !Number.isInteger(value)) errors[key] = `${label} must be a whole number`;
+    else if (value < min || value > max) errors[key] = `${label} must be between ${min} and ${max.toLocaleString("en-US")}`;
+    else values[key] = Math.round(value * 100) / 100;
+  };
+
+  text("roomNumber", "Room number", 20, true);
+  text("roomName", "Room name", 100, true);
+  text("description", "Description", 1000, false);
+  number("price", "Price", { min: 0, max: 10_000_000, required: true });
+  number("floor", "Floor", { min: 0, max: 200, integer: true });
+  number("maxGuests", "Max guests", { min: 1, max: 20, integer: true });
+
+  if (has("type") || !partial) {
+    if (!ROOM_TYPES.includes(body.type)) errors.type = `Room type must be one of: ${ROOM_TYPES.join(", ")}`;
+    else values.type = body.type;
+  }
+  if (has("bedType") && body.bedType !== "" && body.bedType !== null) {
+    const bedTypes = Room.schema.path("bedType").enumValues;
+    if (!bedTypes.includes(body.bedType)) errors.bedType = `Bed type must be one of: ${bedTypes.join(", ")}`;
+    else values.bedType = body.bedType;
+  }
+  if (has("amenities")) {
+    if (!Array.isArray(body.amenities) || body.amenities.some((a) => typeof a !== "string" || a.length > 60) || body.amenities.length > 50) {
+      errors.amenities = "Amenities must be a list of up to 50 short labels";
+    } else values.amenities = body.amenities.map((a) => a.trim()).filter(Boolean);
+  }
+  if (has("images")) {
+    if (!Array.isArray(body.images) || body.images.some((i) => typeof i !== "string" || i.length > 2048) || body.images.length > 20) {
+      errors.images = "Images must be a list of up to 20 URLs";
+    } else values.images = body.images;
+  }
+  if (has("status")) {
+    if (typeof body.status !== "string") errors.status = "Invalid status";
+    else values.status = body.status;
+  }
+  return { errors, values };
 };
 
-const assertHotelAccess = async (req, hotelId) => {
-  const role = getUserRole(req);
-
-  // Superadmins should NOT have access to hotel-specific financial data
-  // They can manage hotels (approve/reject) but cannot view bookings, revenue, etc.
-  if (role === "admin" || role === "superadmin") {
-    throw Object.assign(new Error("Superadmins cannot access hotel-specific operational data"), { status: 403 });
-  }
-
-  const assignedHotelIds = getAssignedHotelIds(req);
-  const userCompany = req.user?.company?._id?.toString?.() || req.user?.company?.toString?.() || req.user?.company;
-
-  const hotel = await Hotel.findById(hotelId).select("company owner");
-  if (!hotel) {
-    throw Object.assign(new Error("Hotel not found"), { status: 404 });
-  }
-
-  // Receptionists are property-scoped
-  if (role === "receptionist" && assignedHotelIds.length > 0 && !assignedHotelIds.includes(hotelId.toString())) {
-    throw Object.assign(new Error("Not authorized for this hotel"), { status: 403 });
-  }
-
-  // Enforce same-company scope for non-owner users
-  if (role !== "owner" && userCompany && hotel.company?.toString() !== userCompany.toString()) {
-    throw Object.assign(new Error("Not authorized for this hotel company"), { status: 403 });
-  }
-
-  return hotel;
+const sendValidation = (res, errors) => {
+  const first = Object.values(errors)[0];
+  return res.status(400).json({ success: false, message: first, errors });
 };
+
+// Case-insensitive duplicate check for a hotel's room number.
+const findDuplicateRoom = (hotelId, roomNumber, excludeId) =>
+  Room.findOne({ hotel: hotelId, roomNumber, ...(excludeId && { _id: { $ne: excludeId } }) })
+    .collation({ locale: "en", strength: 2 })
+    .select("_id");
 
 // @desc    Get all rooms for a hotel
 // @route   GET /api/rooms?hotelId=xxx
@@ -57,17 +107,17 @@ export const getRooms = asyncHandler(async (req, res) => {
     });
   }
 
-  // Validate hotel access
+  // Validate hotel access (any staff member assigned to the hotel may read)
   await assertHotelAccess(req, hotelId);
 
   // Build query
   const query = { hotel: hotelId };
 
-  if (status) {
+  if (typeof status === "string" && status) {
     query.status = status;
   }
 
-  if (type) {
+  if (typeof type === "string" && type) {
     query.type = type;
   }
 
@@ -77,10 +127,11 @@ export const getRooms = asyncHandler(async (req, res) => {
 
   const rooms = await Room.find(query).sort({ roomNumber: 1 });
 
+  // QR tokens open a guest ordering session, so only QR managers see them.
   res.status(200).json({
     success: true,
     count: rooms.length,
-    rooms,
+    rooms: isHotelAdminRole(req) ? rooms : rooms.map(stripQrSecrets),
   });
 });
 
@@ -88,15 +139,11 @@ export const getRooms = asyncHandler(async (req, res) => {
 // @route   GET /api/rooms/:id
 // @access  Private (Owner, Manager, Staff)
 export const getRoomById = asyncHandler(async (req, res) => {
+  if (!isValidId(req.params.id)) return notFound(res);
   // First get room to extract hotel ID
   const room = await Room.findById(req.params.id).select('hotel');
 
-  if (!room) {
-    return res.status(404).json({
-      success: false,
-      message: "Room not found",
-    });
-  }
+  if (!room) return notFound(res);
 
   // Validate hotel access
   await assertHotelAccess(req, room.hotel);
@@ -107,7 +154,7 @@ export const getRoomById = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     success: true,
-    room: fullRoom,
+    room: isHotelAdminRole(req) ? fullRoom : stripQrSecrets(fullRoom),
   });
 });
 
@@ -115,31 +162,15 @@ export const getRoomById = asyncHandler(async (req, res) => {
 // @route   POST /api/rooms/:id/generate-qr
 // @access  Private (Owner, Manager)
 export const generateRoomQR = asyncHandler(async (req, res) => {
-  const { regenerate } = req.body; // If true, generate new token
+  const regenerate = req.body?.regenerate === true; // If true, generate new token
 
+  if (!isValidId(req.params.id)) return notFound(res);
   const room = await Room.findById(req.params.id);
 
-  if (!room) {
-    return res.status(404).json({
-      success: false,
-      message: "Room not found",
-    });
-  }
+  if (!room) return notFound(res);
 
-  // Validate hotel access and get hotel
-  const hotel = await assertHotelAccess(req, room.hotel);
-
-  // QR generation is a configuration action, not a front-desk one — allow
-  // any owner/admin/manager (a hotel can have more than one "owner"-role
-  // staff member, so comparing against the single hotel.owner id wrongly
-  // locked out every co-owner but the one recorded there).
-  const qrRole = req.user.role?.name;
-  if (!['owner', 'admin', 'manager'].includes(qrRole)) {
-    return res.status(403).json({
-      success: false,
-      message: "Not authorized to generate QR for this room",
-    });
-  }
+  // QR generation is a configuration action, not a front-desk one.
+  const hotel = await assertHotelAccess(req, room.hotel, { roles: HOTEL_ADMIN_ROLES });
 
   // Regenerate token if requested (invalidates old QR codes)
   if (regenerate) {
@@ -181,7 +212,8 @@ export const generateRoomQR = asyncHandler(async (req, res) => {
 // @route   POST /api/rooms/batch-generate-qr
 // @access  Private (Owner, Manager)
 export const batchGenerateRoomQR = asyncHandler(async (req, res) => {
-  const { hotelId, regenerate } = req.body;
+  const { hotelId } = req.body;
+  const regenerate = req.body?.regenerate === true;
 
   if (!hotelId) {
     return res.status(400).json({
@@ -191,43 +223,36 @@ export const batchGenerateRoomQR = asyncHandler(async (req, res) => {
   }
 
   // Validate hotel access and get hotel
-  const hotel = await assertHotelAccess(req, hotelId);
-
-  // See generateRoomQR above for why this isn't a hotel.owner id comparison.
-  const batchQrRole = req.user.role?.name;
-  if (!['owner', 'admin', 'manager'].includes(batchQrRole)) {
-    return res.status(403).json({
-      success: false,
-      message: "Not authorized to generate QR codes for this hotel",
-    });
-  }
+  const hotel = await assertHotelAccess(req, hotelId, { roles: HOTEL_ADMIN_ROLES });
 
   // Get all rooms for the hotel
   const rooms = await Room.find({ hotel: hotelId });
 
   const results = [];
   const errors = [];
+  let skippedCount = 0;
 
   for (const room of rooms) {
     try {
-      // Regenerate token if requested
+      // Rooms that already have a QR are left alone unless regenerating
+      if (room.qrCodeImage && !regenerate) {
+        skippedCount += 1;
+        continue;
+      }
       if (regenerate) {
         room.regenerateToken();
       }
 
-      // Generate QR code if not exists or regenerating
-      if (!room.qrCodeImage || regenerate) {
-        // Backfill company for legacy rooms so save() doesn't fail on an
-        // unrelated required field during a QR-only update.
-        if (!room.company && hotel?.company) {
-          room.company = hotel.company;
-        }
-        const { qrCodeData, qrCodeImage } = await generateRoomQRCode(room.uniqueToken, hotelId);
-        room.qrCodeData = qrCodeData;
-        room.qrCodeImage = qrCodeImage;
-        room.isQrActive = true;
-        await room.save({ validateModifiedOnly: true });
+      // Backfill company for legacy rooms so save() doesn't fail on an
+      // unrelated required field during a QR-only update.
+      if (!room.company && hotel?.company) {
+        room.company = hotel.company;
       }
+      const { qrCodeData, qrCodeImage } = await generateRoomQRCode(room.uniqueToken, hotelId);
+      room.qrCodeData = qrCodeData;
+      room.qrCodeImage = qrCodeImage;
+      room.isQrActive = true;
+      await room.save({ validateModifiedOnly: true });
 
       results.push({
         roomNumber: room.roomNumber,
@@ -244,8 +269,10 @@ export const batchGenerateRoomQR = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     success: true,
-    message: `QR codes generated for ${results.length} rooms`,
+    message: `QR codes generated for ${results.length} room(s)` +
+      (skippedCount ? `, ${skippedCount} already had one` : ""),
     successCount: results.length,
+    skippedCount,
     errorCount: errors.length,
     results,
     errors: errors.length > 0 ? errors : undefined,
@@ -256,25 +283,12 @@ export const batchGenerateRoomQR = asyncHandler(async (req, res) => {
 // @route   PATCH /api/rooms/:id/toggle-qr
 // @access  Private (Owner, Manager)
 export const toggleRoomQR = asyncHandler(async (req, res) => {
+  if (!isValidId(req.params.id)) return notFound(res);
   const room = await Room.findById(req.params.id);
 
-  if (!room) {
-    return res.status(404).json({
-      success: false,
-      message: "Room not found",
-    });
-  }
+  if (!room) return notFound(res);
 
-  // Validate hotel access and get hotel
-  const hotel = await assertHotelAccess(req, room.hotel);
-
-  if (hotel.owner?.toString() !== req.user._id.toString() &&
-      !['owner', 'admin', 'manager'].includes(req.user.role?.name || req.user.companyRole)) {
-    return res.status(403).json({
-      success: false,
-      message: "Not authorized to modify this room's QR settings",
-    });
-  }
+  const hotel = await assertHotelAccess(req, room.hotel, { roles: HOTEL_ADMIN_ROLES });
 
   if (!room.company && hotel?.company) {
     room.company = hotel.company;
@@ -293,18 +307,13 @@ export const toggleRoomQR = asyncHandler(async (req, res) => {
 // @route   GET /api/rooms/:id/qr-download
 // @access  Private (Owner, Manager)
 export const getRoomQRDownload = asyncHandler(async (req, res) => {
+  if (!isValidId(req.params.id)) return notFound(res);
   const room = await Room.findById(req.params.id)
     .populate('hotel', 'name');
 
-  if (!room) {
-    return res.status(404).json({
-      success: false,
-      message: "Room not found",
-    });
-  }
+  if (!room) return notFound(res);
 
-  // Validate hotel access - CRITICAL: was missing before!
-  await assertHotelAccess(req, room.hotel._id || room.hotel);
+  await assertHotelAccess(req, room.hotel._id || room.hotel, { roles: HOTEL_ADMIN_ROLES });
 
   if (!room.qrCodeImage) {
     return res.status(400).json({
@@ -339,16 +348,7 @@ export const getAllRoomQRCodes = asyncHandler(async (req, res) => {
     });
   }
 
-  // Validate hotel access and get hotel
-  const hotel = await assertHotelAccess(req, hotelId);
-
-  if (hotel.owner?.toString() !== req.user._id.toString() &&
-      !['owner', 'admin', 'manager'].includes(req.user.role?.name || req.user.companyRole)) {
-    return res.status(403).json({
-      success: false,
-      message: "Not authorized to access QR codes for this hotel",
-    });
-  }
+  const hotel = await assertHotelAccess(req, hotelId, { roles: HOTEL_ADMIN_ROLES });
 
   const rooms = await Room.find({
     hotel: hotelId,
@@ -367,21 +367,7 @@ export const getAllRoomQRCodes = asyncHandler(async (req, res) => {
 // @route   POST /api/rooms
 // @access  Private (Owner, Manager)
 export const createRoom = asyncHandler(async (req, res) => {
-  const {
-    hotelId,
-    roomName,
-    roomNumber,
-    type,
-    price,
-    floor,
-    maxGuests,
-    description,
-    amenities,
-    images,
-    capacity,
-    bedType,
-    status
-  } = req.body;
+  const { hotelId } = req.body;
 
   if (!hotelId) {
     return res.status(400).json({
@@ -390,51 +376,42 @@ export const createRoom = asyncHandler(async (req, res) => {
     });
   }
 
-  // Validate hotel access and get hotel
-  const hotel = await assertHotelAccess(req, hotelId);
+  // Only hotel-admin roles of this hotel's company may create rooms.
+  const hotel = await assertHotelAccess(req, hotelId, { roles: HOTEL_ADMIN_ROLES });
 
-  // Verify ownership/role. Authorized to create a room when the caller is:
-  //  - the specific user recorded as this hotel's owner, OR
-  //  - any staff holding the owner / admin / manager role (a company can have
-  //    more than one "owner"-role account, and the hotel-admin console logs in
-  //    as such a role rather than always as the literal hotel.owner user).
-  // This matches assertHotelAccess (owner-role exempt) and the QR gates, which
-  // all accept ['owner','admin','manager'].
-  const creatorRole = req.user.role?.name || req.user.companyRole;
-  const isHotelOwnerUser = hotel.owner?.toString() === req.user._id.toString();
-  if (!isHotelOwnerUser && !['owner', 'admin', 'manager'].includes(creatorRole)) {
-    return res.status(403).json({
-      success: false,
-      message: "Not authorized to create rooms for this hotel",
-    });
+  // Whitelisted, validated fields only: rating, hotel, company, QR fields and
+  // lastCleaned are never taken from the client.
+  const { errors, values } = validateRoomInput(req.body);
+  if (values.status === undefined) values.status = "available";
+  if (!ADMIN_ROOM_STATUSES.includes(values.status)) {
+    errors.status = `Status must be one of: ${ADMIN_ROOM_STATUSES.join(", ")}`;
   }
+  if (Object.keys(errors).length) return sendValidation(res, errors);
 
-  // Check if room number already exists for this hotel
-  const existingRoom = await Room.findOne({ hotel: hotelId, roomNumber });
-  if (existingRoom) {
+  // Check if room number already exists for this hotel (case-insensitive)
+  if (await findDuplicateRoom(hotelId, values.roomNumber)) {
     return res.status(400).json({
       success: false,
-      message: `Room number ${roomNumber} already exists for this hotel`,
+      message: `Room number ${values.roomNumber} already exists for this hotel`,
+      errors: { roomNumber: `Room number ${values.roomNumber} already exists` },
     });
   }
 
   // Create room
-  const room = await Room.create({
-    hotel: hotelId,
-    company: hotel.company,
-    roomName,
-    roomNumber,
-    type,
-    price,
-    floor,
-    maxGuests,
-    description,
-    amenities,
-    images,
-    capacity,
-    bedType,
-    status: status || 'available'
-  });
+  let room;
+  try {
+    room = await Room.create({ ...values, hotel: hotel._id, company: hotel.company });
+  } catch (error) {
+    // Unique index race between two near-simultaneous creates
+    if (error?.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: `Room number ${values.roomNumber} already exists for this hotel`,
+        errors: { roomNumber: `Room number ${values.roomNumber} already exists` },
+      });
+    }
+    throw error;
+  }
 
   res.status(201).json({
     success: true,
@@ -447,56 +424,41 @@ export const createRoom = asyncHandler(async (req, res) => {
 // @route   PUT /api/rooms/:id
 // @access  Private (Owner, Manager)
 export const updateRoom = asyncHandler(async (req, res) => {
+  if (!isValidId(req.params.id)) return notFound(res);
   const room = await Room.findById(req.params.id);
 
-  if (!room) {
-    return res.status(404).json({
-      success: false,
-      message: "Room not found",
-    });
-  }
+  if (!room) return notFound(res);
 
-  // Validate hotel access and get hotel
-  const hotel = await assertHotelAccess(req, room.hotel);
+  const hotel = await assertHotelAccess(req, room.hotel, { roles: HOTEL_ADMIN_ROLES });
 
-  // Verify ownership/role — owner-role, admin and manager (or the literal
-  // hotel.owner user) may update. Matches createRoom and the QR gates.
-  const editorRole = req.user.role?.name || req.user.companyRole;
-  if (hotel.owner?.toString() !== req.user._id.toString() &&
-      !['owner', 'admin', 'manager'].includes(editorRole)) {
-    return res.status(403).json({
-      success: false,
-      message: "Not authorized to update this room",
-    });
-  }
+  // Whitelisted, validated fields only (rating/lastCleaned/hotel/company are
+  // not admin-assignable).
+  const { errors, values } = validateRoomInput(req.body, { partial: true });
 
-  // If room number is being changed, check for duplicates
-  if (req.body.roomNumber && req.body.roomNumber !== room.roomNumber) {
-    const existingRoom = await Room.findOne({
-      hotel: room.hotel,
-      roomNumber: req.body.roomNumber,
-      _id: { $ne: room._id }
-    });
-    if (existingRoom) {
-      return res.status(400).json({
-        success: false,
-        message: `Room number ${req.body.roomNumber} already exists for this hotel`,
-      });
+  if (values.status !== undefined && values.status !== room.status) {
+    if (!ADMIN_ROOM_STATUSES.includes(values.status)) {
+      errors.status = "Occupied and reserved are set by bookings and can't be chosen manually";
+    } else {
+      const checkedIn = await Booking.countDocuments({ room: room._id, status: "Checked-In" });
+      if (checkedIn > 0) {
+        errors.status = "A guest is checked in to this room. Check them out from reception first.";
+      }
     }
   }
+  if (Object.keys(errors).length) return sendValidation(res, errors);
 
-  // Update room fields
-  const allowedFields = [
-    'roomName', 'roomNumber', 'type', 'price', 'floor', 'maxGuests',
-    'description', 'amenities', 'images', 'capacity', 'bedType', 'status',
-    'rating', 'lastCleaned'
-  ];
+  // If room number is being changed, check for duplicates (case-insensitive)
+  if (values.roomNumber && values.roomNumber !== room.roomNumber &&
+      await findDuplicateRoom(room.hotel, values.roomNumber, room._id)) {
+    return res.status(400).json({
+      success: false,
+      message: `Room number ${values.roomNumber} already exists for this hotel`,
+      errors: { roomNumber: `Room number ${values.roomNumber} already exists` },
+    });
+  }
 
-  allowedFields.forEach(field => {
-    if (req.body[field] !== undefined) {
-      room[field] = req.body[field];
-    }
-  });
+  if (!room.company && hotel?.company) room.company = hotel.company;
+  Object.assign(room, values);
 
   await room.save();
 
@@ -511,28 +473,12 @@ export const updateRoom = asyncHandler(async (req, res) => {
 // @route   DELETE /api/rooms/:id
 // @access  Private (Owner, Manager)
 export const deleteRoom = asyncHandler(async (req, res) => {
+  if (!isValidId(req.params.id)) return notFound(res);
   const room = await Room.findById(req.params.id);
 
-  if (!room) {
-    return res.status(404).json({
-      success: false,
-      message: "Room not found",
-    });
-  }
+  if (!room) return notFound(res);
 
-  // Validate hotel access and get hotel
-  const hotel = await assertHotelAccess(req, room.hotel);
-
-  // Verify ownership/role — owner-role, admin and manager (or the literal
-  // hotel.owner user) may delete. Matches createRoom/updateRoom.
-  const deleterRole = req.user.role?.name || req.user.companyRole;
-  if (hotel.owner?.toString() !== req.user._id.toString() &&
-      !['owner', 'admin', 'manager'].includes(deleterRole)) {
-    return res.status(403).json({
-      success: false,
-      message: "Not authorized to delete this room",
-    });
-  }
+  await assertHotelAccess(req, room.hotel, { roles: HOTEL_ADMIN_ROLES });
 
   // Check if room has active bookings
   const activeBookings = await Booking.countDocuments({
@@ -544,6 +490,17 @@ export const deleteRoom = asyncHandler(async (req, res) => {
     return res.status(400).json({
       success: false,
       message: `Cannot delete room. It has ${activeBookings} active booking(s)`,
+    });
+  }
+
+  const openOrders = await Order.countDocuments({
+    room: room._id,
+    status: { $in: ["pending", "confirmed", "preparing", "ready"] },
+  });
+  if (openOrders > 0) {
+    return res.status(400).json({
+      success: false,
+      message: `Cannot delete room. It has ${openOrders} open room-service order(s)`,
     });
   }
 
@@ -578,12 +535,15 @@ export const getRoomAvailability = asyncHandler(async (req, res) => {
 
   // Validate month format
   const monthRegex = /^\d{4}-\d{2}$/;
-  if (!monthRegex.test(month)) {
+  const monthPart = Number(String(month).slice(5, 7));
+  if (!monthRegex.test(month) || monthPart < 1 || monthPart > 12) {
     return res.status(400).json({
       success: false,
       message: "Invalid month format. Use YYYY-MM (e.g., 2026-05)",
     });
   }
+
+  if (!isValidId(id)) return notFound(res);
 
   // Get room
   const room = await Room.findById(id).populate('hotel', 'name');

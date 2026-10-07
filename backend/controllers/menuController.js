@@ -1,7 +1,7 @@
 import { MenuItem } from "../models/menuItem.schema.js";
-import { Hotel } from "../models/hotel.schema.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import cloudinary from "../config/cloudinary.js";
+import { HOTEL_ADMIN_ROLES, assertHotelAccess, isValidId } from "./hotelAdminAccess.js";
 
 // Valid menu categories — mirrors the enum on menuItem.schema.js
 const MENU_CATEGORIES = [
@@ -32,67 +32,57 @@ const MENU_WRITABLE_FIELDS = [
   "allergens",
 ];
 
-// ─── Multi-tenancy helpers (mirrors hotelTableController) ───
-const getUserRole = (req) => req.user?.role?.name || req.user?.companyRole;
-
-const getAssignedHotelIds = (req) => {
-  const assigned = req.user?.assignedProperties || [];
-  return assigned
-    .map((p) => (typeof p === "object" ? p?._id?.toString() : p?.toString()))
-    .filter(Boolean);
-};
-
-// Verifies the requesting staff member may manage the given hotel's menu.
-// Throws a status-tagged error the global error handler turns into 403/404.
-const assertHotelAccess = async (req, hotelId) => {
-  const role = getUserRole(req);
-
-  if (role === "admin" || role === "superadmin") {
-    const hotel = await Hotel.findById(hotelId).select("company owner");
-    if (!hotel) throw Object.assign(new Error("Hotel not found"), { status: 404 });
-    return hotel;
-  }
-
-  const assignedHotelIds = getAssignedHotelIds(req);
-  const userCompany =
-    req.user?.company?._id?.toString?.() ||
-    req.user?.company?.toString?.() ||
-    req.user?.company;
-
-  const hotel = await Hotel.findById(hotelId).select("company owner");
-  if (!hotel) throw Object.assign(new Error("Hotel not found"), { status: 404 });
-
-  if (
-    role === "receptionist" &&
-    assignedHotelIds.length > 0 &&
-    !assignedHotelIds.includes(hotelId.toString())
-  ) {
-    throw Object.assign(new Error("Not authorized for this hotel"), { status: 403 });
-  }
-
-  if (role !== "owner" && userCompany && hotel.company?.toString() !== userCompany.toString()) {
-    throw Object.assign(new Error("Not authorized for this hotel company"), { status: 403 });
-  }
-
-  return hotel;
-};
-
 // Builds a whitelisted update/create payload from the request body.
+// preparationTime "" / null clears the field (returned as `null`).
 const pickMenuFields = (body) => {
   const payload = {};
   for (const key of MENU_WRITABLE_FIELDS) {
     if (body[key] !== undefined) payload[key] = body[key];
   }
-  if (payload.price !== undefined) payload.price = Number(payload.price);
-  if (payload.preparationTime !== undefined && payload.preparationTime !== "") {
+  if (typeof payload.name === "string") payload.name = payload.name.trim();
+  if (typeof payload.description === "string") payload.description = payload.description.trim();
+  if (payload.price !== undefined) payload.price = payload.price === "" ? NaN : Number(payload.price);
+  if (payload.preparationTime === "" || payload.preparationTime === null || payload.preparationTime === "null") {
+    payload.preparationTime = null;
+  } else if (payload.preparationTime !== undefined) {
     payload.preparationTime = Number(payload.preparationTime);
-  } else {
-    delete payload.preparationTime;
   }
   // Multipart form-data sends booleans as strings
   if (typeof payload.isAvailable === "string") payload.isAvailable = payload.isAvailable === "true";
   if (typeof payload.isVeg === "string") payload.isVeg = payload.isVeg === "true";
   return payload;
+};
+
+// Field-level validation shared by create and update. Returns an error message or null.
+const validateMenuPayload = (payload) => {
+  if (payload.name !== undefined && (typeof payload.name !== "string" || payload.name.length > 100)) {
+    return "Item name must be 100 characters or fewer";
+  }
+  if (payload.description !== undefined && (typeof payload.description !== "string" || payload.description.length > 500)) {
+    return "Description must be 500 characters or fewer";
+  }
+  if (payload.price !== undefined) {
+    if (Number.isNaN(payload.price) || payload.price < 0 || payload.price > 1_000_000) {
+      return "Price must be between 0 and 1,000,000";
+    }
+    if (Math.round(payload.price * 100) !== payload.price * 100) return "Price can have at most 2 decimals";
+  }
+  if (payload.preparationTime !== undefined && payload.preparationTime !== null) {
+    const t = payload.preparationTime;
+    if (!Number.isInteger(t) || t < 5 || t > 120) return "Preparation time must be a whole number between 5 and 120 minutes";
+  }
+  if (payload.image !== undefined && payload.image !== null && typeof payload.image !== "string") {
+    return "Image must be a URL";
+  }
+  return null;
+};
+
+// Applies the payload, turning a cleared preparationTime into an unset field.
+const applyMenuPayload = (doc, payload) => {
+  const { preparationTime, ...rest } = payload;
+  Object.assign(doc, rest);
+  if (preparationTime === null) doc.preparationTime = undefined;
+  else if (preparationTime !== undefined) doc.preparationTime = preparationTime;
 };
 
 // Uploads a menu item image buffer (from multer memory storage) to Cloudinary.
@@ -123,11 +113,14 @@ export const getMenuItems = asyncHandler(async (req, res) => {
     });
   }
 
+  // Staff may only read menus of hotels they are assigned to
+  await assertHotelAccess(req, hotelId);
+
   const filter = {
     hotel: hotelId,
   };
 
-  if (category) {
+  if (typeof category === "string" && category) {
     filter.category = category;
   }
 
@@ -197,16 +190,20 @@ export const createMenuItem = asyncHandler(async (req, res) => {
   if (payload.price === undefined || Number.isNaN(payload.price) || payload.price < 0) {
     return res.status(400).json({ success: false, message: "A valid price is required" });
   }
+  const invalid = validateMenuPayload(payload);
+  if (invalid) return res.status(400).json({ success: false, message: invalid });
 
   // Verify the staff member may manage this hotel's menu
-  await assertHotelAccess(req, hotelId);
+  const hotel = await assertHotelAccess(req, hotelId, { roles: HOTEL_ADMIN_ROLES });
 
   // Optional image upload (multipart form-data with an "image" file field)
   if (req.file) {
-    payload.image = await uploadMenuImage(req.file.buffer, hotelId);
+    payload.image = await uploadMenuImage(req.file.buffer, hotel._id.toString());
   }
 
-  const menuItem = await MenuItem.create({ ...payload, hotel: hotelId });
+  const menuItem = new MenuItem({ hotel: hotel._id });
+  applyMenuPayload(menuItem, payload);
+  await menuItem.save();
 
   return res.status(201).json({
     success: true,
@@ -220,25 +217,30 @@ export const createMenuItem = asyncHandler(async (req, res) => {
 export const updateMenuItem = asyncHandler(async (req, res) => {
   const { itemId } = req.params;
 
+  if (!isValidId(itemId)) {
+    return res.status(404).json({ success: false, message: "Menu item not found" });
+  }
   const menuItem = await MenuItem.findById(itemId);
   if (!menuItem) {
     return res.status(404).json({ success: false, message: "Menu item not found" });
   }
 
   // Ownership: staff can only touch items belonging to a hotel they manage
-  await assertHotelAccess(req, menuItem.hotel);
+  await assertHotelAccess(req, menuItem.hotel, { roles: HOTEL_ADMIN_ROLES });
 
   const payload = pickMenuFields(req.body);
 
+  if (payload.name !== undefined && !payload.name) {
+    return res.status(400).json({ success: false, message: "Item name is required" });
+  }
   if (payload.category !== undefined && !MENU_CATEGORIES.includes(payload.category)) {
     return res.status(400).json({
       success: false,
       message: `Category must be one of: ${MENU_CATEGORIES.join(", ")}`,
     });
   }
-  if (payload.price !== undefined && (Number.isNaN(payload.price) || payload.price < 0)) {
-    return res.status(400).json({ success: false, message: "Price must be a valid number" });
-  }
+  const invalid = validateMenuPayload(payload);
+  if (invalid) return res.status(400).json({ success: false, message: invalid });
 
   // Optional image replacement (multipart form-data with an "image" file field)
   if (req.file) {
@@ -246,7 +248,7 @@ export const updateMenuItem = asyncHandler(async (req, res) => {
   }
 
   // hotel is intentionally not writable — items never move between hotels
-  Object.assign(menuItem, payload);
+  applyMenuPayload(menuItem, payload);
   await menuItem.save();
 
   return res.status(200).json({
@@ -261,12 +263,15 @@ export const updateMenuItem = asyncHandler(async (req, res) => {
 export const deleteMenuItem = asyncHandler(async (req, res) => {
   const { itemId } = req.params;
 
+  if (!isValidId(itemId)) {
+    return res.status(404).json({ success: false, message: "Menu item not found" });
+  }
   const menuItem = await MenuItem.findById(itemId);
   if (!menuItem) {
     return res.status(404).json({ success: false, message: "Menu item not found" });
   }
 
-  await assertHotelAccess(req, menuItem.hotel);
+  await assertHotelAccess(req, menuItem.hotel, { roles: HOTEL_ADMIN_ROLES });
 
   // Hard delete is safe: orders denormalize item name+price, so historical
   // orders are unaffected by removing the menu definition.
@@ -294,7 +299,7 @@ export const reorderMenuItems = asyncHandler(async (req, res) => {
     });
   }
   for (const entry of items) {
-    if (!entry?.id || typeof entry.displayOrder !== "number") {
+    if (!entry?.id || !isValidId(entry.id) || typeof entry.displayOrder !== "number" || !Number.isFinite(entry.displayOrder)) {
       return res.status(400).json({
         success: false,
         message: "Each entry must have an id and a numeric displayOrder",
@@ -302,7 +307,7 @@ export const reorderMenuItems = asyncHandler(async (req, res) => {
     }
   }
 
-  await assertHotelAccess(req, hotelId);
+  await assertHotelAccess(req, hotelId, { roles: HOTEL_ADMIN_ROLES });
 
   // Scoped by hotel so IDs belonging to another hotel are silently ignored
   const result = await MenuItem.bulkWrite(
@@ -333,7 +338,7 @@ export const bulkToggleAvailability = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: "isAvailable (boolean) is required" });
   }
 
-  await assertHotelAccess(req, hotelId);
+  await assertHotelAccess(req, hotelId, { roles: HOTEL_ADMIN_ROLES });
 
   const filter = { hotel: hotelId };
   if (category) {
