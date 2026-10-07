@@ -3,6 +3,7 @@ import './ha-ui.css';
 export { default as Button, IconButton } from './Button';
 export { Input, Textarea, Select, SearchInput } from './Field';
 export { default as Modal } from './Modal';
+export { default as ConfirmModal } from './ConfirmModal';
 export { default as Badge } from './Badge';
 export { toneForStatus, STATUS_TONE } from './statusTone';
 export { default as StatCard } from './StatCard';

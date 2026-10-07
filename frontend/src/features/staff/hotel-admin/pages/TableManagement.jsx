@@ -14,13 +14,17 @@ import {
   Printer,
   RotateCcw,
   Smartphone,
+  Power,
+  Copy,
+  Building2,
 } from 'lucide-react';
 import {
   getTables, createTable, updateTable, deleteTable,
   generateTableQR, updateTableStatus, batchCreateTables,
 } from '../services/tableApi';
 import useHotelId from '../hooks/useHotelId';
-import ConfirmDialog from '../../../../shared/components/ConfirmDialog';
+import useStaffRole, { TABLE_DELETE_ROLES } from '../hooks/useStaffRole';
+import ConfirmDialog from '../components/ui/ConfirmModal';
 import {
   PageHeader,
   Button,
@@ -34,31 +38,15 @@ import {
   SearchInput,
   FilterTabs,
   EmptyState,
+  ErrorState,
   Table,
   THead,
+  TableSkeleton,
   Modal,
 } from '../components/ui';
 import useDebouncedValue from '../hooks/useDebouncedValue';
+import { downloadQrImage, printQrSheet } from '../utils/qr';
 import '../styles/hotel-admin-tokens.css';
-
-const downloadQRCode = (base64Data, filename) => {
-  const link = document.createElement('a');
-  link.href = base64Data;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-};
-
-const printQRCode = (base64Data, tableNumber, hotelName) => {
-  const w = window.open('', '_blank');
-  if (!w) { toast.error('Popup blocked. Allow popups to print.'); return; }
-  w.document.write(`<!DOCTYPE html><html><head><title>Table ${tableNumber}</title>
-  <style>*{margin:0;padding:0;box-sizing:border-box}body{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f8fafc;font-family:system-ui,sans-serif}.box{background:#fff;border-radius:20px;box-shadow:0 8px 40px rgba(0,0,0,.12);padding:40px 48px;text-align:center}.hotel{font-size:14px;color:#64748b;margin-bottom:6px;font-weight:500}.num{font-size:32px;font-weight:800;color:#1e293b;margin-bottom:24px}.qr{width:220px;height:220px;border-radius:12px}.hint{margin-top:20px;font-size:13px;color:#94a3b8}@media print{body{background:#fff}.box{box-shadow:none}}</style>
-  </head><body><div class="box"><p class="hotel">${hotelName}</p><h1 class="num">Table ${tableNumber}</h1><img src="${base64Data}" class="qr" alt="QR"/><p class="hint">Scan to view menu &amp; place your order</p></div>
-  <script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}${'<'}/script></body></html>`);
-  w.document.close();
-};
 
 const LOC_OPTS = [
   { value: 'indoor', label: 'Indoor' },
@@ -76,13 +64,52 @@ const STATUS_META = {
   maintenance: { label: 'Maintenance', tone: 'danger' },
 };
 
-const EMPTY_FORM = { tableNumber: '', tableName: '', capacity: 4, location: 'indoor', description: '', minSpend: 0, status: 'available' };
+// Numbers stay strings in the form until submit (no "05"/0 coercion).
+const EMPTY_FORM = { tableNumber: '', tableName: '', capacity: '4', location: 'indoor', description: '', minSpend: '0', status: 'available' };
+const EMPTY_BATCH = { count: '5', startNumber: '1', capacity: '4', location: 'indoor' };
+const TABLE_NUMBER_RE = /^[A-Za-z0-9-]+$/;
+const naturalCompare = (a, b) => String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' });
+const fmtRs = (n) => `Rs. ${Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+const qrSrc = (t) => t?.qrCodeImage || '';
+const tableLabel = (t) => t.tableName || `Table ${t.tableNumber}`;
 
-const TableManagement = () => {
+const isInt = (s) => /^\d+$/.test(String(s).trim());
+
+function validateTableForm(form, tables, selfId) {
+  const errs = {};
+  const num = form.tableNumber.trim().toUpperCase();
+  if (!num) errs.tableNumber = 'Table number is required';
+  else if (num.length > 20) errs.tableNumber = 'Use 20 characters or fewer';
+  else if (!TABLE_NUMBER_RE.test(num)) errs.tableNumber = 'Use letters, numbers and dashes only';
+  else if (tables.some((t) => t._id !== selfId && String(t.tableNumber).toUpperCase() === num)) errs.tableNumber = `Table ${num} already exists`;
+  if (form.tableName.trim().length > 60) errs.tableName = 'Use 60 characters or fewer';
+  if (!isInt(form.capacity) || Number(form.capacity) < 1 || Number(form.capacity) > 50) errs.capacity = 'Capacity must be a whole number from 1 to 50';
+  const ms = String(form.minSpend).trim();
+  if (ms !== '' && (!/^\d+(\.\d{1,2})?$/.test(ms) || Number(ms) > 1000000)) errs.minSpend = 'Enter an amount from 0 to 1,000,000 (max 2 decimals)';
+  if (form.description.length > 300) errs.description = 'Use 300 characters or fewer';
+  return errs;
+}
+
+function validateBatch(batch) {
+  const errs = {};
+  if (!isInt(batch.count) || Number(batch.count) < 1 || Number(batch.count) > 50) errs.count = 'Enter 1 to 50 tables';
+  if (!isInt(batch.startNumber) || Number(batch.startNumber) < 1) errs.startNumber = 'Start at 1 or higher';
+  if (!isInt(batch.capacity) || Number(batch.capacity) < 1 || Number(batch.capacity) > 50) errs.capacity = 'Capacity must be 1 to 50';
+  return errs;
+}
+
+/**
+ * Table QR Codes page. `embedded` renders it inside the Restaurant page
+ * (no page title, same behaviour).
+ */
+const TableManagement = ({ embedded = false }) => {
   const hotelId = useHotelId();
+  const role = useStaffRole();
+  const canDelete = TABLE_DELETE_ROLES.includes(role);
 
   const [tables, setTables] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [actionLoading, setActionLoading] = useState({});
   const [hotelName, setHotelName] = useState('');
 
@@ -97,26 +124,29 @@ const TableManagement = () => {
   const [selTable, setSelTable] = useState(null);
   const [qrTable, setQrTable] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [regenTarget, setRegenTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
   const [form, setForm] = useState(EMPTY_FORM);
   const [formErrors, setFormErrors] = useState({});
-  const [batch, setBatch] = useState({ count: 5, startNumber: 1, capacity: 4, location: 'indoor', generateQR: true });
+  const [formAlert, setFormAlert] = useState('');
+  const [batch, setBatch] = useState(EMPTY_BATCH);
+  const [batchErrors, setBatchErrors] = useState({});
 
   const setAct = (k, v) => setActionLoading((p) => ({ ...p, [k]: v }));
 
   const fetchTables = useCallback(async ({ silent = false } = {}) => {
     if (!hotelId) { setLoading(false); return; }
     if (!silent) setLoading(true);
+    setLoadError(null);
     try {
       const res = await getTables({ hotelId });
-      if (res.data.success) {
-        const data = res.data.data || [];
-        setTables(data);
-        if (data[0]?.hotel?.name) setHotelName(data[0].hotel.name);
-      }
+      const data = res.data.data || [];
+      setTables(data);
+      if (data[0]?.hotel?.name) setHotelName(data[0].hotel.name);
     } catch (e) {
-      toast.error(e.response?.data?.message || 'Failed to load tables');
+      if (!silent) setLoadError(e.response?.data?.message || 'Failed to load tables');
+      else toast.error(e.response?.data?.message || 'Failed to refresh tables');
     } finally {
       setLoading(false);
     }
@@ -129,8 +159,8 @@ const TableManagement = () => {
   const stats = useMemo(
     () => ({
       total: tables.length,
-      withQR: tables.filter((t) => t.qrCodeData).length,
-      noQR: tables.filter((t) => !t.qrCodeData).length,
+      withQR: tables.filter((t) => qrSrc(t)).length,
+      noQR: tables.filter((t) => !qrSrc(t)).length,
       capacity: tables.reduce((s, t) => s + (t.capacity || 0), 0),
       available: tables.filter((t) => t.status === 'available').length,
     }),
@@ -138,46 +168,79 @@ const TableManagement = () => {
   );
 
   const filtered = useMemo(() => {
-    const q = debouncedSearch.toLowerCase();
-    return tables.filter((t) => {
-      const matchS = !q || t.tableNumber.toLowerCase().includes(q) || (t.tableName || '').toLowerCase().includes(q) || (t.location || '').toLowerCase().includes(q);
-      const matchL = !locFilter || t.location === locFilter;
-      const matchSt = !stFilter || t.status === stFilter;
-      const matchQR = qrFilter === 'all' || (qrFilter === 'with-qr' ? !!t.qrCodeData : !t.qrCodeData);
-      return matchS && matchL && matchSt && matchQR;
-    });
+    const q = debouncedSearch.trim().toLowerCase();
+    return tables
+      .filter((t) => {
+        const matchS = !q || String(t.tableNumber).toLowerCase().includes(q) || (t.tableName || '').toLowerCase().includes(q) || (t.location || '').toLowerCase().includes(q);
+        const matchL = !locFilter || t.location === locFilter;
+        const matchSt = !stFilter || t.status === stFilter;
+        const matchQR = qrFilter === 'all' || (qrFilter === 'with-qr' ? !!qrSrc(t) : !qrSrc(t));
+        return matchS && matchL && matchSt && matchQR;
+      })
+      .sort((a, b) => naturalCompare(a.tableNumber, b.tableNumber));
   }, [tables, debouncedSearch, locFilter, stFilter, qrFilter]);
+
+  const hasFilters = !!(debouncedSearch || locFilter || stFilter || qrFilter !== 'all');
+  const clearFilters = () => { setSearch(''); setLocFilter(''); setStFilter(''); setQrFilter('all'); };
 
   const openCreate = () => {
     setSelTable(null);
     setForm(EMPTY_FORM);
     setFormErrors({});
+    setFormAlert('');
     setShowModal(true);
   };
   const openEdit = (t) => {
     setSelTable(t);
-    setForm({ tableNumber: t.tableNumber || '', tableName: t.tableName || '', capacity: t.capacity || 4, location: t.location || 'indoor', description: t.description || '', minSpend: t.minSpend || 0, status: t.status || 'available' });
+    setForm({
+      tableNumber: t.tableNumber || '',
+      tableName: t.tableName || '',
+      capacity: String(t.capacity ?? 4),
+      location: t.location || 'indoor',
+      description: t.description || '',
+      minSpend: String(t.minSpend ?? 0),
+      status: t.status || 'available',
+    });
     setFormErrors({});
+    setFormAlert('');
     setShowModal(true);
   };
 
+  const setField = (name, value) => {
+    setForm((p) => ({ ...p, [name]: value }));
+    setFormErrors((p) => ({ ...p, [name]: undefined }));
+  };
+
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.tableNumber.trim()) {
-      setFormErrors({ tableNumber: 'Table number is required' });
-      return;
-    }
+    e?.preventDefault();
+    if (actionLoading.submit) return;
+    const errs = validateTableForm(form, tables, selTable?._id);
+    if (Object.keys(errs).length) { setFormErrors(errs); return; }
+    const payload = {
+      tableNumber: form.tableNumber.trim().toUpperCase(),
+      tableName: form.tableName.trim(),
+      capacity: Number(form.capacity),
+      minSpend: form.minSpend === '' ? 0 : Number(form.minSpend),
+      location: form.location,
+      status: form.status,
+      description: form.description.trim(),
+    };
     setAct('submit', true);
+    setFormAlert('');
     try {
       if (selTable) {
-        const res = await updateTable(selTable._id, form);
-        if (res.data.success) { toast.success('Table updated'); fetchTables({ silent: true }); setShowModal(false); }
+        await updateTable(selTable._id, payload);
+        toast.success(`Table ${payload.tableNumber} updated`);
       } else {
-        const res = await createTable({ ...form, hotelId });
-        if (res.data.success) { toast.success('Table created'); fetchTables({ silent: true }); setShowModal(false); }
+        await createTable({ ...payload, hotelId });
+        toast.success(`Table ${payload.tableNumber} created`);
       }
+      setShowModal(false);
+      fetchTables({ silent: true });
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Operation failed');
+      const data = err.response?.data;
+      if (data?.errors) setFormErrors(data.errors);
+      setFormAlert(data?.message || 'Could not save the table. Please try again.');
     } finally {
       setAct('submit', false);
     }
@@ -187,51 +250,97 @@ const TableManagement = () => {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      const res = await deleteTable(deleteTarget._id);
-      if (res.data.success) { toast.success('Table deleted'); setDeleteTarget(null); fetchTables({ silent: true }); }
+      await deleteTable(deleteTarget._id);
+      toast.success(`Table ${deleteTarget.tableNumber} deleted`);
+      setDeleteTarget(null);
+      fetchTables({ silent: true });
     } catch (err) {
       toast.error(err.response?.data?.message || 'Delete failed');
+      if (err.response?.status === 404) { setDeleteTarget(null); fetchTables({ silent: true }); }
     } finally {
       setDeleting(false);
     }
   };
 
-  const handleStatusChange = async (id, newStatus) => {
-    setAct(`s_${id}`, true);
+  // Optimistic status change: no list skeleton, reverts on error.
+  const handleStatusChange = async (table, newStatus) => {
+    const previous = table.status;
+    setTables((list) => list.map((t) => (t._id === table._id ? { ...t, status: newStatus } : t)));
+    setAct(`s_${table._id}`, true);
     try {
-      const res = await updateTableStatus(id, newStatus);
-      if (res.data.success) { toast.success(`Status → ${newStatus}`); fetchTables(); }
-    } catch {
-      toast.error('Status update failed');
+      await updateTableStatus(table._id, newStatus);
+      toast.success(`Table ${table.tableNumber} is now ${STATUS_META[newStatus]?.label.toLowerCase() || newStatus}`);
+    } catch (err) {
+      setTables((list) => list.map((t) => (t._id === table._id ? { ...t, status: previous } : t)));
+      toast.error(err.response?.data?.message || 'Status update failed');
     } finally {
-      setAct(`s_${id}`, false);
+      setAct(`s_${table._id}`, false);
     }
   };
 
-  const handleGenQR = async (id) => {
-    setAct(`qr_${id}`, true);
+  const handleGenQR = async (table, regenerate = false) => {
+    setAct(`qr_${table._id}`, true);
     try {
-      const res = await generateTableQR(id);
-      if (res.data.success) { toast.success('QR code generated'); fetchTables(); }
-    } catch {
-      toast.error('QR generation failed');
+      const res = await generateTableQR(table._id, regenerate);
+      const updated = res.data.table || {};
+      setTables((list) => list.map((t) => (t._id === table._id ? { ...t, ...updated, isQrActive: true } : t)));
+      setQrTable((cur) => (cur?._id === table._id ? { ...cur, ...updated, isQrActive: true } : cur));
+      toast.success(regenerate ? `New QR issued for table ${table.tableNumber}. The old code no longer works.` : 'QR code generated');
+      setRegenTarget(null);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'QR generation failed');
     } finally {
-      setAct(`qr_${id}`, false);
+      setAct(`qr_${table._id}`, false);
+    }
+  };
+
+  const handleToggleQr = async (table) => {
+    const next = table.isQrActive === false;
+    setAct(`qa_${table._id}`, true);
+    try {
+      await updateTable(table._id, { isQrActive: next });
+      setTables((list) => list.map((t) => (t._id === table._id ? { ...t, isQrActive: next } : t)));
+      setQrTable((cur) => (cur?._id === table._id ? { ...cur, isQrActive: next } : cur));
+      toast.success(next ? `QR for table ${table.tableNumber} activated` : `QR for table ${table.tableNumber} deactivated. Guests can't order with it.`);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not change the QR status');
+    } finally {
+      setAct(`qa_${table._id}`, false);
+    }
+  };
+
+  const copyLink = async (table) => {
+    try {
+      await navigator.clipboard.writeText(table.qrCodeData || '');
+      toast.success('Ordering link copied');
+    } catch {
+      toast.error('Could not copy the link');
     }
   };
 
   const handleBatch = async (e) => {
-    e.preventDefault();
+    e?.preventDefault();
+    if (actionLoading.batch) return;
+    const errs = validateBatch(batch);
+    if (Object.keys(errs).length) { setBatchErrors(errs); return; }
     setAct('batch', true);
     try {
-      const res = await batchCreateTables({ ...batch, hotelId });
-      if (res.data.success) {
-        toast.success(`${res.data.createdCount || batch.count} tables created`);
-        fetchTables();
-        setShowBatch(false);
-      }
+      const res = await batchCreateTables({
+        hotelId,
+        count: Number(batch.count),
+        startNumber: Number(batch.startNumber),
+        capacity: Number(batch.capacity),
+        location: batch.location,
+      });
+      const { createdCount = 0, skippedCount = 0 } = res.data;
+      if (createdCount === 0) toast.info(`No tables created: ${skippedCount} already exist.`);
+      else toast.success(res.data.message || `${createdCount} tables created`);
+      fetchTables({ silent: true });
+      setShowBatch(false);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Batch failed');
+      const data = err.response?.data;
+      if (data?.errors) setBatchErrors(data.errors);
+      toast.error(data?.message || 'Batch failed');
     } finally {
       setAct('batch', false);
     }
@@ -243,17 +352,27 @@ const TableManagement = () => {
     { value: 'no-qr', label: 'No QR', count: stats.noQR },
   ];
 
+  const batchEnd = isInt(batch.startNumber) && isInt(batch.count) ? Number(batch.startNumber) + Number(batch.count) - 1 : null;
+
+  if (!hotelId) {
+    return (
+      <div className={embedded ? '' : 'ha-page'}>
+        <EmptyState icon={<Building2 size={26} />} title="No property selected" description="Your account isn't linked to a property yet. Ask the owner to assign you one." />
+      </div>
+    );
+  }
+
   return (
-    <div className="ha-page">
+    <div className={embedded ? '' : 'ha-page'}>
       <PageHeader
-        title="Table QR Codes"
-        subtitle="Manage restaurant tables and generate ordering QR codes."
+        title={embedded ? undefined : 'Table QR Codes'}
+        subtitle={embedded ? undefined : 'Manage restaurant tables and generate ordering QR codes.'}
         actions={
           <>
-            <Button variant="secondary" onClick={fetchTables} disabled={loading}>
+            <Button variant="secondary" onClick={() => fetchTables()} disabled={loading}>
               <RefreshCw size={16} aria-hidden="true" /> Refresh
             </Button>
-            <Button variant="secondary" onClick={() => setShowBatch(true)}>
+            <Button variant="secondary" onClick={() => { setBatch(EMPTY_BATCH); setBatchErrors({}); setShowBatch(true); }}>
               <Rows3 size={16} aria-hidden="true" /> Batch Create
             </Button>
             <Button variant="primary" onClick={openCreate}>
@@ -279,7 +398,7 @@ const TableManagement = () => {
         }
       />
 
-      <div className="ha-kpi-grid" style={{ marginBottom: 24, gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))' }}>
+      <div className="ha-kpi-grid" style={{ marginBottom: 24 }}>
         {loading ? (
           Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)
         ) : (
@@ -292,15 +411,27 @@ const TableManagement = () => {
         )}
       </div>
 
-      {loading ? null : filtered.length === 0 ? (
+      {loadError ? (
+        <ErrorState description={loadError} onRetry={() => fetchTables()} />
+      ) : loading ? (
+        <Table minWidth={820} stack>
+          <THead>
+            <th scope="col">Table</th><th scope="col">Location</th><th scope="col">Capacity</th>
+            <th scope="col">Status</th><th scope="col">QR</th><th scope="col">Actions</th>
+          </THead>
+          <TableSkeleton rows={5} cols={6} />
+        </Table>
+      ) : filtered.length === 0 ? (
         <EmptyState
           icon={<UtensilsCrossed size={26} />}
-          title={tables.length === 0 ? 'No tables yet' : 'No matching tables'}
-          description={tables.length === 0 ? 'Start by adding tables or batch-creating them.' : 'Try adjusting your search or filters.'}
-          action={tables.length === 0 ? <Button variant="primary" size="sm" onClick={openCreate}><Plus size={15} aria-hidden="true" /> Add Table</Button> : null}
+          title={tables.length === 0 ? 'No tables yet' : 'No tables match your filters'}
+          description={tables.length === 0 ? 'Start by adding tables or batch-creating them.' : 'Try a different search or clear the filters.'}
+          action={tables.length === 0
+            ? <Button variant="primary" size="sm" onClick={openCreate}><Plus size={15} aria-hidden="true" /> Add Table</Button>
+            : hasFilters ? <Button variant="secondary" size="sm" onClick={clearFilters}>Clear filters</Button> : null}
         />
       ) : (
-        <Table minWidth={820}>
+        <Table minWidth={820} stack>
           <THead>
             <th scope="col">Table</th>
             <th scope="col">Location</th>
@@ -311,59 +442,68 @@ const TableManagement = () => {
           </THead>
           <tbody>
             {filtered.map((table) => {
+              const img = qrSrc(table);
+              const qrOff = table.isQrActive === false;
               return (
                 <tr key={table._id}>
-                  <td>
-                    <div className="ha-body-strong" style={{ color: 'var(--ha-text)' }}>{table.tableName || `Table ${table.tableNumber}`}</div>
-                    <div className="ha-small haNum" style={{ color: 'var(--ha-text-subtle)' }}>#{table.tableNumber}{table.minSpend > 0 ? ` · Min Rs. ${table.minSpend}` : ''}</div>
+                  <td data-primary>
+                    <div className="ha-body-strong" style={{ color: 'var(--ha-text)' }}>{tableLabel(table)}</div>
+                    <div className="ha-small haNum" style={{ color: 'var(--ha-text-subtle)' }}>#{table.tableNumber}{table.minSpend > 0 ? ` · Min ${fmtRs(table.minSpend)}` : ''}</div>
                   </td>
-                  <td style={{ textTransform: 'capitalize' }}>{table.location || '—'}</td>
-                  <td className="haNum">{table.capacity}</td>
-                  <td>
+                  <td data-label="Location" style={{ textTransform: 'capitalize' }}>{table.location || '—'}</td>
+                  <td data-label="Capacity" className="haNum">{table.capacity}</td>
+                  <td data-label="Status">
                     <Select
                       value={table.status}
-                      onChange={(e) => handleStatusChange(table._id, e.target.value)}
+                      onChange={(e) => handleStatusChange(table, e.target.value)}
                       disabled={actionLoading[`s_${table._id}`]}
                       aria-label={`Status for table ${table.tableNumber}`}
-                      className="ha-select"
                     >
                       {Object.entries(STATUS_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                     </Select>
                   </td>
-                  <td>
-                    {table.qrCodeData ? (
-                      <button type="button" onClick={() => setQrTable(table)} aria-label={`View QR for table ${table.tableNumber}`} style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0 }}>
-                        <img src={table.qrCodeData} alt="" style={{ width: 44, height: 44, borderRadius: 6 }} />
-                      </button>
+                  <td data-label="QR">
+                    {img ? (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                        <button type="button" onClick={() => setQrTable(table)} aria-label={`View QR for table ${table.tableNumber}`} style={{ border: 'none', background: '#fff', cursor: 'pointer', padding: 2, borderRadius: 6, lineHeight: 0 }}>
+                          <img src={img} alt="" width={40} height={40} loading="lazy" style={{ width: 40, height: 40, borderRadius: 4, opacity: qrOff ? 0.4 : 1 }} />
+                        </button>
+                        {qrOff && <Badge tone="danger">Inactive</Badge>}
+                      </span>
                     ) : (
                       <Badge tone="warning">No QR</Badge>
                     )}
                   </td>
-                  <td>
+                  <td data-actions>
                     <div className="ha-table__row-actions">
-                      {table.qrCodeData ? (
+                      {img ? (
                         <>
-                          <IconButton aria-label={`Download QR for table ${table.tableNumber}`} onClick={() => downloadQRCode(table.qrCodeData, `table-${table.tableNumber}-qr.png`)}>
+                          <IconButton aria-label={`Download QR for table ${table.tableNumber}`} title="Download PNG" onClick={() => downloadQrImage(img, `table-${table.tableNumber}-qr.png`)}>
                             <Download size={16} aria-hidden="true" />
                           </IconButton>
-                          <IconButton aria-label={`Print QR for table ${table.tableNumber}`} onClick={() => printQRCode(table.qrCodeData, table.tableNumber, hotelName)}>
+                          <IconButton aria-label={`Print QR for table ${table.tableNumber}`} title="Print" onClick={() => printQrSheet({ items: [{ label: `Table ${table.tableNumber}`, image: img }], hotelName, hint: 'Scan to view the menu and order', title: `Table ${table.tableNumber}` })}>
                             <Printer size={16} aria-hidden="true" />
                           </IconButton>
-                          <IconButton aria-label={`Regenerate QR for table ${table.tableNumber}`} onClick={() => handleGenQR(table._id)} disabled={actionLoading[`qr_${table._id}`]}>
+                          <IconButton aria-label={`Regenerate QR for table ${table.tableNumber}`} title="Regenerate (old QR stops working)" onClick={() => setRegenTarget(table)} disabled={actionLoading[`qr_${table._id}`]}>
                             <RotateCcw size={16} aria-hidden="true" />
+                          </IconButton>
+                          <IconButton aria-label={`${qrOff ? 'Activate' : 'Deactivate'} QR for table ${table.tableNumber}`} aria-pressed={!qrOff} title={qrOff ? 'Activate QR' : 'Deactivate QR'} onClick={() => handleToggleQr(table)} disabled={actionLoading[`qa_${table._id}`]} style={{ color: qrOff ? 'var(--ha-danger-text)' : undefined }}>
+                            <Power size={16} aria-hidden="true" />
                           </IconButton>
                         </>
                       ) : (
-                        <Button size="sm" variant="secondary" onClick={() => handleGenQR(table._id)} disabled={actionLoading[`qr_${table._id}`]}>
-                          <QrCode size={14} aria-hidden="true" /> {actionLoading[`qr_${table._id}`] ? '…' : 'Generate'}
+                        <Button size="sm" variant="secondary" onClick={() => handleGenQR(table)} loading={actionLoading[`qr_${table._id}`]}>
+                          <QrCode size={14} aria-hidden="true" /> Generate
                         </Button>
                       )}
-                      <IconButton aria-label={`Edit table ${table.tableNumber}`} onClick={() => openEdit(table)}>
+                      <IconButton aria-label={`Edit table ${table.tableNumber}`} title="Edit" onClick={() => openEdit(table)}>
                         <Pencil size={16} aria-hidden="true" />
                       </IconButton>
-                      <IconButton aria-label={`Delete table ${table.tableNumber}`} onClick={() => setDeleteTarget(table)} style={{ color: 'var(--ha-danger)' }}>
-                        <Trash2 size={16} aria-hidden="true" />
-                      </IconButton>
+                      {canDelete && (
+                        <IconButton aria-label={`Delete table ${table.tableNumber}`} title="Delete" onClick={() => setDeleteTarget(table)} style={{ color: 'var(--ha-danger-text)' }}>
+                          <Trash2 size={16} aria-hidden="true" />
+                        </IconButton>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -377,28 +517,30 @@ const TableManagement = () => {
       <Modal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
-        title={selTable ? 'Edit Table' : 'Add New Table'}
+        title={selTable ? `Edit table ${selTable.tableNumber}` : 'Add New Table'}
+        busy={!!actionLoading.submit}
         footer={
           <>
             <Button variant="secondary" onClick={() => setShowModal(false)} disabled={actionLoading.submit}>Cancel</Button>
-            <Button variant="primary" onClick={handleSubmit} disabled={actionLoading.submit}>{actionLoading.submit ? 'Saving…' : selTable ? 'Update Table' : 'Create Table'}</Button>
+            <Button variant="primary" type="submit" form="ha-table-form" loading={actionLoading.submit}>{actionLoading.submit ? 'Saving…' : selTable ? 'Update Table' : 'Create Table'}</Button>
           </>
         }
       >
-        <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 16 }}>
-          <Input label="Table Number" required placeholder="e.g. 1, A1, VIP-1" value={form.tableNumber} onChange={(e) => { setForm((p) => ({ ...p, tableNumber: e.target.value })); setFormErrors({}); }} error={formErrors.tableNumber} />
-          <Input label="Table Name" placeholder="e.g. Corner Table" value={form.tableName} onChange={(e) => setForm((p) => ({ ...p, tableName: e.target.value }))} />
-          <Input label="Capacity" required type="number" min="1" max="50" value={form.capacity} onChange={(e) => setForm((p) => ({ ...p, capacity: +e.target.value }))} />
-          <Input label="Min Spend (NPR)" type="number" min="0" value={form.minSpend} onChange={(e) => setForm((p) => ({ ...p, minSpend: +e.target.value }))} />
-          <Select label="Location" value={form.location} onChange={(e) => setForm((p) => ({ ...p, location: e.target.value }))}>
+        <form id="ha-table-form" onSubmit={handleSubmit} noValidate className="ha-form-grid">
+          <Input label="Table Number" required placeholder="e.g. 1, A1, VIP-1" maxLength={20} autoComplete="off" value={form.tableNumber} onChange={(e) => setField('tableNumber', e.target.value)} onBlur={() => setField('tableNumber', form.tableNumber.trim().toUpperCase())} error={formErrors.tableNumber} hint="Letters, numbers and dashes" />
+          <Input label="Table Name" placeholder="e.g. Corner Table" maxLength={60} counter value={form.tableName} onChange={(e) => setField('tableName', e.target.value)} error={formErrors.tableName} />
+          <Input label="Capacity" required inputMode="numeric" value={form.capacity} onChange={(e) => setField('capacity', e.target.value)} onBlur={() => isInt(form.capacity) && setField('capacity', String(Number(form.capacity)))} error={formErrors.capacity} hint="1–50 guests" />
+          <Input label="Min Spend (NPR)" inputMode="decimal" value={form.minSpend} onChange={(e) => setField('minSpend', e.target.value)} error={formErrors.minSpend} hint="0 for none" />
+          <Select label="Location" value={form.location} onChange={(e) => setField('location', e.target.value)}>
             {LOC_OPTS.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
           </Select>
-          <Select label="Status" value={form.status} onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))}>
+          <Select label="Status" value={form.status} onChange={(e) => setField('status', e.target.value)}>
             {Object.entries(STATUS_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </Select>
-          <div style={{ gridColumn: '1 / -1' }}>
-            <Textarea label="Description" rows="2" placeholder="Optional notes about this table" value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} />
+          <div className="ha-form-grid__full">
+            <Textarea label="Description" rows="2" maxLength={300} counter placeholder="Optional notes about this table" value={form.description} onChange={(e) => setField('description', e.target.value)} error={formErrors.description} />
           </div>
+          {formAlert && <div className="ha-alert ha-alert--danger ha-form-grid__full" role="alert">{formAlert}</div>}
         </form>
       </Modal>
 
@@ -407,30 +549,30 @@ const TableManagement = () => {
         isOpen={showBatch}
         onClose={() => setShowBatch(false)}
         title="Batch Create Tables"
+        busy={!!actionLoading.batch}
         footer={
           <>
             <Button variant="secondary" onClick={() => setShowBatch(false)} disabled={actionLoading.batch}>Cancel</Button>
-            <Button variant="primary" onClick={handleBatch} disabled={actionLoading.batch}>{actionLoading.batch ? 'Creating…' : `Create ${batch.count} Tables`}</Button>
+            <Button variant="primary" type="submit" form="ha-batch-form" loading={actionLoading.batch}>
+              {actionLoading.batch ? 'Creating…' : `Create ${isInt(batch.count) ? Number(batch.count) : ''} Tables`}
+            </Button>
           </>
         }
       >
-        <form onSubmit={handleBatch} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            <Input label="Number of Tables" type="number" min="1" max="50" value={batch.count} onChange={(e) => setBatch((p) => ({ ...p, count: +e.target.value }))} />
-            <Input label="Starting Number" type="number" min="1" value={batch.startNumber} onChange={(e) => setBatch((p) => ({ ...p, startNumber: +e.target.value }))} />
-            <Input label="Default Capacity" type="number" min="1" max="20" value={batch.capacity} onChange={(e) => setBatch((p) => ({ ...p, capacity: +e.target.value }))} />
+        <form id="ha-batch-form" onSubmit={handleBatch} noValidate style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="ha-form-grid">
+            <Input label="Number of Tables" required inputMode="numeric" value={batch.count} onChange={(e) => { setBatch((p) => ({ ...p, count: e.target.value })); setBatchErrors((p) => ({ ...p, count: undefined })); }} error={batchErrors.count} hint="1–50" />
+            <Input label="Starting Number" required inputMode="numeric" value={batch.startNumber} onChange={(e) => { setBatch((p) => ({ ...p, startNumber: e.target.value })); setBatchErrors((p) => ({ ...p, startNumber: undefined })); }} error={batchErrors.startNumber} />
+            <Input label="Default Capacity" inputMode="numeric" value={batch.capacity} onChange={(e) => { setBatch((p) => ({ ...p, capacity: e.target.value })); setBatchErrors((p) => ({ ...p, capacity: undefined })); }} error={batchErrors.capacity} hint="1–50 guests" />
             <Select label="Location" value={batch.location} onChange={(e) => setBatch((p) => ({ ...p, location: e.target.value }))}>
               {LOC_OPTS.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
             </Select>
           </div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: 'var(--ha-text-muted)' }}>
-            <input type="checkbox" checked={batch.generateQR} onChange={(e) => setBatch((p) => ({ ...p, generateQR: e.target.checked }))} />
-            Generate QR codes automatically for all tables
-          </label>
-          <div className="ha-card" style={{ padding: '10px 12px', color: 'var(--ha-text-subtle)', fontSize: 13 }}>
-            Will create tables <strong className="haNum">{batch.startNumber}</strong> through <strong className="haNum">{batch.startNumber + batch.count - 1}</strong>
-            {batch.generateQR && ' with QR codes'}.
-          </div>
+          {batchEnd !== null && (
+            <div className="ha-alert ha-alert--info">
+              Creates tables <strong className="haNum">{Number(batch.startNumber)}</strong> to <strong className="haNum">{batchEnd}</strong>, each with its own QR code. Numbers that already exist are skipped.
+            </div>
+          )}
         </form>
       </Modal>
 
@@ -438,32 +580,52 @@ const TableManagement = () => {
       <Modal
         isOpen={!!qrTable}
         onClose={() => setQrTable(null)}
-        title={qrTable ? `Table ${qrTable.tableNumber} — QR Code` : ''}
+        title={qrTable ? `Table ${qrTable.tableNumber} QR code` : ''}
         size="sm"
         footer={
-          qrTable?.qrCodeData && (
+          qrSrc(qrTable) && (
             <>
-              <Button variant="secondary" onClick={() => downloadQRCode(qrTable.qrCodeData, `table-${qrTable.tableNumber}-qr.png`)}>
+              <Button variant="secondary" onClick={() => copyLink(qrTable)}>
+                <Copy size={16} aria-hidden="true" /> Copy link
+              </Button>
+              <Button variant="secondary" onClick={() => downloadQrImage(qrSrc(qrTable), `table-${qrTable.tableNumber}-qr.png`)}>
                 <Download size={16} aria-hidden="true" /> Download
               </Button>
-              <Button variant="primary" onClick={() => printQRCode(qrTable.qrCodeData, qrTable.tableNumber, hotelName)}>
+              <Button variant="primary" onClick={() => printQrSheet({ items: [{ label: `Table ${qrTable.tableNumber}`, image: qrSrc(qrTable) }], hotelName, hint: 'Scan to view the menu and order', title: `Table ${qrTable.tableNumber}` })}>
                 <Printer size={16} aria-hidden="true" /> Print
               </Button>
             </>
           )
         }
       >
-        {qrTable?.qrCodeData ? (
+        {qrSrc(qrTable) ? (
           <div style={{ textAlign: 'center' }}>
             {hotelName && <p className="ha-small" style={{ color: 'var(--ha-text-subtle)' }}>{hotelName}</p>}
-            <h3 className="ha-h3" style={{ margin: '4px 0 16px' }}>Table {qrTable.tableNumber}</h3>
-            <img src={qrTable.qrCodeData} alt="QR Code" style={{ width: 220, height: 220, borderRadius: 'var(--ha-radius-md)' }} />
-            <p className="ha-small" style={{ color: 'var(--ha-text-subtle)', marginTop: 12 }}>Scan to view menu & order</p>
+            <h3 className="ha-h3" style={{ margin: '4px 0 12px' }}>
+              {tableLabel(qrTable)}{' '}
+              <Badge tone={qrTable.isQrActive === false ? 'danger' : 'success'}>{qrTable.isQrActive === false ? 'Inactive' : 'Active'}</Badge>
+            </h3>
+            <div style={{ display: 'inline-block', background: '#fff', padding: 12, borderRadius: 'var(--ha-radius-md)' }}>
+              <img src={qrSrc(qrTable)} alt={`QR code for table ${qrTable.tableNumber}`} width={220} height={220} style={{ width: 220, height: 220, maxWidth: '100%', display: 'block' }} />
+            </div>
+            <p className="ha-small" style={{ color: 'var(--ha-text-subtle)', marginTop: 12 }}>Scan to view the menu and order</p>
           </div>
         ) : (
           <p className="ha-body" style={{ color: 'var(--ha-text-subtle)' }}><Smartphone size={16} aria-hidden="true" /> No QR code generated yet.</p>
         )}
       </Modal>
+
+      {/* Regenerate confirm */}
+      <ConfirmDialog
+        isOpen={!!regenTarget}
+        onClose={() => setRegenTarget(null)}
+        onConfirm={() => regenTarget && handleGenQR(regenTarget, true)}
+        variant="warning"
+        title={regenTarget ? `Regenerate QR for table ${regenTarget.tableNumber}?` : ''}
+        message="A new QR code is issued and the current one stops working immediately. Replace the printed code on the table afterwards."
+        confirmText="Regenerate QR"
+        loading={!!(regenTarget && actionLoading[`qr_${regenTarget._id}`])}
+      />
 
       {/* Delete confirm */}
       <ConfirmDialog
@@ -471,8 +633,8 @@ const TableManagement = () => {
         onClose={() => setDeleteTarget(null)}
         onConfirm={confirmDelete}
         variant="danger"
-        title="Delete table?"
-        message={deleteTarget ? `Table ${deleteTarget.tableNumber} will be permanently removed. This cannot be undone.` : ''}
+        title={deleteTarget ? `Delete table ${deleteTarget.tableNumber}?` : ''}
+        message={deleteTarget ? `Table ${deleteTarget.tableNumber} and its QR code are removed permanently. Guests can no longer order from it. This can't be undone.` : ''}
         confirmText="Delete Table"
         loading={deleting}
       />

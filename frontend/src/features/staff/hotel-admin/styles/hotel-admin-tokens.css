@@ -126,6 +126,33 @@
   --ha-s5: 20px; --ha-s6: 24px; --ha-s8: 32px; --ha-s10: 40px;
 
   --ha-focus-ring: 0 0 0 2px var(--ha-surface), 0 0 0 4px var(--ha-primary);
+
+  /* Filled primary surfaces that carry white text (>= 4.5:1 contrast) */
+  --ha-primary-strong:       #047857;  /* emerald-700 */
+  --ha-primary-strong-hover: #065f46;  /* emerald-800 */
+
+  /* Status TEXT colours: readable (>= 4.5:1) on their *-bg tints */
+  --ha-success-text: #047857;
+  --ha-warning-text: #92400e;
+  --ha-danger-text:  #b91c1c;
+  --ha-info-text:    #1d4ed8;
+  --ha-neutral-text: #374151;
+  --ha-accent-text:  #4338ca;  --ha-accent-bg: #e0e7ff;  /* indigo: "preparing" */
+
+  /* Type scale 12 / 14 / 16 / 20 / 24 / 30 */
+  --ha-fs-xs: 12px; --ha-fs-sm: 14px; --ha-fs-md: 16px;
+  --ha-fs-lg: 20px; --ha-fs-xl: 24px; --ha-fs-2xl: 30px;
+
+  /* Control heights: 36 pointer devices, 44 touch */
+  --ha-control-h: 36px;
+  --ha-touch-h: 44px;
+
+  /* Layering: overlays < modals < toasts */
+  --ha-z-sticky: 40;
+  --ha-z-drawer: 60;
+  --ha-z-overlay: 1000;
+  --ha-z-modal: 1010;
+  --ha-z-toast: 10000;
 }
 
 /* ============================================================================
@@ -163,6 +190,21 @@
   --ha-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
 
   --ha-focus-ring: 0 0 0 2px var(--ha-surface), 0 0 0 4px var(--ha-primary);
+
+  --ha-primary-strong:       #34d399;  /* dark text sits on it in dark mode */
+  --ha-primary-strong-hover: #6ee7b7;
+
+  --ha-success-text: #6ee7b7;
+  --ha-warning-text: #fcd34d;
+  --ha-danger-text:  #fca5a5;
+  --ha-info-text:    #93c5fd;
+  --ha-neutral-text: #cbd5e1;
+  --ha-accent-text:  #c7d2fe;  --ha-accent-bg: rgba(99, 102, 241, 0.2);
+}
+
+/* Touch devices get 44px controls */
+@media (pointer: coarse) {
+  .hotelAdminShell { --ha-control-h: var(--ha-touch-h); }
 }
 
 /* ============================================================================

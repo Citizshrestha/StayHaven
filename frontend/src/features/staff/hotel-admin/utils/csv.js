@@ -4,9 +4,20 @@
  * @param {string[]} headers column headers
  * @param {Array<Array<string|number>>} rows  row values (order matches headers)
  */
+// Spreadsheet apps execute cells that start with these as formulas.
+const FORMULA_START = /^[=+\-@\t\r]/;
+
+/** Neutralises CSV/formula injection: text cells starting with = + - @ get a leading quote. */
+export function neutralizeCell(val) {
+  if (val == null) return '';
+  if (typeof val === 'number') return String(val); // real numbers (incl. negatives) stay numeric
+  const s = String(val);
+  return FORMULA_START.test(s) ? `'${s}` : s;
+}
+
 export function exportToCsv(filename, headers, rows) {
   const escapeCell = (val) => {
-    const s = val == null ? '' : String(val);
+    const s = neutralizeCell(val);
     // Quote if it contains comma, quote, or newline; escape embedded quotes.
     if (/[",\n\r]/.test(s)) {
       return `"${s.replace(/"/g, '""')}"`;
