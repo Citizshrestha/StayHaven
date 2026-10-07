@@ -33,8 +33,16 @@ const getStaffInviteEmailTemplate = ({
   inviteLink,
   expiresIn,
 }) => {
+  // Names come from request bodies / profiles: escape everything interpolated
+  // into the email HTML (the invite link is server-built).
+  const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  staffName = esc(staffName);
+  managerName = esc(managerName);
+  propertyName = esc(propertyName);
+  inviteLink = esc(inviteLink);
+  expiresIn = esc(expiresIn);
   // Ensure role is displayed properly
-  const roleDisplay = String(role || "Staff Member");
+  const roleDisplay = esc(role || "Staff Member");
 
   return `
     <!DOCTYPE html>

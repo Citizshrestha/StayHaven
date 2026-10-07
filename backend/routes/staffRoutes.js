@@ -175,10 +175,12 @@ router.get("/orders", protect, getOrders);
 router.get("/orders/:orderId", protect, getOrderById);
 
 // Update order status - ONLY waiter, chief, manager can update (NOT receptionist)
+// (owner/admin/hoteladmin added: the hotel-admin OrderManagement screen advances
+// orders; per-role transitions are enforced in the controller)
 router.put(
   "/orders/:orderId/status",
   protect,
-  authorize("waiter", "chief", "manager"),
+  authorize("waiter", "chief", "manager", "owner", "admin", "hoteladmin"),
   writeOperationLimiter,
   updateOrderStatus
 );
