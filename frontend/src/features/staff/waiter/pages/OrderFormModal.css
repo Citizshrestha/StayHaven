@@ -1,0 +1,150 @@
+/* Order form: centred card on desktop, full-screen sheet on phones.
+   Header and footer stay put; only the body scrolls, so Submit is always reachable
+   (also above the soft keyboard, because the sheet is sized with dvh). */
+.ofm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.ofm-sheet {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 560px;
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow: hidden;
+  border-radius: 16px;
+}
+
+.ofm-head {
+  flex-shrink: 0;
+  padding: 20px 24px 12px;
+}
+
+.ofm-form {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.ofm-body {
+  flex: 1;
+  min-height: 0;
+  padding: 0 24px 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ofm-foot {
+  flex-shrink: 0;
+  padding: 12px 24px calc(12px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--ofm-border);
+  background: var(--ofm-bg);
+}
+
+.ofm-sticky-tools {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding-top: 4px;
+  background: var(--ofm-bg);
+}
+
+.ofm-menu-grid {
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* Inputs at 16px stop iOS from zooming on focus; 44px is the touch target minimum. */
+.ofm-sheet input:not([type="checkbox"]):not([type="radio"]),
+.ofm-sheet select,
+.ofm-sheet textarea {
+  min-height: 44px;
+  font-size: 16px !important;
+}
+
+.ofm-sheet button {
+  min-height: 44px;
+}
+
+.ofm-sheet button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.ofm-sheet .ofm-step {
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px;
+  flex-shrink: 0;
+}
+
+.ofm-stepper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ofm-sheet :focus-visible {
+  outline: 2px solid #059669;
+  outline-offset: 2px;
+}
+
+.ofm-error {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+@media (max-width: 640px) {
+  .ofm-overlay {
+    padding: 0;
+    align-items: stretch;
+  }
+
+  .ofm-sheet {
+    max-width: none;
+    max-height: none;
+    height: 100%;
+    border-radius: 0;
+  }
+
+  .ofm-head {
+    padding: 16px;
+  }
+
+  .ofm-body {
+    padding: 0 16px 16px;
+  }
+
+  .ofm-foot {
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* One scroll area on phones: no nested scrolling inside the menu grid. */
+  .ofm-menu-grid {
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ofm-sheet,
+  .ofm-sheet * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
