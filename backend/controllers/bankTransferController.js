@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import {
   listPendingBankTransfers,
   approveBankTransfer,
@@ -5,15 +6,22 @@ import {
 } from "../services/bankTransferService.js";
 import { emitToHotel } from "../config/socket.js";
 import { AppError } from "../middleware/errorHandler.js";
+import { PaymentTransaction } from "../models/paymentTransaction.schema.js";
+import { getReceptionScope, scopeFilter } from "./receptionScope.js";
 
-// Mirrors receptionController.js's getCtx: prefer the property-scoped hotel
-// set by enforcePropertyScope, fall back to the staff user's own assignment.
+// Same property scope as receptionController.js: the selected hotel, else the
+// hotels this user may work on (company hotels for owner/admin, assignments otherwise).
 const getCtx = (req) => {
-  const user = req.user;
-  const hotel = req._scopedHotelId || null;
-  const company = user?.company?._id || user?.company;
-  if (!company) throw new AppError("Staff company is required", 403);
-  return { hotel, company };
+  const scope = getReceptionScope(req);
+  if (!scope.company) throw new AppError("Staff company is required", 403);
+  return { hotel: scope.hotel, company: scope.company };
+};
+
+// 404 unless the transaction belongs to one of the caller's hotels.
+const assertTxnInScope = async (req, id) => {
+  if (!mongoose.isValidObjectId(id)) throw new AppError("Invalid transaction id", 400);
+  const found = await PaymentTransaction.exists({ _id: id, method: "bank-transfer", ...scopeFilter(req) });
+  if (!found) throw new AppError("Bank transfer transaction not found", 404);
 };
 
 /**
@@ -25,7 +33,8 @@ export const getPendingBankTransfers = async (req, res) => {
   try {
     const { hotel, company } = getCtx(req);
     const { page, limit } = req.query;
-    const result = await listPendingBankTransfers({ hotel, company, page, limit });
+    // Without a selected hotel, list every hotel in scope ({ $in: [...] }).
+    const result = await listPendingBankTransfers({ hotel: hotel || scopeFilter(req).hotel, company, page, limit });
     res.json({ success: true, data: result.items, pagination: {
       total: result.total, page: result.page, limit: result.limit, pages: result.pages,
     } });
@@ -44,6 +53,7 @@ export const approveBankTransferPayment = async (req, res) => {
   try {
     const { id } = req.params;
     const { notes } = req.body;
+    await assertTxnInScope(req, id);
     const result = await approveBankTransfer({ transactionId: id, staffUser: req.user, notes, scope: getCtx(req) });
 
     if (result.alreadyProcessed) {
@@ -77,6 +87,7 @@ export const rejectBankTransferPayment = async (req, res) => {
   try {
     const { id } = req.params;
     const { reason } = req.body;
+    await assertTxnInScope(req, id);
     const result = await rejectBankTransfer({ transactionId: id, staffUser: req.user, reason, scope: getCtx(req) });
 
     if (result.alreadyProcessed) {

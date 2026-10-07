@@ -28,6 +28,7 @@ import {
   getTodayDepartures,
   // Check-in / Check-out
   performCheckIn,
+  validateCheckIn,
   performCheckOut,
   getGuestCommunicationTemplates,
   sendGuestCommunication,
@@ -115,6 +116,8 @@ import {
   rejectBankTransferPayment,
 } from "../controllers/bankTransferController.js";
 import { preventDoubleCheckIn } from "../middleware/conflictResolution.js";
+import { csrfProtection } from "../middleware/csrf.js";
+import { attachReceptionScope } from "../controllers/receptionScope.js";
 
 const router = Router();
 
@@ -137,6 +140,15 @@ router.use(receptionLimiter);
 
 // All reception routes enforce property-level access for non-managers
 router.use(enforcePropertyScope());
+
+// Resolve the hotels this user may act on (company hotels for owner/admin,
+// assigned hotels for everyone else) and reject foreign ?hotelId values.
+router.use(attachReceptionScope);
+
+// protect() also accepts the accessToken cookie, so state-changing reception
+// calls must carry the double-submit CSRF token (the shared axios client
+// already sends X-CSRF-Token on every POST/PATCH/PUT/DELETE).
+router.use(csrfProtection);
 
 // ═════════════════════════════════════════════════════════════════════════════
 // DASHBOARD (Read-heavy, general rate limiting sufficient)
@@ -162,7 +174,7 @@ router.get(
 
 router.get(
   "/dashboard/revenue-split",
-  authorize("receptionist", "manager", "admin", "owner"),
+  authorize("receptionist", "manager", "admin", "owner", "hoteladmin"),
   getRevenueSplit
 );
 
@@ -189,6 +201,7 @@ router.post(
   authorize("receptionist", "manager", "admin", "owner"),
   idempotencyGuard,
   bookingValidation.checkIn,
+  validateCheckIn,
   preventDoubleCheckIn,
   performCheckIn
 );
@@ -316,7 +329,7 @@ router.patch(
 
 router.get(
   "/guests",
-  authorize("receptionist", "manager", "admin", "owner"),
+  authorize("receptionist", "manager", "admin", "owner", "hoteladmin"),
   queryValidation.pagination,
   getGuestsList
 );
@@ -395,14 +408,14 @@ router.patch(
 
 router.get(
   "/billing/invoices",
-  authorize("receptionist", "manager", "admin", "owner"),
+  authorize("receptionist", "manager", "admin", "owner", "hoteladmin"),
   queryValidation.pagination,
   getInvoices
 );
 
 router.get(
   "/billing/summary",
-  authorize("manager", "admin", "owner"),
+  authorize("manager", "admin", "owner", "hoteladmin"),
   getBillingSummary
 );
 
@@ -705,9 +718,12 @@ router.post(
 // REPORTS & ACTIVITY LOG
 // ═════════════════════════════════════════════════════════════════════════════
 
+// Receptionists open ReportsView from their own sidebar; the overview holds
+// hotel-scoped operational counts only (no revenue), so they may read it.
+// hoteladmin = session 02's hotel-admin console role (assignment-scoped).
 router.get(
   "/reports/overview",
-  authorize("manager", "admin", "owner"),
+  authorize("receptionist", "manager", "admin", "owner", "hoteladmin"),
   getReportsOverview
 );
 

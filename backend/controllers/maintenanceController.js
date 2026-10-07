@@ -2,53 +2,29 @@ import mongoose from "mongoose";
 import { MaintenanceSchedule } from "../models/maintenanceSchedule.schema.js";
 import { Room } from "../models/room.schema.js";
 import { Hotel } from "../models/hotel.schema.js";
+import { getReceptionScope, scopeFilter, inScope, searchRegex } from "./receptionScope.js";
 import { ActivityLog } from "../models/activityLog.schema.js";
 import { emitToHotel } from "../config/socket.js";
 
-// Multi-tenancy helpers
-const getUserRole = (req) => req.user?.role?.name || req.user?.companyRole;
-
-const getAssignedHotelIds = (req) => {
-  const assigned = req.user?.assignedProperties || [];
-  return assigned
-    .map((p) => (typeof p === "object" ? p?._id?.toString() : p?.toString()))
-    .filter(Boolean);
-};
-
+// Multi-tenancy helper
 const assertHotelAccess = async (req, hotelId) => {
-  const role = getUserRole(req);
-
-  // Superadmins should NOT have access to hotel-specific financial data
-  // They can manage hotels (approve/reject) but cannot view bookings, revenue, etc.
-  if (role === "admin" || role === "superadmin") {
-    throw Object.assign(new Error("Superadmins cannot access hotel-specific operational data"), { status: 403 });
+  // Same rule as every reception endpoint: the hotel must be inside the caller's scope.
+  if (!hotelId || !inScope(req, hotelId)) {
+    throw Object.assign(new Error("Not authorized for this hotel"), { status: 403 });
   }
-
-  const assignedHotelIds = getAssignedHotelIds(req);
-  const userCompany = req.user?.company?._id?.toString?.() || req.user?.company?.toString?.() || req.user?.company;
-
   const hotel = await Hotel.findById(hotelId).select("company");
   if (!hotel) {
     throw Object.assign(new Error("Hotel not found"), { status: 404 });
   }
-
-  if (role === "receptionist" && assignedHotelIds.length > 0 && !assignedHotelIds.includes(hotelId.toString())) {
-    throw Object.assign(new Error("Not authorized for this hotel"), { status: 403 });
-  }
-
-  if (role !== "owner" && userCompany && hotel.company?.toString() !== userCompany.toString()) {
-    throw Object.assign(new Error("Not authorized for this hotel company"), { status: 403 });
-  }
-
   return hotel;
 };
 
-// Helper: get hotel & company from request
+// Helper: the caller's property scope (see receptionScope.js). Company comes
+// from the authenticated user only; hotel is the selected hotel or null when
+// the scope spans several hotels.
 const getCtx = (req) => {
-  const user = req.user;
-  const hotel = req._scopedHotelId || req.query.hotelId || req.params.hotelId || user?.assignedProperties?.[0]?._id || user?.assignedProperties?.[0];
-  const company = req.query.companyId || user?.company?._id || user?.company;
-  return { hotel, company, userId: user?._id, userName: user?.fullname };
+  const scope = getReceptionScope(req);
+  return { hotel: scope.hotel, company: scope.company, userId: scope.userId, userName: scope.userName };
 };
 
 // Helper: log activity
@@ -102,8 +78,10 @@ export const createMaintenanceSchedule = async (req, res) => {
 
     let roomNumber = null;
     if (roomId) {
-      const room = await Room.findById(roomId).select("roomNumber").lean();
-      if (room) roomNumber = room.roomNumber;
+      // The room must belong to the hotel the schedule is created for.
+      const room = mongoose.isValidObjectId(roomId) ? await Room.findOne({ _id: roomId, hotel }).select("roomNumber").lean() : null;
+      if (!room) return res.status(404).json({ success: false, message: "Room not found" });
+      roomNumber = room.roomNumber;
     }
 
     const schedule = await MaintenanceSchedule.create({
@@ -165,7 +143,7 @@ export const createMaintenanceSchedule = async (req, res) => {
  */
 export const getMaintenanceSchedules = async (req, res) => {
   try {
-    const { hotel, company } = getCtx(req);
+    const { hotel } = getCtx(req);
     const {
       status,
       category,
@@ -179,7 +157,7 @@ export const getMaintenanceSchedules = async (req, res) => {
       limit = 50,
     } = req.query;
 
-    const filter = company ? { company } : hotel ? { hotel } : {};
+    const filter = scopeFilter(req);
 
     if (status && status !== "all") filter.status = status;
     if (category && category !== "all") filter.category = category;
@@ -194,12 +172,9 @@ export const getMaintenanceSchedules = async (req, res) => {
       if (endDate) filter.scheduledDate.$lte = new Date(endDate);
     }
 
-    if (search) {
-      filter.$or = [
-        { title: { $regex: search, $options: "i" } },
-        { description: { $regex: search, $options: "i" } },
-        { roomNumber: { $regex: search, $options: "i" } },
-      ];
+    const rx = searchRegex(search);
+    if (rx) {
+      filter.$or = [{ title: rx }, { description: rx }, { roomNumber: rx }];
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -214,11 +189,12 @@ export const getMaintenanceSchedules = async (req, res) => {
         .limit(parseInt(limit))
         .lean(),
       MaintenanceSchedule.countDocuments(filter),
-      getMaintenanceStats(hotel, company),
+      getMaintenanceStats(scopeFilter(req)),
     ]);
 
     // Update overdue status
-    await MaintenanceSchedule.updateOverdueTasks(hotel);
+    // Never unscoped: a null hotel used to flip schedules of every hotel on the platform.
+    await MaintenanceSchedule.updateOverdueTasks(hotel || scopeFilter(req).hotel);
 
     res.json({
       success: true,
@@ -239,8 +215,7 @@ export const getMaintenanceSchedules = async (req, res) => {
 /**
  * Get maintenance statistics
  */
-async function getMaintenanceStats(hotel, company) {
-  const filter = company ? { company } : hotel ? { hotel } : {};
+async function getMaintenanceStats(filter) {
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -557,10 +532,9 @@ export const cancelMaintenance = async (req, res) => {
  */
 export const getMaintenanceCalendar = async (req, res) => {
   try {
-    const { hotel, company } = getCtx(req);
     const { year, month } = req.query;
 
-    const filter = company ? { company } : hotel ? { hotel } : {};
+    const filter = scopeFilter(req);
 
     // Filter by month if provided
     if (year && month) {

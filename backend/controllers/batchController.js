@@ -6,13 +6,14 @@ import { Invoice } from "../models/invoice.schema.js";
 import { PaymentTransaction } from "../models/paymentTransaction.schema.js";
 import { ActivityLog } from "../models/activityLog.schema.js";
 import { emitToHotel } from "../config/socket.js";
+import { getReceptionScope, scopeFilter } from "./receptionScope.js";
 
-// Helper: get context from request
+// Helper: the caller's property scope (see receptionScope.js). Company comes
+// from the authenticated user only; hotel is the selected hotel or null when
+// the scope spans several hotels.
 const getCtx = (req) => {
-  const user = req.user;
-  const hotel = req._scopedHotelId || req.query.hotelId || user?.assignedProperties?.[0]?._id;
-  const company = req.query.companyId || user?.company?._id || user?.company;
-  return { hotel, company, userId: user?._id, userName: user?.fullname };
+  const scope = getReceptionScope(req);
+  return { hotel: scope.hotel, company: scope.company, userId: scope.userId, userName: scope.userName };
 };
 
 // Helper: log activity
@@ -55,9 +56,7 @@ export const bulkCheckIn = async (req, res) => {
         try {
           // SECURITY: Query with hotel filter to prevent cross-tenant access
           const query = { _id: bookingId };
-          if (hotel) {
-            query.hotel = hotel;
-          }
+          Object.assign(query, scopeFilter(req));
 
           const booking = await Booking.findOne(query)
             .populate("room")
@@ -200,9 +199,7 @@ export const bulkCheckOut = async (req, res) => {
         try {
           // SECURITY: Query with hotel filter to prevent cross-tenant access
           const query = { _id: bookingId };
-          if (hotel) {
-            query.hotel = hotel;
-          }
+          Object.assign(query, scopeFilter(req));
 
           const booking = await Booking.findOne(query)
             .populate("room")
@@ -344,9 +341,7 @@ export const bulkMarkPayment = async (req, res) => {
 
           // SECURITY: Query with hotel filter to prevent cross-tenant access
           const query = { _id: bookingId };
-          if (hotel) {
-            query.hotel = hotel;
-          }
+          Object.assign(query, scopeFilter(req));
 
           const booking = await Booking.findOne(query)
             .populate("guest")
@@ -487,9 +482,7 @@ export const bulkUpdateStatus = async (req, res) => {
         try {
           // SECURITY: Query with hotel filter to prevent cross-tenant access
           const query = { _id: bookingId };
-          if (hotel) {
-            query.hotel = hotel;
-          }
+          Object.assign(query, scopeFilter(req));
 
           const booking = await Booking.findOne(query).session(session);
 
@@ -592,9 +585,7 @@ export const bulkUpdateRoomStatus = async (req, res) => {
         try {
           // SECURITY: Query with hotel filter to prevent cross-tenant access
           const query = { _id: roomId };
-          if (hotel) {
-            query.hotel = hotel;
-          }
+          Object.assign(query, scopeFilter(req));
 
           const room = await Room.findOne(query).session(session);
 
