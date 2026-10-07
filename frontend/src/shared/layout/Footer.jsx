@@ -173,19 +173,19 @@ const Footer = () => {
               </p>
 
               <div className="space-y-3 mb-6">
-                <a href="#" className="flex items-center gap-3 text-sm text-gray-400 hover:text-teal-400 transition-colors group">
+                <div className="flex min-h-[44px] items-center gap-3 text-sm text-gray-400 hover:text-teal-400 transition-colors group break-words">
                   <div className="w-8 h-8 rounded-lg bg-gray-800 group-hover:bg-teal-500/20 flex items-center justify-center transition-all">
                     <MapPin className="w-4 h-4 text-teal-500 group-hover:text-teal-400" />
                   </div>
                   {contactInfo.address}
-                </a>
-                <a href={`tel:${contactInfo.phone}`} className="flex items-center gap-3 text-sm text-gray-400 hover:text-teal-400 transition-colors group">
+                </div>
+                <a href={`tel:${contactInfo.phone}`} className="flex min-h-[44px] items-center gap-3 text-sm text-gray-400 hover:text-teal-400 transition-colors group break-words">
                   <div className="w-8 h-8 rounded-lg bg-gray-800 group-hover:bg-teal-500/20 flex items-center justify-center transition-all">
                     <Phone className="w-4 h-4 text-teal-500 group-hover:text-teal-400" />
                   </div>
                   {contactInfo.phone}
                 </a>
-                <a href={`mailto:${contactInfo.email}`} className="flex items-center gap-3 text-sm text-gray-400 hover:text-teal-400 transition-colors group">
+                <a href={`mailto:${contactInfo.email}`} className="flex min-h-[44px] items-center gap-3 text-sm text-gray-400 hover:text-teal-400 transition-colors group break-words">
                   <div className="w-8 h-8 rounded-lg bg-gray-800 group-hover:bg-teal-500/20 flex items-center justify-center transition-all">
                     <Mail className="w-4 h-4 text-teal-500 group-hover:text-teal-400" />
                   </div>
@@ -199,7 +199,7 @@ const Footer = () => {
                     key={label}
                     href={link}
                     aria-label={label}
-                    className="w-10 h-10 rounded-xl bg-gray-800 hover:bg-gradient-to-br hover:from-teal-500 hover:to-emerald-500 flex items-center justify-center transition-all duration-300 group shadow-lg hover:shadow-teal-500/50"
+                    className="w-11 h-11 rounded-xl bg-gray-800 hover:bg-gradient-to-br hover:from-teal-500 hover:to-emerald-500 flex items-center justify-center transition-all duration-300 group shadow-lg hover:shadow-teal-500/50"
                   >
                     <Icon className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
                   </a>

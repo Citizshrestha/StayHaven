@@ -4,11 +4,12 @@ const ThemeToggle = () => {
     const { theme, toggleTheme } = useTheme();
 
     return (
-        <button onClick={toggleTheme} className="relative w-14 h-7 rounded-full transition-colors duration-300"
+        <button type="button" onClick={toggleTheme} className="relative w-14 h-7 rounded-full transition-colors duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 before:absolute before:-inset-2 before:content-['']"
             style={{
                 backgroundColor: theme === 'dark' ? '#34d399' : '#d1d5db'
             }}
-            aria-label="Toggle theme">
+            aria-label="Dark mode"
+            aria-pressed={theme === 'dark'}>
             <span
                 className="absolute top-1 left-1 w-5 h-5 rounded-full bg-white shadow-md transition-transform duration-300"
                 style={{
@@ -19,7 +20,7 @@ const ThemeToggle = () => {
             <span className="absolute inset-0 flex items-center justify-between px-1.5">
                 {/* Sun Icon */}
                 <svg
-                    className="w-3 h-3 text-yellow-400"
+                    className="w-3 h-3 text-yellow-400" aria-hidden="true"
                     fill="currentColor"
                     viewBox="0 0 20 20"
                 >
@@ -32,7 +33,7 @@ const ThemeToggle = () => {
 
                 {/* Moon Icon */}
                 <svg
-                    className="w-3 h-3 text-slate-700"
+                    className="w-3 h-3 text-slate-700" aria-hidden="true"
                     fill="currentColor"
                     viewBox="0 0 20 20"
                 >
