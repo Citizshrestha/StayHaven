@@ -229,6 +229,63 @@ const AssignedAreas = ({ orders = [], onFilterByArea, onClose }) => {
         )}
       </div>
 
+      {/* My Table Assignment Info */}
+      {myAssignment && (myAssignment.tables?.length > 0 || myAssignment.rooms?.length > 0) && (
+        <div style={{
+          backgroundColor: 'var(--card-bg)',
+          borderRadius: '16px',
+          padding: '20px',
+          marginBottom: '24px',
+          border: '1px solid var(--border-color)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+            <Calendar size={20} color="var(--color-primary)" />
+            <span style={{ fontWeight: '700', color: 'var(--text-primary)', fontSize: '16px' }}>
+              My Assignment
+            </span>
+            {myAssignment.shift && (
+              <span style={{
+                padding: '4px 10px',
+                borderRadius: '12px',
+                fontSize: '12px',
+                fontWeight: '600',
+                backgroundColor: 'var(--color-accent-light)',
+                color: 'var(--color-primary)',
+                textTransform: 'capitalize',
+              }}>
+                {myAssignment.shift} Shift
+              </span>
+            )}
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            {myAssignment.tables?.map(table => (
+              <span key={`table-${table}`} style={{
+                padding: '6px 12px',
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontWeight: '600',
+                backgroundColor: isDark ? '#064E3B' : '#D1FAE5',
+                color: isDark ? '#A7F3D0' : '#065F46',
+              }}>
+                🍽️ Table {table}
+              </span>
+            ))}
+            {myAssignment.rooms?.map(room => (
+              <span key={`room-${room}`} style={{
+                padding: '6px 12px',
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontWeight: '600',
+                backgroundColor: isDark ? '#1E3A8A' : '#DBEAFE',
+                color: isDark ? '#BFDBFE' : '#1E40AF',
+              }}>
+                🛏️ Room {room}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {assignedAreas.length === 0 ? (
         <div style={emptyStateStyle}>
           <MapPin size={48} color="var(--text-tertiary)" style={{ marginBottom: '16px' }} />
@@ -239,63 +296,6 @@ const AssignedAreas = ({ orders = [], onFilterByArea, onClose }) => {
         </div>
       ) : (
         <>
-          {/* My Table Assignment Info */}
-          {myAssignment && (myAssignment.tables?.length > 0 || myAssignment.rooms?.length > 0) && (
-            <div style={{
-              backgroundColor: 'var(--card-bg)',
-              borderRadius: '16px',
-              padding: '20px',
-              marginBottom: '24px',
-              border: '1px solid var(--border-color)',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                <Calendar size={20} color="var(--color-primary)" />
-                <span style={{ fontWeight: '700', color: 'var(--text-primary)', fontSize: '16px' }}>
-                  My Assignment
-                </span>
-                {myAssignment.shift && (
-                  <span style={{
-                    padding: '4px 10px',
-                    borderRadius: '12px',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    backgroundColor: 'var(--color-accent-light)',
-                    color: 'var(--color-primary)',
-                    textTransform: 'capitalize',
-                  }}>
-                    {myAssignment.shift} Shift
-                  </span>
-                )}
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                {myAssignment.tables?.map(table => (
-                  <span key={`table-${table}`} style={{
-                    padding: '6px 12px',
-                    borderRadius: '8px',
-                    fontSize: '13px',
-                    fontWeight: '600',
-                    backgroundColor: isDark ? '#064E3B' : '#D1FAE5',
-                    color: isDark ? '#A7F3D0' : '#065F46',
-                  }}>
-                    🍽️ Table {table}
-                  </span>
-                ))}
-                {myAssignment.rooms?.map(room => (
-                  <span key={`room-${room}`} style={{
-                    padding: '6px 12px',
-                    borderRadius: '8px',
-                    fontSize: '13px',
-                    fontWeight: '600',
-                    backgroundColor: isDark ? '#1E3A8A' : '#DBEAFE',
-                    color: isDark ? '#BFDBFE' : '#1E40AF',
-                  }}>
-                    🛏️ Room {room}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
           <div style={gridStyle}>
             {assignedAreas.map((area) => {
               const statusColor = getStatusColor(area);
