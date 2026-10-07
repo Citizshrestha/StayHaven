@@ -60,7 +60,8 @@ const RoomsView = () => {
             const res = await receptionApi.getRoomsList();
             if (res?.success && res.data) {
                 const mapped = res.data.map(r => {
-                    const bedRaw = r.beds || r.bedType || 'Queen';
+                    // No bed data → no bed row (don't invent "Queen").
+                    const bedRaw = r.beds || r.bedType || '';
                     const bedFormatted = bedRaw.includes('King') ? (bedRaw.includes('+') || bedRaw.includes('2') ? bedRaw : '1 King')
                         : bedRaw.includes('Queen') ? '1 Queen'
                         : bedRaw.includes('Twin') ? '2 Twin' : bedRaw;
@@ -77,7 +78,7 @@ const RoomsView = () => {
                         beds: bedFormatted,
                         sqft: 300,
                         amenities: r.amenities || [],
-                        rating: r.rating || 4.0,
+                        rating: r.rating ?? null, // untracked → hidden, not a fabricated 4.0
                         lastCleaned: r.lastCleaned ? new Date(r.lastCleaned) : null,
                         condition: 'good',
                         guest: (isOccupied && r.guest) ? {
@@ -599,17 +600,19 @@ const RoomsView = () => {
                                 </div>
 
                                 <div className="rv-room-details">
-                                    <div className="rv-room-detail">
-                                        <Bed size={14} />
-                                        <span>{room.beds}</span>
-                                    </div>
+                                    {room.beds && (
+                                        <div className="rv-room-detail">
+                                            <Bed size={14} aria-hidden="true" />
+                                            <span>{room.beds}</span>
+                                        </div>
+                                    )}
                                     <div className="rv-room-detail">
                                         <Users size={14} />
                                         <span>Max {room.maxGuests}</span>
                                     </div>
                                     <div className="rv-room-detail">
                                         <DollarSign size={14} />
-                                        <span>₹{room.basePrice}/night</span>
+                                        <span>Rs. {Number(room.basePrice || 0).toLocaleString('en-IN')}/night</span>
                                     </div>
                                 </div>
 
@@ -660,10 +663,12 @@ const RoomsView = () => {
                                 )}
 
                                 <div className="rv-room-footer">
-                                    <div className="rv-room-rating">
-                                        <Star size={14} />
-                                        <span>{room.rating}</span>
-                                    </div>
+                                    {room.rating != null && (
+                                        <div className="rv-room-rating" aria-label={`Rating ${room.rating}`}>
+                                            <Star size={14} aria-hidden="true" />
+                                            <span>{room.rating}</span>
+                                        </div>
+                                    )}
                                     {room.condition === 'needs-attention' && (
                                         <span className="rv-needs-attention">
                                             <AlertTriangle size={12} />

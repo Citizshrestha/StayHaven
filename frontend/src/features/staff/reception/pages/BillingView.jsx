@@ -149,7 +149,7 @@ const BillingView = () => {
         return configs[status] || { class: '', label: status, icon: Receipt };
     };
 
-    const formatCurrency = (amount) => `Rs ${Number(amount || 0).toLocaleString()}`;
+    const formatCurrency = (amount) => `Rs. ${Number(amount || 0).toLocaleString('en-IN')}`;
     const formatDate = (date) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
     // ── Invoice Action Handlers ──
@@ -521,19 +521,39 @@ const BillingView = () => {
     );
 };
 
-/* ── Helper: build professional printable invoice HTML ── */
-function buildInvoiceHTML(inv, formatCurrency, formatDate, hotelInfo) {
-    const hotelName = hotelInfo?.name || 'StayHaven Hotel & Resort';
-    const hotelAddress = hotelInfo?.location
-        ? `${hotelInfo.location.address || ''}${hotelInfo.location.city ? ', ' + hotelInfo.location.city : ''}`
-        : '';
-    const hotelPhone = hotelInfo?.contact?.phone || '';
-    const hotelEmail = hotelInfo?.contact?.email || '';
-    const hotelWeb = hotelInfo?.contact?.website || '';
+/* Escape text for the print document: it is written into a same-origin window,
+   so an unescaped guest name or room type would run as script there. */
+const escapeHtml = (value) => String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 
-    const isPaid = inv.status === 'paid';
-    const statusColor = isPaid ? '#059669' : inv.status === 'overdue' ? '#dc2626' : '#d97706';
-    const statusLabel = inv.status.toUpperCase();
+/* ── Helper: build professional printable invoice HTML ── */
+function buildInvoiceHTML(rawInv, rawFormatCurrency, rawFormatDate, hotelInfo) {
+    const formatCurrency = (v) => escapeHtml(rawFormatCurrency(v));
+    const formatDate = (v) => escapeHtml(rawFormatDate(v));
+    const inv = {
+        ...rawInv,
+        id: escapeHtml(rawInv.id),
+        bookingId: escapeHtml(rawInv.bookingId),
+        paymentMethod: escapeHtml(rawInv.paymentMethod),
+        guest: { ...rawInv.guest, name: escapeHtml(rawInv.guest?.name) },
+        room: { type: escapeHtml(rawInv.room?.type), number: escapeHtml(rawInv.room?.number) },
+        nights: Number(rawInv.nights) || 0,
+    };
+    const hotelName = escapeHtml(hotelInfo?.name || 'StayHaven Hotel & Resort');
+    const hotelAddress = escapeHtml(hotelInfo?.location
+        ? `${hotelInfo.location.address || ''}${hotelInfo.location.city ? ', ' + hotelInfo.location.city : ''}`
+        : '');
+    const hotelPhone = escapeHtml(hotelInfo?.contact?.phone || '');
+    const hotelEmail = escapeHtml(hotelInfo?.contact?.email || '');
+    const hotelWeb = escapeHtml(hotelInfo?.contact?.website || '');
+
+    const isPaid = rawInv.status === 'paid';
+    const statusColor = isPaid ? '#059669' : rawInv.status === 'overdue' ? '#dc2626' : '#d97706';
+    const statusLabel = escapeHtml(String(rawInv.status || '').toUpperCase());
 
     return `<!DOCTYPE html>
 <html lang="en"><head>

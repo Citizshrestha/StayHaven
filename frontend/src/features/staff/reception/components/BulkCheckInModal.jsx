@@ -90,7 +90,7 @@ const BulkCheckInModal = ({ isOpen, onClose, hotelId = null }) => {
       setProcessing(true);
       setError('');
 
-      const response = await axiosClient.post('/api/v1/reception/batch/checkin', {
+      const response = await axiosClient.post('/api/v1/reception/batch/check-in', {
         bookingIds: selectedBookings,
       });
 

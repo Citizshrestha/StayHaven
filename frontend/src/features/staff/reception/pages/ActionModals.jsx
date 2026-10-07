@@ -1545,8 +1545,12 @@ export const RoomChangeModal = ({ isOpen, onClose, isDark, activeBookingId, hote
   const loadCheckedInBookings = async () => {
     try {
       setLoading(true);
-      const response = await axiosClient.get(`/api/bookings/hotel/${hotelId}?status=Checked-In&limit=100`);
-      setCheckedInBookings(response.data.bookings || response.data || []);
+      // Was `/api/bookings/...` (no /v1) which 404s, so the room-change list was always empty.
+      const response = await axiosClient.get(`/api/v1/bookings/hotel/${hotelId}`, {
+        params: { status: 'Checked-In', limit: 100 }
+      });
+      const list = response.data?.bookings ?? response.data?.data;
+      setCheckedInBookings(Array.isArray(list) ? list : []);
     } catch {
       setError('Failed to load checked-in bookings');
     } finally {

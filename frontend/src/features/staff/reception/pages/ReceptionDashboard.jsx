@@ -1,5 +1,6 @@
 import React, { useReducer, useEffect, useCallback } from 'react';
 import './ReceptionDashboard.css';
+import './ReceptionMobile.css';
 import Sidebar from './Sidebar';
 import DashboardContent from './DashboardContent';
 import MobileBottomNav from './MobileBottomNav';

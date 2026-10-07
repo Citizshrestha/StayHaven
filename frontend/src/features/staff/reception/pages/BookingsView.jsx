@@ -602,7 +602,7 @@ const BookingsView = () => {
             </button>
           </div>
 
-          <div className="bv-grid-container grid gap-5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
+          <div className="bv-grid-container grid gap-5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))' }}>
             {paginatedBookings.map((booking) => (
               <div key={booking.id} className="bv-grid-card p-5 rounded-xl transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5" style={{ position: 'relative' }}>
                 <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 10 }}>
@@ -615,7 +615,7 @@ const BookingsView = () => {
                   />
                 </div>
                 <div className="bv-grid-card-header flex items-center justify-between mb-4" style={{ paddingLeft: 28 }}>
-                  <span className="bv-grid-id font-semibold">{booking.id}</span>
+                  <span className="bv-grid-id font-semibold" title={booking.id}>{booking.id}</span>
                   <span className={`bv-status-badge inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium ${getStatusClass(booking.status)}`}>
                     {booking.status}
                   </span>

@@ -19,6 +19,23 @@
   --sh-shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.06), 0 4px 10px rgba(0, 0, 0, 0.04);
   --sh-shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.08), 0 8px 16px rgba(0, 0, 0, 0.04);
   --sh-transition: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ── Shared UI contract (rules G), values mirror hotel-admin --ha-* tokens ── */
+  --sh-s1: 4px;  --sh-s2: 8px;  --sh-s3: 12px; --sh-s4: 16px;   /* = --ha-s1..s4 */
+  --sh-s5: 20px; --sh-s6: 24px; --sh-s8: 32px;                  /* = --ha-s5..s8 */
+  --sh-fs-12: 12px; --sh-fs-14: 14px; --sh-fs-16: 16px;         /* type scale */
+  --sh-fs-20: 20px; --sh-fs-24: 24px; --sh-fs-30: 30px;
+  --sh-btn-h: 36px;              /* desktop button height */
+  --sh-btn-h-touch: 44px;        /* touch button height / min tap target */
+  --sh-mobile-nav-h: 64px;
+  /* Status colours: same meaning on every dashboard (always paired with text). */
+  --sh-status-pending: #d97706;    /* amber  (= --ha-warning, AA on white) */
+  --sh-status-confirmed: #2563eb;  /* blue   (= --ha-info) */
+  --sh-status-active: #4f46e5;     /* indigo (in-house / preparing) */
+  --sh-status-ready: #059669;      /* green  (= --ha-success; ready / paid / available) */
+  --sh-status-done: #0f766e;       /* teal   (checked-out / completed) */
+  --sh-status-cancelled: #dc2626;  /* red    (= --ha-danger; cancelled / failed / no-show) */
+  --sh-focus-ring: 0 0 0 2px var(--bg-surface, #fff), 0 0 0 4px var(--accent-indigo, #4f46e5);
 }
 
 /* ── Light Theme ── */
@@ -1980,8 +1997,9 @@
     display: none;
   }
 
+  /* Bottom nav height (64px) + safe area, so the last row and primary actions stay reachable. */
   .reception-main-content {
-    padding-bottom: 72px;
+    padding-bottom: calc(var(--sh-mobile-nav-h) + env(safe-area-inset-bottom, 0px) + 16px);
   }
 
   .sh-topbar {
@@ -2305,7 +2323,8 @@
   border-top: 1px solid var(--border-primary);
   display: none;
   justify-content: space-around;
-  padding: 4px 0 env(safe-area-inset-bottom, 4px);
+  min-height: var(--sh-mobile-nav-h);
+  padding: 4px 4px env(safe-area-inset-bottom, 0px);
   z-index: 100;
   box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
 }
@@ -2317,18 +2336,24 @@
 }
 
 .sh-mobile-nav-item {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  justify-content: center;
+  gap: 4px;
+  min-height: 56px;
+  min-width: 44px;
   padding: 6px 4px;
   background: transparent;
   border: none;
-  color: var(--text-tertiary);
-  font-size: 9px;
+  border-radius: var(--sh-radius-sm);
+  color: var(--text-secondary);
+  font-size: 12px;
   font-weight: 600;
+  line-height: 1.1;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: color 0.2s, background-color 0.2s;
   flex: 1;
   font-family: var(--sh-font);
 }
@@ -2337,9 +2362,104 @@
   color: var(--accent-indigo);
 }
 
+/* Active state is not colour-only: a bar marks the current tab. */
+.sh-mobile-nav-item.active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 30%;
+  right: 30%;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: var(--accent-indigo);
+}
+
+.sh-mobile-nav-item:focus-visible,
+.sh-more-item:focus-visible,
+.sh-more-close:focus-visible {
+  outline: 2px solid var(--accent-indigo);
+  outline-offset: 2px;
+}
+
 .sh-mobile-nav-item svg {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
+}
+
+/* ── "More" bottom sheet (phones/tablet portrait) ── */
+.sh-more-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000; /* above the shared messaging FAB (999) */
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: flex-end;
+}
+
+.sh-more-sheet {
+  width: 100%;
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border-radius: var(--sh-radius-lg) var(--sh-radius-lg) 0 0;
+  padding: 8px 16px calc(env(safe-area-inset-bottom, 0px) + 16px);
+  box-shadow: var(--sh-shadow-xl);
+}
+
+.sh-more-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 16px;
+  font-weight: 700;
+  padding: 4px 0 8px;
+}
+
+.sh-more-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: var(--sh-radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.sh-more-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.sh-more-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 72px;
+  padding: 8px 4px;
+  border: 1px solid var(--border-primary);
+  border-radius: var(--sh-radius-md);
+  background: var(--bg-inset);
+  color: var(--text-primary);
+  font-family: var(--sh-font);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+}
+
+.sh-more-item.active {
+  border-color: var(--accent-indigo);
+  color: var(--accent-indigo);
+  background: var(--accent-indigo-light);
 }
 
 /* ========================================
