@@ -353,7 +353,7 @@ export const registerStaff = asyncHandler(async (req, res) => {
   }
 
   // Check if registering user has permission (must be manager, admin, or owner)
-  const allowedToRegister = ["manager", "admin", "owner"];
+  const allowedToRegister = ["manager", "hoteladmin", "admin", "owner"];
   if (!allowedToRegister.includes(req.user.role.name)) {
     return res.status(403).json({
       success: false,
@@ -399,7 +399,7 @@ export const registerStaff = asyncHandler(async (req, res) => {
       message: "Property not found or access denied",
     });
   }
-  if (req.user.role.name === "manager" && !isAssignedToProperty(req.user, property._id)) {
+  if (["manager", "hoteladmin"].includes(req.user.role.name) && !isAssignedToProperty(req.user, property._id)) {
     return res.status(403).json({ success: false, message: "You are not assigned to this property" });
   }
 
@@ -441,7 +441,7 @@ export const getPropertyStaff = asyncHandler(async (req, res) => {
   const { propertyId } = req.params;
 
   // Check if user has permission
-  const allowedRoles = ["manager", "admin", "owner"];
+  const allowedRoles = ["manager", "hoteladmin", "admin", "owner"];
   if (!allowedRoles.includes(req.user.role.name)) {
     return res.status(403).json({
       success: false,
@@ -460,7 +460,7 @@ export const getPropertyStaff = asyncHandler(async (req, res) => {
       message: "Property not found or access denied",
     });
   }
-  if (req.user.role.name === "manager" && !isAssignedToProperty(req.user, property._id)) {
+  if (["manager", "hoteladmin"].includes(req.user.role.name) && !isAssignedToProperty(req.user, property._id)) {
     return res.status(403).json({ success: false, message: "You are not assigned to this property" });
   }
 
@@ -493,7 +493,7 @@ export const updateStaffStatus = asyncHandler(async (req, res) => {
   const { isActive } = req.body;
 
   // Check if user has permission
-  const allowedRoles = ["manager", "admin", "owner"];
+  const allowedRoles = ["manager", "hoteladmin", "admin", "owner"];
   if (!allowedRoles.includes(req.user.role.name)) {
     return res.status(403).json({
       success: false,
@@ -514,7 +514,7 @@ export const updateStaffStatus = asyncHandler(async (req, res) => {
     });
   }
 
-  if (req.user.role.name === 'manager' && !staff.assignedProperties?.some((property) => req.user.assignedProperties?.some((assigned) => String(assigned?._id || assigned) === String(property?._id || property)))) {
+  if (['manager', 'hoteladmin'].includes(req.user.role.name) && !staff.assignedProperties?.some((property) => req.user.assignedProperties?.some((assigned) => String(assigned?._id || assigned) === String(property?._id || property)))) {
     return res.status(403).json({ success: false, message: 'You are not assigned to this property' });
   }
 
@@ -1117,7 +1117,7 @@ export const resendInvite = asyncHandler(async (req, res) => {
 //  Get all pending invitations for manager's company
 export const getPendingInvites = asyncHandler(async (req, res) => {
   //  Authorization check
-  const allowedRoles = ["manager", "admin", "owner"];
+  const allowedRoles = ["manager", "hoteladmin", "admin", "owner"];
   if (!req.user.role || !allowedRoles.includes(req.user.role.name)) {
     return res.status(403).json({
       success: false,
@@ -1165,7 +1165,7 @@ export const deleteInvite = asyncHandler(async (req, res) => {
   const { staffId } = req.params;
 
   // Check permissions - consistent with other functions
-  const allowedRoles = ["manager", "admin", "owner"];
+  const allowedRoles = ["manager", "hoteladmin", "admin", "owner"];
   if (!req.user.role || !allowedRoles.includes(req.user.role.name)) {
     return res.status(403).json({
       success: false,

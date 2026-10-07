@@ -123,7 +123,7 @@ router.get("/menu-categories", protect, getMenuCategories);
 router.post(
   "/menu-items",
   protect,
-  authorize("owner", "manager", "admin"),
+  authorize("owner", "manager", "admin", "hoteladmin"),
   writeOperationLimiter,
   upload.single("image"),
   createMenuItem
@@ -131,21 +131,21 @@ router.post(
 router.put(
   "/menu-items/bulk-toggle",
   protect,
-  authorize("owner", "manager", "admin"),
+  authorize("owner", "manager", "admin", "hoteladmin"),
   writeOperationLimiter,
   bulkToggleAvailability
 );
 router.put(
   "/menu-items/reorder",
   protect,
-  authorize("owner", "manager", "admin"),
+  authorize("owner", "manager", "admin", "hoteladmin"),
   writeOperationLimiter,
   reorderMenuItems
 );
 router.put(
   "/menu-items/:itemId",
   protect,
-  authorize("owner", "manager", "admin"),
+  authorize("owner", "manager", "admin", "hoteladmin"),
   writeOperationLimiter,
   upload.single("image"),
   updateMenuItem
@@ -153,7 +153,7 @@ router.put(
 router.delete(
   "/menu-items/:itemId",
   protect,
-  authorize("owner", "manager", "admin"),
+  authorize("owner", "manager", "admin", "hoteladmin"),
   writeOperationLimiter,
   deleteMenuItem
 );
@@ -190,7 +190,7 @@ router.put(
 router.post(
   "/orders/:orderId/cancel",
   protect,
-  authorize("owner", "admin", "manager", "waiter", "chief"),
+  authorize("owner", "admin", "manager", "waiter", "chief", "hoteladmin"),
   writeOperationLimiter,
   cancelOrder
 );
@@ -239,7 +239,7 @@ router.delete('/manage/:propertyId/:staffId', protect, authorize('manager', 'hot
 router.post(
   "/register",
   protect,
-  authorize("manager", "admin", "owner"),
+  authorize("manager", "admin", "owner", "hoteladmin"),
   sensitiveOpLimiter,
   registerStaff
 );
@@ -263,14 +263,14 @@ router.post(
 router.get(
   "/pending-invites",
   protect,
-  authorize("manager", "admin", "owner"),
+  authorize("manager", "admin", "owner", "hoteladmin"),
   getPendingInvites
 );
 
 router.delete(
   "/invite/:staffId",
   protect,
-  authorize("manager", "admin", "owner"),
+  authorize("manager", "admin", "owner", "hoteladmin"),
   writeOperationLimiter,
   deleteInvite
 );
@@ -278,7 +278,7 @@ router.delete(
 router.get(
   "/property/:propertyId",
   protect,
-  authorize("manager", "admin", "owner"),
+  authorize("manager", "admin", "owner", "hoteladmin"),
   getPropertyStaff
 );
 
