@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { getOrders, updateOrderStatus, cancelOrder } from '../services/orderApi';
 import useHotelId from '../hooks/useHotelId';
+import { useStaffAuth } from '../../../../core/context/StaffAuthContext';
 import {
   PageHeader,
   Button,
@@ -65,6 +66,16 @@ const rs = (n) => `Rs. ${Number(n || 0).toLocaleString('en-IN')}`;
 
 const OrderManagement = ({ onActiveCount }) => {
   const hotelId = useHotelId();
+
+  // Who is viewing. The backend's PUT /orders/:id/status route authorizes only
+  // operational staff — waiter, chief, manager (NOT owner/admin). So owner/admin
+  // get a READ-ONLY lifecycle: they can monitor and Cancel (the cancel route does
+  // grant owner/admin/manager), but cannot advance Confirm → … → Deliver.
+  // Role shape is string | { name } across this app — derive it the same way
+  // StaffManagement.jsx does.
+  const { staffUser } = useStaffAuth();
+  const actorRole = typeof staffUser?.role === 'string' ? staffUser.role : staffUser?.role?.name;
+  const canOperate = ['waiter', 'chief', 'manager', 'superadmin'].includes(actorRole);
 
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -203,7 +214,7 @@ const OrderManagement = ({ onActiveCount }) => {
     const sm = STATUS_META[order.status] || STATUS_META.pending;
     return (
       <>
-        {sm.next && (
+        {canOperate && sm.next && (
           <Button size="sm" variant="primary" onClick={() => handleAdvance(order._id, sm.next)} disabled={actionLoading[order._id]}>
             {actionLoading[order._id] ? '…' : sm.nextLabel}
           </Button>
@@ -259,6 +270,24 @@ const OrderManagement = ({ onActiveCount }) => {
           </>
         }
       />
+
+      {/* Read-only notice: owner/admin oversee orders; operational staff drive the lifecycle. */}
+      {!canOperate && (
+        <div
+          className="ha-small"
+          style={{
+            marginBottom: 16,
+            padding: '10px 14px',
+            borderRadius: 8,
+            background: 'var(--ha-info-soft, var(--ha-surface-sunken))',
+            color: 'var(--ha-text-muted)',
+            border: '1px solid var(--ha-border)',
+          }}
+        >
+          You have oversight access: you can monitor orders and cancel them. Advancing an order through its
+          workflow (Confirm → Preparing → Ready → Delivered) is handled by operational staff (waiter, kitchen, manager).
+        </div>
+      )}
 
       {/* KPI row */}
       <div className="ha-kpi-grid" style={{ marginBottom: 24, gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))' }}>
@@ -376,7 +405,7 @@ const OrderManagement = ({ onActiveCount }) => {
         footer={
           selOrder && (
             <>
-              {STATUS_META[selOrder.status]?.next && (
+              {canOperate && STATUS_META[selOrder.status]?.next && (
                 <Button variant="primary" onClick={() => { handleAdvance(selOrder._id, STATUS_META[selOrder.status].next); setSelOrder(null); }}>
                   {STATUS_META[selOrder.status].nextLabel}
                 </Button>

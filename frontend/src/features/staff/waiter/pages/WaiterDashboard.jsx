@@ -13,13 +13,14 @@ import { useSocket } from "../../../../core/context/SocketContext";
 import { useNotifications } from "../../../../core/context/useNotifications";
 import { useTheme } from "../../../../core/hooks/useTheme";
 import MessagingPanel from "../../../../shared/components/MessagingPanel";
+import TableBillsPanel from "../../../../shared/components/dining/TableBillsPanel";
 import { Plus } from "lucide-react";
 import useSettingsAutoRefresh from "../../../../core/hooks/useSettingsAutoRefresh";
 
 const WaiterDashboard = () => {
   const [activeFilter, setActiveFilter] = useState("all");
   const [activeView, setActiveView] = useState("dashboard");
-  const { orders, markServed, removeOrder, fetchOrders, loading, updateOrder } =
+  const { orders, markServed, removeOrder, fetchOrders, loading, error, updateOrder } =
     useOrderContext();
 
   // Settings > Display > Auto-refresh: periodic reconciliation fetch on top
@@ -149,11 +150,14 @@ const WaiterDashboard = () => {
             onCallCountChange={setWaiterCallCount}
           />
         );
+      case "bills":
+        return <TableBillsPanel title="Table bills" />;
       /* Order history view removed */
       default:
         return (
           <DashboardContent
             orders={orders}
+            error={error}
             activeFilter={activeFilter}
             setActiveFilter={setActiveFilter}
             onMarkServed={markServed}

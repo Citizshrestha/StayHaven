@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useTheme } from '../../../../hooks/useTheme';
-import { useStaffAuth } from '../../../../context/StaffAuthContext';
-import { changePassword, updateProfilePicture, updateStaffProfile } from '../../../../api/staff';
+import { useTheme } from '../../../../core/hooks/useTheme';
+import { useStaffAuth } from '../../../../core/context/StaffAuthContext';
+import { changePassword, updateProfilePicture, updateStaffProfile } from '../../../../core/api/services/staffAccount.service';
 import { toast } from 'react-toastify';
 import {
   User,
@@ -74,20 +74,36 @@ const ReceptionSettings = () => {
     }
   }, [staffUser]);
 
-  // Notification settings
-  const [notifications, setNotifications] = useState({
-    newBookings: true,
-    checkInReminders: true,
-    checkOutReminders: true,
-    vipAlerts: true,
-    housekeepingUpdates: false,
-    maintenanceAlerts: true,
-    guestRequests: true,
-    systemUpdates: false,
-    emailNotifications: true,
-    soundEnabled: true,
-    desktopNotifications: true
+  // Notification settings — persisted to localStorage ("receptionSettings") so
+  // the alert system (sound + desktop notifications) honours them live.
+  const [notifications, setNotifications] = useState(() => {
+    const defaults = {
+      newBookings: true,
+      checkInReminders: true,
+      checkOutReminders: true,
+      vipAlerts: true,
+      housekeepingUpdates: false,
+      maintenanceAlerts: true,
+      guestRequests: true,
+      systemUpdates: false,
+      emailNotifications: true,
+      soundEnabled: true,
+      desktopNotifications: true
+    };
+    try {
+      return { ...defaults, ...(JSON.parse(localStorage.getItem('receptionSettings') || 'null') || {}) };
+    } catch {
+      return defaults;
+    }
   });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('receptionSettings', JSON.stringify(notifications));
+    } catch {
+      // storage unavailable — settings just won't persist
+    }
+  }, [notifications]);
 
   // Display settings
   const [display, setDisplay] = useState({
@@ -793,6 +809,7 @@ const ReceptionSettings = () => {
                   <div className="rs-password-input relative">
                     <input
                       type={showCurrentPassword ? 'text' : 'password'}
+                      autoComplete="current-password"
                       value={passwordForm.currentPassword}
                       onChange={(e) => setPasswordForm(prev => ({ ...prev, currentPassword: e.target.value }))}
                       placeholder="Enter current password"
@@ -813,6 +830,7 @@ const ReceptionSettings = () => {
                   <div className="rs-password-input relative">
                     <input
                       type={showNewPassword ? 'text' : 'password'}
+                      autoComplete="new-password"
                       value={passwordForm.newPassword}
                       onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
                       placeholder="Enter new password"
@@ -832,6 +850,7 @@ const ReceptionSettings = () => {
                   <label className="text-sm font-medium">Confirm New Password</label>
                   <input
                     type="password"
+                    autoComplete="new-password"
                     value={passwordForm.confirmPassword}
                     onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
                     placeholder="Confirm new password"

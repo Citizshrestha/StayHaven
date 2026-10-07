@@ -141,6 +141,8 @@ const BookingSidebar = ({ pricePerNight, nights: initialNights, taxesAndFees: in
       // Navigate to confirmation page with booking details
       navigate('/booking-confirmed', {
         state: {
+          bookingId: paymentData.booking?._id || paymentData._id,
+          paymentStatus: paymentData.booking?.paymentStatus,
           bookingReference: paymentData.booking?.bookingId || paymentData.booking?.confirmationCode,
           hotelName,
           hotelAddress,
@@ -149,7 +151,7 @@ const BookingSidebar = ({ pricePerNight, nights: initialNights, taxesAndFees: in
           checkOut: new Date(checkOut).toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }),
           guests: selectedGuests,
           roomType: paymentData.booking?.roomType || 'Room',
-          totalPaid: total,
+          totalPaid: paymentData.booking?.paidAmount ?? (paymentData.booking?.paymentStatus === 'paid' ? total : 0),
           paymentMethod: paymentData.transaction?.method || 'Card',
         },
       });
@@ -162,7 +164,7 @@ const BookingSidebar = ({ pricePerNight, nights: initialNights, taxesAndFees: in
   // Handle payment error
   const handlePaymentError = (error) => {
     console.error('Payment error:', error);
-    toast.error(error.message || 'Payment failed. Please try again.');
+    toast.error('Payment could not be confirmed. Check your booking before paying again.');
   };
 
   return (

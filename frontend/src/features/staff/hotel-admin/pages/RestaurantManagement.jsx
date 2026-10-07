@@ -25,7 +25,7 @@ import useHotelId from '../hooks/useHotelId';
 import {
   getMenuItems, getMenuCategories, createMenuItem, updateMenuItem, deleteMenuItem, bulkToggleAvailability,
 } from '../services/menuApi';
-import ConfirmDialog from '../../../../components/ConfirmDialog';
+import ConfirmDialog from '../../../../shared/components/ConfirmDialog';
 import {
   PageHeader,
   Button,
@@ -123,9 +123,9 @@ const RestaurantManagement = ({ onNavigate }) => {
   const setAct = (key, val) => setActionLoading((p) => ({ ...p, [key]: val }));
 
   /* ── Tables API ── */
-  const fetchTables = useCallback(async () => {
+  const fetchTables = useCallback(async ({ silent = false } = {}) => {
     if (!hotelId) return;
-    setTLoading(true);
+    if (!silent) setTLoading(true);
     try {
       const res = await getTables({ hotelId });
       const data = res.data.data || [];
@@ -159,7 +159,7 @@ const RestaurantManagement = ({ onNavigate }) => {
       }
       setShowTableModal(false);
       setSelTable(null);
-      fetchTables();
+      fetchTables({ silent: true });
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed');
     } finally {
@@ -174,7 +174,7 @@ const RestaurantManagement = ({ onNavigate }) => {
       const res = await batchCreateTables({ ...batchForm, hotelId });
       toast.success(`${res.data.createdCount || batchForm.count} tables created`);
       setShowBatchModal(false);
-      fetchTables();
+      fetchTables({ silent: true });
     } catch (err) {
       toast.error(err.response?.data?.message || 'Batch failed');
     } finally {
@@ -189,7 +189,7 @@ const RestaurantManagement = ({ onNavigate }) => {
       await deleteTable(deleteTable_._id);
       toast.success('Table deleted');
       setDeleteTable_(null);
-      fetchTables();
+      fetchTables({ silent: true });
     } catch (err) {
       toast.error(err.response?.data?.message || 'Delete failed');
     } finally {
@@ -202,7 +202,7 @@ const RestaurantManagement = ({ onNavigate }) => {
     try {
       await updateTableStatus(id, status);
       toast.success(`Status → ${status}`);
-      fetchTables();
+      fetchTables({ silent: true });
     } catch {
       toast.error('Status update failed');
     } finally {
@@ -215,7 +215,7 @@ const RestaurantManagement = ({ onNavigate }) => {
     try {
       await generateTableQR(id);
       toast.success('QR generated');
-      fetchTables();
+      fetchTables({ silent: true });
     } catch {
       toast.error('QR generation failed');
     } finally {

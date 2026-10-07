@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useTheme } from '../../../../hooks/useTheme';
-import { getApiBaseUrl } from '../../../../utils/apiConfig';
+import { useTheme } from '../../../../core/hooks/useTheme';
+import { getApiBaseUrl } from '../../../../core/utils/apiConfig';
 import {
   Search,
   ChevronDown,

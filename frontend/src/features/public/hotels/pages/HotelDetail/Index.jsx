@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Check, Home, MapPin, Star, ThumbsUp, X } from 'lucide-react';
+import { toast } from 'react-toastify';
 
 import HotelImageGallery from './HotelImageGallery';
 import HotelHeader from './HotelHeader';
@@ -8,6 +9,7 @@ import TabNavigation from './TabNavigation';
 import BookingSidebar from './BookingSidebar';
 import AmenityCard from './AmenityCard';
 import { getHotelById } from '../../../../../core/api/services/hotel.service';
+import { getWishlist, toggleWishlist } from '../../../../../core/api/services/user.service';
 
 const AMENITY_LABELS = {
   wifi: 'Free Wi-Fi',
@@ -22,11 +24,13 @@ const AMENITY_LABELS = {
 
 const HotelDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [mobileBookingOpen, setMobileBookingOpen] = useState(false);
   const [expandedReviews, setExpandedReviews] = useState({});
   const [selectedRoomId, setSelectedRoomId] = useState(null);
   const [hotel, setHotel] = useState(null);
+  const [isFavorite, setIsFavorite] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [visibleReviewsCount, setVisibleReviewsCount] = useState(3);
@@ -80,6 +84,36 @@ const HotelDetail = () => {
       cancelled = true;
     };
   }, [id]);
+
+  useEffect(() => {
+    const loadFavorite = async () => {
+      if (!localStorage.getItem('accessToken')) return;
+      try {
+        const { wishlist } = await getWishlist();
+        setIsFavorite((wishlist || []).includes(String(id)));
+      } catch {
+        setIsFavorite(false);
+      }
+    };
+    loadFavorite();
+  }, [id]);
+
+  const handleToggleFavorite = async () => {
+    if (!localStorage.getItem('accessToken')) {
+      toast.info('Please sign in to save hotels');
+      navigate('/login');
+      return;
+    }
+
+    try {
+      const { wishlist, message } = await toggleWishlist(id);
+      setIsFavorite((wishlist || []).includes(String(id)));
+      window.dispatchEvent(new Event('wishlistUpdated'));
+      toast.success(message);
+    } catch (error) {
+      toast.error(error?.message || 'Could not update saved hotels');
+    }
+  };
 
   // Scroll to top when component mounts or hotel ID changes
   useEffect(() => {
@@ -157,13 +191,13 @@ const HotelDetail = () => {
         {!isLoading && !error && hotel && (
           <>
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 animate-[fadeIn_0.6s_ease]">
-              <HotelImageGallery images={hotel.images} />
+              <HotelImageGallery images={hotel.images} isFavorite={isFavorite} onToggleFavorite={handleToggleFavorite} />
             </div>
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-7 animate-[fadeInUp_0.7s_ease]">
               <HotelHeader
                 name={hotel.name}
-                location={[hotel?.location?.address, hotel?.location?.city].filter(Boolean).join(', ')}
+                location={hotel?.location?.address || hotel?.location?.city || '-'}
                 rating={hotel.rating}
                 reviewCount={hotel.reviewCount}
                 highlights={(hotel.amenities || []).slice(0, 3).map((k) => AMENITY_LABELS[k] || k)}
@@ -173,6 +207,8 @@ const HotelDetail = () => {
                 ].filter(Boolean)}
                 pricePerNight={booking.pricePerNight}
                 onBookNow={() => setMobileBookingOpen(true)}
+                isFavorite={isFavorite}
+                onToggleFavorite={handleToggleFavorite}
               />
             </div>
 

@@ -3,12 +3,12 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "r
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { GoogleOAuthProvider } from "@react-oauth/google";
-import { fetchCsrfToken } from "../utils/csrf";
+import { fetchCsrfToken } from "../core/utils/csrf";
 
 // ============================================
 // ERROR BOUNDARY (Must be imported first)
 // ============================================
-import ErrorBoundary from "../components/ErrorBoundary";
+import ErrorBoundary from "../shared/components/ErrorBoundary";
 
 // ============================================
 // CORE - Context Providers (Global State)
@@ -34,6 +34,8 @@ import BookingsView from "../features/guest/dashboard/pages/BookingsView";
 import BillingView from "../features/guest/dashboard/pages/BillingView";
 import ProfileView from "../features/guest/dashboard/pages/ProfileView";
 import RequestsView from "../features/guest/dashboard/pages/RequestsView";
+import ChatView from "../features/guest/dashboard/pages/ChatView";
+import SettingsView from "../features/guest/dashboard/pages/SettingsView";
 import NotFound from "../shared/pages/NotFound";
 import MaintenanceGate from "../shared/components/MaintenanceGate";
 
@@ -368,11 +370,13 @@ const App = () => {
                         }
                       >
                         <Route index element={<DashboardView />} />
+                        <Route path="chat" element={<ChatView />} />
                         <Route path="room-service" element={<RoomServiceView />} />
                         <Route path="bookings" element={<BookingsView />} />
                         <Route path="billing" element={<BillingView />} />
                         <Route path="requests" element={<RequestsView />} />
                         <Route path="profile" element={<ProfileView />} />
+                        <Route path="settings" element={<SettingsView />} />
                         <Route path="*" element={<Navigate to="/guest-dashboard" replace />} />
                       </Route>
 

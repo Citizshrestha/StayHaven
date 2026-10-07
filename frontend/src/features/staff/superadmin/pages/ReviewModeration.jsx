@@ -28,7 +28,7 @@ const ReviewModeration = () => {
     try {
       const result = await getPendingReviews({ status: filterStatus, page: 1, limit: 20 });
       setReviews(result.data);
-    } catch (error) {
+    } catch  {
       toast.error('Failed to load reviews');
     } finally {
       setLoading(false);
@@ -40,7 +40,7 @@ const ReviewModeration = () => {
     try {
       const result = await getModerationMetrics();
       setMetrics(result.data);
-    } catch (error) {
+    } catch  {
       toast.error('Failed to load metrics');
     } finally {
       setLoading(false);
@@ -66,7 +66,7 @@ const ReviewModeration = () => {
       await moderateReview(reviewId, { action, reason });
       toast.success(`Review ${action}ed successfully`);
       loadReviews();
-    } catch (error) {
+    } catch  {
       toast.error(`Failed to ${action} review`);
     }
   };
@@ -76,7 +76,7 @@ const ReviewModeration = () => {
       await toggleFeaturedReview(reviewId, { isFeatured: !currentStatus });
       toast.success(`Review ${!currentStatus ? 'featured' : 'unfeatured'} successfully`);
       loadReviews();
-    } catch (error) {
+    } catch  {
       toast.error('Failed to toggle featured status');
     }
   };

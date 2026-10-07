@@ -18,7 +18,6 @@ const BillPreviewModal = ({
 }) => {
   const [sendMethod, setSendMethod] = useState('app');
   const [email, setEmail] = useState(order?.customerEmail || '');
-  const [phone, setPhone] = useState(order?.customerPhone || '');
   const [sending, setSending] = useState(false);
   const printRef = useRef();
 

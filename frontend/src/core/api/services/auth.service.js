@@ -245,9 +245,9 @@ export const verifyResetPasswordOtp = async (userId, otp) => {
   }
 };
 
-export const resetPassword = async (userId, newPassword) => {
+export const resetPassword = async (userId, newPassword, resetToken) => {
   try {
-    const response = await axiosClient.post("/api/v1/auth/resetPassword", { userId, newPassword });
+    const response = await axiosClient.post("/api/v1/auth/resetPassword", { userId, newPassword, resetToken });
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error) && error.response) {

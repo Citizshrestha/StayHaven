@@ -13,12 +13,14 @@
  * const { notifications, unreadCount, markRead, clearAll } = useNotifications();
  */
 
-import { createContext, useState, useEffect, useMemo, useCallback } from "react";
+import { createContext, useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { toast } from "react-toastify";
 import { useSocket } from "./SocketContext";
 import { useStaffAuth } from "./StaffAuthContext";
 import useNotificationSound from "../hooks/useNotificationSound";
 import { NOTIFICATION_TYPES } from "./useNotifications";
-import { getNotifications } from "../api/services/messaging.service";
+import { getNotifications, markNotificationsRead } from "../api/services/messaging.service";
+import { getCurrentStaffUser } from "../api/services/staffAccount.service";
 
 const formatOrderLocation = ({ orderType, roomNumber, tableNumber }) => {
   if (orderType === "roomService") {
@@ -37,16 +39,77 @@ const formatOrderLocation = ({ orderType, roomNumber, tableNumber }) => {
 
 const NotificationContext = createContext(null);
 
+// A new order can reach us up to three ways (socket "new-order", the persisted
+// notification's socket echo, and legacy multi-room emits). Remember which
+// orders we've already alerted for so staff hear and see it exactly once.
+const ORDER_ALERT_TTL_MS = 10 * 60 * 1000;
+const isServerId = (id) => /^[0-9a-f]{24}$/i.test(String(id || ""));
+
+// Reception has its own clickable order toasts in ReceptionDashboard.
+const ROLES_WITH_OWN_ORDER_TOAST = new Set(["receptionist"]);
+
+const STATUS_EMOJI = {
+  preparing: '🍳', ready: '✅', delivered: '🎉', cancelled: '❌', confirmed: '👍', pending: '⏳',
+};
+
+// Backend notification types → the types the bell / panels understand.
+const normalizeServerType = (type, status) => {
+  if (type === 'order_status' || type === 'order_delivered') {
+    return status === 'ready' ? NOTIFICATION_TYPES.ORDER_READY : NOTIFICATION_TYPES.ORDER_STATUS;
+  }
+  return type || NOTIFICATION_TYPES.ORDER_STATUS;
+};
+
+const desktopAlertsAllowed = (role) => {
+  if (role !== "receptionist") return true;
+  try {
+    const s = JSON.parse(localStorage.getItem("receptionSettings") || "null");
+    return s?.desktopNotifications !== false;
+  } catch {
+    return true;
+  }
+};
+
+const showDesktopNotification = ({ title, body, tag }) => {
+  try {
+    if (typeof window === "undefined" || !("Notification" in window)) return;
+    if (Notification.permission !== "granted" || !document.hidden) return;
+    const n = new Notification(title, { body, tag, icon: "/logo.png", renotify: false });
+    n.onclick = () => { window.focus(); n.close(); };
+  } catch {
+    // Some browsers (e.g. Android Chrome) only allow notifications via a service worker.
+  }
+};
+
+/** Small fixed prompt shown while the browser is blocking alert sounds. */
+const SoundUnlockPrompt = ({ onEnable }) => (
+  <button
+    type="button"
+    onClick={onEnable}
+    style={{
+      position: "fixed", left: 16, bottom: 16, zIndex: 9999,
+      display: "inline-flex", alignItems: "center", gap: 8,
+      padding: "10px 16px", borderRadius: 999, border: "1px solid rgba(255,255,255,.12)",
+      background: "#1e293b", color: "#f8fafc", font: "600 13px/1.2 system-ui, sans-serif",
+      boxShadow: "0 8px 24px rgba(15,23,42,.35)", cursor: "pointer",
+    }}
+  >
+    <span aria-hidden="true" style={{ fontSize: 16 }}>🔔</span>
+    Sound alerts are paused — click to enable
+  </button>
+);
+
 // Note: NOTIFICATION_TYPES and useNotifications hook are in useNotifications.js
 // to satisfy React Fast Refresh requirements
 
-// localStorage key for persisting notifications
-const NOTIFICATIONS_STORAGE_KEY = 'waiter_notifications';
+// localStorage key for persisting notifications, scoped per user so a shared
+// browser never shows one staff member's notifications to another.
+const storageKeyFor = (userId) => `notifications_${userId || 'anon'}`;
 
 // Load notifications from localStorage
-const loadNotificationsFromStorage = () => {
+const loadNotificationsFromStorage = (userId) => {
   try {
-    const stored = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
+    const stored = localStorage.getItem(storageKeyFor(userId));
     if (stored) {
       const parsed = JSON.parse(stored);
       // Restore Date objects for createdAt
@@ -59,26 +122,43 @@ const loadNotificationsFromStorage = () => {
 };
 
 // Save notifications to localStorage
-const saveNotificationsToStorage = (notifications) => {
+const saveNotificationsToStorage = (userId, notifications) => {
   try {
     // Keep only recent 50 notifications in storage to avoid bloat
-    localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(notifications.slice(0, 50)));
+    localStorage.setItem(storageKeyFor(userId), JSON.stringify(notifications.slice(0, 50)));
   } catch {
     // Storage quota exceeded or unavailable — non-fatal, skip persistence
   }
 };
 
 export const NotificationProvider = ({ children }) => {
-  const [notifications, setNotifications] = useState(() => loadNotificationsFromStorage());
+  const [notifications, setNotifications] = useState(() =>
+    loadNotificationsFromStorage(getCurrentStaffUser()?._id)
+  );
   const [waiterCallCount, setWaiterCallCount] = useState(0);
   const [isLoadingInitial, setIsLoadingInitial] = useState(true);
   
   const { subscribe } = useSocket();
   const { staffRole, isAuthenticated, staffUser } = useStaffAuth();
-  const { playWithVibration } = useNotificationSound();
-  
+  const { playWithVibration, audioState, enableSound } = useNotificationSound();
+  const alertedOrdersRef = useRef(new Map()); // orderId -> timestamp
+  const alertedStatusRef = useRef(new Map()); // `${orderId}:${status}` -> timestamp
+
   // Get current user ID for filtering self-notifications
   const currentUserId = staffUser?._id;
+
+  // Ask for desktop-notification permission on the first interaction (browsers
+  // require a user gesture), so order alerts still reach staff on another tab.
+  useEffect(() => {
+    if (!isAuthenticated || typeof window === "undefined" || !("Notification" in window)) return undefined;
+    if (Notification.permission !== "default") return undefined;
+    const ask = () => {
+      Notification.requestPermission().catch(() => {});
+      document.removeEventListener("pointerdown", ask, true);
+    };
+    document.addEventListener("pointerdown", ask, true);
+    return () => document.removeEventListener("pointerdown", ask, true);
+  }, [isAuthenticated]);
 
   // Fetch initial notifications from backend on mount
   useEffect(() => {
@@ -95,12 +175,15 @@ export const NotificationProvider = ({ children }) => {
           // Transform backend notifications to match our format
           const transformedNotifications = response.data.map(n => ({
             id: n._id,
-            type: n.type || NOTIFICATION_TYPES.ORDER_STATUS,
+            type: normalizeServerType(n.type, n.payload?.status),
             message: n.message || n.title,
             title: n.title,
             orderId: n.payload?.orderId,
             orderNumber: n.payload?.orderNumber,
+            // Needed by the waiter/kitchen panel's Ready / Preparing / Delivered tabs
+            status: n.payload?.status,
             callId: n.payload?.callId,
+            actionUrl: n.actionUrl,
             isRead: n.isRead,
             createdAt: new Date(n.createdAt),
             priority: n.priority,
@@ -121,9 +204,9 @@ export const NotificationProvider = ({ children }) => {
   // Persist notifications to localStorage whenever they change
   useEffect(() => {
     if (!isLoadingInitial) {
-      saveNotificationsToStorage(notifications);
+      saveNotificationsToStorage(currentUserId, notifications);
     }
-  }, [notifications, isLoadingInitial]);
+  }, [notifications, isLoadingInitial, currentUserId]);
 
   // Computed unread count
   const unreadCount = useMemo(
@@ -141,10 +224,13 @@ export const NotificationProvider = ({ children }) => {
     };
 
     setNotifications(prev => {
-      // Prevent duplicates: check if same type + orderId exists within last 5 seconds
+      // Prevent duplicates: same type + orderId + status within last 5 seconds.
+      // Status is part of the key so a quick preparing → ready → delivered
+      // sequence produces one entry per step instead of swallowing later steps.
       const isDuplicate = prev.some(n =>
         n.type === notification.type &&
-        n.orderId === notification.orderId &&
+        String(n.orderId) === String(notification.orderId) &&
+        (n.status || null) === (notification.status || null) &&
         notification.orderId && // Only check if orderId exists
         (new Date() - new Date(n.createdAt)) < 5000 // Within 5 seconds
       );
@@ -163,18 +249,25 @@ export const NotificationProvider = ({ children }) => {
     setNotifications(prev =>
       prev.map(n => n.id === notificationId ? { ...n, isRead: true } : n)
     );
+    // Persist so the badge does not come back on reload. Socket-only
+    // notifications have client-generated ids the server won't recognise.
+    if (/^[0-9a-f]{24}$/i.test(String(notificationId))) {
+      markNotificationsRead([notificationId]).catch(() => { });
+    }
   }, []);
 
   // Mark all notifications as read
   const markAllRead = useCallback(() => {
     setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    // Empty payload marks every notification for this user server-side.
+    markNotificationsRead().catch(() => { });
   }, []);
 
   // Clear all notifications (also clears storage)
   const clearAll = useCallback(() => {
     setNotifications([]);
-    localStorage.removeItem(NOTIFICATIONS_STORAGE_KEY);
-  }, []);
+    localStorage.removeItem(storageKeyFor(currentUserId));
+  }, [currentUserId]);
 
   // Remove a specific notification
   const removeNotification = useCallback((notificationId) => {
@@ -189,84 +282,156 @@ export const NotificationProvider = ({ children }) => {
 
     const unsubscribers = [];
 
-    // New order notification (skip if current user is the creator)
+    /**
+     * Single entry point for "a new order arrived", whichever channel delivered
+     * it. Plays the order sound, adds one bell entry, shows one toast and (if
+     * the tab is in the background) one desktop notification — once per order.
+     */
+    const alertNewOrder = ({ orderId, orderNumber, location, serverId, message }) => {
+      const now = Date.now();
+      const seen = alertedOrdersRef.current;
+      for (const [id, at] of seen) if (now - at > ORDER_ALERT_TTL_MS) seen.delete(id);
+
+      if (orderId && seen.has(orderId)) {
+        // Already alerted. If this is the persisted copy, adopt its server id so
+        // "mark as read" is saved and the badge doesn't return after a reload.
+        if (serverId && isServerId(serverId)) {
+          setNotifications((prev) => prev.map((n) =>
+            n.type === NOTIFICATION_TYPES.NEW_ORDER && String(n.orderId) === orderId && !isServerId(n.id)
+              ? { ...n, id: serverId }
+              : n
+          ));
+        }
+        return;
+      }
+      if (orderId) seen.set(orderId, now);
+
+      const text = message || `New order #${orderNumber} for ${location}`;
+      playWithVibration('newOrder');
+      addNotification({
+        ...(serverId ? { id: serverId } : {}),
+        type: NOTIFICATION_TYPES.NEW_ORDER,
+        message: text,
+        orderId,
+        orderNumber,
+        priority: 'high',
+      });
+
+      if (!ROLES_WITH_OWN_ORDER_TOAST.has(staffRole)) {
+        toast.info(`🔔 New order #${orderNumber} · ${location}`, {
+          toastId: `new-order-${orderId || orderNumber}`,
+          autoClose: 8000,
+        });
+      }
+
+      if (desktopAlertsAllowed(staffRole)) {
+        showDesktopNotification({
+          title: `New order #${orderNumber}`,
+          body: `${location} — tap to view`,
+          tag: `new-order-${orderId || orderNumber}`,
+        });
+      }
+    };
+
+    // New order via real-time socket (skip orders this user placed themselves)
     unsubscribers.push(
       subscribe('new-order', (data) => {
-        // Skip notification if current user created this order (self-notification)
-        if (data.creatorId && currentUserId && data.creatorId === currentUserId) {
-          return;
-        }
+        if (data?.creatorId && currentUserId && data.creatorId === currentUserId) return;
+        const order = data?.order;
+        if (!order) return;
 
-        playWithVibration('newOrder');
-
-        const location = formatOrderLocation({
-          orderType: data.order.orderType,
-          roomNumber: data.order.roomNumber,
-          tableNumber: data.order.tableNumber,
+        alertNewOrder({
+          orderId: order._id ? String(order._id) : null,
+          orderNumber: order.orderNumber,
+          location: formatOrderLocation({
+            orderType: order.orderType,
+            roomNumber: order.roomNumber,
+            tableNumber: order.tableNumber,
+          }),
         });
-
-        const notification = {
-          type: NOTIFICATION_TYPES.NEW_ORDER,
-          message: `New order #${data.order.orderNumber} for ${location}`,
-          orderId: data.order._id,
-          orderNumber: data.order.orderNumber,
-        };
-
-        addNotification(notification);
       })
     );
 
-    // Order ready notification (for waiters)
+    /**
+     * Single entry point for "an order's status changed". A change can reach
+     * us several ways — "order-status-updated", "order-ready" (waiters),
+     * "order-cancelled", and the persisted notification's echo — so we key on
+     * orderId + status and alert exactly once: sound, bell entry, toast and a
+     * desktop notification when the tab is in the background.
+     */
+    const alertOrderStatus = ({ orderId, orderNumber, status, orderType, roomNumber, tableNumber, message, serverId }) => {
+      if (!status || (!orderId && !orderNumber)) return;
+      const key = `${orderId || orderNumber}:${status}`;
+      const now = Date.now();
+      const seen = alertedStatusRef.current;
+      for (const [k, at] of seen) if (now - at > ORDER_ALERT_TTL_MS) seen.delete(k);
+
+      if (seen.has(key)) {
+        if (serverId && isServerId(serverId)) {
+          setNotifications((prev) => prev.map((n) =>
+            String(n.orderId) === String(orderId) && n.status === status && !isServerId(n.id)
+              ? { ...n, id: serverId }
+              : n
+          ));
+        }
+        return;
+      }
+      seen.set(key, now);
+
+      const location = formatOrderLocation({ orderType, roomNumber, tableNumber });
+      const text = message || `${STATUS_EMOJI[status] || '📝'} Order #${orderNumber} (${location}) → ${String(status).toUpperCase()}`;
+      const isReady = status === 'ready';
+      const isCancelled = status === 'cancelled';
+
+      playWithVibration(isReady ? 'orderReady' : isCancelled ? 'orderCancelled' : 'statusUpdate');
+
+      addNotification({
+        ...(serverId ? { id: serverId } : {}),
+        type: isReady ? NOTIFICATION_TYPES.ORDER_READY : NOTIFICATION_TYPES.ORDER_STATUS,
+        message: text,
+        orderId: orderId ? String(orderId) : undefined,
+        orderNumber,
+        status,
+        priority: isReady || isCancelled ? 'high' : 'medium',
+      });
+
+      if (!ROLES_WITH_OWN_ORDER_TOAST.has(staffRole)) {
+        const toastFn = isReady ? toast.success : isCancelled ? toast.error : toast.info;
+        toastFn(text, { toastId: `status-${key}`, autoClose: isReady || isCancelled ? 8000 : 5000 });
+      }
+
+      if (desktopAlertsAllowed(staffRole)) {
+        showDesktopNotification({
+          title: isReady ? `Order #${orderNumber} is ready` : isCancelled ? `Order #${orderNumber} cancelled` : `Order #${orderNumber} → ${status}`,
+          body: `${location}`,
+          tag: `status-${key}`,
+        });
+      }
+    };
+
+    const isSelf = (data) => data?.updaterId && currentUserId && String(data.updaterId) === String(currentUserId);
+
+    // Pickup alert for waiters (backend sends it only to the waiters room)
     unsubscribers.push(
       subscribe('order-ready', (data) => {
-        playWithVibration('orderReady');
-        
-        addNotification({
-          type: NOTIFICATION_TYPES.ORDER_READY,
-          message: data.message || `Order #${data.orderNumber} is ready for pickup!`,
-          orderId: data.orderId,
-          orderNumber: data.orderNumber,
-        });
+        if (isSelf(data)) return;
+        alertOrderStatus({ ...data, status: 'ready' });
       })
     );
 
-    // Order status updated (cross-role notification - only sent to the OTHER role)
-    // Chiefs receive this when waiters update, waiters receive when chiefs update
+    // Any status change, broadcast to every staff member of the hotel
     unsubscribers.push(
       subscribe('order-status-updated', (data) => {
-        // Skip if this is our own update (self-notification)
-        if (data.updaterId && currentUserId && data.updaterId === currentUserId) {
-          return;
-        }
-        
-        // Use the message from backend if provided, otherwise format our own
-        const message = data.message || (() => {
-          const statusEmoji = {
-            preparing: '🍳',
-            ready: '✅',
-            delivered: '🎉',
-            cancelled: '❌',
-            confirmed: '👍',
-            pending: '⏳',
-          };
-          const emoji = statusEmoji[data.status] || '📝';
-          const location = formatOrderLocation({
-            orderType: data.orderType,
-            roomNumber: data.roomNumber,
-            tableNumber: data.tableNumber,
-          });
-          return `${emoji} Order #${data.orderNumber} (${location}) → ${data.status.toUpperCase()}`;
-        })();
-        
-        addNotification({
-          type: NOTIFICATION_TYPES.ORDER_STATUS,
-          message,
-          orderId: data.orderId,
-          orderNumber: data.orderNumber,
-          status: data.status,
-        });
-        
-        playWithVibration('notification');
+        if (isSelf(data)) return;
+        alertOrderStatus(data);
+      })
+    );
+
+    // Guest-initiated cancellation (older backends only sent this event)
+    unsubscribers.push(
+      subscribe('order-cancelled', (data) => {
+        if (isSelf(data)) return;
+        alertOrderStatus({ ...data, status: 'cancelled' });
       })
     );
 
@@ -319,6 +484,38 @@ export const NotificationProvider = ({ children }) => {
     // whenever a channel message or DM is sent.
     unsubscribers.push(
       subscribe('notification', (data) => {
+        // Persisted "new order" alert: route through the same path so it's
+        // deduped against the socket event (and still alerts if this staff
+        // member's socket never joined the hotel room).
+        if (data?.type === NOTIFICATION_TYPES.NEW_ORDER) {
+          const p = data.payload || {};
+          alertNewOrder({
+            orderId: p.orderId ? String(p.orderId) : null,
+            orderNumber: p.orderNumber,
+            location: formatOrderLocation({ orderType: p.orderType, roomNumber: p.roomNumber, tableNumber: p.tableNumber }),
+            serverId: data._id,
+            message: data.title,
+          });
+          return;
+        }
+
+        // Persisted order-status notification: merge with the live event so
+        // it alerts once (and still alerts if the live event never arrived).
+        if ((data?.type === 'order_status' || data?.type === 'order_delivered') && data.payload?.status) {
+          const p = data.payload;
+          alertOrderStatus({
+            orderId: p.orderId,
+            orderNumber: p.orderNumber,
+            status: p.status,
+            orderType: p.orderType,
+            roomNumber: p.roomNumber,
+            tableNumber: p.tableNumber,
+            message: data.message,
+            serverId: data._id,
+          });
+          return;
+        }
+
         playWithVibration('notification');
         addNotification({
           id: data._id || `notif-${Date.now()}`,
@@ -326,6 +523,7 @@ export const NotificationProvider = ({ children }) => {
           title: data.title,
           message: data.message,
           priority: data.priority || 'medium',
+          actionUrl: data.actionUrl,
           isRead: false,
           createdAt: new Date(data.createdAt || Date.now()),
           payload: data.payload,
@@ -340,6 +538,23 @@ export const NotificationProvider = ({ children }) => {
       });
     };
   }, [subscribe, isAuthenticated, staffRole, currentUserId, playWithVibration, addNotification]);
+
+  // Seed the dedupe map from the initial fetch so a reload doesn't re-alert
+  // for orders that are already in the bell.
+  useEffect(() => {
+    if (isLoadingInitial) return;
+    const now = Date.now();
+    notifications.forEach((n) => {
+      if (!n.orderId) return;
+      if (n.type === NOTIFICATION_TYPES.NEW_ORDER && !alertedOrdersRef.current.has(String(n.orderId))) {
+        alertedOrdersRef.current.set(String(n.orderId), now);
+      }
+      if (n.status) {
+        const key = `${n.orderId}:${n.status}`;
+        if (!alertedStatusRef.current.has(key)) alertedStatusRef.current.set(key, now);
+      }
+    });
+  }, [isLoadingInitial, notifications]);
 
   const value = {
     // State
@@ -360,6 +575,7 @@ export const NotificationProvider = ({ children }) => {
   return (
     <NotificationContext.Provider value={value}>
       {children}
+      {isAuthenticated && audioState === "suspended" && <SoundUnlockPrompt onEnable={enableSound} />}
     </NotificationContext.Provider>
   );
 };

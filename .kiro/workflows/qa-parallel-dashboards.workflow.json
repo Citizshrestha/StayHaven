@@ -1,0 +1,98 @@
+{
+  "name": "qa-parallel-dashboards",
+  "description": "Two-wave parallel QA + fix of every StayHaven dashboard. Wave 1: platform, hotel admin, reception, waiter. Platform then processes wave-1 change requests. Wave 2 (based on qa/platform): kitchen, super admin, guest, public. Then a final platform REQ pass and a consolidated report.",
+  "inputs": {},
+  "steps": [
+    {
+      "type": "parallel",
+      "id": "wave-1",
+      "joinPolicy": "allSettled",
+      "branches": [
+        {
+          "type": "step",
+          "id": "qa-platform",
+          "agent": "wf-coder",
+          "modelId": "claude-opus-5.5",
+          "prompt": "WAVE 1 of 2. Read d:\\hotel-booking-order-management-system\\.agents\\tasks\\qa-parallel\\00-common-rules.md, then read and fully execute d:\\hotel-booking-order-management-system\\.agents\\tasks\\qa-parallel\\01-platform-security.md. You are session 01 (platform). Three other agents (hoteladmin, reception, waiter) run in parallel with you and file change requests in d:\\hotel-booking-order-management-system\\.agents\\tasks\\qa-parallel\\requests\\*.md; process them as the prompt says. Kitchen, superadmin, guest and public run in wave 2 AFTER you, on top of your qa/platform branch, so prioritise shared fixes they depend on (auth/session, client.js interceptors, socket auth, BillPreviewModal, ConfirmDialog, errorHandler, orderController). Work only in your own worktree and branch, commit only there, never push or merge. Stop your background servers when done (rules K). Finish by writing your report to the path in the prompt."
+        },
+        {
+          "type": "step",
+          "id": "qa-hoteladmin",
+          "agent": "wf-coder",
+          "modelId": "claude-opus-5.5",
+          "prompt": "WAVE 1 of 2. Read d:\\hotel-booking-order-management-system\\.agents\\tasks\\qa-parallel\\00-common-rules.md, then read and fully execute d:\\hotel-booking-order-management-system\\.agents\\tasks\\qa-parallel\\02-hotel-admin.md. You are session 02 (hoteladmin). Platform, reception and waiter run in parallel with you; edit only files you own and file REQs for the rest. Work only in your own worktree and branch, commit only there, never push or merge. Stop your background servers when done (rules K) so wave 2 has resources. Finish by writing your report to the path in the prompt."
+        },
+        {
+          "type": "step",
+          "id": "qa-reception",
+          "agent": "wf-coder",
+          "modelId": "claude-opus-5.5",
+          "prompt": "WAVE 1 of 2. Read d:\\hotel-booking-order-management-system\\.agents\\tasks\\qa-parallel\\00-common-rules.md, then read and fully execute d:\\hotel-booking-order-management-system\\.agents\\tasks\\qa-parallel\\03-reception.md. You are session 03 (reception). Platform, hoteladmin and waiter run in parallel with you; edit only files you own and file REQs for the rest. Check d:\\hotel-booking-order-management-system\\.agents\\tasks\\qa-parallel\\requests\\hoteladmin.md periodically for REQs targeting your files. Work only in your own worktree and branch, commit only there, never push or merge. Stop your background servers when done (rules K). Finish by writing your report to the path in the prompt."
+        },
+        {
+          "type": "step",
+          "id": "qa-waiter",
+          "agent": "wf-coder",
+          "modelId": "claude-sonnet-5.5",
+          "prompt": "WAVE 1 of 2. Read d:\\hotel-booking-order-management-system\\.agents\\tasks\\qa-parallel\\00-common-rules.md, then read and fully execute d:\\hotel-booking-order-management-system\\.agents\\tasks\\qa-parallel\\04-waiter.md. You are session 04 (waiter). Platform, hoteladmin and reception run in parallel with you; edit only files you own and file REQs for the rest. Work only in your own worktree and branch, commit only there, never push or merge. Stop your background servers when done (rules K). Finish by writing your report to the path in the prompt."
+        }
+      ]
+    },
+    {
+      "type": "step",
+      "id": "platform-requests-between-waves",
+      "agent": "wf-coder",
+      "modelId": "claude-opus-5.5",
+      "prompt": "You are session 01 (platform), between wave 1 and wave 2. Read d:\\hotel-booking-order-management-system\\.agents\\tasks\\qa-parallel\\00-common-rules.md and d:\\hotel-booking-order-management-system\\.agents\\tasks\\qa-parallel\\01-platform-security.md, then your own report d:\\hotel-booking-order-management-system\\.agents\\tasks\\qa-parallel\\reports\\platform-report.md. Wave 1 (platform, hoteladmin, reception, waiter) has finished. 1) Make sure no wave-1 dev servers are still running on ports 3000-3003 / 5173-5176 (stop leftover node/vite processes started from d:\\hotel-booking-order-management-system\\.worktrees\\qa-*; don't touch anything else). 2) Process every request still marked 'status: open' in d:\\hotel-booking-order-management-system\\.agents\\tasks\\qa-parallel\\requests\\*.md on branch qa/platform in d:\\hotel-booking-order-management-system\\.worktrees\\qa-platform (P0 first), with tests, replying in-line with 'status: done in <sha>' or 'rejected – reason'. 3) Run lint, build, frontend tests and backend tests in that worktree and record results. qa/platform must be green (no new failures vs baseline), because wave 2 branches from it. 4) Append a 'Between waves' section to platform-report.md listing what wave 2 inherits. Never push or merge."
+    },
+    {
+      "type": "parallel",
+      "id": "wave-2",
+      "joinPolicy": "allSettled",
+      "branches": [
+        {
+          "type": "step",
+          "id": "qa-kitchen",
+          "agent": "wf-coder",
+          "modelId": "claude-sonnet-5.5",
+          "prompt": "WAVE 2 of 2. Read d:\\hotel-booking-order-management-system\\.agents\\tasks\\qa-parallel\\00-common-rules.md, then read and fully execute d:\\hotel-booking-order-management-system\\.agents\\tasks\\qa-parallel\\05-kitchen.md. You are session 05 (kitchen). OVERRIDE to rules A.2: create your worktree from branch qa/platform (not BASE) so you test against the shared fixes already made: git -C d:\\hotel-booking-order-management-system worktree add .worktrees/qa-kitchen -b qa/kitchen qa/platform. Read d:\\hotel-booking-order-management-system\\.agents\\tasks\\qa-parallel\\reports\\platform-report.md ('Between waves' section) first. Session 01 is NOT running during this wave: still file REQs for files you don't own; they are handled in a final pass, so mark dependent checks BLOCKED (REQ id). Superadmin, guest and public run in parallel with you. Commit only on your branch, never push or merge. Stop your background servers when done. Finish by writing your report to the path in the prompt."
+        },
+        {
+          "type": "step",
+          "id": "qa-superadmin",
+          "agent": "wf-coder",
+          "modelId": "claude-opus-5.5",
+          "prompt": "WAVE 2 of 2. Read d:\\hotel-booking-order-management-system\\.agents\\tasks\\qa-parallel\\00-common-rules.md, then read and fully execute d:\\hotel-booking-order-management-system\\.agents\\tasks\\qa-parallel\\06-superadmin.md. You are session 06 (superadmin). OVERRIDE to rules A.2: create your worktree from branch qa/platform (not BASE): git -C d:\\hotel-booking-order-management-system worktree add .worktrees/qa-superadmin -b qa/superadmin qa/platform. Read d:\\hotel-booking-order-management-system\\.agents\\tasks\\qa-parallel\\reports\\platform-report.md ('Between waves' section) first. Session 01 is NOT running during this wave: still file REQs for files you don't own; they are handled in a final pass, so mark dependent checks BLOCKED (REQ id). Kitchen, guest and public run in parallel with you. Commit only on your branch, never push or merge. Stop your background servers when done. Finish by writing your report to the path in the prompt."
+        },
+        {
+          "type": "step",
+          "id": "qa-guest",
+          "agent": "wf-coder",
+          "modelId": "claude-opus-5.5",
+          "prompt": "WAVE 2 of 2. Read d:\\hotel-booking-order-management-system\\.agents\\tasks\\qa-parallel\\00-common-rules.md, then read and fully execute d:\\hotel-booking-order-management-system\\.agents\\tasks\\qa-parallel\\07-guest.md. You are session 07 (guest). OVERRIDE to rules A.2: create your worktree from branch qa/platform (not BASE): git -C d:\\hotel-booking-order-management-system worktree add .worktrees/qa-guest -b qa/guest qa/platform. Read d:\\hotel-booking-order-management-system\\.agents\\tasks\\qa-parallel\\reports\\platform-report.md ('Between waves' section) first. Session 01 is NOT running during this wave: still file REQs for files you don't own; they are handled in a final pass, so mark dependent checks BLOCKED (REQ id). Kitchen, superadmin and public run in parallel with you. Commit only on your branch, never push or merge. Stop your background servers when done. Finish by writing your report to the path in the prompt."
+        },
+        {
+          "type": "step",
+          "id": "qa-public",
+          "agent": "wf-coder",
+          "modelId": "claude-sonnet-5.5",
+          "prompt": "WAVE 2 of 2. Read d:\\hotel-booking-order-management-system\\.agents\\tasks\\qa-parallel\\00-common-rules.md, then read and fully execute d:\\hotel-booking-order-management-system\\.agents\\tasks\\qa-parallel\\08-public-site.md. You are session 08 (public). Treat every payment and webhook finding as P0. OVERRIDE to rules A.2: create your worktree from branch qa/platform (not BASE): git -C d:\\hotel-booking-order-management-system worktree add .worktrees/qa-public -b qa/public qa/platform. Read d:\\hotel-booking-order-management-system\\.agents\\tasks\\qa-parallel\\reports\\platform-report.md ('Between waves' section) first. Session 01 is NOT running during this wave: still file REQs for files you don't own; they are handled in a final pass, so mark dependent checks BLOCKED (REQ id). Kitchen, superadmin and guest run in parallel with you. Commit only on your branch, never push or merge. Stop your background servers when done. Finish by writing your report to the path in the prompt."
+        }
+      ]
+    },
+    {
+      "type": "step",
+      "id": "platform-final-requests",
+      "agent": "wf-coder",
+      "modelId": "claude-opus-5.5",
+      "prompt": "You are session 01 (platform) doing the final pass. Read d:\\hotel-booking-order-management-system\\.agents\\tasks\\qa-parallel\\00-common-rules.md and d:\\hotel-booking-order-management-system\\.agents\\tasks\\qa-parallel\\01-platform-security.md. Both waves have finished. Process every request still marked 'status: open' in d:\\hotel-booking-order-management-system\\.agents\\tasks\\qa-parallel\\requests\\*.md (mostly from wave 2: kitchen, superadmin, guest, public) on branch qa/platform in d:\\hotel-booking-order-management-system\\.worktrees\\qa-platform (P0 first), with tests, replying in-line with 'status: done in <sha>' or 'rejected – reason'. Run lint, build, frontend tests and backend tests and record results. Update d:\\hotel-booking-order-management-system\\.agents\\tasks\\qa-parallel\\reports\\platform-report.md. Stop any leftover dev servers from .worktrees\\qa-*. Never push or merge."
+    },
+    {
+      "type": "step",
+      "id": "consolidate-reports",
+      "agent": "wf-coder",
+      "modelId": "claude-sonnet-5.5",
+      "prompt": "Read every report in d:\\hotel-booking-order-management-system\\.agents\\tasks\\qa-parallel\\reports\\ and every file in d:\\hotel-booking-order-management-system\\.agents\\tasks\\qa-parallel\\requests\\. Write d:\\hotel-booking-order-management-system\\.agents\\tasks\\qa-parallel\\reports\\SUMMARY.md with: per-dashboard PASS/FAIL/BLOCKED counts; all bugs fixed (branch, commit sha); remaining issues across all dashboards sorted by severity; open or rejected REQs; the mobile matrix gaps; cross-dashboard UI consistency gaps; the branch list and merge order. Note that wave-1 branches (qa/hoteladmin, qa/reception, qa/waiter) were created from the base branch while wave-2 branches (qa/kitchen, qa/superadmin, qa/guest, qa/public) were created from qa/platform at the between-waves point, so recommend: merge qa/platform first, then rebase each other branch onto it. Run git diff --stat for each qa/* branch against qa/platform and list files touched by more than one branch (expected conflicts). Don't change any code. Factual, no filler."
+    }
+  ]
+}

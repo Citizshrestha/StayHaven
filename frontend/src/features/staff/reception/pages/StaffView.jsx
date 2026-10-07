@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useTheme } from '../../../../hooks/useTheme';
+import { useTheme } from '../../../../core/hooks/useTheme';
 import {
     Search,
     ChevronDown,
@@ -61,9 +61,9 @@ const StaffView = ({ onMessageStaff }) => {
             if (res?.success && res.data) {
                 const mapped = res.data.map((s, i) => {
                     const name = s.name || s.fullName || `${s.firstName || ''} ${s.lastName || ''}`.trim() || 'Unknown';
-                    const role = s.role?.name || s.roleName || s.position || 'Staff';
+                    const role = s.role?.name || s.role || s.roleName || s.position || 'Staff';
                     const dept = s.department || getDeptFromRole(role);
-                    const yearsExp = s.yearsExperience || Math.max(1, Math.floor((Date.now() - new Date(s.createdAt || Date.now()).getTime()) / (365.25 * 24 * 60 * 60 * 1000)));
+                    const yearsExp = s.yearsExperience ?? null;
                     return {
                         _id: s._id,
                         id: s.id || s.staffId || `STF-${1000 + i}`,
@@ -73,13 +73,13 @@ const StaffView = ({ onMessageStaff }) => {
                         department: dept,
                         email: s.email || '',
                         phone: s.phone || '',
-                        shift: s.shift || 'Morning',
+                        shift: s.shift || null,
                         status: s.status || 'on-duty',
-                        rating: s.rating || 4.5,
+                        rating: s.rating ?? null,
                         yearsExp,
-                        joinDate: s.createdAt ? new Date(s.createdAt) : new Date(),
-                        tasksCompleted: s.tasksCompleted || 0,
-                        shiftsThisMonth: s.shiftsThisMonth || 0,
+                        joinDate: s.joinDate ? new Date(s.joinDate) : null,
+                        tasksCompleted: s.tasksCompleted ?? null,
+                        shiftsThisMonth: s.shiftsThisMonth ?? null,
                     };
                 });
                 setStaff(mapped);
@@ -338,26 +338,26 @@ const StaffView = ({ onMessageStaff }) => {
                                     </div>
                                     <div className="sv-info-row">
                                         <Clock size={14} />
-                                        <span>{member.shift} Shift</span>
+                                        <span>{member.shift ? `${member.shift} Shift` : 'Shift not scheduled'}</span>
                                         <span className="sv-shift-dot" style={{ background: getShiftBadge(member.shift) }}></span>
                                     </div>
                                     <div className="sv-info-row">
                                         <Award size={14} />
-                                        <span>{member.yearsExp} year{member.yearsExp !== 1 ? 's' : ''} experience</span>
+                                        <span>{member.yearsExp === null ? 'Experience not tracked' : `${member.yearsExp} year${member.yearsExp !== 1 ? 's' : ''} experience`}</span>
                                     </div>
                                     <div className="sv-info-row">
                                         <Star size={14} className="sv-star-icon" />
-                                        <span>{member.rating} rating</span>
+                                        <span>{member.rating === null ? 'Rating not tracked' : `${member.rating} rating`}</span>
                                     </div>
                                 </div>
 
                                 <div className="sv-card-stats">
                                     <div className="sv-mini-stat">
-                                        <span className="sv-mini-stat-value">{member.tasksCompleted}</span>
+                                        <span className="sv-mini-stat-value">{member.tasksCompleted ?? '—'}</span>
                                         <span className="sv-mini-stat-label">Tasks Done</span>
                                     </div>
                                     <div className="sv-mini-stat">
-                                        <span className="sv-mini-stat-value">{member.shiftsThisMonth}</span>
+                                        <span className="sv-mini-stat-value">{member.shiftsThisMonth ?? '—'}</span>
                                         <span className="sv-mini-stat-label">Shifts/Mo</span>
                                     </div>
                                 </div>

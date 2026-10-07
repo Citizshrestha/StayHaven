@@ -3,11 +3,55 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Star, Hotel, Filter, MapPin, Calendar, Thermometer, Bed, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useContent } from "../../../../hooks/useContent";
+import { useContent } from "../../../../core/hooks/useContent";
 import { getDestinations as getDestinationsApi } from "../../../../core/api/services/content.service";
 import "./Destination.css";
 
 gsap.registerPlugin(ScrollTrigger);
+
+const FALLBACK_DESTINATION_IMAGE = "https://images.unsplash.com/photo-1544735716-392fe2489ffa?auto=format&fit=crop&w=900&q=80";
+
+const FALLBACK_DESTINATIONS = [
+  {
+    id: "pokhara",
+    name: "Pokhara",
+    description: "Lakeside stays, mountain views, paragliding, and relaxed cafés by Phewa Lake.",
+    images: [FALLBACK_DESTINATION_IMAGE],
+    popular: true,
+    category: "nature",
+    activities: ["Boating on Phewa Lake", "Paragliding", "Mountain viewpoints"],
+    bestTime: "September to November",
+    weather: "Mild and scenic",
+    hotelsCount: 24,
+    location: "Gandaki Province",
+  },
+  {
+    id: "kathmandu",
+    name: "Kathmandu",
+    description: "Historic temples, heritage squares, local food, and convenient city stays.",
+    images: ["https://images.unsplash.com/photo-1605640840605-14ac1855827b?auto=format&fit=crop&w=900&q=80"],
+    popular: true,
+    category: "cultural",
+    activities: ["Heritage walks", "Temple visits", "Local dining"],
+    bestTime: "October to April",
+    weather: "Cool and dry",
+    hotelsCount: 36,
+    location: "Bagmati Province",
+  },
+  {
+    id: "chitwan",
+    name: "Chitwan",
+    description: "Jungle safaris, wildlife lodges, Tharu culture, and peaceful riverside resorts.",
+    images: ["https://images.unsplash.com/photo-1535338454770-8be927b5a00b?auto=format&fit=crop&w=900&q=80"],
+    popular: false,
+    category: "adventure",
+    activities: ["Jungle safari", "Bird watching", "Canoe rides"],
+    bestTime: "October to March",
+    weather: "Warm and tropical",
+    hotelsCount: 18,
+    location: "Bagmati Province",
+  },
+];
 
 const Destination = () => {
   const navigate = useNavigate();
@@ -21,13 +65,13 @@ const Destination = () => {
   const filterRef = useRef(null);
   const gridRef = useRef(null);
 
-  const { data: dynamicDestinations, loading, error } = useContent('destinations', getDestinationsApi);
+  const { data: dynamicDestinations, loading } = useContent('destinations', getDestinationsApi);
 
-  const mergedDestinations = (dynamicDestinations || []).map(d => ({
+  const mergedDestinations = (dynamicDestinations?.length ? dynamicDestinations.map(d => ({
     id: d._id,
     name: d.name,
     description: d.description || '',
-    images: d.images?.length > 0 ? d.images : [],
+    images: d.images?.length > 0 ? d.images : [FALLBACK_DESTINATION_IMAGE],
     popular: d.isPopular || false,
     category: d.type || 'cultural',
     activities: d.activities || [],
@@ -35,7 +79,7 @@ const Destination = () => {
     weather: d.weather || '',
     hotelsCount: d.hotelsCount || 0,
     location: d.province || '',
-  }));
+  })) : FALLBACK_DESTINATIONS);
 
   const handleCardClick = (destination) => {
     setSelectedDestination(destination);
@@ -97,42 +141,41 @@ const Destination = () => {
     { id: "spiritual", label: "Spiritual" },
   ];
 
-  // GSAP Animations
+  // GSAP Animations — fast and smooth
   useEffect(() => {
     if (!heroRef.current) return;
 
     const ctx = gsap.context(() => {
-      // Header animation — hero header fades in (it's in the hero, above the fold)
+      // Header animation — quick fade in on load
       if (headerRef.current) {
         gsap.fromTo(
           headerRef.current,
-          { y: 20, opacity: 0 },
+          { y: 15, opacity: 0 },
           {
             y: 0,
             opacity: 1,
-            duration: 0.6,
+            duration: 0.4,
             ease: 'power2.out',
-            // No ScrollTrigger — animate immediately on page load
           }
         );
       }
 
-      // Cards animation — only animate when scrolled into view
+      // Cards animation — animate when scrolled into view
       if (gridRef.current) {
         const cards = gridRef.current.querySelectorAll('.destination-card');
         if (cards && cards.length > 0) {
           gsap.fromTo(
             cards,
-            { y: 30, opacity: 0 },
+            { y: 20, opacity: 0 },
             {
               y: 0,
               opacity: 1,
-              duration: 0.5,
-              stagger: 0.08,
+              duration: 0.35,
+              stagger: 0.05,
               ease: 'power1.out',
               scrollTrigger: {
                 trigger: gridRef.current,
-                start: 'top 85%',
+                start: 'top 80%',
                 toggleActions: 'play none none none',
               },
             }
@@ -225,18 +268,30 @@ const Destination = () => {
               Array.from({ length: 6 }).map((_, index) => (
                 <div key={index} className="h-[320px] rounded-[28px] bg-gray-200 animate-pulse" />
               ))
-            ) : error ? (
-              <div className="col-span-full rounded-3xl border border-red-100 bg-red-50 p-10 text-center text-red-600">
-                Destinations could not be loaded right now.
-              </div>
             ) : filteredDestinations.length === 0 ? (
-              <div className="col-span-full rounded-3xl border border-gray-100 bg-gray-50 p-10 text-center text-gray-600">
-                No destinations have been published for this filter yet.
+              <div className="col-span-full rounded-3xl border border-teal-100 bg-gradient-to-br from-teal-50 to-white p-16 text-center">
+                <div className="w-20 h-20 rounded-full bg-teal-100 flex items-center justify-center mx-auto mb-6">
+                  <MapPin className="w-10 h-10 text-teal-600" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-3">No destinations found</h3>
+                <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                  {selectedFilter === 'all'
+                    ? 'Destinations will appear here once they are published by the admin.'
+                    : `No ${selectedFilter} destinations are available yet. Try selecting a different category.`}
+                </p>
+                {selectedFilter !== 'all' && (
+                  <button
+                    onClick={() => setSelectedFilter('all')}
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-xl transition-all"
+                  >
+                    View All Destinations
+                  </button>
+                )}
               </div>
             ) : filteredDestinations.map((dest) => (
               <div
                 key={dest.id}
-                className="destination-card relative rounded-[28px] overflow-hidden h-[320px] cursor-pointer group shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 bg-gray-100"
+                className="destination-card relative rounded-[28px] overflow-hidden h-[320px] cursor-pointer group shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 bg-gray-100"
                 onClick={() => handleCardClick(dest)}
               >
                 {/* Popular Badge */}
@@ -246,28 +301,38 @@ const Destination = () => {
                     Popular
                   </div>
                 )}
-                
+
                 {/* Image */}
                 <div className="relative w-full h-full">
                   {dest.image ? (
                     <img
                       src={dest.image}
                       alt={dest.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
-                  ) : null}
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-teal-100 to-teal-200 flex items-center justify-center">
+                      <MapPin className="w-16 h-16 text-teal-600 opacity-50" />
+                    </div>
+                  )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
-                  
+
                   {/* Hover Overlay */}
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
                     <span className="text-white font-semibold text-sm bg-teal-600/90 px-4 py-2 rounded-full">
                       Click to view details
                     </span>
                   </div>
-                  
+
                   {/* Name Overlay */}
                   <div className="absolute bottom-0 left-0 right-0 p-6">
                     <h3 className="text-white text-xl font-bold">{dest.name}</h3>
+                    {dest.location && (
+                      <p className="text-white/80 text-sm mt-1 flex items-center gap-1">
+                        <MapPin className="w-3 h-3" />
+                        {dest.location}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>

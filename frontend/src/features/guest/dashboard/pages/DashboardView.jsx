@@ -1,676 +1,490 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
-  Bell,
-  CalendarDays,
-  ChevronRight,
-  Clock,
-  CreditCard,
-  Loader2,
-  Phone,
-  RefreshCw,
-  ShoppingBag,
-  UtensilsCrossed,
-  BookOpen,
-  AlertTriangle,
-  Wrench,
+  CalendarDays, CalendarPlus, ChevronRight, CreditCard, MessageSquare, Receipt, RefreshCw, ShoppingBag, UtensilsCrossed, Hotel, CheckCircle2,
 } from 'lucide-react';
 import { useSocket } from '../../../../core/context/SocketContext';
-import {
-  getDashboardOverview,
-  getGuestInvoices,
-  getGuestOrders,
-  getGuestRequests,
-} from '../guestDashboardApi';
 import ExtendStayModal from '../../../../shared/components/ExtendStayModal';
 import CancelOrderModal from '../../../../shared/components/CancelOrderModal';
-import NoBookingsModal from '../../../../shared/components/NoBookingsModal';
-import notificationSoundService from '../../../../services/notificationSoundService';
-import styles from './DashboardView.module.css';
+import notificationSoundService from '../../../../core/services/notificationSoundService';
+import { cn } from '../../../../core/utils/cn';
+import { getGuestInvoices } from '../guestDashboardApi';
+import { useGuestOverviewContext } from '../hooks/useGuestOverview';
+import { useGuestProfileContext } from '../hooks/useGuestProfile';
+import useMediaQuery, { DESKTOP_QUERY } from '../hooks/useMediaQuery';
+import usePullToRefresh from '../hooks/usePullToRefresh';
+import { errorMessage, formatDate, formatRelative, nightsBetween } from '../utils/format';
+import Button from '../components/ui/Button';
+import Money from '../components/ui/Money';
+import StatCard from '../components/ui/StatCard';
+import StatusBadge from '../components/ui/StatusBadge';
+import EmptyState from '../components/ui/EmptyState';
+import PullIndicator from '../components/ui/PullIndicator';
+import { Skeleton, SkeletonCard } from '../components/ui/Skeleton';
 
-const formatMoney = (value = 0) => {
-  const numeric = Number(value) || 0;
-  const formatted = new Intl.NumberFormat('en-NP', {
-    maximumFractionDigits: 0,
-  }).format(numeric);
-  return `Nrs ${formatted}`;
+const CARD = 'rounded-(--g-radius-lg) bg-(--g-surface) border border-(--g-border) shadow-(--g-shadow-sm) p-5 sm:p-6';
+const ACTIVE_ORDER_STATUSES = ['pending', 'confirmed', 'preparing', 'ready'];
+const CANCELLABLE_STATUSES = ['pending', 'confirmed'];
+const ORDER_PROGRESS = { pending: 20, confirmed: 40, preparing: 60, ready: 80, delivered: 100 };
+const MAX_ACTIVE_ORDERS = 3;
+
+const greeting = () => {
+  const h = new Date().getHours();
+  return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
 };
 
-const formatDate = (value) => {
-  if (!value) return '--';
-  return new Date(value).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-  });
-};
+const statusLabel = (status) => String(status || 'updated').replace(/[-_]/g, ' ');
 
-const normalizeStatusLabel = (status) => {
-  if (!status) return 'Updated';
-  return status
-    .toString()
-    .replace(/[-_]/g, ' ')
-    .replace(/\b\w/g, (char) => char.toUpperCase());
-};
+const orderTypeLabel = (type) => (type === 'roomService' ? 'Room service' : statusLabel(type || 'Order'));
 
-const statusStyles = {
-  pending: { bg: '#fef3c7', color: '#d97706' },
-  confirmed: { bg: '#dbeafe', color: '#2563eb' },
-  preparing: { bg: '#fed7aa', color: '#ea580c' },
-  ready: { bg: '#e0f2fe', color: '#0284c7' },
-  delivered: { bg: '#d1fae5', color: '#059669' },
-  cancelled: { bg: '#fee2e2', color: '#dc2626' },
-  paid: { bg: '#d1fae5', color: '#059669' },
-  open: { bg: '#fef3c7', color: '#d97706' },
-  inprogress: { bg: '#dbeafe', color: '#2563eb' },
-  resolved: { bg: '#d1fae5', color: '#059669' },
-};
+const SectionHeader = ({ title, action }) => (
+  <div className="flex items-center justify-between gap-3 mb-4">
+    <h2 className="g-h2 text-(--g-text)">{title}</h2>
+    {action}
+  </div>
+);
+
+const LinkButton = ({ onClick, children }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className="inline-flex items-center gap-1 min-h-[44px] -my-2 px-2 -mr-2 rounded-(--g-radius-sm) g-small font-semibold text-(--g-primary-text) hover:bg-(--g-primary-tint)"
+  >
+    {children}
+    <ChevronRight className="w-4 h-4" aria-hidden="true" />
+  </button>
+);
+
+const DashboardSkeleton = () => (
+  <div role="status" aria-live="polite" className="space-y-5">
+    <span className="sr-only">Loading your dashboard…</span>
+    <Skeleton className="h-56 w-full rounded-(--g-radius-lg)" />
+    <div className="grid grid-cols-3 gap-3">
+      {[0, 1, 2].map((i) => <Skeleton key={i} className="h-28 rounded-(--g-radius-md)" />)}
+    </div>
+    <div className="grid gap-5 lg:grid-cols-12">
+      <SkeletonCard lines={4} className="lg:col-span-8" />
+      <SkeletonCard lines={3} className="lg:col-span-4" />
+    </div>
+  </div>
+);
 
 const DashboardView = () => {
   const navigate = useNavigate();
   const { subscribe, isConnected } = useSocket();
+  const { overview, loading, error, refresh, lastRefreshedAt } = useGuestOverviewContext();
+  const { profile } = useGuestProfileContext();
+  const isDesktop = useMediaQuery(DESKTOP_QUERY);
 
-  const [loading, setLoading] = useState(true);
+  const [invoices, setInvoices] = useState({ items: [], outstanding: 0, loaded: false, error: null });
   const [refreshing, setRefreshing] = useState(false);
-  const [now, setNow] = useState(Date.now());
-  const [billingExpanded, setBillingExpanded] = useState(true);
-  const [showExtendModal, setShowExtendModal] = useState(false);
-  const [showCancelModal, setShowCancelModal] = useState(false);
-  const [showNoBookingsModal, setShowNoBookingsModal] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [dashboardData, setDashboardData] = useState({
-    overview: null,
-    orders: [],
-    invoices: [],
-    requests: [],
-    outstandingBalance: 0,
-  });
+  const [now, setNow] = useState(() => Date.now());
+  const [extendOpen, setExtendOpen] = useState(false);
+  const [cancelOrder, setCancelOrder] = useState(null);
+  const [announcement, setAnnouncement] = useState('');
+  const invoiceRequest = useRef(0);
 
-  const loadDashboard = useCallback(async (isSoft = false) => {
+  const loadInvoices = useCallback(async () => {
+    const requestId = ++invoiceRequest.current;
     try {
-      if (isSoft) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
+      const res = await getGuestInvoices({ limit: 20 });
+      if (requestId !== invoiceRequest.current) return;
+      const items = Array.isArray(res?.data) ? res.data : [];
+      const fromItems = items.reduce((sum, inv) => sum + (Number(inv?.balance) || 0), 0);
+      const outstanding = Number(res?.outstandingBalance);
+      setInvoices({ items, outstanding: Number.isFinite(outstanding) ? outstanding : fromItems, loaded: true, error: null });
+    } catch (err) {
+      if (requestId === invoiceRequest.current) {
+        setInvoices((prev) => ({ ...prev, loaded: true, error: errorMessage(err, 'We couldn’t load your bill.') }));
       }
-
-      const [overviewRes, ordersRes, invoicesRes, requestsRes] = await Promise.all([
-        getDashboardOverview(),
-        getGuestOrders({ limit: 8 }),
-        getGuestInvoices({ limit: 5 }),
-        getGuestRequests({ limit: 5 }),
-      ]);
-
-      const invoices = invoicesRes?.data || [];
-      const outstandingFromInvoices = invoices.reduce((sum, invoice) => sum + (Number(invoice?.balance) || 0), 0);
-
-      setDashboardData({
-        overview: overviewRes?.data || null,
-        orders: ordersRes?.data || [],
-        invoices,
-        requests: requestsRes?.data || [],
-        outstandingBalance: Number(invoicesRes?.outstandingBalance) || outstandingFromInvoices,
-      });
-    } catch (error) {
-      toast.error(error?.response?.data?.message || 'Failed to load guest dashboard');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
-    loadDashboard(false);
-  }, [loadDashboard]);
+    loadInvoices();
+    return () => { invoiceRequest.current += 1; };
+  }, [loadInvoices]);
 
   useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 60000);
+    const timer = window.setInterval(() => setNow(Date.now()), 30000);
     return () => window.clearInterval(timer);
   }, []);
 
-  const refreshDashboard = useCallback(() => {
-    loadDashboard(true);
-  }, [loadDashboard]);
-
-  const applyOrderRealtimeUpdate = useCallback((payload) => {
-    if (!payload?.orderId && !payload?.orderNumber) {
-      return;
+  const refreshAll = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([refresh(), loadInvoices()]);
+    } finally {
+      setRefreshing(false);
+      setNow(Date.now());
     }
+  }, [refresh, loadInvoices]);
 
-    setDashboardData((prev) => {
-      const existingOrders = prev.orders || [];
-      const index = existingOrders.findIndex((order) => {
-        if (payload.orderId && order?._id?.toString() === payload.orderId?.toString()) return true;
-        if (payload.orderNumber && Number(order?.orderNumber) === Number(payload.orderNumber)) return true;
-        return false;
-      });
+  const { pull, refreshing: pulling } = usePullToRefresh(refreshAll);
 
-      let nextOrders = [...existingOrders];
-
-      if (index >= 0) {
-        const target = nextOrders[index];
-        nextOrders[index] = {
-          ...target,
-          status: payload.status || target.status,
-          updatedAt: payload.updatedAt || new Date().toISOString(),
-          totalPrice: payload.totalPrice ?? target.totalPrice,
-          items: payload.items || target.items,
-        };
-      } else {
-        nextOrders = [
-          {
-            _id: payload.orderId || `realtime-${payload.orderNumber || Date.now()}`,
-            orderNumber: payload.orderNumber,
-            status: payload.status || 'pending',
-            totalPrice: payload.totalPrice || 0,
-            items: payload.items || [],
-            orderType: payload.orderType || 'roomService',
-            roomNumber: payload.roomNumber,
-            tableNumber: payload.tableNumber,
-            createdAt: payload.updatedAt || new Date().toISOString(),
-            updatedAt: payload.updatedAt || new Date().toISOString(),
-          },
-          ...nextOrders,
-        ];
-      }
-
-      return {
-        ...prev,
-        orders: nextOrders,
-      };
-    });
-  }, []);
-
-  const onRealtimeOrderPlaced = useCallback((payload) => {
-    toast.success(`Order #${payload?.orderNumber || '--'} placed successfully`);
-    notificationSoundService.play('order');
-    applyOrderRealtimeUpdate(payload);
-    refreshDashboard();
-  }, [applyOrderRealtimeUpdate, refreshDashboard]);
-
-  const onRealtimeOrderStatus = useCallback((payload) => {
-    const statusLabel = normalizeStatusLabel(payload?.status || 'updated');
-    toast.info(`Order #${payload?.orderNumber || '--'} is now ${statusLabel}`);
-    notificationSoundService.play('notification');
-    applyOrderRealtimeUpdate(payload);
-  }, [applyOrderRealtimeUpdate]);
-
-  const onRealtimePayment = useCallback((payload) => {
-    toast.success(`Payment confirmed • ${payload?.transactionId || 'success'}`);
-    notificationSoundService.play('notification');
-    refreshDashboard();
-  }, [refreshDashboard]);
-
-  const onRealtimeBillReceived = useCallback((payload) => {
-    const orderNum = payload?.orderNumber || '--';
-    toast.info(`📄 Bill received for Order #${orderNum}`, {
-      autoClose: 5000,
-    });
-    notificationSoundService.play('notification');
-    refreshDashboard();
-  }, [refreshDashboard]);
-
+  // Realtime: every event re-reads the overview (one request) so counts,
+  // active orders and the bill never drift from the server.
   useEffect(() => {
-    if (!subscribe || !isConnected) return;
-    const unsubPlaced = subscribe('order-placed', onRealtimeOrderPlaced);
-    const unsubStatus = subscribe('order-status-update', onRealtimeOrderStatus);
-    const unsubStatusLegacy = subscribe('order-status-updated', onRealtimeOrderStatus);
-    const unsubPayment = subscribe('payment-confirmed', onRealtimePayment);
-    const unsubBill = subscribe('bill-received', onRealtimeBillReceived);
-    return () => {
-      unsubPlaced();
-      unsubStatus();
-      unsubStatusLegacy();
-      unsubPayment();
-      unsubBill();
+    if (!subscribe || !isConnected) return undefined;
+
+    const onPlaced = (payload) => {
+      const msg = `Order #${payload?.orderNumber ?? ''} placed`;
+      toast.success(msg);
+      setAnnouncement(msg);
+      notificationSoundService.play('order');
+      refresh();
     };
-  }, [subscribe, isConnected, onRealtimeOrderPlaced, onRealtimeOrderStatus, onRealtimePayment, onRealtimeBillReceived]);
+    const onStatus = (payload) => {
+      const msg = `Order #${payload?.orderNumber ?? ''} is now ${statusLabel(payload?.status)}`;
+      toast.info(msg);
+      setAnnouncement(msg);
+      notificationSoundService.play('notification');
+      refresh();
+    };
+    const onPayment = () => {
+      toast.success('Payment confirmed');
+      setAnnouncement('Payment confirmed');
+      notificationSoundService.play('notification');
+      refresh();
+      loadInvoices();
+    };
+    const onBill = (payload) => {
+      const msg = `Bill received for order #${payload?.orderNumber ?? ''}`;
+      toast.info(msg, { autoClose: 5000 });
+      setAnnouncement(msg);
+      notificationSoundService.play('notification');
+      loadInvoices();
+    };
 
-  const overview = dashboardData.overview || {};
-  const activeBooking = overview.activeBooking;
-  const upcomingBookings = overview.upcomingBookings || [];
-  const orders = dashboardData.orders;
-  const invoices = dashboardData.invoices;
+    const unsubs = [
+      subscribe('order-placed', onPlaced),
+      subscribe('order-status-update', onStatus),
+      subscribe('order-status-updated', onStatus),
+      subscribe('payment-confirmed', onPayment),
+      subscribe('bill-received', onBill),
+    ];
+    return () => unsubs.forEach((unsub) => unsub?.());
+  }, [subscribe, isConnected, refresh, loadInvoices]);
 
-  const activeOrders = useMemo(
-    () => orders.filter((order) => !['delivered', 'cancelled'].includes(order.status)).slice(0, 5),
-    [orders]
-  );
+  if (loading && !overview) return <DashboardSkeleton />;
 
-  const nightsLeft = activeBooking?.nightsLeft || 0;
-  const isUrgent = nightsLeft <= 1;
-
-  if (loading) {
+  if (error && !overview) {
     return (
-      <div className={styles.loading}>
-        <Loader2 className={styles.loadingSpinner} />
-      </div>
+      <EmptyState
+        icon={RefreshCw}
+        title="Dashboard unavailable"
+        description={error}
+        action={<Button icon={RefreshCw} loading={refreshing} onClick={refreshAll}>Try again</Button>}
+      />
     );
   }
 
-  return (
-    <div className={styles.container}>
-      <div className={styles.content}>
-        {/* SECTION 1 — HERO WELCOME CARD */}
-        <section className={styles.heroCard}>
-          <div className={styles.heroContent}>
-            <div className={styles.heroTop}>
-              <div>
-                <p className={styles.heroGreeting}>Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'},</p>
-                <h1 className={styles.heroName}>{localStorage.getItem('username') || 'Guest'}</h1>
-                <p className={styles.heroStayInfo}>
-                  {activeBooking?.hotel?.name ? `${activeBooking.hotel.name} • ` : ''}Room {activeBooking?.room?.roomNumber || '--'} • {nightsLeft > 0 ? `Check-out in ${nightsLeft} day${nightsLeft > 1 ? 's' : ''}` : 'No active booking'}
-                  {isUrgent && nightsLeft > 0 && (
-                    <span className={styles.countdownPill}>
-                      ⚠ {nightsLeft} day left
-                    </span>
-                  )}
-                </p>
-              </div>
+  const data = overview || {};
+  const activeBooking = data.activeBooking || null;
+  const upcoming = (data.upcomingBookings || []).filter((b) => String(b?._id) !== String(activeBooking?._id));
+  const activeOrders = (data.recentOrders || []).filter((o) => ACTIVE_ORDER_STATUSES.includes(String(o?.status).toLowerCase()));
+  const activeOrderCount = Math.max(Number(data.pendingOrdersCount) || 0, activeOrders.length);
+  const dueInvoices = invoices.items.filter((inv) => (Number(inv?.balance) || 0) > 0);
+  const username = profile?.fullname || localStorage.getItem('username') || 'Guest';
+  const updatedLabel = lastRefreshedAt ? `Updated ${formatRelative(lastRefreshedAt, now)}` : 'Updating…';
+  const busy = refreshing || pulling;
 
-              {/* Refresh Button */}
-              <button
-                type="button"
-                onClick={refreshDashboard}
-                disabled={refreshing}
-                title={`Last updated ${Math.floor((now - Date.now()) / 60000) === 0 ? 'just now' : `${Math.floor((Date.now() - now) / 60000)} min ago`}`}
-                style={{
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '50%',
-                  background: 'rgba(255, 255, 255, 0.2)',
-                  backdropFilter: 'blur(8px)',
-                  border: '1px solid rgba(255, 255, 255, 0.3)',
-                  display: 'grid',
-                  placeItems: 'center',
-                  cursor: refreshing ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.2s ease',
-                  flexShrink: 0,
-                }}
-                onMouseEnter={(e) => {
-                  if (!refreshing) {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-                }}
-              >
-                <RefreshCw
-                  size={18}
-                  color="white"
-                  style={{
-                    animation: refreshing ? 'spin 1s linear infinite' : 'none',
-                  }}
-                />
-              </button>
-            </div>
-
-            <div className={styles.dateCardsRow}>
-              <div className={styles.dateCard}>
-                <p className={styles.dateLabel}>Check-in</p>
-                <p className={styles.dateValue}>{formatDate(activeBooking?.checkIn)}</p>
-              </div>
-              <div className={styles.dateCard}>
-                <p className={styles.dateLabel}>Check-out</p>
-                <p className={styles.dateValue}>{formatDate(activeBooking?.checkOut)}</p>
-              </div>
-              <div className={styles.dateCard}>
-                <p className={styles.dateLabel}>Nights</p>
-                <p className={styles.dateValue}>{nightsLeft || 0}</p>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setShowExtendModal(true)}
-              className={`${styles.extendButton} ${isUrgent ? styles.urgent : ''}`}
-            >
-              Extend Stay
-            </button>
-          </div>
-        </section>
-
-        {/* SECTION 2 — STAT CARDS ROW */}
-        <div className={styles.statsGrid}>
-          <div className={styles.statCard} onClick={() => navigate('/guest-dashboard/room-service')}>
-            <div className={styles.statTop}>
-              <span className={styles.statLabel}>Menu Orders</span>
-              <div className={`${styles.statIcon} ${styles.teal}`}>
-                <UtensilsCrossed size={16} />
-              </div>
-            </div>
-            <p className={`${styles.statNumber} ${styles.teal}`}>{overview.pendingOrdersCount || 0}</p>
-            <p className={styles.statSubtitle}>Pending</p>
-            <span className={styles.statLink}>
-              View All →
-            </span>
-          </div>
-
-          <div className={styles.statCard} onClick={() => navigate('/guest-dashboard/bookings')}>
-            <div className={styles.statTop}>
-              <span className={styles.statLabel}>My Bookings</span>
-              <div className={`${styles.statIcon} ${styles.purple}`}>
-                <CalendarDays size={16} />
-              </div>
-            </div>
-            <p className={`${styles.statNumber} ${styles.purple}`}>{upcomingBookings.length}</p>
-            <p className={styles.statSubtitle}>Upcoming</p>
-            <span className={styles.statLink}>
-              Manage →
-            </span>
-          </div>
-
-          <div className={styles.statCard} onClick={() => navigate('/guest-dashboard/bookings')}>
-            <div className={styles.statTop}>
-              <span className={styles.statLabel}>Total Stays</span>
-              <div className={`${styles.statIcon} ${styles.blue}`}>
-                <Clock size={16} />
-              </div>
-            </div>
-            <p className={`${styles.statNumber} ${styles.blue}`}>{overview.pastBookingsCount || 0}</p>
-            <p className={styles.statSubtitle}>Completed</p>
-            <span className={styles.statLink}>
-              History →
-            </span>
-          </div>
+  const hero = (
+    <section
+      aria-labelledby="dash-hero-title"
+      className="relative overflow-hidden rounded-(--g-radius-lg) [background:var(--g-gradient)] text-white p-5 sm:p-7 shadow-(--g-shadow-md)"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="g-small text-white/90">{greeting()},</p>
+          <h1 id="dash-hero-title" className="g-display truncate">{username}</h1>
         </div>
-
-        {/* SECTION 3 — QUICK ACTIONS */}
-        <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>Quick Actions</h2>
-          <div className={styles.quickActionsGrid}>
-            <div className={styles.actionCard} onClick={() => navigate('/guest-dashboard/room-service')}>
-              <div className={`${styles.actionIcon} ${styles.teal}`}>
-                <UtensilsCrossed size={24} />
-              </div>
-              <p className={styles.actionLabel}>Order Food</p>
-            </div>
-
-            <div className={styles.actionCard} onClick={() => navigate('/guest-dashboard/room-service')}>
-              <div className={`${styles.actionIcon} ${styles.orange}`}>
-                <BookOpen size={24} />
-              </div>
-              <p className={styles.actionLabel}>View Menu</p>
-            </div>
-
-            <div className={styles.actionCard} onClick={() => navigate('/guest-dashboard/billing')}>
-              <div className={`${styles.actionIcon} ${styles.green}`}>
-                <CreditCard size={24} />
-              </div>
-              <p className={styles.actionLabel}>Billing</p>
-            </div>
-
-            <div className={styles.actionCard} onClick={() => navigate('/guest-dashboard/bookings')}>
-              <div className={`${styles.actionIcon} ${styles.purple}`}>
-                <CalendarDays size={24} />
-              </div>
-              <p className={styles.actionLabel}>My Bookings</p>
-            </div>
-          </div>
-        </section>
-
-        {/* SECTION 4 — ACTIVE ORDERS */}
-        <section className={`${styles.card} ${styles.section}`}>
-          <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>Active Orders</h2>
-            <button
-              type="button"
-              className={styles.viewAllLink}
-              onClick={() => navigate('/guest-dashboard/room-service')}
-            >
-              View All
-            </button>
-          </div>
-
-          {activeOrders.length === 0 ? (
-            <div className={styles.emptyState}>
-              <ShoppingBag className={styles.emptyIcon} />
-              <p className={styles.emptyTitle}>No active orders</p>
-              <p className={styles.emptySubtitle}>Order food or request services below</p>
-              <button
-                type="button"
-                className={styles.emptyButton}
-                onClick={() => navigate('/guest-dashboard/room-service')}
-              >
-                Order Food
-              </button>
-            </div>
-          ) : (
-            <div className={styles.ordersList}>
-              {activeOrders.map((order) => {
-                const status = order.status?.toLowerCase();
-                const statusStyle = statusStyles[status] || { bg: '#f1f5f9', color: '#64748b' };
-                return (
-                  <div key={order._id} className={styles.orderCard}>
-                    <div className={styles.orderTop}>
-                      <div className={styles.orderInfo}>
-                        <p className={styles.orderTitle}>
-                          Order #{order.orderNumber} • {formatMoney(order.totalPrice)}
-                        </p>
-                        <p className={styles.orderMeta}>
-                          {order.orderType === 'roomService' ? 'Room Service' : order.orderType} • {order.items?.length || 0} items
-                        </p>
-                      </div>
-                      <span
-                        className={styles.statusBadge}
-                        style={{ background: statusStyle.bg, color: statusStyle.color }}
-                      >
-                        {status}
-                      </span>
-                    </div>
-
-                    <div className={styles.orderActions}>
-                      <button
-                        type="button"
-                        className={`${styles.orderActionBtn} ${styles.primary}`}
-                        onClick={() => navigate('/guest-dashboard/room-service')}
-                      >
-                        Track Order
-                      </button>
-                      {(status === 'pending' || status === 'confirmed') && (
-                        <button
-                          type="button"
-                          className={`${styles.orderActionBtn} ${styles.danger}`}
-                          onClick={() => {
-                            setSelectedOrder(order);
-                            setShowCancelModal(true);
-                          }}
-                        >
-                          Cancel Order
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
-
-        {/* SECTION 5 — YOUR BILL */}
-        <section className={`${styles.billCard} ${styles.section}`}>
-          <div className={styles.billHeader} onClick={() => setBillingExpanded((prev) => !prev)}>
-            <div className={styles.billHeaderLeft}>
-              <h2 className={styles.billTitle}>Your Bill</h2>
-              <p className={styles.billSubtitle}>Tap to {billingExpanded ? 'collapse' : 'expand'}</p>
-            </div>
-            <span className={`${styles.billChevron} ${billingExpanded ? styles.expanded : ''}`}>▾</span>
-          </div>
-
-          <p className={styles.billAmount}>{formatMoney(dashboardData.outstandingBalance)}</p>
-
-          {billingExpanded && (
-            <div className={styles.billItems}>
-              {invoices.length === 0 ? (
-                <p className={styles.billItem}>No invoice data available.</p>
-              ) : (
-                invoices.slice(0, 3).map((invoice) => (
-                  <div key={invoice._id} className={styles.billItem}>
-                    <span>{invoice.invoiceId || 'Invoice'}</span>
-                    <span>{formatMoney(invoice.balance || invoice.paid || 0)}</span>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-
-          <div className={styles.billButtons}>
-            <button
-              type="button"
-              className={`${styles.billButton} ${styles.outline}`}
-              onClick={() => navigate('/guest-dashboard/billing')}
-            >
-              View Bill
-            </button>
-            <button
-              type="button"
-              className={`${styles.billButton} ${styles.primary}`}
-              onClick={() => navigate('/guest-dashboard/billing')}
-            >
-              Pay Now
-            </button>
-          </div>
-        </section>
-
-        {/* SECTION 6 — UPCOMING RESERVATIONS */}
-        <section className={`${styles.card} ${styles.section}`}>
-          <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>Upcoming Reservations</h2>
-          </div>
-
-          {upcomingBookings.length === 0 ? (
-            <div className={styles.emptyState}>
-              <CalendarDays className={styles.emptyIcon} />
-              <p className={styles.emptyTitle}>No upcoming reservations</p>
-            </div>
-          ) : (
-            <div className={styles.reservationsList}>
-              {upcomingBookings.map((booking) => (
-                <div key={booking._id} className={styles.reservationCard}>
-                  <p className={styles.reservationName}>{booking.hotel?.name || 'Reservation'}</p>
-                  <div className={styles.reservationDates}>
-                    <span>{formatDate(booking.checkIn)} → {formatDate(booking.checkOut)}</span>
-                    <span className={styles.roomBadge}>Room {booking.room?.roomNumber || 'TBA'}</span>
-                  </div>
-                  <div className={styles.reservationActions}>
-                    <button
-                      type="button"
-                      className={`${styles.reservationBtn} ${styles.primary}`}
-                      onClick={() => navigate('/guest-dashboard/bookings')}
-                    >
-                      View
-                    </button>
-                    <button
-                      type="button"
-                      className={`${styles.reservationBtn} ${styles.secondary}`}
-                      onClick={() => navigate('/guest-dashboard/bookings')}
-                    >
-                      Modify
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        {/* SECTION 7 — NEED HELP */}
-        <section className={`${styles.card} ${styles.section}`}>
-          <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>Need Help?</h2>
-          </div>
-
-          <div className={styles.helpList}>
-            <div className={styles.helpItem}>
-              <div className={`${styles.helpIcon} ${styles.teal}`}>
-                <Phone size={16} />
-              </div>
-              <div className={styles.helpInfo}>
-                <p className={styles.helpLabel}>Front Desk</p>
-                <p className={styles.helpExt}>Ext 0</p>
-              </div>
-            </div>
-
-            <div className={styles.helpItem}>
-              <div className={`${styles.helpIcon} ${styles.orange}`}>
-                <UtensilsCrossed size={16} />
-              </div>
-              <div className={styles.helpInfo}>
-                <p className={styles.helpLabel}>Room Service</p>
-                <p className={styles.helpExt}>Ext 5</p>
-              </div>
-            </div>
-
-            <div className={styles.helpItem}>
-              <div className={`${styles.helpIcon} ${styles.blue}`}>
-                <Wrench size={16} />
-              </div>
-              <div className={styles.helpInfo}>
-                <p className={styles.helpLabel}>Maintenance</p>
-                <p className={styles.helpExt}>Ext 8</p>
-              </div>
-            </div>
-
-            <div className={styles.helpItem}>
-              <div className={`${styles.helpIcon} ${styles.red}`}>
-                <AlertTriangle size={16} />
-              </div>
-              <div className={styles.helpInfo}>
-                <p className={styles.helpLabel}>Emergency</p>
-                <p className={styles.helpExt}>Ext 9</p>
-              </div>
-            </div>
-          </div>
-
-          <div className={styles.helpButtons}>
-            <button
-              type="button"
-              className={`${styles.helpButton} ${styles.outline}`}
-              onClick={() => navigate('/guest-dashboard/requests')}
-            >
-              Front Desk
-            </button>
-            <button
-              type="button"
-              className={`${styles.helpButton} ${styles.primary}`}
-              onClick={() => navigate('/guest-dashboard/requests')}
-            >
-              Live Chat
-            </button>
-          </div>
-        </section>
+        <div className="flex flex-col items-end shrink-0">
+          <button
+            type="button"
+            onClick={refreshAll}
+            disabled={busy}
+            aria-label="Refresh dashboard"
+            className="w-11 h-11 rounded-full bg-white/20 border border-white/30 flex items-center justify-center hover:bg-white/30 disabled:opacity-70 transition-colors duration-150 ease-out"
+          >
+            <RefreshCw className={cn('w-5 h-5', busy && 'animate-spin')} aria-hidden="true" />
+          </button>
+          <span className="g-small text-white/90 mt-1 whitespace-nowrap" aria-live="polite">{updatedLabel}</span>
+        </div>
       </div>
 
-      {/* Extend Stay Modal */}
+      {activeBooking ? (
+        <>
+          <p className="g-body text-white/95 mt-2">
+            {[
+              activeBooking.hotel?.name,
+              activeBooking.room?.roomNumber && `Room ${activeBooking.room.roomNumber}`,
+              `${activeBooking.nightsLeft || 0} night${activeBooking.nightsLeft === 1 ? '' : 's'} left`,
+            ].filter(Boolean).join(' · ')}
+          </p>
+          <dl className="grid grid-cols-3 gap-2 sm:gap-3 mt-5">
+            {[
+              ['Check-in', formatDate(activeBooking.checkIn, { day: 'numeric', month: 'short' })],
+              ['Check-out', formatDate(activeBooking.checkOut, { day: 'numeric', month: 'short' })],
+              ['Nights', nightsBetween(activeBooking.checkIn, activeBooking.checkOut)],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-(--g-radius-md) bg-white/15 border border-white/20 px-3 py-2.5 min-w-0">
+                <dt className="g-label text-white/90">{label}</dt>
+                <dd className="g-body-strong guestNum mt-1 truncate">{value}</dd>
+              </div>
+            ))}
+          </dl>
+          <button
+            type="button"
+            onClick={() => setExtendOpen(true)}
+            className="mt-5 inline-flex items-center justify-center gap-2 min-h-[44px] px-5 rounded-(--g-radius-sm) bg-white text-(--g-on-hero-action) g-small font-semibold hover:bg-white/90 transition-colors duration-150 ease-out"
+          >
+            <CalendarPlus className="w-4 h-4" aria-hidden="true" />
+            Extend Stay
+          </button>
+        </>
+      ) : (
+        <>
+          <p className="g-h2 mt-3">No active stay</p>
+          <p className="g-body text-white/90 mt-1">Book a room to unlock room service, billing and requests.</p>
+          <button
+            type="button"
+            onClick={() => navigate('/hotels')}
+            className="mt-5 inline-flex items-center justify-center gap-2 min-h-[44px] px-5 rounded-(--g-radius-sm) bg-white text-(--g-on-hero-action) g-small font-semibold hover:bg-white/90 transition-colors duration-150 ease-out"
+          >
+            <Hotel className="w-4 h-4" aria-hidden="true" />
+            Browse hotels
+          </button>
+        </>
+      )}
+    </section>
+  );
+
+  const stats = (
+    <div className="grid grid-cols-3 gap-3">
+      <StatCard icon={UtensilsCrossed} tone="orange" label="Active orders" value={activeOrderCount} onClick={() => navigate('/guest-dashboard/room-service')} />
+      <StatCard icon={CalendarDays} tone="sky" label="Upcoming stays" value={upcoming.length} onClick={() => navigate('/guest-dashboard/bookings?status=upcoming')} />
+      <StatCard icon={MessageSquare} tone="amber" label="Open requests" value={Number(data.openRequestsCount) || 0} onClick={() => navigate('/guest-dashboard/requests?status=open')} />
+    </div>
+  );
+
+  const bill = (
+    <section aria-labelledby="dash-bill-title" className={CARD}>
+      <SectionHeader title={<span id="dash-bill-title">Your bill</span>} />
+      {!invoices.loaded ? (
+        <div className="space-y-3" aria-hidden="true">
+          <Skeleton className="h-8 w-1/2" />
+          <Skeleton className="h-4 w-4/5" />
+        </div>
+      ) : invoices.error ? (
+        <div>
+          <p className="g-small text-(--g-danger-text)" role="alert">{invoices.error}</p>
+          <Button variant="secondary" className="mt-3" icon={RefreshCw} onClick={loadInvoices}>Retry</Button>
+        </div>
+      ) : invoices.outstanding > 0 ? (
+        <>
+          <p className="g-label text-(--g-text-muted)">Outstanding</p>
+          <Money amount={invoices.outstanding} size="lg" className="block text-(--g-text) mt-1" />
+          {dueInvoices.length > 0 && (
+            <ul className="mt-4 divide-y divide-(--g-border)">
+              {dueInvoices.slice(0, 3).map((inv) => (
+                <li key={inv._id} className="flex items-center justify-between gap-3 py-2.5">
+                  <span className="g-small text-(--g-text-muted) truncate">{inv.invoiceId || 'Invoice'}</span>
+                  <Money amount={inv.balance} size="sm" className="text-(--g-text)" />
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="grid grid-cols-2 gap-2 mt-4">
+            <Button variant="secondary" onClick={() => navigate('/guest-dashboard/billing')}>View Bill</Button>
+            <Button icon={CreditCard} onClick={() => navigate('/guest-dashboard/billing?status=pending')}>Pay Now</Button>
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="flex items-center gap-2 g-body-strong text-(--g-success-text)">
+            <CheckCircle2 className="w-5 h-5" aria-hidden="true" />
+            All settled
+          </p>
+          <p className="g-small text-(--g-text-muted) mt-1">You have no outstanding balance.</p>
+          <Button variant="secondary" className="w-full mt-4" onClick={() => navigate('/guest-dashboard/billing')}>View Bill</Button>
+        </>
+      )}
+    </section>
+  );
+
+  const orders = (
+    <section aria-labelledby="dash-orders-title" className={CARD}>
+      <SectionHeader
+        title={<span id="dash-orders-title">Active orders</span>}
+        action={activeOrderCount > MAX_ACTIVE_ORDERS && (
+          <LinkButton onClick={() => navigate('/guest-dashboard/room-service')}>View all ({activeOrderCount})</LinkButton>
+        )}
+      />
+      {activeOrders.length === 0 ? (
+        <div className="text-center py-6">
+          <ShoppingBag className="w-8 h-8 mx-auto text-(--g-text-muted)" aria-hidden="true" />
+          <p className="g-body-strong text-(--g-text) mt-2">No active orders</p>
+          <p className="g-small text-(--g-text-muted) mt-0.5">Hungry? Room service is a tap away.</p>
+          {activeBooking && (
+            <Button className="mt-4" icon={UtensilsCrossed} onClick={() => navigate('/guest-dashboard/room-service')}>Order Food</Button>
+          )}
+        </div>
+      ) : (
+        <ul className="space-y-3">
+          {activeOrders.slice(0, MAX_ACTIVE_ORDERS).map((order) => {
+            const status = String(order.status).toLowerCase();
+            const progress = ORDER_PROGRESS[status] ?? 20;
+            return (
+              <li key={order._id} className="rounded-(--g-radius-md) border border-(--g-border) p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="g-body-strong text-(--g-text)">Order #{order.orderNumber ?? '—'}</p>
+                    <p className="g-small text-(--g-text-muted) mt-0.5 capitalize">
+                      {orderTypeLabel(order.orderType)} · <Money amount={order.totalPrice} />
+                    </p>
+                  </div>
+                  <StatusBadge domain="order" status={order.status} />
+                </div>
+                <div
+                  role="progressbar"
+                  aria-label={`Order #${order.orderNumber ?? ''} progress`}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={progress}
+                  className="mt-3 h-1.5 rounded-full bg-(--g-surface-sunken) overflow-hidden"
+                >
+                  <div className="h-full rounded-full bg-(--g-primary) transition-[width] duration-150 ease-out" style={{ width: `${progress}%` }} />
+                </div>
+                <div className="flex gap-2 mt-3">
+                  <Button variant="secondary" className="flex-1" onClick={() => navigate('/guest-dashboard/room-service')}>Track</Button>
+                  {CANCELLABLE_STATUSES.includes(status) && (
+                    <Button variant="dangerOutline" className="flex-1" onClick={() => setCancelOrder(order)}>Cancel</Button>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+
+  const quickActions = (
+    <section aria-labelledby="dash-actions-title" className={CARD}>
+      <SectionHeader title={<span id="dash-actions-title">Quick actions</span>} />
+      <div className="grid grid-cols-3 gap-2">
+        {[
+          { label: 'Order Food', icon: UtensilsCrossed, to: '/guest-dashboard/room-service', tone: 'g-tone-orange' },
+          { label: 'Billing', icon: Receipt, to: '/guest-dashboard/billing', tone: 'g-tone-teal' },
+          { label: 'My Bookings', icon: CalendarDays, to: '/guest-dashboard/bookings', tone: 'g-tone-sky' },
+        ].map(({ label, icon: Icon, to, tone }) => (
+          <button
+            key={label}
+            type="button"
+            onClick={() => navigate(to)}
+            className="g-lift flex flex-col items-center justify-center gap-2 min-h-[88px] p-3 rounded-(--g-radius-md) border border-(--g-border) bg-(--g-surface) hover:border-(--g-border-strong)"
+          >
+            <span className={cn('w-10 h-10 rounded-(--g-radius-sm) flex items-center justify-center', tone)}>
+              <Icon className="w-5 h-5" aria-hidden="true" />
+            </span>
+            <span className="g-small font-semibold text-(--g-text) text-center">{label}</span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+
+  const reservations = (
+    <section aria-labelledby="dash-upcoming-title" className={CARD}>
+      <SectionHeader
+        title={<span id="dash-upcoming-title">Upcoming reservations</span>}
+        action={upcoming.length > 0 && <LinkButton onClick={() => navigate('/guest-dashboard/bookings?status=upcoming')}>View all</LinkButton>}
+      />
+      {upcoming.length === 0 ? (
+        <p className="g-small text-(--g-text-muted)">No upcoming reservations.</p>
+      ) : (
+        <ul className="divide-y divide-(--g-border)">
+          {upcoming.map((booking) => (
+            <li key={booking._id}>
+              <button
+                type="button"
+                onClick={() => navigate('/guest-dashboard/bookings?status=upcoming')}
+                className="w-full flex items-center justify-between gap-3 py-3 min-h-[44px] text-left"
+              >
+                <span className="min-w-0">
+                  <span className="block g-body-strong text-(--g-text) truncate">{booking.hotel?.name || 'Reservation'}</span>
+                  <span className="block g-small text-(--g-text-muted) guestNum">
+                    {formatDate(booking.checkIn)} → {formatDate(booking.checkOut)}
+                  </span>
+                </span>
+                <span className="flex items-center gap-2 shrink-0">
+                  <StatusBadge domain="booking" status={booking.status} />
+                  <ChevronRight className="w-4 h-4 text-(--g-text-muted)" aria-hidden="true" />
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+
+  const help = (
+    <section aria-labelledby="dash-help-title" className={CARD}>
+      <SectionHeader title={<span id="dash-help-title">Need help?</span>} />
+      <p className="g-small text-(--g-text-muted)">
+        Towels, housekeeping, maintenance or anything else — the front desk sees your request instantly.
+      </p>
+      <Button className="w-full mt-4" icon={MessageSquare} onClick={() => navigate('/guest-dashboard/requests')}>
+        Submit a Request
+      </Button>
+    </section>
+  );
+
+  return (
+    <div>
+      <PullIndicator pull={pull} refreshing={pulling} />
+      <p className="sr-only" aria-live="polite">{announcement}</p>
+
+      {isDesktop ? (
+        <div className="grid grid-cols-12 gap-6 items-start">
+          <div className="col-span-8 space-y-6">
+            {hero}
+            {stats}
+            {orders}
+            {reservations}
+          </div>
+          <div className="col-span-4 space-y-6">
+            {bill}
+            {quickActions}
+            {help}
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {hero}
+          {stats}
+          {bill}
+          {orders}
+          {quickActions}
+          {reservations}
+          {help}
+        </div>
+      )}
+
       <ExtendStayModal
-        isOpen={showExtendModal}
-        onClose={() => setShowExtendModal(false)}
+        isOpen={extendOpen}
+        onClose={() => setExtendOpen(false)}
         booking={activeBooking}
-        onExtendSuccess={() => {
-          toast.success('Stay extended successfully!');
-          refreshDashboard();
-        }}
+        onExtendSuccess={refreshAll}
       />
-
-      {/* Cancel Order Modal */}
       <CancelOrderModal
-        isOpen={showCancelModal}
-        onClose={() => {
-          setShowCancelModal(false);
-          setSelectedOrder(null);
-        }}
-        order={selectedOrder}
-        onCancelSuccess={() => {
-          toast.success('Order cancelled successfully!');
-          refreshDashboard();
-        }}
-      />
-
-      {/* No Bookings Modal */}
-      <NoBookingsModal
-        isOpen={showNoBookingsModal}
-        onClose={() => setShowNoBookingsModal(false)}
+        isOpen={Boolean(cancelOrder)}
+        onClose={() => setCancelOrder(null)}
+        order={cancelOrder}
+        onCancelSuccess={refreshAll}
       />
     </div>
   );

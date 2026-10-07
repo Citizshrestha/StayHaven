@@ -1,65 +1,82 @@
 /**
  * Guest Dashboard - Billing View
  * Invoice list, payment history, multi-gateway payment (eSewa/Khalti/Card/Bank)
+ *
+ * The payment flow (idempotency key, submitLock, gateway gating, redirect /
+ * client-confirmation / verification branches and the "creation is not proof
+ * of payment" pending state) is behaviour-critical. This file restyles it;
+ * the logic in InvoicePaymentModal.handlePay / handleCardConfirmed and the
+ * card_return effect is intentionally unchanged.
  */
 
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { getGuestInvoices, payOrder, confirmPayment } from "../guestDashboardApi";
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import PropTypes from 'prop-types';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { getPaymentGatewayConfig, getCheckoutIdempotencyKey, rememberPaymentAttempt, redirectToWalletPayment } from '../../../../core/api/services/publicBooking.service';
+import { getGuestInvoices, payOrder, confirmPayment } from '../guestDashboardApi';
 import { useSocket } from '../../../../core/context/SocketContext';
 import { toast } from 'react-toastify';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import {
-  Receipt,
-  CreditCard,
-  Wallet,
-  CheckCircle2,
-  Clock,
-  XCircle,
-  AlertTriangle,
-  Loader2,
-  X,
-  Lock,
-  ExternalLink,
-  Shield,
-  Building2,
-  UtensilsCrossed,
-  BedDouble,
+  Receipt, CreditCard, Wallet, CheckCircle2, Clock, AlertTriangle, Loader2, Lock,
+  ExternalLink, Shield, Building2, UtensilsCrossed, BedDouble, RefreshCw, ArrowLeft, Info,
 } from 'lucide-react';
+import { cn } from '../../../../core/utils/cn';
+import usePullToRefresh from '../hooks/usePullToRefresh';
+import { formatDate, formatMoney } from '../utils/format';
+import Button from '../components/ui/Button';
+import Money from '../components/ui/Money';
+import PageHeader from '../components/ui/PageHeader';
+import FilterTabs from '../components/ui/FilterTabs';
+import StatusBadge from '../components/ui/StatusBadge';
+import StatCard from '../components/ui/StatCard';
+import EmptyState from '../components/ui/EmptyState';
+import Sheet from '../components/ui/Sheet';
+import PullIndicator from '../components/ui/PullIndicator';
+import { Skeleton, SkeletonCard } from '../components/ui/Skeleton';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
-const statusMeta = {
-  paid: { label: 'Paid', icon: CheckCircle2, className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' },
-  pending: { label: 'Pending', icon: Clock, className: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300' },
-  partial: { label: 'Partial', icon: Clock, className: 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300' },
-  overdue: { label: 'Overdue', icon: AlertTriangle, className: 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300' },
-  refunded: { label: 'Refunded', icon: XCircle, className: 'bg-gray-100 text-gray-600 dark:bg-gray-500/15 dark:text-gray-300' },
-};
-
 const FILTERS = ['all', 'pending', 'partial', 'overdue', 'paid'];
+const FILTER_LABELS = { all: 'All', pending: 'Pending', partial: 'Partial', overdue: 'Overdue', paid: 'Paid' };
+const INVOICE_LIST_ID = 'invoice-list';
 
-const formatNrs = (amount) => `Rs ${(Number.isFinite(amount) ? amount : 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const isPayable = (invoice) =>
+  invoice.status !== 'paid' && invoice.status !== 'refunded' && (invoice.balance ?? 0) > 0;
 
 const BillingView = () => {
   const { subscribe, isConnected } = useSocket();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
+  const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(null);
   const [invoices, setInvoices] = useState([]);
   const [outstandingBalance, setOutstandingBalance] = useState(0);
-  const [filter, setFilter] = useState('all');
   const [payTarget, setPayTarget] = useState(null);
+  const cardReturnStarted = useRef(false);
+
+  const statusParam = searchParams.get('status');
+  const filter = FILTERS.includes(statusParam) ? statusParam : 'all';
+  const setFilter = (value) => setSearchParams(value === 'all' ? {} : { status: value });
 
   const loadInvoices = useCallback(async () => {
     try {
       setLoading(true);
+      setLoadError(null);
       const res = await getGuestInvoices();
       if (res?.success) {
         setInvoices(res.data || []);
         setOutstandingBalance(res.outstandingBalance || 0);
+        setLoaded(true);
+      } else {
+        setLoadError(res?.message || 'We couldn’t load your invoices.');
       }
     } catch (error) {
       console.error('Invoices load error:', error);
-      toast.error(error.response?.data?.message || 'Failed to load invoices');
+      const msg = error.response?.data?.message || 'Failed to load invoices';
+      setLoadError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -69,6 +86,26 @@ const BillingView = () => {
     loadInvoices();
   }, [loadInvoices]);
 
+  const { pull, refreshing } = usePullToRefresh(loadInvoices);
+
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    if (query.get('card_return') !== '1' || cardReturnStarted.current) return;
+    cardReturnStarted.current = true;
+    const paymentIntentId = query.get('payment_intent');
+    const targetId = query.get('target');
+    if (!/^pi_[A-Za-z0-9]+$/.test(paymentIntentId || '') || !/^[a-f\d]{24}$/i.test(targetId || '')) {
+      window.history.replaceState({}, '', window.location.pathname);
+      toast.error('Card payment return could not be verified. Please contact support before retrying.');
+      return;
+    }
+    confirmPayment(paymentIntentId, targetId).then(() => {
+      window.history.replaceState({}, '', window.location.pathname);
+      toast.success('Card payment confirmed.');
+      loadInvoices();
+    }).catch(() => toast.error('Card payment needs verification. Reload this page to check again before starting another payment.'));
+  }, [loadInvoices]);
+
   // Real-time "bill received" notification (e.g. room-service order billed)
   const handleBillReceived = useCallback((payload) => {
     toast.info(`New bill received for Order #${payload?.orderNumber || '--'}`, { autoClose: 5000 });
@@ -76,7 +113,7 @@ const BillingView = () => {
   }, [loadInvoices]);
 
   useEffect(() => {
-    if (!subscribe || !isConnected) return;
+    if (!subscribe || !isConnected) return undefined;
     const unsub = subscribe('bill-received', handleBillReceived);
     return () => unsub();
   }, [subscribe, isConnected, handleBillReceived]);
@@ -92,115 +129,113 @@ const BillingView = () => {
     return { totalPaid, dueCount, totalInvoices: invoices.length };
   }, [invoices]);
 
+  // "Pay now" on the balance card opens the oldest unpaid invoice.
+  const oldestPayable = useMemo(() => {
+    const payable = invoices.filter(isPayable);
+    const when = (inv) => new Date(inv.dueDate || inv.issuedAt || 0).getTime() || 0;
+    return payable.sort((a, b) => when(a) - when(b))[0] || null;
+  }, [invoices]);
+
+  const filterOptions = useMemo(() => FILTERS.map((value) => ({
+    value,
+    label: FILTER_LABELS[value],
+    count: value === 'all' ? invoices.length : invoices.filter((inv) => inv.status === value).length,
+  })), [invoices]);
+
   const handlePaymentSuccess = () => {
     setPayTarget(null);
     loadInvoices();
   };
 
-  if (loading) {
+  if (!loaded && loading) return <BillingSkeleton />;
+
+  if (!loaded && loadError) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#0b1220]">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-10 h-10 animate-spin text-teal-500" />
-          <p className="text-gray-500 dark:text-gray-400">Loading your invoices...</p>
+      <div>
+        <PageHeader title="Billing & payments" subtitle="Invoices and payments for your stays" />
+        <div role="alert">
+          <EmptyState
+            icon={AlertTriangle}
+            title="Invoices unavailable"
+            description={loadError}
+            action={<Button variant="secondary" icon={RefreshCw} onClick={loadInvoices}>Try again</Button>}
+          />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen pb-24 lg:pb-8 bg-gray-50 dark:bg-[#0b1220]">
-      {/* Header */}
-      <div className="hidden lg:block bg-white/90 dark:bg-[#0f1c2e]/90 backdrop-blur-lg border-b border-gray-100 dark:border-white/5 sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-8 py-7">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Billing & Payments</h1>
-              <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">Manage your invoices and payments</p>
-            </div>
-            {outstandingBalance > 0 && (
-              <div className="bg-gradient-to-r from-rose-500 to-pink-500 text-white px-5 py-3 rounded-2xl shadow-lg shadow-rose-500/20">
-                <p className="text-xs text-white/85">Outstanding Balance</p>
-                <p className="text-xl font-bold">{formatNrs(outstandingBalance)}</p>
-              </div>
-            )}
-          </div>
+    <div>
+      <PullIndicator pull={pull} refreshing={refreshing} />
 
-          {/* Filter Tabs */}
-          <div className="flex gap-1.5 flex-wrap mt-5 p-1 bg-gray-100 dark:bg-white/5 rounded-xl w-fit">
-            {FILTERS.map((status) => (
-              <button
-                key={status}
-                onClick={() => setFilter(status)}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold capitalize transition-all ${
-                  filter === status
-                    ? 'bg-white dark:bg-teal-600 text-teal-700 dark:text-white shadow-sm'
-                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-                }`}
-              >
-                {status}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+      <PageHeader title="Billing & payments" subtitle="Invoices and payments for your stays" />
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 lg:pt-8 pb-8">
-        {/* Mobile header */}
-        <div className="lg:hidden mb-5">
-          <p className="text-xl font-bold text-gray-900 dark:text-white">Billing</p>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Invoices and payments</p>
-          <div className="mt-3 rounded-2xl bg-gradient-to-r from-rose-500 to-pink-500 text-white p-4 flex items-center justify-between shadow-lg shadow-rose-500/20">
-            <div>
-              <p className="text-xs text-white/85">Outstanding</p>
-              <p className="text-xl font-bold">{formatNrs(outstandingBalance)}</p>
-            </div>
-            <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-white/20 backdrop-blur-sm">
-              {outstandingBalance > 0 ? `${totals.dueCount} due` : 'All clear'}
-            </span>
-          </div>
-          <div className="flex gap-2 overflow-x-auto pt-4 -mx-4 px-4 scrollbar-hide">
-            {FILTERS.map((status) => (
-              <button
-                key={status}
-                onClick={() => setFilter(status)}
-                className={`px-3.5 py-2 rounded-full font-semibold capitalize transition-all whitespace-nowrap text-sm shrink-0 ${
-                  filter === status
-                    ? 'bg-teal-600 text-white shadow-md shadow-teal-600/20'
-                    : 'bg-white dark:bg-white/5 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-white/10'
-                }`}
-              >
-                {status}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Summary stat cards */}
-        <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-6">
-          <StatCard icon={Receipt} label="Total Invoices" value={totals.totalInvoices} />
-          <StatCard icon={Wallet} label="Total Paid" value={formatNrs(totals.totalPaid)} />
-          <StatCard icon={Clock} label="Awaiting Payment" value={totals.dueCount} accent={totals.dueCount > 0 ? 'warn' : undefined} />
-        </div>
-
-        {filtered.length === 0 ? (
-          <div className="text-center py-16 bg-white dark:bg-[#0f1c2e] rounded-2xl shadow-sm border border-gray-100 dark:border-white/5">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-teal-50 dark:bg-teal-500/10 flex items-center justify-center">
-              <Receipt className="w-8 h-8 text-teal-500" />
-            </div>
-            <p className="text-gray-700 dark:text-gray-200 text-lg font-semibold">
-              {filter === 'all' ? 'No invoices yet' : `No ${filter} invoices`}
+      {/* Outstanding balance — rendered once, responsive */}
+      {outstandingBalance > 0 ? (
+        <section
+          aria-label="Outstanding balance"
+          className="mb-5 rounded-(--g-radius-lg) bg-(--g-danger-fill) text-white p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+        >
+          <div>
+            <p className="g-label text-white/85">Outstanding balance</p>
+            <Money amount={outstandingBalance} size="lg" className="block mt-1" />
+            <p className="g-small text-white/85 mt-1">
+              <span className="guestNum">{totals.dueCount}</span> invoice{totals.dueCount === 1 ? '' : 's'} due
             </p>
-            <p className="text-gray-400 dark:text-gray-500 text-sm mt-1">Your bills and receipts will show up here.</p>
           </div>
-        ) : (
-          <div className="space-y-4">
-            {filtered.map((invoice) => (
-              <InvoiceCard key={invoice._id} invoice={invoice} onPay={() => setPayTarget(invoice)} />
-            ))}
-          </div>
-        )}
+          {oldestPayable && (
+            <button
+              type="button"
+              onClick={() => setPayTarget(oldestPayable)}
+              className="inline-flex items-center justify-center gap-2 min-h-[44px] px-5 rounded-(--g-radius-sm) bg-white text-(--g-danger-fill) g-small font-bold hover:bg-white/90 transition-colors duration-150"
+            >
+              <CreditCard className="w-4 h-4" aria-hidden="true" />
+              Pay now
+            </button>
+          )}
+        </section>
+      ) : invoices.length > 0 && (
+        <section
+          aria-label="Outstanding balance"
+          className="mb-5 rounded-(--g-radius-lg) bg-(--g-success-bg) text-(--g-success-text) p-4 flex items-center gap-3"
+        >
+          <CheckCircle2 className="w-5 h-5 shrink-0" aria-hidden="true" />
+          <p className="g-body-strong">All settled — nothing due right now.</p>
+        </section>
+      )}
+
+      <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-5">
+        <StatCard icon={Receipt} tone="indigo" label="Total invoices" value={<span className="guestNum">{totals.totalInvoices}</span>} />
+        <StatCard icon={Wallet} tone="success" label="Total paid" value={formatMoney(totals.totalPaid, 0)} />
+        <StatCard
+          icon={Clock}
+          tone={totals.dueCount > 0 ? 'warning' : 'neutral'}
+          label="Awaiting payment"
+          value={<span className="guestNum">{totals.dueCount}</span>}
+        />
       </div>
+
+      <div className="mb-4">
+        <FilterTabs label="Filter invoices" options={filterOptions} value={filter} onChange={setFilter} controls={INVOICE_LIST_ID} />
+      </div>
+
+      {filtered.length === 0 ? (
+        <EmptyState
+          icon={Receipt}
+          title={filter === 'all' ? 'No invoices yet' : `No ${FILTER_LABELS[filter].toLowerCase()} invoices`}
+          description="Your bills and receipts will show up here."
+          action={filter !== 'all' && <Button variant="secondary" onClick={() => setFilter('all')}>Show all invoices</Button>}
+        />
+      ) : (
+        <ul id={INVOICE_LIST_ID} className="space-y-3">
+          {filtered.map((invoice) => (
+            <li key={invoice._id}>
+              <InvoiceCard invoice={invoice} onPay={() => setPayTarget(invoice)} />
+            </li>
+          ))}
+        </ul>
+      )}
 
       {payTarget && (
         <InvoicePaymentModal
@@ -217,85 +252,110 @@ const BillingView = () => {
 // Sub-components
 // ─────────────────────────────────────────
 
-const StatCard = ({ icon: Icon, label, value, accent }) => (
-  <div className="bg-white dark:bg-[#0f1c2e] rounded-2xl shadow-sm border border-gray-100 dark:border-white/5 p-4">
-    <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-3 ${
-      accent === 'warn' ? 'bg-amber-50 dark:bg-amber-500/10' : 'bg-teal-50 dark:bg-teal-500/10'
-    }`}>
-      <Icon className={`w-[18px] h-[18px] ${accent === 'warn' ? 'text-amber-600 dark:text-amber-400' : 'text-teal-600 dark:text-teal-400'}`} />
+const BillingSkeleton = () => (
+  <div role="status" aria-live="polite">
+    <span className="sr-only">Loading your invoices…</span>
+    <div aria-hidden="true">
+      <Skeleton className="h-7 w-56 mb-2" />
+      <Skeleton className="h-4 w-72 mb-6" />
+      <Skeleton className="h-28 w-full mb-5 rounded-(--g-radius-lg)" />
+      <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-5">
+        {[0, 1, 2].map((i) => <SkeletonCard key={i} lines={1} />)}
+      </div>
+      <div className="space-y-3">
+        {[0, 1, 2].map((i) => <SkeletonCard key={i} lines={2} />)}
+      </div>
     </div>
-    <p className="text-lg font-bold text-gray-900 dark:text-white truncate">{value}</p>
-    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{label}</p>
   </div>
 );
 
+const AmountCell = ({ label, amount, className }) => (
+  <div className="rounded-(--g-radius-sm) bg-(--g-surface-sunken) px-3 py-2.5 text-right">
+    <p className="g-label text-(--g-text-muted)">{label}</p>
+    <Money amount={amount} className={cn('block g-small font-semibold mt-0.5', className)} />
+  </div>
+);
+
+AmountCell.propTypes = { label: PropTypes.string.isRequired, amount: PropTypes.number, className: PropTypes.string };
+
 const InvoiceCard = ({ invoice, onPay }) => {
-  const meta = statusMeta[invoice.status] || statusMeta.pending;
-  const StatusIcon = meta.icon;
   const totalCharges = typeof invoice.charges === 'object' ? (invoice.charges.total ?? 0) : (invoice.charges ?? 0);
-  const isPayable = invoice.status !== 'paid' && invoice.status !== 'refunded' && (invoice.balance ?? 0) > 0;
+  const payable = isPayable(invoice);
   const SourceIcon = invoice.orderType === 'food-service' ? UtensilsCrossed : BedDouble;
+  const balance = invoice.balance ?? 0;
 
   return (
-    <div className="group bg-white dark:bg-[#0f1c2e] rounded-2xl shadow-sm hover:shadow-lg dark:hover:shadow-black/30 transition-all overflow-hidden border border-gray-100 dark:border-white/5">
-      <div className="p-5">
-        <div className="flex items-start justify-between gap-3 mb-4">
-          <div className="flex items-start gap-3 min-w-0">
-            <div className="w-11 h-11 rounded-xl bg-teal-50 dark:bg-teal-500/10 flex items-center justify-center shrink-0">
-              <SourceIcon className="w-5 h-5 text-teal-600 dark:text-teal-400" />
-            </div>
-            <div className="min-w-0">
-              <p className="font-bold text-gray-900 dark:text-gray-100">{invoice.invoiceId || 'N/A'}</p>
-              <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{invoice.hotel?.name || 'N/A'}{invoice.bookingRef ? ` · ${invoice.bookingRef}` : ''}</p>
-            </div>
-          </div>
-          <span className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 shrink-0 ${meta.className}`}>
-            <StatusIcon className="w-3.5 h-3.5" />
-            {meta.label}
+    <article className="rounded-(--g-radius-md) border border-(--g-border) bg-(--g-surface) shadow-(--g-shadow-sm) p-4 sm:p-5">
+      <div className="flex items-start justify-between gap-3 mb-4">
+        <div className="flex items-start gap-3 min-w-0">
+          <span className={cn('w-11 h-11 shrink-0 rounded-(--g-radius-sm) flex items-center justify-center', invoice.orderType === 'food-service' ? 'g-tone-orange' : 'g-tone-sky')}>
+            <SourceIcon className="w-5 h-5" aria-hidden="true" />
+            <span className="sr-only">{invoice.orderType === 'food-service' ? 'Food service' : 'Room stay'}</span>
           </span>
-        </div>
-
-        <div className="grid grid-cols-3 gap-3">
-          <div className="rounded-xl bg-gray-50 dark:bg-white/5 px-3 py-2.5">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">Amount</p>
-            <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm mt-0.5">{formatNrs(totalCharges)}</p>
-          </div>
-          <div className="rounded-xl bg-gray-50 dark:bg-white/5 px-3 py-2.5">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">Paid</p>
-            <p className="font-semibold text-emerald-600 dark:text-emerald-400 text-sm mt-0.5">{formatNrs(invoice.paid ?? 0)}</p>
-          </div>
-          <div className="rounded-xl bg-gray-50 dark:bg-white/5 px-3 py-2.5">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">Balance</p>
-            <p className={`font-semibold text-sm mt-0.5 ${(invoice.balance ?? 0) > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-gray-900 dark:text-gray-100'}`}>
-              {formatNrs(invoice.balance ?? 0)}
+          <div className="min-w-0">
+            <h3 className="g-body-strong truncate">{invoice.invoiceId || 'Invoice'}</h3>
+            <p className="g-small text-(--g-text-muted) truncate">
+              {invoice.hotel?.name || 'Hotel'}{invoice.bookingRef ? ` · ${invoice.bookingRef}` : ''}
             </p>
           </div>
         </div>
-
-        <div className="mt-4 pt-4 border-t border-gray-100 dark:border-white/5 flex items-center justify-between gap-3">
-          <span className="text-xs text-gray-400 dark:text-gray-500">
-            {invoice.dueDate ? `Due ${new Date(invoice.dueDate).toLocaleDateString()}` : `Issued ${new Date(invoice.issuedAt).toLocaleDateString()}`}
-          </span>
-          {isPayable && (
-            <button
-              onClick={onPay}
-              className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-semibold text-sm transition-colors shadow-sm"
-            >
-              <CreditCard className="w-4 h-4" />
-              Pay Now
-            </button>
-          )}
-        </div>
+        <StatusBadge domain="invoice" status={invoice.status} className="shrink-0" />
       </div>
-    </div>
+
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
+        <AmountCell label="Amount" amount={totalCharges} className="text-(--g-text)" />
+        <AmountCell label="Paid" amount={invoice.paid ?? 0} className="text-(--g-success-text)" />
+        <AmountCell label="Balance" amount={balance} className={balance > 0 ? 'text-(--g-danger-text)' : 'text-(--g-text)'} />
+      </div>
+
+      <div className="mt-4 pt-4 border-t border-(--g-border) flex items-center justify-between gap-3">
+        <span className="g-small text-(--g-text-muted) guestNum">
+          {invoice.dueDate ? `Due ${formatDate(invoice.dueDate)}` : `Issued ${formatDate(invoice.issuedAt)}`}
+        </span>
+        {payable && (
+          <Button icon={CreditCard} onClick={onPay} aria-label={`Pay invoice ${invoice.invoiceId || ''}`.trim()}>
+            Pay now
+          </Button>
+        )}
+      </div>
+    </article>
   );
+};
+
+InvoiceCard.propTypes = { invoice: PropTypes.object.isRequired, onPay: PropTypes.func.isRequired };
+
+// One banner for every payment status; tones come from the status tokens.
+const BANNER_TONE = {
+  success: 'bg-(--g-success-bg) text-(--g-success-text)',
+  info: 'bg-(--g-info-bg) text-(--g-info-text)',
+  warning: 'bg-(--g-warning-bg) text-(--g-warning-text)',
+  danger: 'bg-(--g-danger-bg) text-(--g-danger-text)',
+};
+
+const StatusBanner = ({ tone, icon: Icon, title, children, role = 'status', spin }) => (
+  <div role={role} className={cn('rounded-(--g-radius-md) p-4 flex items-start gap-3', BANNER_TONE[tone])}>
+    <Icon className={cn('w-5 h-5 shrink-0 mt-0.5', spin && 'animate-spin')} aria-hidden="true" />
+    <div className="min-w-0 flex-1">
+      <p className="g-body-strong">{title}</p>
+      {children && <div className="g-small mt-0.5">{children}</div>}
+    </div>
+  </div>
+);
+
+StatusBanner.propTypes = {
+  tone: PropTypes.oneOf(Object.keys(BANNER_TONE)).isRequired,
+  icon: PropTypes.elementType.isRequired,
+  title: PropTypes.node.isRequired,
+  children: PropTypes.node,
+  role: PropTypes.string,
+  spin: PropTypes.bool,
 };
 
 // ─────────────────────────────────────────
 // Payment Modal
 // ─────────────────────────────────────────
 
-const CardCheckoutForm = ({ amount, onSuccess, onError }) => {
+const CardCheckoutForm = ({ amount, targetId, onSuccess, onError }) => {
   const stripe = useStripe();
   const elements = useElements();
   const [submitting, setSubmitting] = useState(false);
@@ -310,6 +370,7 @@ const CardCheckoutForm = ({ amount, onSuccess, onError }) => {
     try {
       const { error: stripeError, paymentIntent } = await stripe.confirmPayment({
         elements,
+        confirmParams: { return_url: `${window.location.origin}/guest-dashboard/billing?card_return=1&target=${encodeURIComponent(targetId)}` },
         redirect: 'if_required',
       });
 
@@ -325,7 +386,7 @@ const CardCheckoutForm = ({ amount, onSuccess, onError }) => {
       }
       await onSuccess(paymentIntent.id);
     } catch (err) {
-      setFormError(err.message || 'An unexpected error occurred.');
+      setFormError('Payment could not be confirmed. Check your invoice before paying again.');
       setSubmitting(false);
       onError?.(err);
     }
@@ -333,77 +394,100 @@ const CardCheckoutForm = ({ amount, onSuccess, onError }) => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-4 border border-gray-200 dark:border-white/10">
-        <div className="flex items-center gap-2 mb-4">
-          <Lock className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Your card details are encrypted and handled directly by Stripe</span>
-        </div>
+      <div className="rounded-(--g-radius-md) border border-(--g-border) bg-(--g-surface-sunken) p-4">
+        <p className="flex items-center gap-2 mb-4 g-small text-(--g-text-muted)">
+          <Lock className="w-4 h-4 shrink-0" aria-hidden="true" />
+          Your card details are encrypted and handled directly by Stripe
+        </p>
         <PaymentElement options={{ layout: { type: 'tabs', defaultCollapsed: false } }} />
       </div>
 
       {formError && (
-        <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl p-3 text-sm text-red-700 dark:text-red-300 flex items-start gap-2">
-          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-          <span>{formError}</span>
-        </div>
+        <StatusBanner tone="danger" icon={AlertTriangle} title="Card payment failed" role="alert">
+          {formError}
+        </StatusBanner>
       )}
 
-      <button
-        type="submit"
-        disabled={!stripe || submitting}
-        className="w-full px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-      >
-        {submitting ? (
-          <>
-            <Loader2 className="w-5 h-5 animate-spin" />
-            Processing...
-          </>
-        ) : (
-          <>
-            <Lock className="w-5 h-5" />
-            Pay {formatNrs(amount)}
-          </>
-        )}
-      </button>
+      <Button type="submit" className="w-full" icon={Lock} loading={submitting} disabled={!stripe}>
+        {submitting ? 'Processing…' : `Pay ${formatMoney(amount)}`}
+      </Button>
     </form>
   );
 };
 
+CardCheckoutForm.propTypes = {
+  amount: PropTypes.number.isRequired,
+  targetId: PropTypes.string.isRequired,
+  onSuccess: PropTypes.func.isRequired,
+  onError: PropTypes.func,
+};
+
 const PAYMENT_METHODS = [
-  { id: 'esewa', name: 'eSewa', icon: '🟢', description: 'Pay with eSewa wallet', badge: 'Popular' },
-  { id: 'khalti', name: 'Khalti', icon: '🟣', description: 'Pay with Khalti wallet', badge: 'Secure' },
-  { id: 'card', name: 'Credit/Debit Card', icon: '💳', description: 'Visa, Mastercard, etc.' },
-  { id: 'bank', name: 'Bank Transfer', icon: '🏦', description: 'Manual verification' },
+  { id: 'esewa', name: 'eSewa', icon: Wallet, description: 'Pay with eSewa wallet', badge: 'Popular' },
+  { id: 'khalti', name: 'Khalti', icon: Wallet, description: 'Pay with Khalti wallet', badge: 'Secure' },
+  { id: 'card', name: 'Credit/Debit Card', icon: CreditCard, description: 'Visa, Mastercard, etc.' },
+  { id: 'bank', name: 'Bank Transfer', icon: Building2, description: 'Manual verification' },
+];
+
+const BANK_FIELDS = [
+  { key: 'accountName', label: 'Your account name', autoComplete: 'name' },
+  { key: 'accountNumber', label: 'Your account number', inputMode: 'numeric', transform: (v) => v.replace(/\D/g, '') },
+  { key: 'bankName', label: 'Your bank name' },
+  { key: 'transactionId', label: 'Transaction / reference ID', transform: (v) => v.toUpperCase(), mono: true },
 ];
 
 const InvoicePaymentModal = ({ invoice, onClose, onSuccess }) => {
+  const navigate = useNavigate();
+  const submitLock = useRef(false);
+  const [gatewayConfig, setGatewayConfig] = useState(null);
+  const [configState, setConfigState] = useState('loading');
+  const [configRun, setConfigRun] = useState(0);
+  const [attemptId, setAttemptId] = useState(null);
   const [selectedMethod, setSelectedMethod] = useState('esewa');
   const [processing, setProcessing] = useState(false);
-  const [status, setStatus] = useState(null); // null | 'redirecting' | 'success' | 'error'
+  const [status, setStatus] = useState(null); // null | 'redirecting' | 'success' | 'error' | 'pending' | 'submitted'
   const [errorMessage, setErrorMessage] = useState('');
   const [cardClientSecret, setCardClientSecret] = useState(null);
   const [bankDetails, setBankDetails] = useState({ accountName: '', accountNumber: '', bankName: '', transactionId: '' });
+  const [bankErrors, setBankErrors] = useState({});
 
   const amount = invoice.balance ?? 0;
+  const receivingAccount = invoice.hotel?.bankTransferAccount;
+  const bankAvailable = receivingAccount?.enabled === true && Boolean(receivingAccount.accountName && receivingAccount.bankName && receivingAccount.accountNumber);
+  const walletSelected = ['esewa', 'khalti'].includes(selectedMethod);
+  const walletUnavailable = walletSelected && gatewayConfig?.[selectedMethod]?.enabled !== true;
 
+  useEffect(() => {
+    const controller = new AbortController();
+    setConfigState('loading');
+    getPaymentGatewayConfig({ signal: controller.signal }).then((result) => {
+      if (controller.signal.aborted) return;
+      setGatewayConfig(result.data);
+      setSelectedMethod((current) => {
+        if (!['esewa', 'khalti'].includes(current) || result.data?.[current]?.enabled === true) return current;
+        return ['khalti', 'esewa'].find((gateway) => result.data?.[gateway]?.enabled === true) || 'card';
+      });
+      setConfigState('ready');
+    }).catch(() => {
+      if (!controller.signal.aborted) {
+        setSelectedMethod((current) => ['esewa', 'khalti'].includes(current) ? 'card' : current);
+        setConfigState('error');
+      }
+    });
+    return () => controller.abort();
+  }, [configRun]);
+
+  // Same rules as before; errors now render inline next to each field.
   const validateBank = () => {
-    if (!bankDetails.accountName || bankDetails.accountName.length < 3) {
-      toast.error('Please enter account holder name');
-      return false;
-    }
-    if (!bankDetails.accountNumber || bankDetails.accountNumber.length < 5) {
-      toast.error('Please enter a valid account number');
-      return false;
-    }
-    if (!bankDetails.bankName || bankDetails.bankName.length < 3) {
-      toast.error('Please enter your bank name');
-      return false;
-    }
-    if (!bankDetails.transactionId || bankDetails.transactionId.length < 5) {
-      toast.error('Please enter the transaction/reference ID');
-      return false;
-    }
-    return true;
+    const errors = {};
+    if (!bankDetails.accountName || bankDetails.accountName.length < 3) errors.accountName = 'Please enter account holder name';
+    if (!bankDetails.accountNumber || bankDetails.accountNumber.length < 5) errors.accountNumber = 'Please enter a valid account number';
+    if (!bankDetails.bankName || bankDetails.bankName.length < 3) errors.bankName = 'Please enter your bank name';
+    if (!bankDetails.transactionId || bankDetails.transactionId.length < 5) errors.transactionId = 'Please enter the transaction/reference ID';
+    setBankErrors(errors);
+    const first = Object.keys(errors)[0];
+    if (first) document.getElementById(`bank-${first}`)?.focus();
+    return !first;
   };
 
   const handleCardConfirmed = async (paymentIntentId) => {
@@ -413,18 +497,20 @@ const InvoicePaymentModal = ({ invoice, onClose, onSuccess }) => {
       setStatus('success');
       toast.success('Payment successful!');
       setTimeout(onSuccess, 1500);
-    } catch (error) {
+    } catch {
       setStatus('error');
-      const msg = error.message || 'Payment verification failed. Contact support if you were charged.';
+      const msg = 'Payment could not be confirmed. Contact support if you were charged.';
       setErrorMessage(msg);
       toast.error(msg, { autoClose: 5000 });
     }
   };
 
   const handlePay = async () => {
-    if (processing) return;
+    if (processing || submitLock.current || walletUnavailable) return;
+    if (selectedMethod === 'bank' && !bankAvailable) return;
     if (selectedMethod === 'bank' && !validateBank()) return;
 
+    submitLock.current = true;
     setProcessing(true);
     setErrorMessage('');
     let redirecting = false;
@@ -433,8 +519,23 @@ const InvoicePaymentModal = ({ invoice, onClose, onSuccess }) => {
       const payload = { paymentMethod: selectedMethod };
       if (selectedMethod === 'bank') payload.bankTransferDetails = bankDetails;
 
-      const result = await payOrder(invoice._id, payload);
+      const key = walletSelected ? await getCheckoutIdempotencyKey(`invoice:${invoice._id}`, payload) : undefined;
+      const result = await payOrder(invoice._id, payload, key);
       if (!result?.success) throw new Error(result?.message || 'Payment initiation failed');
+
+      if (walletSelected) {
+        if (!/^[a-f\d]{24}$/i.test(result.paymentAttemptId || '')) throw new Error('Missing payment reference');
+        rememberPaymentAttempt(key, result.paymentAttemptId);
+        setAttemptId(result.paymentAttemptId);
+        if (result.requiresRedirect && !result.requiresStatusCheck) {
+          redirectToWalletPayment(result);
+          redirecting = true;
+          setStatus('redirecting');
+        } else {
+          navigate(`/payment-callback?attempt=${result.paymentAttemptId}`);
+        }
+        return;
+      }
 
       if (result.requiresClientConfirmation) {
         setCardClientSecret(result.clientSecret);
@@ -467,232 +568,284 @@ const InvoicePaymentModal = ({ invoice, onClose, onSuccess }) => {
       }
 
       if (result.requiresVerification) {
-        setStatus('success');
-        toast.success('Bank transfer submitted — verified within 24 hours.');
-        setTimeout(onSuccess, 1500);
+        setStatus('submitted');
+        toast.info('Bank transfer submitted — awaiting staff verification against the bank statement.');
         return;
       }
 
-      // Dev-mode simulated success (no gateway keys configured)
-      setStatus('success');
-      toast.success('Payment successful!');
-      setTimeout(onSuccess, 1500);
-    } catch (error) {
-      setStatus('error');
-      const msg = error.response?.data?.message || error.message || 'Payment failed. Please try again.';
+      // Creation alone is never proof that money was received.
+      setStatus('pending');
+      setErrorMessage('Payment is not confirmed yet. Check your invoice before paying again.');
+    } catch {
+      setStatus(walletSelected ? 'pending' : 'error');
+      const msg = 'Payment could not be confirmed. Check the same payment again before starting another payment.';
       setErrorMessage(msg);
       toast.error(msg, { autoClose: 5000 });
     } finally {
-      if (!redirecting) setProcessing(false);
+      if (!redirecting) {
+        submitLock.current = false;
+        setProcessing(false);
+      }
     }
   };
 
-  return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-[#0f1c2e] rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto border border-transparent dark:border-white/10">
-        <div className="sticky top-0 bg-white dark:bg-[#0f1c2e] border-b border-gray-100 dark:border-white/5 px-6 py-4 flex items-center justify-between z-10">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-500 to-emerald-500 flex items-center justify-center">
-              <CreditCard className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Pay Invoice {invoice.invoiceId}</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">{formatNrs(amount)} due</p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            disabled={processing || status === 'redirecting'}
-            className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 disabled:opacity-50"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+  const methodDisabled = (id) =>
+    processing || (['esewa', 'khalti'].includes(id) && gatewayConfig?.[id]?.enabled !== true) || (id === 'bank' && !bankAvailable);
 
-        <div className="p-6 space-y-5">
-          {status === 'success' && (
-            <div className="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 rounded-xl p-4 flex items-start gap-3">
-              <CheckCircle2 className="w-6 h-6 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-semibold text-emerald-900 dark:text-emerald-300">Payment Successful!</p>
-                <p className="text-sm text-emerald-700 dark:text-emerald-400 mt-0.5">Your invoice has been updated.</p>
-              </div>
-            </div>
-          )}
+  const methodCaption = (id) => {
+    if (['esewa', 'khalti'].includes(id)) {
+      if (gatewayConfig?.[id]?.enabled === true) return gatewayConfig[id].testMode ? 'Test mode' : 'Available';
+      return 'Unavailable';
+    }
+    if (id === 'bank' && !bankAvailable) return 'Hotel bank account not configured';
+    return null;
+  };
 
-          {status === 'redirecting' && (
-            <div className="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 rounded-xl p-4 flex items-start gap-3">
-              <Loader2 className="w-6 h-6 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5 animate-spin" />
-              <div>
-                <p className="font-semibold text-blue-900 dark:text-blue-300">Redirecting to payment gateway...</p>
-                <p className="text-sm text-blue-700 dark:text-blue-400 mt-0.5">Please don't close this window.</p>
-              </div>
-            </div>
-          )}
+  const showSelector = !status && !cardClientSecret;
 
-          {status === 'error' && (
-            <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl p-4 flex items-start gap-3">
-              <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <p className="font-semibold text-red-900 dark:text-red-300">Payment Failed</p>
-                <p className="text-sm text-red-700 dark:text-red-400 mt-0.5">{errorMessage}</p>
-                <button
-                  onClick={() => { setStatus(null); setErrorMessage(''); }}
-                  className="text-sm font-semibold text-red-600 dark:text-red-400 hover:underline mt-2"
-                >
-                  Try Again
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Stripe card step */}
-          {!status && cardClientSecret && (
-            <div className="space-y-4">
-              <button
-                onClick={() => setCardClientSecret(null)}
-                className="text-sm font-semibold text-teal-600 dark:text-teal-400 hover:underline"
-              >
-                &larr; Change payment method
-              </button>
-              <Elements options={{ clientSecret: cardClientSecret }} stripe={stripePromise}>
-                <CardCheckoutForm amount={amount} onSuccess={handleCardConfirmed} />
-              </Elements>
-            </div>
-          )}
-
-          {/* Method selector */}
-          {!status && !cardClientSecret && (
-            <>
-              <div>
-                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-teal-500" />
-                  Select Payment Method
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {PAYMENT_METHODS.map((method) => (
-                    <button
-                      key={method.id}
-                      onClick={() => setSelectedMethod(method.id)}
-                      disabled={processing}
-                      className={`relative p-4 rounded-xl border-2 transition-all text-left ${
-                        selectedMethod === method.id
-                          ? 'border-teal-500 bg-teal-50 dark:bg-teal-500/10'
-                          : 'border-gray-200 dark:border-white/10 hover:border-teal-300'
-                      }`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <span className="text-2xl">{method.icon}</span>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{method.name}</p>
-                            {method.badge && (
-                              <span className="text-[10px] px-1.5 py-0.5 bg-teal-500 text-white rounded-full font-bold uppercase">{method.badge}</span>
-                            )}
-                          </div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{method.description}</p>
-                        </div>
-                      </div>
-                      {selectedMethod === method.id && (
-                        <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-teal-500 flex items-center justify-center">
-                          <CheckCircle2 className="w-3 h-3 text-white" />
-                        </div>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {(selectedMethod === 'khalti' || selectedMethod === 'esewa') && (
-                <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-xl p-4 flex items-start gap-3">
-                  <ExternalLink className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                  <p className="text-xs text-amber-800 dark:text-amber-300">
-                    You'll be redirected to {selectedMethod === 'khalti' ? 'Khalti' : 'eSewa'}'s secure payment page and brought back here once you're done.
-                  </p>
-                </div>
-              )}
-
-              {selectedMethod === 'card' && (
-                <div className="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 rounded-xl p-4 flex items-start gap-3">
-                  <Lock className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
-                  <p className="text-xs text-blue-800 dark:text-blue-300">
-                    You'll enter your card details on the next step, directly through Stripe's secure form. We never see or store your card number.
-                  </p>
-                </div>
-              )}
-
-              {selectedMethod === 'bank' && (
-                <div className="space-y-3 bg-gray-50 dark:bg-white/5 rounded-xl p-4 border border-gray-200 dark:border-white/10">
-                  <div className="bg-white dark:bg-[#0f1c2e] rounded-lg p-3 border border-gray-200 dark:border-white/10 flex items-start gap-3">
-                    <Building2 className="w-5 h-5 text-teal-500 shrink-0 mt-0.5" />
-                    <div className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
-                      <p><span className="text-gray-400 dark:text-gray-500">Account:</span> <span className="font-semibold text-gray-900 dark:text-gray-200">StayHaven Hotels Pvt. Ltd.</span></p>
-                      <p><span className="text-gray-400 dark:text-gray-500">Bank:</span> <span className="font-semibold text-gray-900 dark:text-gray-200">Nabil Bank Limited</span></p>
-                      <p><span className="text-gray-400 dark:text-gray-500">A/C No:</span> <span className="font-mono font-semibold text-teal-600 dark:text-teal-400">0123456789012345</span></p>
-                    </div>
-                  </div>
-                  <input
-                    type="text" placeholder="Your account name"
-                    value={bankDetails.accountName}
-                    onChange={(e) => setBankDetails({ ...bankDetails, accountName: e.target.value })}
-                    className="w-full px-3.5 py-2.5 text-sm bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none text-gray-900 dark:text-gray-100"
-                  />
-                  <input
-                    type="text" placeholder="Your account number"
-                    value={bankDetails.accountNumber}
-                    onChange={(e) => setBankDetails({ ...bankDetails, accountNumber: e.target.value.replace(/\D/g, '') })}
-                    className="w-full px-3.5 py-2.5 text-sm bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none text-gray-900 dark:text-gray-100"
-                  />
-                  <input
-                    type="text" placeholder="Your bank name"
-                    value={bankDetails.bankName}
-                    onChange={(e) => setBankDetails({ ...bankDetails, bankName: e.target.value })}
-                    className="w-full px-3.5 py-2.5 text-sm bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none text-gray-900 dark:text-gray-100"
-                  />
-                  <input
-                    type="text" placeholder="Transaction / reference ID"
-                    value={bankDetails.transactionId}
-                    onChange={(e) => setBankDetails({ ...bankDetails, transactionId: e.target.value.toUpperCase() })}
-                    className="w-full px-3.5 py-2.5 text-sm bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none text-gray-900 dark:text-gray-100 font-mono"
-                  />
-                  <p className="text-xs text-amber-700 dark:text-amber-400">Verified manually within 24 hours.</p>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-
-        {!status && !cardClientSecret && (
-          <div className="sticky bottom-0 bg-gray-50 dark:bg-[#0b1220]/60 border-t border-gray-100 dark:border-white/5 px-6 py-4 flex items-center gap-3">
-            <button
-              onClick={onClose}
-              disabled={processing}
-              className="px-5 py-3 border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 font-semibold rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 transition-colors disabled:opacity-50"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handlePay}
-              disabled={processing}
-              className="flex-1 px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {processing ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  {selectedMethod === 'khalti' || selectedMethod === 'esewa' ? <ExternalLink className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
-                  {selectedMethod === 'card' ? 'Continue to Card Payment' : `Pay ${formatNrs(amount)}`}
-                </>
-              )}
-            </button>
-          </div>
-        )}
-      </div>
+  const footer = showSelector && (
+    <div className="flex items-center gap-3">
+      <Button variant="secondary" onClick={onClose} disabled={processing}>Cancel</Button>
+      <Button
+        className="flex-1"
+        onClick={handlePay}
+        loading={processing}
+        disabled={walletUnavailable}
+        icon={walletSelected ? ExternalLink : Lock}
+      >
+        {processing ? 'Processing…' : selectedMethod === 'card' ? 'Continue to card payment' : `Pay ${formatMoney(amount)}`}
+      </Button>
     </div>
   );
+
+  return (
+    <Sheet
+      open
+      onClose={onClose}
+      dismissible={!(processing || status === 'redirecting')}
+      title={`Pay invoice ${invoice.invoiceId || ''}`.trim()}
+      description={<><span className="guestNum">{formatMoney(amount)}</span> due</>}
+      footer={footer}
+    >
+      <div className="space-y-5">
+        {status === 'submitted' && (
+          <StatusBanner tone="info" icon={Building2} title="Bank transfer submitted">
+            Your payment is awaiting manual verification.
+          </StatusBanner>
+        )}
+
+        {status === 'pending' && (
+          <StatusBanner tone="warning" icon={Clock} title="Payment pending confirmation">
+            <p>{errorMessage}</p>
+            <button
+              type="button"
+              disabled={processing}
+              className="mt-2 min-h-[44px] font-semibold underline disabled:opacity-50"
+              onClick={() => {
+                if (attemptId) navigate(`/payment-callback?attempt=${attemptId}`);
+                else handlePay();
+              }}
+            >
+              {attemptId ? 'Check payment status' : 'Retry same checkout'}
+            </button>
+          </StatusBanner>
+        )}
+
+        {status === 'success' && (
+          <StatusBanner tone="success" icon={CheckCircle2} title="Payment successful">
+            Your invoice has been updated.
+          </StatusBanner>
+        )}
+
+        {status === 'redirecting' && (
+          <StatusBanner tone="info" icon={Loader2} spin title="Redirecting to payment gateway…">
+            Please don’t close this window.
+          </StatusBanner>
+        )}
+
+        {status === 'error' && (
+          <StatusBanner tone="danger" icon={AlertTriangle} title="Payment failed" role="alert">
+            <p>{errorMessage}</p>
+            <button
+              type="button"
+              onClick={() => { setStatus(null); setErrorMessage(''); }}
+              className="mt-2 min-h-[44px] font-semibold underline"
+            >
+              Try again
+            </button>
+          </StatusBanner>
+        )}
+
+        {/* Stripe card step */}
+        {!status && cardClientSecret && (
+          <div className="space-y-4">
+            <Button variant="ghost" icon={ArrowLeft} className="-ml-2" onClick={() => setCardClientSecret(null)}>
+              Change payment method
+            </Button>
+            <Elements options={{ clientSecret: cardClientSecret }} stripe={stripePromise}>
+              <CardCheckoutForm amount={amount} targetId={invoice._id} onSuccess={handleCardConfirmed} />
+            </Elements>
+          </div>
+        )}
+
+        {/* Method selector */}
+        {showSelector && (
+          <>
+            <fieldset>
+              <legend className="g-small font-semibold text-(--g-text) mb-3 flex items-center gap-2">
+                <Shield className="w-4 h-4 text-(--g-primary-text)" aria-hidden="true" />
+                Select payment method
+              </legend>
+              {configState === 'loading' && (
+                <p role="status" className="g-small text-(--g-text-muted) mb-3 inline-flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+                  Loading wallet availability…
+                </p>
+              )}
+              {configState === 'error' && (
+                <div role="alert" className="mb-3 g-small text-(--g-warning-text) bg-(--g-warning-bg) rounded-(--g-radius-sm) px-3 py-2 flex items-center justify-between gap-3">
+                  <span>Wallet options unavailable.</span>
+                  <button type="button" className="min-h-[44px] font-semibold underline" onClick={() => setConfigRun((value) => value + 1)}>
+                    Reload options
+                  </button>
+                </div>
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {PAYMENT_METHODS.map((method) => {
+                  const selected = selectedMethod === method.id;
+                  const disabled = methodDisabled(method.id);
+                  const caption = methodCaption(method.id);
+                  const Icon = method.icon;
+                  return (
+                    <button
+                      key={method.id}
+                      type="button"
+                      onClick={() => setSelectedMethod(method.id)}
+                      disabled={disabled}
+                      aria-pressed={selected}
+                      className={cn(
+                        'relative min-h-[44px] p-4 rounded-(--g-radius-md) border-2 text-left transition-colors duration-150',
+                        selected
+                          ? 'border-(--g-primary) bg-(--g-primary-tint)'
+                          : 'border-(--g-border) bg-(--g-surface) hover:border-(--g-border-strong)',
+                        disabled && 'opacity-60 cursor-not-allowed bg-(--g-surface-sunken) hover:border-(--g-border)'
+                      )}
+                    >
+                      <div className="flex items-start gap-3 pr-6">
+                        <span className={cn(
+                          'w-10 h-10 shrink-0 rounded-(--g-radius-sm) flex items-center justify-center',
+                          disabled ? 'bg-(--g-neutral-bg) text-(--g-neutral-text)' : 'bg-(--g-primary-tint) text-(--g-primary-text)'
+                        )}>
+                          <Icon className="w-5 h-5" aria-hidden="true" />
+                        </span>
+                        <div className="min-w-0">
+                          <span className="flex flex-wrap items-center gap-2">
+                            <span className="g-small font-semibold text-(--g-text)">{method.name}</span>
+                            {method.badge && !disabled && (
+                              <span className="g-label px-1.5 py-0.5 rounded-(--g-radius-pill) bg-(--g-primary-fill) text-(--g-on-primary)">{method.badge}</span>
+                            )}
+                          </span>
+                          <span className="block g-small text-(--g-text-muted) mt-0.5">{method.description}</span>
+                          {caption && (
+                            <span className={cn(
+                              'block g-small font-semibold mt-1',
+                              caption === 'Test mode' ? 'text-(--g-warning-text)'
+                                : caption === 'Available' ? 'text-(--g-success-text)'
+                                  : 'text-(--g-text-muted)'
+                            )}>
+                              {caption}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      {selected && (
+                        <CheckCircle2 className="absolute top-3 right-3 w-5 h-5 text-(--g-primary-text)" aria-hidden="true" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
+
+            {walletSelected && (
+              <StatusBanner tone="warning" icon={ExternalLink} title={`You’ll continue on ${selectedMethod === 'khalti' ? 'Khalti' : 'eSewa'}`}>
+                You’ll be redirected to {selectedMethod === 'khalti' ? 'Khalti' : 'eSewa'}’s secure payment page and brought back here once you’re done.
+              </StatusBanner>
+            )}
+
+            {selectedMethod === 'card' && (
+              <StatusBanner tone="info" icon={Lock} title="Secure card entry">
+                You’ll enter your card details on the next step, directly through Stripe’s secure form. We never see or store your card number.
+              </StatusBanner>
+            )}
+
+            {selectedMethod === 'bank' && (
+              <div className="space-y-4 rounded-(--g-radius-md) border border-(--g-border) bg-(--g-surface-sunken) p-4">
+                <div className="rounded-(--g-radius-sm) border border-(--g-border) bg-(--g-surface) p-3 flex items-start gap-3">
+                  <Building2 className="w-5 h-5 shrink-0 mt-0.5 text-(--g-primary-text)" aria-hidden="true" />
+                  <dl className="g-small grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+                    <dt className="text-(--g-text-muted)">Account</dt>
+                    <dd className="font-semibold">{receivingAccount?.accountName}</dd>
+                    <dt className="text-(--g-text-muted)">Bank</dt>
+                    <dd className="font-semibold">{receivingAccount?.bankName}</dd>
+                    <dt className="text-(--g-text-muted)">A/C No</dt>
+                    <dd className="font-mono font-semibold text-(--g-primary-text)">{receivingAccount?.accountNumber}</dd>
+                    {receivingAccount?.branch && (
+                      <>
+                        <dt className="text-(--g-text-muted)">Branch</dt>
+                        <dd>{receivingAccount.branch}</dd>
+                      </>
+                    )}
+                  </dl>
+                </div>
+
+                {BANK_FIELDS.map((field) => {
+                  const id = `bank-${field.key}`;
+                  const error = bankErrors[field.key];
+                  return (
+                    <div key={field.key}>
+                      <label htmlFor={id} className="g-label text-(--g-text-muted)">{field.label}</label>
+                      <input
+                        id={id}
+                        type="text"
+                        inputMode={field.inputMode}
+                        autoComplete={field.autoComplete || 'off'}
+                        value={bankDetails[field.key]}
+                        onChange={(e) => {
+                          const value = field.transform ? field.transform(e.target.value) : e.target.value;
+                          setBankDetails({ ...bankDetails, [field.key]: value });
+                          if (error) setBankErrors((prev) => ({ ...prev, [field.key]: undefined }));
+                        }}
+                        aria-invalid={Boolean(error) || undefined}
+                        aria-describedby={error ? `${id}-error` : undefined}
+                        className={cn(
+                          'mt-1 w-full min-h-[44px] px-3 rounded-(--g-radius-sm) border bg-(--g-surface) text-(--g-text) g-body outline-none focus:border-(--g-primary)',
+                          field.mono && 'font-mono',
+                          error ? 'border-(--g-danger)' : 'border-(--g-border)'
+                        )}
+                      />
+                      {error && <p id={`${id}-error`} className="g-small text-(--g-danger-text) mt-1">{error}</p>}
+                    </div>
+                  );
+                })}
+
+                <p className="g-small text-(--g-warning-text) flex items-start gap-2">
+                  <Info className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
+                  Keep your bank receipt. Staff will mark this paid only after the transfer appears on the hotel bank statement.
+                </p>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </Sheet>
+  );
+};
+
+InvoicePaymentModal.propTypes = {
+  invoice: PropTypes.object.isRequired,
+  onClose: PropTypes.func.isRequired,
+  onSuccess: PropTypes.func.isRequired,
 };
 
 export default BillingView;

@@ -3,26 +3,10 @@
  * API calls for hotel admin menu management
  */
 
-import axios from 'axios';
-import { setupCsrfInterceptor } from '../../../../utils/csrf';
-import { getApiUrl } from '../../../../utils/apiConfig';
+import { createApiClient } from '../../../../core/api/client';
+import { getApiUrl } from '../../../../core/utils/apiConfig';
 
-const api = axios.create({
-  baseURL: getApiUrl(),
-  withCredentials: true,
-});
-
-// Add auth token to requests
-api.interceptors.request.use((config) => {
-  const token = sessionStorage.getItem('staffAccessToken');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-// Setup CSRF token interceptor
-setupCsrfInterceptor(api);
+const api = createApiClient({ baseURL: getApiUrl(), authScope: 'staff' });
 
 // ────────────────────────────────
 // Menu Item Operations

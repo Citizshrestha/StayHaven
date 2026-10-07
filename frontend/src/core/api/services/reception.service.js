@@ -79,6 +79,12 @@ export const getInvoices = (params = {}) =>
   axiosClient.get(`${BASE}/billing/invoices`, { params: withHotelParam(params) }).then(r => r.data);
 export const getBillingSummary = () =>
   axiosClient.get(`${BASE}/billing/summary`, { params: withHotelParam() }).then(r => r.data);
+export const getPendingBankTransfers = () =>
+  axiosClient.get(`${BASE}/payments/bank-transfers/pending`, { params: withHotelParam() }).then(r => r.data);
+export const approveBankTransfer = (id, notes) =>
+  axiosClient.post(`${BASE}/payments/bank-transfers/${id}/approve`, { notes }, { params: withHotelParam() }).then(r => r.data);
+export const rejectBankTransfer = (id, reason) =>
+  axiosClient.post(`${BASE}/payments/bank-transfers/${id}/reject`, { reason }, { params: withHotelParam() }).then(r => r.data);
 
 /* ═══ Staff ═══ */
 export const getStaffList = () => axiosClient.get(`${BASE}/staff`, { params: withHotelParam() }).then(r => r.data);

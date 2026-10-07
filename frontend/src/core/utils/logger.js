@@ -7,7 +7,8 @@
  * - Can be extended for production error tracking (Sentry, LogRocket, etc.)
  */
 
-const isDevelopment = import.meta.env?.DEV ?? process.env.NODE_ENV !== 'production';
+// Vite always defines import.meta.env; `process` does not exist in the browser.
+const isDevelopment = Boolean(import.meta.env?.DEV);
 
 class Logger {
   constructor(context = 'App') {

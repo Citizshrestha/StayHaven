@@ -1,5 +1,5 @@
 import { io } from 'socket.io-client';
-import { getSocketUrl } from '../../utils/apiConfig';
+import { getSocketUrl } from '../utils/apiConfig';
 
 let contentSocket = null;
 

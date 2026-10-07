@@ -1,4 +1,4 @@
-import { resetPassword } from "../../../../api/staff";
+import { resetPassword } from "../../../../core/api/services/staffAccount.service";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom"
 import { toast } from "react-toastify";

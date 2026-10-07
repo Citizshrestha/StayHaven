@@ -16,10 +16,14 @@ import {
   List,
   Mail,
   Info,
+  Pencil,
+  Trash2,
+  Wrench,
 } from 'lucide-react';
-import { getStaffList, inviteStaff, updateStaffStatus } from '../services/staffApi';
+import { getStaffList, inviteStaff, resendStaffInvite, updateStaffStatus, editStaff, removeStaff } from '../services/staffApi';
 import useHotelId from '../hooks/useHotelId';
-import ConfirmDialog from '../../../../components/ConfirmDialog';
+import { useStaffAuth } from '../../../../core/context/StaffAuthContext';
+import ConfirmDialog from '../../../../shared/components/ConfirmDialog';
 import {
   PageHeader,
   Button,
@@ -43,12 +47,12 @@ const ROLES = [
   { value: 'waiter', label: 'Waiter', Icon: UtensilsCrossed },
   { value: 'chief', label: 'Chef', Icon: ChefHat },
   { value: 'receptionist', label: 'Receptionist', Icon: Building2 },
-  { value: 'housekeeper', label: 'Housekeeper', Icon: Sparkles },
+  { value: 'housekeeping', label: 'Housekeeping', Icon: Sparkles },
   { value: 'manager', label: 'Manager', Icon: Briefcase },
-  { value: 'security', label: 'Security', Icon: Lock },
+  { value: 'maintenance', label: 'Maintenance', Icon: Wrench },
 ];
 
-const DEPTS = ['all', 'Front Office', 'Housekeeping', 'Food & Beverage', 'Guest Services', 'Maintenance', 'Security'];
+const DEPTS = ['all', 'Front Office', 'Housekeeping', 'Food & Beverage', 'Maintenance'];
 
 const roleMeta = (role) => ROLES.find((r) => r.value === role?.toLowerCase()) || { label: role || 'Staff', Icon: User };
 const initials = (name) => (name || '').split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase() || '?';
@@ -70,6 +74,9 @@ const RoleBadge = ({ role }) => {
 
 const StaffManagement = () => {
   const hotelId = useHotelId();
+  const { staffUser } = useStaffAuth();
+  const actorRole = typeof staffUser?.role === 'string' ? staffUser.role : staffUser?.role?.name;
+  const selectableRoles = ROLES.filter((role) => role.value !== 'manager' || ['owner', 'admin'].includes(actorRole));
 
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -87,22 +94,28 @@ const StaffManagement = () => {
   const [inviteErrors, setInviteErrors] = useState({});
 
   const [toggleTarget, setToggleTarget] = useState(null);
+  const [editTarget, setEditTarget] = useState(null);
+  const [editForm, setEditForm] = useState({ fullname: '', role: 'waiter', contact: '' });
+  const [removeTarget, setRemoveTarget] = useState(null);
 
   const setAct = (k, v) => setActionLoading((p) => ({ ...p, [k]: v }));
 
-  const fetchStaff = useCallback(async () => {
-    setLoading(true);
+  const fetchStaff = useCallback(async ({ silent = false } = {}) => {
+    if (!hotelId) {
+      setStaff([]);
+      setLoading(false);
+      return;
+    }
+    if (!silent) setLoading(true);
     try {
-      const params = {};
-      if (deptFilter !== 'all') params.department = deptFilter;
-      const res = await getStaffList(params);
+      const res = await getStaffList(hotelId);
       setStaff(res.data.data || []);
     } catch (e) {
       toast.error(e.response?.data?.message || 'Failed to load staff');
     } finally {
       setLoading(false);
     }
-  }, [deptFilter]);
+  }, [hotelId]);
 
   useEffect(() => {
     fetchStaff();
@@ -111,9 +124,9 @@ const StaffManagement = () => {
   const stats = useMemo(
     () => ({
       total: staff.length,
-      active: staff.filter((m) => m.isActive !== false).length,
-      inactive: staff.filter((m) => m.isActive === false).length,
-      pending: staff.filter((m) => m.status?.toLowerCase() === 'pending').length,
+      active: staff.filter((m) => m.isActive === true).length,
+      inactive: staff.filter((m) => m.isActive === false && m.accountStatus !== 'invited').length,
+      pending: staff.filter((m) => m.accountStatus === 'invited').length,
     }),
     [staff]
   );
@@ -125,7 +138,10 @@ const StaffManagement = () => {
       const matchS = !q || name.includes(q) || (m.email || '').toLowerCase().includes(q);
       const matchD = deptFilter === 'all' || m.department === deptFilter;
       const matchR = roleFilter === 'all' || m.role?.toLowerCase() === roleFilter;
-      const matchSt = statusFilter === 'all' || (statusFilter === 'active' ? m.isActive !== false : m.isActive === false);
+      const matchSt = statusFilter === 'all' ||
+        (statusFilter === 'active' && m.isActive === true) ||
+        (statusFilter === 'inactive' && m.isActive === false && m.accountStatus !== 'invited') ||
+        (statusFilter === 'invited' && m.accountStatus === 'invited');
       return matchS && matchD && matchR && matchSt;
     });
   }, [staff, debouncedSearch, deptFilter, roleFilter, statusFilter]);
@@ -144,12 +160,13 @@ const StaffManagement = () => {
     if (!validateInvite()) return;
     setAct('invite', true);
     try {
-      await inviteStaff({ ...inviteForm, propertyId: hotelId });
-      toast.success(`Invitation sent to ${inviteForm.email}`);
+      const result = await inviteStaff({ ...inviteForm, propertyId: hotelId });
+      if (result.data.emailDelivered === false) toast.warning(result.data.message);
+      else toast.success(`Invitation sent to ${inviteForm.email}`);
       setShowInvite(false);
       setInviteForm({ fullname: '', email: '', role: 'waiter' });
       setInviteErrors({});
-      fetchStaff();
+      fetchStaff({ silent: true });
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to send invitation');
     } finally {
@@ -162,14 +179,63 @@ const StaffManagement = () => {
     const { id, isActive, name } = toggleTarget;
     setAct(id, true);
     try {
-      await updateStaffStatus(id, !isActive);
+      await updateStaffStatus(hotelId, id, !isActive);
       toast.success(`${name} ${isActive ? 'deactivated' : 'activated'}`);
       setToggleTarget(null);
-      fetchStaff();
-    } catch {
-      toast.error('Status update failed');
+      fetchStaff({ silent: true });
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Status update failed');
     } finally {
       setAct(id, false);
+    }
+  };
+
+  const openEdit = (member) => {
+    setEditTarget(member);
+    setEditForm({ fullname: member.name || '', role: member.role || 'waiter', contact: member.contact || '' });
+  };
+
+  const saveEdit = async (event) => {
+    event.preventDefault();
+    if (!editTarget || editForm.fullname.trim().length < 2) return;
+    setAct('edit', true);
+    try {
+      await editStaff(hotelId, editTarget._id, editForm);
+      toast.success('Staff member updated');
+      setEditTarget(null);
+      fetchStaff({ silent: true });
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Could not update staff member');
+    } finally {
+      setAct('edit', false);
+    }
+  };
+
+  const confirmRemove = async () => {
+    if (!removeTarget) return;
+    setAct('remove', true);
+    try {
+      await removeStaff(hotelId, removeTarget._id);
+      toast.success('Staff access removed; historical records were kept');
+      setRemoveTarget(null);
+      fetchStaff({ silent: true });
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Could not remove staff access');
+    } finally {
+      setAct('remove', false);
+    }
+  };
+
+  const handleResend = async (member) => {
+    setAct(member._id, true);
+    try {
+      const result = await resendStaffInvite(member._id);
+      if (result.data.emailDelivered === false) toast.warning(result.data.message);
+      else toast.success(`Invitation resent to ${member.email}`);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Could not resend the invitation');
+    } finally {
+      setAct(member._id, false);
     }
   };
 
@@ -197,20 +263,24 @@ const StaffManagement = () => {
     { value: 'all', label: 'All', count: stats.total },
     { value: 'active', label: 'Active', count: stats.active },
     { value: 'inactive', label: 'Inactive', count: stats.inactive },
+    { value: 'invited', label: 'Invited', count: stats.pending },
   ];
 
-  const renderToggleBtn = (member) => {
+  const renderActions = (member) => {
     const name = member.name || member.fullname || 'Unknown';
     const isActive = member.isActive !== false;
+    if (!member.canManage) return <span className="ha-small">Protected role</span>;
     return (
-      <Button
-        size="sm"
-        variant={isActive ? 'danger' : 'primary'}
-        onClick={() => setToggleTarget({ id: member._id, isActive, name })}
-        disabled={actionLoading[member._id]}
-      >
-        {actionLoading[member._id] ? '…' : isActive ? 'Deactivate' : 'Activate'}
-      </Button>
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
+        <Button size="sm" variant="secondary" onClick={() => openEdit(member)} aria-label={`Edit ${name}`}><Pencil size={14} aria-hidden="true" /> Edit</Button>
+        {member.accountStatus === 'invited' && <Button size="sm" variant="secondary" onClick={() => handleResend(member)} disabled={actionLoading[member._id]}><Mail size={14} aria-hidden="true" /> Resend</Button>}
+        {member.accountStatus !== 'invited' && (
+          <Button size="sm" variant={isActive ? 'danger' : 'primary'} onClick={() => setToggleTarget({ id: member._id, isActive, name })} disabled={actionLoading[member._id]}>
+            {actionLoading[member._id] ? '…' : isActive ? 'Deactivate' : 'Activate'}
+          </Button>
+        )}
+        <Button size="sm" variant="secondary" onClick={() => setRemoveTarget(member)} aria-label={`Remove ${name}`}><Trash2 size={14} aria-hidden="true" /> Remove</Button>
+      </div>
     );
   };
 
@@ -227,7 +297,7 @@ const StaffManagement = () => {
             <Button variant="secondary" onClick={handleExport}>
               <Download size={16} aria-hidden="true" /> Export
             </Button>
-            <Button variant="primary" onClick={() => setShowInvite(true)}>
+            <Button variant="primary" onClick={() => setShowInvite(true)} disabled={!hotelId}>
               <Plus size={16} aria-hidden="true" /> Invite Staff
             </Button>
           </>
@@ -257,6 +327,8 @@ const StaffManagement = () => {
           </>
         }
       />
+
+      {!hotelId && <div className="ha-card ha-card--pad" role="alert">Select a property to manage its staff.</div>}
 
       <div className="ha-kpi-grid" style={{ marginBottom: 24 }}>
         {loading && staff.length === 0 ? (
@@ -299,8 +371,8 @@ const StaffManagement = () => {
                   {member.department && <Badge tone="neutral">{member.department}</Badge>}
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--ha-border)', paddingTop: 12 }}>
-                  <Badge tone={isActive ? 'success' : 'danger'}>{isActive ? 'Active' : 'Inactive'}</Badge>
-                  {renderToggleBtn(member)}
+                  <Badge tone={member.accountStatus === 'invited' ? 'warning' : isActive ? 'success' : 'danger'}>{member.accountStatus === 'invited' ? 'Invited' : isActive ? 'Active' : 'Inactive'}</Badge>
+                  {renderActions(member)}
                 </div>
               </div>
             );
@@ -332,9 +404,9 @@ const StaffManagement = () => {
                       <td style={{ color: 'var(--ha-text-subtle)' }}>{member.email}</td>
                       <td><RoleBadge role={member.role} /></td>
                       <td style={{ color: 'var(--ha-text-subtle)' }}>{member.department || '—'}</td>
-                      <td><Badge tone={isActive ? 'success' : 'danger'}>{isActive ? 'Active' : 'Inactive'}</Badge></td>
+                      <td><Badge tone={member.accountStatus === 'invited' ? 'warning' : isActive ? 'success' : 'danger'}>{member.accountStatus === 'invited' ? 'Invited' : isActive ? 'Active' : 'Inactive'}</Badge></td>
                       <td className="haNum" style={{ color: 'var(--ha-text-subtle)' }}>{member.joinDate ? new Date(member.joinDate).toLocaleDateString() : '—'}</td>
-                      <td>{renderToggleBtn(member)}</td>
+                      <td>{renderActions(member)}</td>
                     </tr>
                   );
                 })}
@@ -379,7 +451,7 @@ const StaffManagement = () => {
           <div>
             <span className="ha-field__label" style={{ display: 'block', marginBottom: 8 }}>Role *</span>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: 8 }}>
-              {ROLES.map((r) => {
+              {selectableRoles.map((r) => {
                 const RIcon = r.Icon;
                 const active = inviteForm.role === r.value;
                 return (
@@ -403,6 +475,37 @@ const StaffManagement = () => {
           </div>
         </form>
       </Modal>
+
+      <Modal
+        isOpen={!!editTarget}
+        onClose={() => setEditTarget(null)}
+        title={`Edit ${editTarget?.name || 'staff member'}`}
+        footer={<>
+          <Button variant="secondary" onClick={() => setEditTarget(null)} disabled={actionLoading.edit}>Cancel</Button>
+          <Button variant="primary" onClick={saveEdit} disabled={actionLoading.edit || editForm.fullname.trim().length < 2}>{actionLoading.edit ? 'Saving…' : 'Save changes'}</Button>
+        </>}
+      >
+        <form onSubmit={saveEdit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <Input label="Full name" required value={editForm.fullname} onChange={(e) => setEditForm((p) => ({ ...p, fullname: e.target.value }))} />
+          <Input label="Email address" type="email" value={editTarget?.email || ''} disabled />
+          <p className="ha-small">Email changes require a new verified invitation.</p>
+          <Input label="Contact" value={editForm.contact} onChange={(e) => setEditForm((p) => ({ ...p, contact: e.target.value }))} />
+          <Select aria-label="Staff role" value={editForm.role} onChange={(e) => setEditForm((p) => ({ ...p, role: e.target.value }))}>
+            {selectableRoles.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}
+          </Select>
+        </form>
+      </Modal>
+
+      <ConfirmDialog
+        isOpen={!!removeTarget}
+        onClose={() => setRemoveTarget(null)}
+        onConfirm={confirmRemove}
+        variant="danger"
+        title="Remove staff access?"
+        message={`${removeTarget?.name || 'This staff member'} will lose access. Their historical orders and audit records will remain intact.`}
+        confirmText="Remove access"
+        loading={actionLoading.remove}
+      />
 
       {/* Deactivate/activate confirmation */}
       <ConfirmDialog

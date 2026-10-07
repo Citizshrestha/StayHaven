@@ -1,15 +1,44 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { useStaffAuth } from '../../../../context/StaffAuthContext';
+import { useStaffAuth } from '../../../../core/context/StaffAuthContext';
+import { useNotifications } from '../../../../core/context/useNotifications';
 import './SuperAdminLayout.css';
+
+const timeAgo = (date) => {
+  const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
+  if (seconds < 60) return 'just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+};
+
+// Maps the backend notification.type enum onto Material Symbols names.
+const NOTIF_ICONS = {
+  system: 'settings_alert',
+  message: 'forum',
+  account: 'person',
+  hotel_approved: 'apartment',
+  hotel_rejected: 'apartment',
+  hotel_suspended: 'apartment',
+  review_received: 'rate_review',
+  payment_received: 'payments',
+  payment_failed: 'credit_card_off',
+  booking_confirmed: 'event_available',
+  booking_cancelled: 'event_busy',
+};
 
 const SuperAdminLayout = ({ children, pageTitle }) => {
   const [darkMode, setDarkMode] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
   const { staffUser, logout: staffLogout } = useStaffAuth();
+  const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
 
   const navigationItems = [
     { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', path: '/superadmindashboard' },
@@ -49,6 +78,15 @@ const SuperAdminLayout = ({ children, pageTitle }) => {
     navigate('/login');
   }, [staffLogout, navigate]);
 
+  const handleNotificationClick = useCallback((notification) => {
+    if (!notification.isRead) markRead(notification.id);
+    setNotifOpen(false);
+    // actionUrl is set by the backend (e.g. "/hotelmanagement" for a hotel
+    // awaiting verification); socket-only notifications may not carry one.
+    const target = notification.actionUrl || notification.payload?.actionUrl;
+    if (target) navigate(target);
+  }, [markRead, navigate]);
+
   const toggleDarkMode = useCallback(() => {
     setDarkMode(prev => {
       const newMode = !prev;
@@ -69,6 +107,18 @@ const SuperAdminLayout = ({ children, pageTitle }) => {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [location.pathname]);
+
+  // Close the notification panel on any click outside it.
+  useEffect(() => {
+    if (!notifOpen) return;
+    const handleOutside = (e) => {
+      if (notifRef.current && !notifRef.current.contains(e.target)) {
+        setNotifOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [notifOpen]);
 
   const activeNav = getActiveNav();
 
@@ -177,10 +227,60 @@ const SuperAdminLayout = ({ children, pageTitle }) => {
                 </span>
               </button>
 
-              <button className="sa-icon-button" aria-label="Notifications">
-                <span className="material-symbols-outlined">notifications</span>
-                <span className="sa-notification-dot"></span>
-              </button>
+              <div className="sa-notif-wrapper" ref={notifRef}>
+                <button
+                  className="sa-icon-button"
+                  onClick={() => setNotifOpen(prev => !prev)}
+                  aria-label={unreadCount > 0 ? `Notifications (${unreadCount} unread)` : 'Notifications'}
+                  aria-expanded={notifOpen}
+                >
+                  <span className="material-symbols-outlined">notifications</span>
+                  {unreadCount > 0 && (
+                    <span className="sa-notification-dot">{unreadCount > 9 ? '9+' : unreadCount}</span>
+                  )}
+                </button>
+
+                {notifOpen && (
+                  <div className="sa-notif-panel" role="dialog" aria-label="Notifications">
+                    <div className="sa-notif-panel-header">
+                      <h3>Notifications</h3>
+                      {unreadCount > 0 && (
+                        <button className="sa-notif-mark-all" onClick={markAllRead}>
+                          Mark all read
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="sa-notif-list">
+                      {notifications.length === 0 ? (
+                        <div className="sa-notif-empty">
+                          <span className="material-symbols-outlined">notifications_off</span>
+                          <p>No notifications yet</p>
+                        </div>
+                      ) : (
+                        notifications.slice(0, 20).map((n) => (
+                          <button
+                            key={n.id}
+                            className={`sa-notif-item ${n.isRead ? '' : 'unread'}`}
+                            onClick={() => handleNotificationClick(n)}
+                          >
+                            <span className={`sa-notif-icon ${n.priority || 'medium'}`}>
+                              <span className="material-symbols-outlined">
+                                {NOTIF_ICONS[n.type] || 'notifications'}
+                              </span>
+                            </span>
+                            <span className="sa-notif-body">
+                              {n.title && <span className="sa-notif-title">{n.title}</span>}
+                              <span className="sa-notif-message">{n.message}</span>
+                              <span className="sa-notif-time">{timeAgo(n.createdAt)}</span>
+                            </span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
 
               <div
                 key={userAvatar}

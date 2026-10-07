@@ -1,9 +1,7 @@
-import { useState } from 'react';
 import { Star, StarHalf, Heart, MapPin, Share, Award } from 'lucide-react';
 import { formatReviewCount } from './utils';
 
-const HotelHeader = ({ name, location, rating, reviewCount, highlights = [], badges = [], pricePerNight, onBookNow }) => {
-  const [isFavorite, setIsFavorite] = useState(false);
+const HotelHeader = ({ name, location, rating, reviewCount, highlights = [], badges = [], pricePerNight, onBookNow, isFavorite, onToggleFavorite }) => {
 
   // Render star rating
   const renderStars = () => {
@@ -33,9 +31,9 @@ const HotelHeader = ({ name, location, rating, reviewCount, highlights = [], bad
       {/* Mobile: Action Buttons at Top Right */}
       <div className="absolute top-4 right-4 flex items-center gap-2 md:hidden">
         <button
-          onClick={() => setIsFavorite(!isFavorite)}
+          onClick={onToggleFavorite}
           className="group flex flex-col items-center justify-center p-2 rounded-xl border border-[#00BFA6]/15 hover:bg-[#F0FDFB] hover:border-[#00BFA6] transition-all duration-300 bg-white"
-          aria-label="Add to Favorites"
+          aria-label={isFavorite ? 'Remove from saved hotels' : 'Save hotel'}
         >
           <Heart
             strokeWidth={2}
@@ -80,9 +78,9 @@ const HotelHeader = ({ name, location, rating, reviewCount, highlights = [], bad
         {/* Desktop: Action Buttons */}
         <div className="hidden md:flex items-center gap-2">
           <button
-            onClick={() => setIsFavorite(!isFavorite)}
+            onClick={onToggleFavorite}
             className="group flex flex-col items-center justify-center p-2.5 rounded-xl border border-[#00BFA6]/15 hover:bg-[#F0FDFB] hover:border-[#00BFA6] transition-all duration-300"
-            aria-label="Add to Favorites"
+            aria-label={isFavorite ? 'Remove from saved hotels' : 'Save hotel'}
           >
             <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform duration-300 ${isFavorite ? 'scale-110' : 'group-hover:scale-105'}`}>
                <Heart

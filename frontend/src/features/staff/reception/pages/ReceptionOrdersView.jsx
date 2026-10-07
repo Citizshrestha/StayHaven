@@ -34,7 +34,7 @@ import {
 import { toast } from 'react-toastify';
 import { useSocket } from '../../../../core/context/SocketContext';
 import BillPreviewModal from '../../../../shared/components/BillPreviewModal';
-import { useStaffAuth } from '../../../../context/StaffAuthContext';
+import { useStaffAuth } from '../../../../core/context/StaffAuthContext';
 
 const EMPTY_ITEM = { name: '', quantity: 1, price: 0 };
 
@@ -669,7 +669,7 @@ const Modal = ({ title, children, onClose }) => (
 
 const OrderCard = ({
   order: o, expanded, animDelay, isNewArrival,
-  onToggleExpand, onStatusUpdate, onEdit, onSendBill, onDeleteClick, isUpdating,
+  onToggleExpand, onEdit, onSendBill, onDeleteClick,
 }) => {
   const PREVIEW = 2;
   const timeAgo  = getTimeAgo(o.createdAt);
@@ -684,13 +684,6 @@ const OrderCard = ({
     : 'Takeaway';
   const locIcon  = o.orderType === 'roomService' ? '📍' : o.orderType === 'dineIn' ? '🍽️' : '🛍️';
 
-  const advanceMap = {
-    pending:   { label: '▶ Start Preparing', cls: 'ro-btn--start-prep', next: 'preparing' },
-    confirmed: { label: '▶ Start Preparing', cls: 'ro-btn--start-prep', next: 'preparing' },
-    preparing: { label: '✓ Mark Ready',      cls: 'ro-btn--mark-ready', next: 'ready'     },
-    ready:     { label: '✓ Mark Delivered',  cls: 'ro-btn--mark-del',   next: 'delivered' },
-  };
-  const advance = advanceMap[o.status];
   const isPaid  = o.paymentStatus === 'paid' || o.status === 'delivered';
 
   return (
@@ -738,7 +731,7 @@ const OrderCard = ({
             <span className="ro-item-name">{it.quantity}× {it.name}</span>
             {it.price > 0 && (
               <span style={{ fontWeight:600, color:'var(--text-primary,#1e293b)' }}>
-                ₹{Number(it.price * it.quantity).toLocaleString()}
+                Rs. {Number(it.price * it.quantity).toLocaleString()}
               </span>
             )}
           </div>
@@ -757,7 +750,7 @@ const OrderCard = ({
       {/* Footer */}
       <div className="ro-card-ft">
         <div className="ro-total-wrap">
-          <span className="ro-total">₹{Number(o.totalPrice || 0).toLocaleString()}</span>
+          <span className="ro-total">Rs. {Number(o.totalPrice || 0).toLocaleString()}</span>
           <span className={`ro-pay-badge ro-pay-badge--${isPaid ? 'paid' : 'unpaid'}`}>
             {isPaid ? '✓ Paid' : 'Unpaid'}
           </span>
@@ -939,6 +932,7 @@ const ReceptionOrdersView = () => {
       // Show toast notification for new orders
       if (data.order?.orderNumber) {
         toast.success(`New order #${data.order.orderNumber} received!`, {
+          toastId: `new-order-${data.order._id || data.order.orderNumber}`,
           position: 'top-right',
           autoClose: 3000,
           style: { 

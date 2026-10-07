@@ -1,7 +1,7 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { CheckCircle, Download, Calendar, Users, Home, MapPin, CreditCard, Copy, Check } from 'lucide-react';
 import { useState } from 'react';
-import { getApiBaseUrl } from '../../../../utils/apiConfig';
+import axiosClient from '../../../../core/api/client';
 
 const BookingConfirmed = () => {
   const location = useLocation();
@@ -12,7 +12,7 @@ const BookingConfirmed = () => {
 
   const {
     bookingId, // MongoDB _id for API calls
-    bookingReference = 'SH837190',
+    bookingReference = '',
     hotelName = 'The Grand Coastal Hotel',
     hotelAddress = '123 Ocean Drive, Sunnyville',
     hotelImage = 'https://plus.unsplash.com/premium_photo-1687960116497-0dc41e1808a2?q=80&w=1171&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
@@ -30,6 +30,14 @@ const BookingConfirmed = () => {
   // Format the reference for display
   const displayReference = cleanReference;
 
+  if (!bookingId) return (
+    <div className="p-8 text-center">
+      <h1 className="text-xl font-semibold">Booking confirmation unavailable</h1>
+      <p>Open your bookings to view the saved booking details.</p>
+      <button onClick={() => navigate('/guest-dashboard/bookings')} className="mt-4 underline">View my bookings</button>
+    </div>
+  );
+
   const handleCopyReference = () => {
     navigator.clipboard.writeText(cleanReference);
     setCopied(true);
@@ -44,16 +52,11 @@ const BookingConfirmed = () => {
 
     setDownloading(true);
     try {
-      const response = await fetch(
-        `${getApiBaseUrl()}/api/public/bookings/${bookingId}/confirmation-pdf`
+      const response = await axiosClient.get(
+        `/api/v1/public/bookings/${encodeURIComponent(bookingId)}/confirmation-pdf`,
+        { responseType: 'blob', timeout: 15000 }
       );
-
-      if (!response.ok) {
-        throw new Error('Failed to download confirmation');
-      }
-
-      // Get the PDF blob
-      const blob = await response.blob();
+      const blob = response.data;
 
       // Create a download link
       const url = window.URL.createObjectURL(blob);

@@ -1,10 +1,10 @@
 import { X, Clock, MapPin, User, Check, Printer, Send, ChefHat } from "lucide-react";
 import { useState } from "react";
 
-const OrderDetailsModal = ({ order, onClose, isDarkMode = false, onMarkReady, onPrintBill, onSendBill }) => {
-  if (!order) return null;
-
+const OrderDetailsModal = ({ order, onClose, isDarkMode = false, onPrintBill, onSendBill }) => {
+  // Hooks must run on every render, before any early return.
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  if (!order) return null;
 
   // Theme colors
   const colors = {
@@ -26,11 +26,10 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false, onMarkReady, on
         ? order.itemsText.split(", ").map((name, index) => ({ id: index, name, quantity: 1, price: 0 }))
         : [];
 
-  // Calculate totals
+  // Order value only. VAT and any service charge are applied once, on the
+  // table/takeaway bill (server-side), so this view must not invent them.
   const subtotal = itemsArray.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0);
-  const serviceCharge = subtotal * 0.05; // 5%
-  const tax = 0; // VAT 13% if needed
-  const total = order.totalAmount || (subtotal + serviceCharge + tax);
+  const total = Number(order.totalPrice) || subtotal;
 
   const getStatusStyles = (status) => {
     switch (status?.toLowerCase()) {
@@ -498,23 +497,9 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false, onMarkReady, on
                     padding: "6px 0",
                   }}
                 >
-                  <span>Service charge (5%)</span>
-                  <span>Rs. {serviceCharge.toFixed(0)}</span>
+                  <span>VAT and any service charge</span>
+                  <span>Added on the bill</span>
                 </div>
-                {tax > 0 && (
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      fontSize: "0.9rem",
-                      color: isDarkMode ? "#E2E8F0" : "#546E7A",
-                      padding: "6px 0",
-                    }}
-                  >
-                    <span>Tax (VAT 13%)</span>
-                    <span>Rs. {tax.toFixed(0)}</span>
-                  </div>
-                )}
                 <div
                   style={{
                     height: "1px",
@@ -535,7 +520,7 @@ const OrderDetailsModal = ({ order, onClose, isDarkMode = false, onMarkReady, on
                     fontFamily: "'Poppins', sans-serif",
                   }}
                 >
-                  <span>TOTAL</span>
+                  <span>ORDER TOTAL</span>
                   <span style={{ color: isDarkMode ? "#34D399" : "#00BFA6", fontSize: "1.2rem" }}>
                     Rs. {total.toFixed(0)}
                   </span>

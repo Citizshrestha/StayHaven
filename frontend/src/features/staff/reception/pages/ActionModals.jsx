@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axiosClient from '../../../../axiosClient';
+import axiosClient from '../../../../core/api/client';
 import { ModalErrorBoundary, withModalErrorBoundary } from '../components/ModalErrorBoundary';
 import GuestCommunicationModal from '../components/GuestCommunicationModal';
 import BulkCheckInModal from '../components/BulkCheckInModal';
@@ -102,7 +102,6 @@ const ModalContainer = ({ children, isDark, width = '560px' }) => (
   </div>
 );
 
-// eslint-disable-next-line no-unused-vars
 const ModalHeader = ({ icon: Icon, title, subtitle, onClose, isDark, accentColor = '#3b82f6' }) => (
   <div
     style={{

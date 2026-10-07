@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { useSocket } from '../../core/context/SocketContext';
 import { useStaffAuth } from '../../core/context/StaffAuthContext';
-import { useTheme } from '../../hooks/useTheme';
+import { useTheme } from '../../core/hooks/useTheme';
 import * as messagingApi from '../../core/api/services/messaging.service';
 import EmojiPicker from './EmojiPicker';
 import {
@@ -555,7 +555,8 @@ const MessagingPanel = ({
         });
 
         // Listen for read receipts so sent messages show blue double-tick
-        const unsubReadReceipt = subscribe('messages-read', ({ messageIds, readBy }) => {
+        const unsubReadReceipt = subscribe('messages-read', ({ messageIds, readBy } = {}) => {
+            if (!Array.isArray(messageIds) || messageIds.length === 0) return;
             if (readBy !== currentUserId) {
                 setMessages(prev => prev.map(m =>
                     messageIds.includes(m._id) ? { ...m, isRead: true } : m
@@ -776,6 +777,18 @@ const MessagingPanel = ({
                 params.recipientId = activeChat.contact?._id;
             } else {
                 params.channel = activeChat.channel;
+                // Guest-facing channels (reception / room-service) are per-guest
+                // threads. Scope a staff reply to the guest of the message being
+                // replied to (the most recent one carrying a guestUser), so it
+                // reaches that guest's device — never broadcast to every guest.
+                if (activeChat.channel === 'reception' || activeChat.channel === 'room-service') {
+                    const lastGuest = [...messages].reverse().find(m => m.guestUser)?.guestUser;
+                    const gid = typeof lastGuest === 'object' ? lastGuest?._id : lastGuest;
+                    if (gid) {
+                        params.guestUser = gid;
+                        params.recipientId = gid;
+                    }
+                }
             }
 
             const res = await messagingApi.sendMessage(params);
@@ -1043,6 +1056,8 @@ const MessagingPanel = ({
 
     // Channel definitions
     const channels = useMemo(() => [
+        { id: 'reception',    label: 'Guest · Front Desk', icon: '🛎️',  desc: 'Guest messages to the front desk' },
+        { id: 'room-service', label: 'Guest · Room Service', icon: '🍽️', desc: 'Guest dining & room-service requests' },
         { id: 'waiter',       label: 'Waiters',    icon: '🍽️',  desc: 'Message all waiters' },
         { id: 'chef',         label: 'Kitchen',    icon: '👨‍🍳', desc: 'Message all kitchen staff' },
         { id: 'receptionist', label: 'Reception',  icon: '🏨',  desc: 'Message all receptionists' },
@@ -1054,10 +1069,10 @@ const MessagingPanel = ({
         // staffUser.role is the canonical field (from StaffAuthContext)
         const userRole = staffUser?.role || staffUser?.companyRole || '';
         const relevantStaticChannels = [];
-        if (userRole === 'waiter') relevantStaticChannels.push('waiter', 'all');
-        else if (userRole === 'chief' || userRole === 'kitchen') relevantStaticChannels.push('chef', 'waiter', 'all');
-        else if (userRole === 'receptionist') relevantStaticChannels.push('waiter', 'chef', 'receptionist', 'all');
-        else if (userRole === 'manager' || userRole === 'owner' || userRole === 'admin') relevantStaticChannels.push('waiter', 'chef', 'receptionist', 'all');
+        if (userRole === 'waiter') relevantStaticChannels.push('room-service', 'waiter', 'all');
+        else if (userRole === 'chief' || userRole === 'kitchen') relevantStaticChannels.push('room-service', 'chef', 'waiter', 'all');
+        else if (userRole === 'receptionist') relevantStaticChannels.push('reception', 'room-service', 'waiter', 'chef', 'receptionist', 'all');
+        else if (userRole === 'manager' || userRole === 'owner' || userRole === 'admin') relevantStaticChannels.push('reception', 'room-service', 'waiter', 'chef', 'receptionist', 'all');
         else relevantStaticChannels.push('all');
 
         const staticConvs = relevantStaticChannels.map(chId => {

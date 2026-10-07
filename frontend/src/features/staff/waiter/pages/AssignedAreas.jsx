@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { MapPin, Users, Clock, ChefHat, CheckCircle, AlertCircle, X, Calendar } from "lucide-react";
-import axiosClient from "../../../../axiosClient";
+import axiosClient from "../../../../core/api/client";
 import { useTheme } from "../../../../core/hooks/useTheme";
 
 const AssignedAreas = ({ orders = [], onFilterByArea, onClose }) => {

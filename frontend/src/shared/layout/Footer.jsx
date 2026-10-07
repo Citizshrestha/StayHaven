@@ -4,7 +4,7 @@ import {
   MapPin, Phone, Mail, Facebook, Twitter, Instagram, Youtube,
   ArrowRight, Heart, Users, Lock, Shield, Clock
 } from 'lucide-react';
-import { useContent } from '../../hooks/useContent';
+import { useContent } from '../../core/hooks/useContent';
 import { getFooterContent } from '../../core/api/services/content.service';
 
 const Footer = () => {

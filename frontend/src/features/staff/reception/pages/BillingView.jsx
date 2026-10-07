@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useTheme } from '../../../../hooks/useTheme';
+import { useTheme } from '../../../../core/hooks/useTheme';
 import {
     Search,
     ChevronDown,
@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import './BillingView.css';
 import * as receptionApi from '../../../../core/api/services/reception.service';
+import BankTransferReview from './BankTransferReview';
 
 const BillingView = () => {
     const { isDark } = useTheme();
@@ -148,7 +149,7 @@ const BillingView = () => {
         return configs[status] || { class: '', label: status, icon: Receipt };
     };
 
-    const formatCurrency = (amount) => `₹${amount.toLocaleString()}`;
+    const formatCurrency = (amount) => `Rs ${Number(amount || 0).toLocaleString()}`;
     const formatDate = (date) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
     // ── Invoice Action Handlers ──
@@ -233,6 +234,8 @@ const BillingView = () => {
                     </div>
                 </div>
             </div>
+
+            <BankTransferReview onSettled={loadInvoices} />
 
             {/* Filter Bar */}
             <div className="bl-filter-bar">

@@ -18,9 +18,27 @@
  */
 
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import { io } from "socket.io-client";
-import { getActiveProperty, getCurrentStaffUser } from "../../api/staff";
-import { getSocketUrl } from "../../utils/apiConfig";
+import { getActiveProperty, getCurrentStaffUser } from "../api/services/staffAccount.service";
+import { getSocketUrl } from "../utils/apiConfig";
+import { useStaffAuth } from "./StaffAuthContext";
+
+/**
+ * Who the socket should connect as, read from storage. Changes whenever a
+ * staff member / guest logs in or out, or the active property changes.
+ */
+const computeIdentityKey = () => {
+  const staffUser = getCurrentStaffUser();
+  if (staffUser?._id) return `staff:${staffUser._id}:${getActiveProperty()?._id || ""}`;
+  const guestUserId = localStorage.getItem("userId");
+  if (localStorage.getItem("accessToken") && guestUserId && localStorage.getItem("role") === "guest") {
+    return `guest:${guestUserId}`;
+  }
+  const qr = localStorage.getItem("guestSessionId");
+  if (qr) return `qr:${qr}`;
+  return "none";
+};
 
 // Create the context
 const SocketContext = createContext(null);
@@ -42,6 +60,25 @@ export const SocketProvider = ({ children }) => {
   // Refs to store callbacks that will be called when events arrive
   const eventListeners = useRef(new Map());
 
+  // The connection is keyed on identity. Previously it was created once on app
+  // mount ([] deps): a waiter/cook who opened the app on the login page and then
+  // signed in had NO socket until a full page reload — so no live orders, no
+  // status updates, no sounds. Re-evaluate on login/logout, route changes and
+  // cross-tab storage changes, and reconnect when the identity changes.
+  const { staffUser: authStaffUser, activeProperty: authActiveProperty } = useStaffAuth();
+  const { pathname } = useLocation();
+  const [identityKey, setIdentityKey] = useState(computeIdentityKey);
+
+  useEffect(() => {
+    setIdentityKey(computeIdentityKey());
+  }, [authStaffUser?._id, authActiveProperty?._id, pathname]);
+
+  useEffect(() => {
+    const onStorage = () => setIdentityKey(computeIdentityKey());
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
   // Initialize socket connection for staff, registered guests, or anonymous QR guests
   useEffect(() => {
     const staffUser = getCurrentStaffUser();
@@ -55,13 +92,18 @@ export const SocketProvider = ({ children }) => {
     // Anonymous QR guest detection — set by GuestTableView / GuestRoomView on mount
     const qrGuestSessionId = localStorage.getItem("guestSessionId");
 
-    const isStaffUser = !!(staffUser && activeProperty);
+    // Platform-level staff (superadmin) have no activeProperty, so hotel scope
+    // must stay optional here or they never get a socket — and never receive
+    // the "notification" events the backend pushes to their personal room.
+    const isStaffUser = !!staffUser;
     const isGuestUser = !!(guestToken && guestUserId && guestRole === "guest");
     const isQrGuest = !!qrGuestSessionId && !isStaffUser && !isGuestUser;
 
     // Only connect when we have a meaningful identity
     if (!isStaffUser && !isGuestUser && !isQrGuest) {
-      return;
+      setSocket(null);
+      setIsConnected(false);
+      return undefined;
     }
 
     // Access token used by the server to verify the handshake identity and
@@ -77,7 +119,7 @@ export const SocketProvider = ({ children }) => {
           token: staffAccessToken || undefined,
           userId: staffUser._id,
           role: staffUser.role,
-          hotelId: activeProperty._id,
+          hotelId: activeProperty?._id || null,
         }
       : isGuestUser
       ? {
@@ -94,9 +136,12 @@ export const SocketProvider = ({ children }) => {
     const socketInstance = io(SOCKET_URL, {
       auth: authPayload,
       reconnection: true,
-      reconnectionAttempts: 5,
+      // Staff dashboards stay open all day: never give up reconnecting (the
+      // old limit of 5 attempts meant a short outage or backend restart left
+      // the dashboard deaf to orders until someone reloaded the page).
+      reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
+      reconnectionDelayMax: 10000,
       timeout: 20000,
     });
 
@@ -104,10 +149,14 @@ export const SocketProvider = ({ children }) => {
     socketInstance.on("connect", () => {
       setIsConnected(true);
 
-      if (isStaffUser && activeProperty?._id) {
-        socketInstance.emit("join-hotel", activeProperty._id);
+      if (isStaffUser) {
+        if (activeProperty?._id) {
+          socketInstance.emit("join-hotel", activeProperty._id);
+        }
+        // Without a hotelId the server joins only the personal room
+        // (user-<id>), which is all a platform-level admin needs.
         socketInstance.emit("join-role", {
-          hotelId: activeProperty._id,
+          hotelId: activeProperty?._id || undefined,
           role: staffUser.role,
           userId: staffUser._id,
           fullname: staffUser.fullname || staffUser.name || "Unknown",
@@ -138,11 +187,14 @@ export const SocketProvider = ({ children }) => {
     // Store socket instance
     setSocket(socketInstance);
 
-    // Cleanup on unmount
+    // Cleanup on identity change (logout, user switch) or unmount
     return () => {
+      socketInstance.removeAllListeners();
       socketInstance.disconnect();
+      setSocket(null);
+      setIsConnected(false);
     };
-  }, []);
+  }, [identityKey]);
 
   /**
    * Subscribe to a socket event

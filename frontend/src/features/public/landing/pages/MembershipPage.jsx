@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Check, X, Crown, Sparkles, AlertCircle, Inbox } from "lucide-react";
-import { useContent } from "../../../../hooks/useContent";
+import { useContent } from "../../../../core/hooks/useContent";
 import { getMemberships } from "../../../../core/api/services/content.service";
 import "./MembershipPage.css";
 
@@ -194,7 +194,7 @@ const MembershipPage = () => {
           {/* Cards */}
           {!loading && !error && memberships.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-              {memberships.map((membership, idx) => (
+              {memberships.map((membership) => (
                 <div
                   key={membership.id}
                   className={`membership-card bg-white rounded-[28px] overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 relative flex flex-col ${

@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Download, Heart, Share2, X } from 'lucide-react';
+import { toast } from 'react-toastify';
 
 const CATEGORY_LABELS = ['Pool', 'Room', 'Dining', 'Exterior', 'Spa'];
 
 const mod = (n, m) => ((n % m) + m) % m;
 
-const HotelImageGallery = ({ images = [] }) => {
-  const [isFavorite, setIsFavorite] = useState(false);
+const HotelImageGallery = ({ images = [], isFavorite = false, onToggleFavorite }) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState(null);
 
@@ -14,29 +14,62 @@ const HotelImageGallery = ({ images = [] }) => {
   const dragLastX = useRef(0);
   const dragStartAt = useRef(0);
   const isDragging = useRef(false);
+  const dialogRef = useRef(null);
+  const isOpen = lightboxIndex !== null;
 
-  const totalImages = images.length;
-  const safeImages = totalImages ? images : ['https://images.unsplash.com/photo-1607836046730-3317bd58a31b?w=1200&q=80'];
+  useEffect(() => {
+    if (!isOpen) return;
+    const previousFocus = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    dialogRef.current?.querySelector('button')?.focus();
+    const trapFocus = (event) => {
+      if (event.key !== 'Tab') return;
+      const elements = dialogRef.current?.querySelectorAll('button, a[href]');
+      if (!elements?.length) return;
+      const first = elements[0], last = elements[elements.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault(); last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault(); first.focus();
+      }
+    };
+    document.addEventListener('keydown', trapFocus);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', trapFocus);
+      previousFocus?.focus();
+    };
+  }, [isOpen]);
 
-  const labeledImages = useMemo(
-    () =>
-      safeImages.map((src, idx) => ({
-        src,
-        label: CATEGORY_LABELS[idx % CATEGORY_LABELS.length],
-      })),
-    [safeImages]
-  );
+  const shareHotel = async () => {
+    try {
+      if (navigator.share) await navigator.share({ title: document.title, url: window.location.href });
+      else {
+        await navigator.clipboard.writeText(window.location.href);
+        toast.success('Hotel link copied');
+      }
+    } catch (error) {
+      if (error.name !== 'AbortError') toast.info('Copy the address from your browser to share this hotel.');
+    }
+  };
 
-  const goToPrev = () => setActiveIndex((prev) => mod(prev - 1, labeledImages.length));
-  const goToNext = () => setActiveIndex((prev) => mod(prev + 1, labeledImages.length));
+  const labeledImages = useMemo(() => {
+    const validImages = Array.isArray(images) ? images.filter((src) => typeof src === 'string' && src.trim()) : [];
+    const safeImages = validImages.length ? validImages : ['/images/hotel-1.jpg'];
+    return safeImages.map((src, idx) => ({ src, label: CATEGORY_LABELS[idx % CATEGORY_LABELS.length] }));
+  }, [images]);
+
+  const goToPrev = useCallback(() => setActiveIndex((prev) => mod(prev - 1, labeledImages.length)), [labeledImages.length]);
+  const goToNext = useCallback(() => setActiveIndex((prev) => mod(prev + 1, labeledImages.length)), [labeledImages.length]);
 
   const openLightbox = (index) => setLightboxIndex(mod(index, labeledImages.length));
   const closeLightbox = () => setLightboxIndex(null);
-  const goLightboxPrev = () => setLightboxIndex((prev) => mod((prev ?? 0) - 1, labeledImages.length));
-  const goLightboxNext = () => setLightboxIndex((prev) => mod((prev ?? 0) + 1, labeledImages.length));
+  const goLightboxPrev = useCallback(() => setLightboxIndex((prev) => mod((prev ?? 0) - 1, labeledImages.length)), [labeledImages.length]);
+  const goLightboxNext = useCallback(() => setLightboxIndex((prev) => mod((prev ?? 0) + 1, labeledImages.length)), [labeledImages.length]);
 
   const prevImage = labeledImages[mod(activeIndex - 1, labeledImages.length)];
-  const currentImage = labeledImages[activeIndex];
+  const currentImage = labeledImages[mod(activeIndex, labeledImages.length)];
   const nextImage = labeledImages[mod(activeIndex + 1, labeledImages.length)];
 
   const onPointerDown = (event) => {
@@ -70,6 +103,7 @@ const HotelImageGallery = ({ images = [] }) => {
 
   useEffect(() => {
     const onKeyDown = (event) => {
+      if (event.target?.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(event.target?.tagName)) return;
       if (lightboxIndex !== null) {
         if (event.key === 'ArrowLeft') goLightboxPrev();
         if (event.key === 'ArrowRight') goLightboxNext();
@@ -81,7 +115,7 @@ const HotelImageGallery = ({ images = [] }) => {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [lightboxIndex, labeledImages.length]);
+  }, [lightboxIndex, goLightboxPrev, goLightboxNext, goToPrev, goToNext]);
 
   return (
     <>
@@ -144,7 +178,8 @@ const HotelImageGallery = ({ images = [] }) => {
             <button
               type="button"
               aria-label="Save hotel"
-              onClick={() => setIsFavorite((v) => !v)}
+              aria-pressed={isFavorite}
+              onClick={onToggleFavorite}
               className={`h-10 w-10 rounded-full border border-white/40 backdrop-blur-[12px] flex items-center justify-center transition ${
                 isFavorite ? 'bg-white text-rose-500 animate-pulse' : 'bg-white/20 text-white hover:bg-white/30'
               }`}
@@ -154,6 +189,7 @@ const HotelImageGallery = ({ images = [] }) => {
             <button
               type="button"
               aria-label="Share hotel"
+              onClick={shareHotel}
               className="h-10 w-10 rounded-full border border-white/40 bg-white/20 text-white backdrop-blur-[12px] flex items-center justify-center hover:bg-white/30 transition"
             >
               <Share2 className="h-5 w-5" />
@@ -183,7 +219,7 @@ const HotelImageGallery = ({ images = [] }) => {
       </div>
 
       {lightboxIndex !== null && (
-        <div className="fixed inset-0 z-[160] bg-black/95 flex flex-col">
+        <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Hotel photo gallery" className="fixed inset-0 z-[160] bg-black/95 flex flex-col">
           <div className="h-16 px-4 md:px-8 flex items-center justify-between text-white/95">
             <button
               type="button"
@@ -194,12 +230,15 @@ const HotelImageGallery = ({ images = [] }) => {
               <X className="h-5 w-5" />
             </button>
             <p className="text-sm md:text-base font-semibold">{lightboxIndex + 1} of {labeledImages.length}</p>
-            <button
-              type="button"
+            <a
+              href={labeledImages[mod(lightboxIndex, labeledImages.length)].src}
+              target="_blank"
+              rel="noopener noreferrer"
+              download
               className="h-10 px-4 rounded-full bg-white/15 inline-flex items-center gap-2 text-sm font-semibold hover:bg-white/25"
             >
               <Download className="h-4 w-4" /> Save
-            </button>
+            </a>
           </div>
 
           <div
@@ -221,11 +260,11 @@ const HotelImageGallery = ({ images = [] }) => {
 
             <div className="text-center">
               <img
-                src={labeledImages[lightboxIndex].src}
-                alt={labeledImages[lightboxIndex].label}
+                src={labeledImages[mod(lightboxIndex, labeledImages.length)].src}
+                alt={labeledImages[mod(lightboxIndex, labeledImages.length)].label}
                 className="max-h-[85vh] max-w-[90vw] object-contain rounded-xl transition-opacity duration-300"
               />
-              <p className="mt-4 text-white/90 text-sm md:text-base font-semibold">{labeledImages[lightboxIndex].label}</p>
+              <p className="mt-4 text-white/90 text-sm md:text-base font-semibold">{labeledImages[mod(lightboxIndex, labeledImages.length)].label}</p>
             </div>
 
             <button

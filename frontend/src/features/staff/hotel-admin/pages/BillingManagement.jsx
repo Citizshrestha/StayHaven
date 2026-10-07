@@ -80,7 +80,7 @@ const TABS = [
   { value: 'methods', label: 'Payment Methods' },
 ];
 
-export default function BillingManagement() {
+function BillingPreview() {
   const [tab, setTab] = useState('invoices');
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 250);
@@ -374,4 +374,20 @@ export default function BillingManagement() {
       </Modal>
     </div>
   );
+}
+
+export default function BillingManagement() {
+  if (import.meta.env.PROD) {
+    return (
+      <div className="ha-page">
+        <PageHeader title="Billing & Payments" subtitle="Financial reporting for your property." />
+        <EmptyState
+          icon={<FileText size={28} />}
+          title="Billing reports are not available yet"
+          description="Use the reception billing screen to view guest invoices and collect payments. Property-wide financial reports are being prepared."
+        />
+      </div>
+    );
+  }
+  return <BillingPreview />;
 }

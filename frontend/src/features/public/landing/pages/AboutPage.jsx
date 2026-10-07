@@ -1,7 +1,7 @@
 import React from "react";
-import { useContent } from "../../../../hooks/useContent";
+import { useContent } from "../../../../core/hooks/useContent";
 import { getAboutContent } from "../../../../core/api/services/content.service";
-import LeadershipTestimonials from "../../../../components/LeadershipTestimonials";
+import LeadershipTestimonials from "../../../../shared/components/LeadershipTestimonials";
 import "./AboutPage.css";
 
 const AboutPage = () => {

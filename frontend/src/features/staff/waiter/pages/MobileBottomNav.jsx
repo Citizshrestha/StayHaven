@@ -1,5 +1,6 @@
 import React from "react";
-import { LayoutDashboard, UtensilsCrossed, Bell, Phone, MessageCircle } from "lucide-react";
+import { LayoutDashboard, UtensilsCrossed, Bell, Phone, MessageCircle, Receipt } from "lucide-react";
+import { getStaffRole } from "../../../../core/api/services/staff.service";
 
 /**
  * MobileBottomNav Component
@@ -21,9 +22,12 @@ const MobileBottomNav = ({
   unreadMessageCount = 0,
 }) => {
   // Tab definitions - IDs must match the switch cases in WaiterDashboard
+  const role = getStaffRole();
+  const isKitchen = role === "chief" || role === "kitchen";
   const tabs = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "assignedTables", label: "Tables", icon: UtensilsCrossed },
+    ...(isKitchen ? [] : [{ id: "bills", label: "Bills", icon: Receipt }]),
     { id: "waiterCalls", label: "Calls", icon: Phone, badge: waiterCallCount },
     { id: "messages", label: "Messages", icon: MessageCircle, badge: unreadMessageCount, action: onMessagingToggle },
     { id: "notifications", label: "Alerts", icon: Bell, badge: notificationCount },

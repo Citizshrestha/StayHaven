@@ -15,6 +15,11 @@ node_modules/
 # production
 /build
 
+# Vite build output (vite.config.js writes frontend/ -> dist/).
+# Build artifacts must never be committed: they create phantom diffs on every
+# build and can capture build-time env values in version control.
+dist/
+
 # misc
 .DS_Store
 *.pem
@@ -67,3 +72,26 @@ NOTIFICATION_SYSTEM_FIX_SUMMARY.md
 PRODUCTION_AUDIT_REPORT.md
 SESSION_SUMMARY.md
 todo.md
+
+# AI/editor tool folders (local only)
+.claude/
+.cursor/
+.kilo/
+.kombai/
+.openclaude/
+.orchids/
+.qodo/
+.sixth/
+
+# Build caches / OS files
+frontend/dist/
+frontend/.vite/
+desktop.ini
+# Local dependency audit/cache artifacts and credentials
+.npm-cache/
+dependency-audit-*.json
+credentials.md
+
+# Agent QA worktrees and browser harness (local only)
+.worktrees/
+.qa-harness/

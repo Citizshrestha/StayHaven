@@ -1,16 +1,22 @@
 import React, { useState, useMemo } from "react";
 import { Plus, X, Minus, CheckCircle, AlertCircle, Package, Phone, Bell, ChefHat } from "lucide-react";
-import { useOrderContext } from "../../../../context/useOrderContext";
-import { useNotifications, NOTIFICATION_TYPES } from "../../../../context/useNotifications";
-import { useTheme } from "../../../../hooks/useTheme";
-import { toast } from "react-toastify";
-import useClickOutside from "../../../../hooks/useClickOutSide";
+import { useNotifications, NOTIFICATION_TYPES } from "../../../../core/context/useNotifications";
+import { useTheme } from "../../../../core/hooks/useTheme";
 import OrderFormModal from "./OrderFormModal";
 import "./RightPanel.css";
 
+// Status-based icons and colors for the mini notification feed.
+const STATUS_ICONS = {
+  ready: { Icon: CheckCircle, color: '#16A34A', bg: '#DCFCE7' },
+  preparing: { Icon: ChefHat, color: '#CA8A04', bg: '#FEF9C3' },
+  delivered: { Icon: Package, color: '#00BFA6', bg: '#CCFBF1' },
+  new: { Icon: Bell, color: '#7C3AED', bg: '#EDE9FE' },
+  pending: { Icon: Bell, color: '#7C3AED', bg: '#EDE9FE' },
+  confirmed: { Icon: Bell, color: '#7C3AED', bg: '#EDE9FE' },
+  waiter_call: { Icon: Phone, color: '#DC2626', bg: '#FEE2E2' },
+};
 
 const RightPanel = ({ orders = [] }) => {
-  const { addOrder, loading } = useOrderContext();
   const { isDark } = useTheme();
   const { notifications: contextNotifications } = useNotifications();
   const [showOrderModal, setShowOrderModal] = useState(false);
@@ -56,17 +62,6 @@ const RightPanel = ({ orders = [] }) => {
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
     return `${diffDays}d ago`;
-  };
-
-  // Status-based icons and colors matching the teal design system (Lucide React icons)
-  const STATUS_ICONS = {
-    ready: { Icon: CheckCircle, color: '#16A34A', bg: '#DCFCE7' },
-    preparing: { Icon: ChefHat, color: '#CA8A04', bg: '#FEF9C3' },
-    delivered: { Icon: Package, color: '#00BFA6', bg: '#CCFBF1' },
-    new: { Icon: Bell, color: '#7C3AED', bg: '#EDE9FE' },
-    pending: { Icon: Bell, color: '#7C3AED', bg: '#EDE9FE' },
-    confirmed: { Icon: Bell, color: '#7C3AED', bg: '#EDE9FE' },
-    waiter_call: { Icon: Phone, color: '#DC2626', bg: '#FEE2E2' },
   };
 
   // Get the top 3 latest notifications from context (mini feed for sidebar)

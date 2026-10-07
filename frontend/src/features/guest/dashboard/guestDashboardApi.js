@@ -109,8 +109,11 @@ export const getGuestInvoices = (params = {}) =>
  * @param {string} orderId  – the order or invoice ID
  * @param {object} payData  – { amount?, currency?, paymentMethod, cardDetails? }
  */
-export const payOrder = (orderId, payData) =>
-  axiosClient.post(`${BASE}/orders/${orderId}/pay`, payData).then((r) => r.data);
+export const payOrder = (orderId, payData, idempotencyKey) =>
+  axiosClient.post(`${BASE}/orders/${encodeURIComponent(orderId)}/pay`, payData, {
+    timeout: 30000,
+    ...(idempotencyKey && { headers: { 'Idempotency-Key': idempotencyKey } }),
+  }).then((r) => r.data);
 
 /** Confirm a Stripe payment after the frontend completes it */
 export const confirmPayment = (paymentIntentId, orderId) =>
@@ -125,8 +128,7 @@ export const verifyEsewaPayment = (encodedData, orderId) =>
   axiosClient.post(`${BASE}/payments/verify-esewa`, { encodedData, orderId }).then((r) => r.data);
 
 /** Get available payment gateway configuration */
-export const getPaymentGatewayConfig = () =>
-  axiosClient.get(`${BASE}/payments/config`).then((r) => r.data);
+export { getPaymentGatewayConfig } from '../../../core/api/services/publicBooking.service';
 
 /* ════════════════════════════════════════════
    PROFILE
@@ -137,6 +139,23 @@ export const getUserProfile = () =>
 
 export const updateUserProfile = (profileData) =>
   axiosClient.put(`${BASE}/profile`, profileData).then((r) => r.data);
+
+/** Upload a new profile photo (JPEG/PNG/WEBP, ≤ 5 MB). */
+export const uploadProfilePicture = (file) => {
+  const form = new FormData();
+  form.append('profilePicture', file);
+  // multipart header makes axios drop the JSON default so the browser sets the boundary
+  return axiosClient
+    .post(`${BASE}/profile/picture`, form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 60000 })
+    .then((r) => r.data);
+};
+
+export const removeProfilePicture = () =>
+  axiosClient.delete(`${BASE}/profile/picture`).then((r) => r.data);
+
+/** @param {{ currentPassword: string, newPassword: string }} data */
+export const changePassword = (data) =>
+  axiosClient.put(`${BASE}/profile/password`, data).then((r) => r.data);
 
 /* ════════════════════════════════════════════
    GUEST REQUESTS
@@ -150,3 +169,39 @@ export const submitRequest = (requestData) => {
   // No need to pass hotelId explicitly
   return axiosClient.post(`${BASE}/request`, requestData).then((r) => r.data);
 };
+
+/* ════════════════════════════════════════════
+   CHAT / MESSAGING  (guest ↔ reception / room-service)
+   hotelId is resolved server-side from the active booking.
+   ════════════════════════════════════════════ */
+
+/** Whether chat is available (active booking) + which channels exist. */
+export const getChatContext = () =>
+  axiosClient.get(`${BASE}/messages/context`).then((r) => r.data);
+
+/** Fetch the guest's thread for a channel. */
+export const getChatMessages = (channel, params = {}) =>
+  axiosClient.get(`${BASE}/messages`, { params: { channel, ...params } }).then((r) => r.data);
+
+/** Send a message on a guest channel ('reception' | 'room-service'). */
+export const sendChatMessage = (channel, content) =>
+  axiosClient.post(`${BASE}/messages`, { channel, content }).then((r) => r.data);
+
+/** Mark staff→guest messages in a channel as read. */
+export const markChatRead = (channel) =>
+  axiosClient.put(`${BASE}/messages/read`, { channel }).then((r) => r.data);
+
+/** Unread staff→guest message counts for the nav badge. */
+export const getChatUnreadCount = () =>
+  axiosClient.get(`${BASE}/messages/unread-count`).then((r) => r.data);
+
+/* ════════════════════════════════════════════
+   NOTIFICATIONS (portal bell)
+   ════════════════════════════════════════════ */
+
+export const getGuestNotifications = (params = {}) =>
+  axiosClient.get(`${BASE}/notifications`, { params: { limit: 30, ...params } }).then((r) => r.data);
+
+/** Mark specific notifications read, or all of them when `ids` is omitted. */
+export const markGuestNotificationsRead = (ids) =>
+  axiosClient.put(`${BASE}/notifications/read`, ids?.length ? { notificationIds: ids } : {}).then((r) => r.data);

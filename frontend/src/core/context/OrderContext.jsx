@@ -1,7 +1,32 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { OrderContext } from "./OrderContextDef";
-import { getActiveProperty, getOrders, createOrder, updateOrder as updateOrderApi, updateOrderStatus as updateOrderStatusApi } from "../api/services/staff.service";
+import { getActiveProperty, getOrders, createOrder, updateOrder as updateOrderApi, updateOrderStatus as updateOrderStatusApi, getStaffProfile } from "../api/services/staff.service";
+
+// Login only snapshots activeProperty into sessionStorage once, at sign-in
+// time. If a staff member's property assignment is granted/changed after
+// that (or the cached session predates the assignment), the snapshot goes
+// stale and every order fetch fails silently forever, even though the
+// account is fully provisioned server-side. This re-derives the active
+// property from the authoritative /staff/me profile and re-caches it,
+// self-healing without forcing a logout/login.
+const resolveActiveProperty = async () => {
+  const cached = getActiveProperty();
+  if (cached?._id) return cached;
+
+  try {
+    const profile = await getStaffProfile();
+    const property = profile?.user?.assignedProperties?.[0];
+    if (property?._id) {
+      sessionStorage.setItem("activeProperty", JSON.stringify(property));
+      return property;
+    }
+  } catch {
+    // Profile lookup failed (e.g. logged out) — surfaced by the caller
+    // via the "No active property found" error below.
+  }
+  return null;
+};
 
 export const OrderProvider = ({ children }) => {
   const location = useLocation();
@@ -27,11 +52,12 @@ export const OrderProvider = ({ children }) => {
       if (!silent) {
         setLoading(true);
       }
-      const activeProperty = getActiveProperty();
+      const activeProperty = await resolveActiveProperty();
       if (!activeProperty?._id) {
         setError("No active property found");
         return;
       }
+      setError(null);
 
       // Single consolidated fetch — the backend treats status/orderType "all"
       // as no filter, so one request returns every active order. This replaces
@@ -72,6 +98,7 @@ export const OrderProvider = ({ children }) => {
         paidAt: order.paidAt,
         items: order.items.map((item) => ({
           id: item._id || item.menuItem,
+          menuItemId: item.menuItem?._id || item.menuItem || undefined,
           name: item.name,
           quantity: item.quantity,
           price: item.price,
@@ -119,7 +146,7 @@ export const OrderProvider = ({ children }) => {
       setLoading(true);
       setError(null);
 
-      const activeProperty = getActiveProperty();
+      const activeProperty = await resolveActiveProperty();
       if (!activeProperty?._id) {
         setError("No active property found");
         return;
@@ -192,6 +219,11 @@ export const OrderProvider = ({ children }) => {
         notes: updatedOrder.notes,
         items: Array.isArray(updatedOrder.items)
           ? updatedOrder.items.map((item) => ({
+            // The server re-prices from the menu (menuItem) or keeps the
+            // existing line's price (id); `price` only matters for custom
+            // lines a manager adds.
+            id: item.id || item._id,
+            menuItem: item.menuItemId || item.menuItem?._id || (typeof item.menuItem === "string" ? item.menuItem : undefined),
             name: item.name,
             quantity: item.quantity,
             price: item.price,

@@ -12,7 +12,7 @@ import {
   HeadphonesIcon, TrendingDown, Leaf, ConciergeBell,
   BarChart3, MessageSquare, BadgePercent
 } from 'lucide-react';
-import { useContent } from '../../../../hooks/useContent';
+import { useContent } from '../../../../core/hooks/useContent';
 import {
   getHeroBanners,
   getSiteSettings,
@@ -20,37 +20,35 @@ import {
   getFeaturedHotels,
   getTestimonials,
 } from '../../../../core/api/services/content.service';
-import { adToBS } from '../../../../utils/dateConverter';
-
 gsap.registerPlugin(ScrollTrigger);
 
 const sectionReveal = {
-  hidden: { opacity: 0, y: 34 },
+  hidden: { opacity: 0, y: 18 },
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] },
+    transition: { duration: 0.38, ease: 'easeOut' },
   },
 };
 
 const staggerReveal = {
   hidden: {},
   visible: {
-    transition: { staggerChildren: 0.08, delayChildren: 0.08 },
+    transition: { staggerChildren: 0.04, delayChildren: 0.03 },
   },
 };
 
 const cardReveal = {
-  hidden: { opacity: 0, y: 28, scale: 0.98 },
+  hidden: { opacity: 0, y: 18, scale: 0.99 },
   visible: {
     opacity: 1,
     y: 0,
     scale: 1,
-    transition: { duration: 0.62, ease: [0.22, 1, 0.36, 1] },
+    transition: { duration: 0.32, ease: 'easeOut' },
   },
 };
 
-const viewportReveal = { once: true, amount: 0.22, margin: '0px 0px -90px 0px' };
+const viewportReveal = { once: true, amount: 0.12, margin: '0px 0px -40px 0px' };
 
 const HERO_BG_URL =
   'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1920&q=80';
@@ -80,11 +78,6 @@ const HeroSearch = ({ ripples, onSearchRipple }) => {
   const [checkIn, setCheckIn] = useState(today);
   const [checkOut, setCheckOut] = useState(tomorrow);
   const [guests, setGuests] = useState('2');
-
-  const displayDate = (value) => {
-    if (!value) return '';
-    return calendarSystem === 'BS' ? `${adToBS(value)} BS` : `${value} AD`;
-  };
 
   const openPicker = (event) => {
     event.currentTarget.querySelector('input')?.showPicker?.();
@@ -172,7 +165,7 @@ const Home = () => {
 
   // Dynamic content from API
   const { data: banners, loading: heroLoading } = useContent('hero-banners', getHeroBanners);
-  const { data: siteSettings, loading: settingsLoading } = useContent('site-settings', getSiteSettings);
+  const { data: siteSettings } = useContent('site-settings', getSiteSettings);
   const { data: testimonials, loading: testimonialsLoading } = useContent('testimonials', () => getTestimonials(2));
   const hero = banners?.[0] || null;
   const settings = siteSettings?.[0] || null;
@@ -192,7 +185,7 @@ const Home = () => {
               trigger: heroRef.current,
               start: 'top top',
               end: 'bottom top',
-              scrub: 0.85,
+              scrub: 0.25,
             },
           }
         );
@@ -204,7 +197,7 @@ const Home = () => {
             trigger: heroRef.current,
             start: 'top top',
             end: '+=130%',
-            scrub: 0.6,
+            scrub: 0.25,
             pin: false,
           },
         });
@@ -359,10 +352,10 @@ const Home = () => {
         <section className="relative z-10 w-full overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
           <div className="relative z-2 mx-auto flex w-full max-w-[1100px] flex-col items-center px-4 pt-[150px] pb-[130px] text-center sm:px-6">
             <div className="w-full max-w-[540px] space-y-6">
-              <div className="h-7 w-48 mx-auto bg-slate-700/50 rounded-full animate-pulse" style={{ animation: 'hero-pulse 2s ease-in-out infinite' }} />
-              <div className="h-16 w-full bg-slate-700/50 rounded-2xl animate-pulse" style={{ animation: 'hero-pulse 2s ease-in-out infinite', animationDelay: '0.2s' }} />
-              <div className="h-6 w-4/5 mx-auto bg-slate-700/50 rounded-xl animate-pulse" style={{ animation: 'hero-pulse 2s ease-in-out infinite', animationDelay: '0.4s' }} />
-              <div className="h-14 w-full max-w-[860px] mx-auto bg-slate-700/50 rounded-2xl animate-pulse" style={{ animation: 'hero-pulse 2s ease-in-out infinite', animationDelay: '0.6s' }} />
+              <div className="h-7 w-48 mx-auto bg-slate-700/50 rounded-full animate-pulse" style={{ animation: 'hero-pulse 1.1s ease-in-out infinite' }} />
+              <div className="h-16 w-full bg-slate-700/50 rounded-2xl animate-pulse" style={{ animation: 'hero-pulse 1.1s ease-in-out infinite', animationDelay: '0.1s' }} />
+              <div className="h-6 w-4/5 mx-auto bg-slate-700/50 rounded-xl animate-pulse" style={{ animation: 'hero-pulse 1.1s ease-in-out infinite', animationDelay: '0.2s' }} />
+              <div className="h-14 w-full max-w-[860px] mx-auto bg-slate-700/50 rounded-2xl animate-pulse" style={{ animation: 'hero-pulse 1.1s ease-in-out infinite', animationDelay: '0.3s' }} />
             </div>
           </div>
         </section>
@@ -382,7 +375,7 @@ const Home = () => {
               className="absolute inset-0 z-0 scale-110"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.35, ease: 'easeOut' }}
               style={{
                 backgroundImage: `url('${hero.backgroundImage}')`,
                 backgroundSize: 'cover',
@@ -417,7 +410,7 @@ const Home = () => {
                 }}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.55, ease: 'easeOut' }}
+                transition={{ duration: 0.32, ease: 'easeOut' }}
               >
                 {hero?.title || 'Book smarter.'}
               </Motion.span>
@@ -430,7 +423,7 @@ const Home = () => {
             style={{ color: 'rgba(255,255,255,0.78)' }}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.95, duration: 0.5, ease: 'easeOut' }}
+            transition={{ delay: 0.12, duration: 0.32, ease: 'easeOut' }}
           >
             {hero?.subtitle || "Discover Nepal's finest hotels, manage your stay, and enjoy seamless in-hotel services — all in one place."}
           </Motion.p>
@@ -441,7 +434,7 @@ const Home = () => {
             style={{ background: 'rgba(255,255,255,0.97)' }}
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1.15, duration: 0.55, ease: 'easeOut' }}
+            transition={{ delay: 0.18, duration: 0.32, ease: 'easeOut' }}
           >
             <HeroSearch ripples={ripples} onSearchRipple={onSearchRipple} />
           </Motion.div>
@@ -567,7 +560,7 @@ const TrustStrip = () => {
       initial={{ opacity: 0, y: 28 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-60px' }}
-      transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 0.35, ease: 'easeOut' }}
     >
       {/* Fade edges */}
       <div className="pointer-events-none absolute left-0 top-0 h-full w-24 z-10 bg-linear-to-r from-white to-transparent" />
@@ -614,17 +607,45 @@ const TrustStrip = () => {
 };
 
 // Destinations Component
+const fallbackDestinations = [
+  {
+    id: 'pokhara',
+    name: 'Pokhara',
+    image: 'https://images.unsplash.com/photo-1544735716-392fe2489ffa?auto=format&fit=crop&w=900&q=80',
+    properties: 'Lakeside stays',
+  },
+  {
+    id: 'kathmandu',
+    name: 'Kathmandu',
+    image: 'https://images.unsplash.com/photo-1605640840605-14ac1855827b?auto=format&fit=crop&w=900&q=80',
+    properties: 'City & heritage stays',
+  },
+  {
+    id: 'chitwan',
+    name: 'Chitwan',
+    image: 'https://images.unsplash.com/photo-1535338454770-8be927b5a00b?auto=format&fit=crop&w=900&q=80',
+    properties: 'Jungle retreats',
+  },
+  {
+    id: 'nagarkot',
+    name: 'Nagarkot',
+    image: 'https://images.unsplash.com/photo-1548013146-72479768bada?auto=format&fit=crop&w=900&q=80',
+    properties: 'Mountain-view stays',
+  },
+];
+
 const Destinations = () => {
   const scrollContainerRef = useRef(null);
 
-  const { data: dynamicDestinations, loading, error } = useContent('destinations', getDestinationsApi);
+  const { data: dynamicDestinations, loading } = useContent('destinations', getDestinationsApi);
 
-  const items = (dynamicDestinations || []).map((destination) => ({
+  const publishedDestinations = (dynamicDestinations || []).map((destination) => ({
     id: destination._id,
     name: destination.name,
     image: destination.images?.[0] || '',
     properties: `${destination.hotelsCount || 0}+ stays`,
   }));
+  const items = publishedDestinations.length ? publishedDestinations : fallbackDestinations;
 
   return (
     <Motion.section
@@ -648,7 +669,7 @@ const Destinations = () => {
             </p>
           </div>
           <a
-            href="#"
+            href="/destinations"
             className="text-teal-600 font-medium flex items-center hover:underline mt-4 md:mt-0"
           >
             View all
@@ -667,14 +688,6 @@ const Destinations = () => {
                 <div className="h-[400px] rounded-[28px] bg-gray-200 animate-pulse" />
               </div>
             ))
-          ) : error ? (
-            <div className="w-full min-w-full rounded-3xl border border-red-100 bg-red-50 p-8 text-center text-red-600">
-              Destinations could not be loaded right now.
-            </div>
-          ) : items.length === 0 ? (
-            <div className="w-full min-w-full rounded-3xl border border-gray-200 bg-white p-10 text-center text-gray-500 shadow-sm">
-              No destinations have been published yet.
-            </div>
           ) : items.map((dest) => (
             <Motion.button
               type="button"
@@ -683,16 +696,20 @@ const Destinations = () => {
               className="dest-card flex-shrink-0 w-[300px] md:w-[340px] group cursor-pointer text-left focus:outline-none focus-visible:ring-4 focus-visible:ring-teal-200 rounded-[28px]"
               variants={cardReveal}
             >
-              <div className="relative rounded-[28px] overflow-hidden h-[400px] shadow-xl hover:shadow-2xl transition-all duration-500 group-hover:-translate-y-1.5 group-hover:shadow-teal-900/20 bg-gray-100">
+              <div className="relative rounded-[28px] overflow-hidden h-[400px] shadow-xl hover:shadow-2xl transition-all duration-300 group-hover:-translate-y-1.5 group-hover:shadow-teal-900/20 bg-gray-100">
                 {dest.image ? (
                   <img
                     src={dest.image}
                     alt={dest.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000 ease-out"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ease-out"
                   />
-                ) : null}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/20 to-transparent transition-opacity duration-500 group-hover:opacity-90" />
-                <div className="absolute bottom-8 left-8 right-8 transition-transform duration-500 group-hover:-translate-y-1">
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-teal-100 to-teal-200 flex items-center justify-center">
+                    <MapPin className="w-16 h-16 text-teal-600 opacity-50" />
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/20 to-transparent transition-opacity duration-300 group-hover:opacity-90" />
+                <div className="absolute bottom-8 left-8 right-8 transition-transform duration-300 group-hover:-translate-y-1">
                   <h3 className="text-white text-xl font-bold mb-2">
                     {dest.name}
                   </h3>
@@ -813,14 +830,14 @@ const FeaturedHotelsSection = () => {
                 variants={cardReveal}
                 whileHover={{ y: -8, scale: 1.015 }}
                 whileTap={{ scale: 0.99 }}
-                className="featured-hotel-card group bg-white rounded-[28px] overflow-hidden shadow-[0_18px_45px_rgba(15,23,42,0.10)] hover:shadow-[0_26px_64px_rgba(15,23,42,0.16)] transition-shadow duration-500 cursor-pointer border border-slate-100 focus:outline-none flex-shrink-0 w-[82vw] sm:w-[340px] md:w-auto snap-center"
+                className="featured-hotel-card group bg-white rounded-[28px] overflow-hidden shadow-[0_18px_45px_rgba(15,23,42,0.10)] hover:shadow-[0_26px_64px_rgba(15,23,42,0.16)] transition-shadow duration-300 cursor-pointer border border-slate-100 focus:outline-none flex-shrink-0 w-[82vw] sm:w-[340px] md:w-auto snap-center"
               >
                 <div className="relative h-[260px] overflow-hidden bg-gray-100">
                   {hotel.image ? (
                     <img
                       src={hotel.image}
                       alt={hotel.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000 ease-out"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ease-out"
                     />
                   ) : null}
                   {hotel.badge ? (
@@ -920,7 +937,7 @@ const HowItWorks = () => {
               key={index}
               variants={cardReveal}
               whileHover={{ y: -7, scale: 1.012 }}
-              className="step-card group bg-white rounded-[28px] p-10 shadow-xl hover:shadow-2xl hover:shadow-slate-900/10 transition-shadow duration-500 border border-slate-100"
+              className="step-card group bg-white rounded-[28px] p-10 shadow-xl hover:shadow-2xl hover:shadow-slate-900/10 transition-shadow duration-300 border border-slate-100"
             >
               <div 
                 className="w-14 h-14 rounded-2xl flex items-center justify-center mb-6"
@@ -977,12 +994,12 @@ const ForEveryone = () => {
           <Motion.div
             variants={cardReveal}
             whileHover={{ y: -8, scale: 1.01 }}
-            className="relative rounded-[28px] overflow-hidden h-[540px] lg:h-[600px] group cursor-pointer shadow-xl hover:shadow-2xl hover:shadow-teal-900/20 transition-shadow duration-500"
+            className="relative rounded-[28px] overflow-hidden h-[540px] lg:h-[600px] group cursor-pointer shadow-xl hover:shadow-2xl hover:shadow-teal-900/20 transition-shadow duration-300"
           >
             <img
               src="/images/panel-travelers.jpg"
               alt="For travelers"
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000"
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
             <div className="absolute bottom-10 left-10 right-10 panel-text">
@@ -1011,12 +1028,12 @@ const ForEveryone = () => {
           <Motion.div
             variants={cardReveal}
             whileHover={{ y: -8, scale: 1.01 }}
-            className="relative rounded-[28px] overflow-hidden h-[500px] lg:h-[560px] group cursor-pointer shadow-xl hover:shadow-2xl hover:shadow-teal-900/20 transition-shadow duration-500"
+            className="relative rounded-[28px] overflow-hidden h-[500px] lg:h-[560px] group cursor-pointer shadow-xl hover:shadow-2xl hover:shadow-teal-900/20 transition-shadow duration-300"
           >
             <img
               src="/images/panel-managers.jpg"
               alt="For managers"
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
             <div className="absolute bottom-8 left-8 right-8 panel-text">
@@ -1114,7 +1131,7 @@ const WhyChoose = () => {
               key={index}
               variants={cardReveal}
               whileHover={{ y: -7, scale: 1.012 }}
-              className="benefit-card group bg-white rounded-[28px] p-10 shadow-xl hover:shadow-2xl hover:shadow-slate-900/10 transition-shadow duration-500 border border-slate-100"
+              className="benefit-card group bg-white rounded-[28px] p-10 shadow-xl hover:shadow-2xl hover:shadow-slate-900/10 transition-shadow duration-300 border border-slate-100"
             >
               <div 
                 className="w-12 h-12 rounded-xl flex items-center justify-center mb-5"
@@ -1137,7 +1154,7 @@ const WhyChoose = () => {
 };
 
 // Testimonials Component
-const Testimonials = ({ testimonials: dynamicTestimonials = [], loading }) => {
+const Testimonials = ({ testimonials: dynamicTestimonials = [] }) => {
   const stats = [
     { value: '500+', label: 'Properties', icon: Building, color: 'teal' },
     { value: '50K+', label: 'Happy Guests', icon: Users, color: 'indigo' },
@@ -1240,7 +1257,7 @@ const Testimonials = ({ testimonials: dynamicTestimonials = [], loading }) => {
                 className={`group relative rounded-3xl p-6 md:p-8 transition-colors duration-300 hover:shadow-2xl border ${theme.bg}`}
               >
                 <div className="relative z-10 flex flex-col items-center">
-                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 transition-transform duration-500 group-hover:scale-110 ring-4 ${theme.iconBg}`}>
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-110 ring-4 ${theme.iconBg}`}>
                     <IconComponent className="w-5 h-5" />
                   </div>
                   
@@ -1267,13 +1284,13 @@ const Testimonials = ({ testimonials: dynamicTestimonials = [], loading }) => {
               key={index}
               variants={cardReveal}
               whileHover={{ y: -7, scale: 1.01 }}
-              className="group relative bg-white rounded-[32px] p-8 md:p-10 transition-shadow duration-500 hover:shadow-[0_20px_50px_rgba(13,148,136,0.08)] border border-gray-100 hover:border-teal-100/50 flex flex-col justify-between overflow-hidden"
+              className="group relative bg-white rounded-[32px] p-8 md:p-10 transition-shadow duration-300 hover:shadow-[0_20px_50px_rgba(13,148,136,0.08)] border border-gray-100 hover:border-teal-100/50 flex flex-col justify-between overflow-hidden"
             >
               {/* Decorative background glow inside card on hover */}
-              <div className="absolute top-0 right-0 w-40 h-40 bg-teal-50/30 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+              <div className="absolute top-0 right-0 w-40 h-40 bg-teal-50/30 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
 
               {/* Floating Quote icon */}
-              <div className="absolute top-8 right-8 text-gray-100/80 group-hover:text-teal-100/60 transition-colors duration-500 pointer-events-none">
+              <div className="absolute top-8 right-8 text-gray-100/80 group-hover:text-teal-100/60 transition-colors duration-300 pointer-events-none">
                 <Quote className="h-16 w-16 rotate-180" />
               </div>
 
@@ -1376,13 +1393,13 @@ const Inspiration = () => {
               key={index}
               variants={cardReveal}
               whileHover={{ y: -7, scale: 1.01 }}
-              className={`insp-image relative rounded-[28px] overflow-hidden cursor-pointer group shadow-xl hover:shadow-2xl hover:shadow-teal-900/20 transition-shadow duration-500 ${insp.size === 'large' ? 'lg:row-span-2 h-[540px]' : 'h-[260px]'
+              className={`insp-image relative rounded-[28px] overflow-hidden cursor-pointer group shadow-xl hover:shadow-2xl hover:shadow-teal-900/20 transition-shadow duration-300 ${insp.size === 'large' ? 'lg:row-span-2 h-[540px]' : 'h-[260px]'
                 }`}
             >
               <img
                 src={insp.image}
                 alt={insp.name}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000"
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
               <div className="insp-label absolute bottom-8 left-8">

@@ -6,6 +6,7 @@ import { toast } from 'react-toastify';
 const ResetPassword = () => {
   const [step, setStep] = useState(1); // 1 = OTP verification, 2 = New password
   const [otp, setOtp] = useState('');
+  const [resetToken, setResetToken] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -40,6 +41,7 @@ const ResetPassword = () => {
     try {
       const response = await verifyResetPasswordOtp(userId, otp);
       if (response.success) {
+        setResetToken(response.resetToken);
         toast.success('OTP verified successfully');
         setStep(2);
       }
@@ -64,14 +66,14 @@ const ResetPassword = () => {
       return;
     }
 
-    if (newPassword.length < 6) {
-      toast.error('Password must be at least 6 characters long');
+    if (newPassword.length < 8) {
+      toast.error('Password must be at least 8 characters long');
       return;
     }
 
     setLoading(true);
     try {
-      const response = await resetPassword(userId, newPassword);
+      const response = await resetPassword(userId, newPassword, resetToken);
       if (response.success) {
         toast.success('Password reset successfully! You can now log in.');
         // Clean up stored data

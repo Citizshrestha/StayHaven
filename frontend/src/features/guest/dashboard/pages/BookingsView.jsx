@@ -1,228 +1,188 @@
 /**
  * Guest Dashboard - Bookings View
- * Current and past bookings list with modify/cancel functionality
+ * Current / upcoming / past bookings with modify and cancel.
+ * Styling comes exclusively from the guest design tokens (guest-tokens.css).
  */
 
-import React, { useEffect, useState, useCallback } from 'react';
-import { getGuestBookings, modifyBooking, cancelBooking } from "../guestDashboardApi";
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import PropTypes from 'prop-types';
+import { useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
-  CalendarDays,
-  MapPin,
-  BedDouble,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  Loader2,
-  AlertCircle,
-  RefreshCw,
-  Edit2,
-  X,
-  Hash,
-  BadgeCheck,
+  CalendarDays, MapPin, BedDouble, Clock, AlertTriangle, RefreshCw, Edit2, X, Hash, Copy, Check, Info, CheckCircle2,
 } from 'lucide-react';
-
-const statusMeta = {
-  Pending: { icon: Clock, className: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300' },
-  Confirmed: { icon: CheckCircle2, className: 'bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-300' },
-  'Checked-In': { icon: CheckCircle2, className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' },
-  'Checked-Out': { icon: CheckCircle2, className: 'bg-gray-100 text-gray-600 dark:bg-gray-500/15 dark:text-gray-300' },
-  Cancelled: { icon: XCircle, className: 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300' },
-  'No-Show': { icon: XCircle, className: 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300' },
-};
+import { getGuestBookings, modifyBooking, cancelBooking } from '../guestDashboardApi';
+import { cn } from '../../../../core/utils/cn';
+import usePullToRefresh from '../hooks/usePullToRefresh';
+import {
+  errorMessage, formatDate, formatLocation, fromDateInputValue, nightsBetween, toDateInputValue,
+} from '../utils/format';
+import Button from '../components/ui/Button';
+import Money from '../components/ui/Money';
+import PageHeader from '../components/ui/PageHeader';
+import FilterTabs from '../components/ui/FilterTabs';
+import StatusBadge from '../components/ui/StatusBadge';
+import EmptyState from '../components/ui/EmptyState';
+import Sheet from '../components/ui/Sheet';
+import PullIndicator from '../components/ui/PullIndicator';
+import { SkeletonCard } from '../components/ui/Skeleton';
 
 const FILTERS = ['all', 'Pending', 'Confirmed', 'Checked-In', 'Checked-Out', 'Cancelled'];
+const FILTER_LABELS = {
+  all: 'All', Pending: 'Pending', Confirmed: 'Confirmed', 'Checked-In': 'Checked in', 'Checked-Out': 'Checked out', Cancelled: 'Cancelled',
+};
+const BOOKING_LIST_ID = 'booking-list';
+const HOUR = 1000 * 60 * 60;
+const MAX_GUESTS = 10; // mirrors bookingController.modifyBooking
+
+const hoursUntil = (date) => (date ? (new Date(date) - new Date()) / HOUR : -Infinity);
+
+// Guest count lives in `guests.adults` on the schema; `numGuests` is the API field.
+const guestCount = (booking) => booking?.numGuests || booking?.guests?.adults || 1;
+
+const startOfToday = () => {
+  const d = new Date();
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+};
+
+/** Groups for the "All" view: Current stay → Upcoming → Past. */
+const groupBookings = (bookings) => {
+  const today = startOfToday();
+  const groups = { current: [], upcoming: [], past: [] };
+  bookings.forEach((b) => {
+    if (b.status === 'Checked-In') groups.current.push(b);
+    else if (['Pending', 'Confirmed'].includes(b.status) && (!b.checkOut || new Date(b.checkOut) >= today)) groups.upcoming.push(b);
+    else groups.past.push(b);
+  });
+  const byCheckIn = (a, b) => new Date(a.checkIn || 0) - new Date(b.checkIn || 0);
+  groups.upcoming.sort(byCheckIn);
+  groups.past.sort((a, b) => byCheckIn(b, a));
+  return [
+    { key: 'current', title: 'Current stay', items: groups.current },
+    { key: 'upcoming', title: 'Upcoming', items: groups.upcoming },
+    { key: 'past', title: 'Past', items: groups.past },
+  ].filter((g) => g.items.length > 0);
+};
 
 const BookingsView = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
+  const [loaded, setLoaded] = useState(false);
   const [bookings, setBookings] = useState([]);
-  const [filter, setFilter] = useState('all');
   const [error, setError] = useState(null);
-  const [selectedBooking, setSelectedBooking] = useState(null);
-  const [showModifyModal, setShowModifyModal] = useState(false);
-  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [modifyTarget, setModifyTarget] = useState(null);
+  const [cancelTarget, setCancelTarget] = useState(null);
 
-  const loadBookings = useCallback(async (statusFilter) => {
+  const statusParam = searchParams.get('status');
+  const filter = FILTERS.includes(statusParam) ? statusParam : 'all';
+  const setFilter = (value) => setSearchParams(value === 'all' ? {} : { status: value });
+
+  const loadBookings = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-
-      const res = await getGuestBookings({ status: statusFilter !== 'all' ? statusFilter : undefined });
-
-      // Handle different response formats
-      const normalizedBookings = Array.isArray(res)
+      const res = await getGuestBookings({ status: filter !== 'all' ? filter : undefined });
+      const normalized = Array.isArray(res)
         ? res
         : Array.isArray(res?.data)
           ? res.data
           : Array.isArray(res?.bookings)
             ? res.bookings
             : [];
-
-      setBookings(normalizedBookings);
+      setBookings(normalized);
+      setLoaded(true);
     } catch (err) {
       console.error('Failed to load bookings:', err);
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to load bookings';
-      setError(errorMessage);
-      toast.error(errorMessage);
+      setError(err.response?.data?.message || err.message || 'Failed to load bookings');
       setBookings([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filter]);
 
-  useEffect(() => {
-    loadBookings(filter);
-  }, [filter, loadBookings]);
+  useEffect(() => { loadBookings(); }, [loadBookings]);
 
-  const handleModifyClick = (booking) => {
-    setSelectedBooking(booking);
-    setShowModifyModal(true);
-  };
+  const { pull, refreshing } = usePullToRefresh(loadBookings);
 
-  const handleCancelClick = (booking) => {
-    setSelectedBooking(booking);
-    setShowCancelModal(true);
-  };
+  const groups = useMemo(
+    () => (filter === 'all' ? groupBookings(bookings) : [{ key: filter, title: null, items: bookings }]),
+    [bookings, filter]
+  );
+
+  const filterOptions = FILTERS.map((value) => ({ value, label: FILTER_LABELS[value] }));
 
   const handleModifySuccess = () => {
-    setShowModifyModal(false);
-    setSelectedBooking(null);
-    loadBookings(filter);
+    setModifyTarget(null);
+    loadBookings();
   };
 
-  const handleCancelSuccess = () => {
-    setShowCancelModal(false);
-    setSelectedBooking(null);
-    loadBookings(filter);
+  const handleCancelDone = () => {
+    setCancelTarget(null);
+    loadBookings();
   };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#0b1220]">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-10 h-10 animate-spin text-teal-500" />
-          <p className="text-gray-500 dark:text-gray-400">Loading your bookings...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="min-h-screen pb-24 lg:pb-8 bg-gray-50 dark:bg-[#0b1220]">
-      {/* Header */}
-      <div className="hidden lg:block bg-white/90 dark:bg-[#0f1c2e]/90 backdrop-blur-lg border-b border-gray-100 dark:border-white/5 sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-8 py-7">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My Bookings</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">View and manage your current and past stays</p>
+    <div>
+      <PullIndicator pull={pull} refreshing={refreshing} />
 
-          {/* Filter Tabs */}
-          <div className="flex gap-1.5 flex-wrap mt-5 p-1 bg-gray-100 dark:bg-white/5 rounded-xl w-fit">
-            {FILTERS.map((status) => (
-              <button
-                key={status}
-                onClick={() => setFilter(status)}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-                  filter === status
-                    ? 'bg-white dark:bg-teal-600 text-teal-700 dark:text-white shadow-sm'
-                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-                }`}
-              >
-                {status === 'all' ? 'All' : status}
-              </button>
-            ))}
-          </div>
+      <PageHeader
+        title="My bookings"
+        subtitle="View and manage your current and past stays"
+        filters={<FilterTabs label="Filter bookings" options={filterOptions} value={filter} onChange={setFilter} controls={BOOKING_LIST_ID} />}
+      />
+
+      {loading && !loaded ? (
+        <div role="status" aria-live="polite" className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-5">
+          <span className="sr-only">Loading your bookings…</span>
+          {[0, 1, 2, 3].map((i) => <SkeletonCard key={i} media lines={3} />)}
         </div>
-      </div>
-
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 lg:pt-8 pb-8">
-        {/* Mobile: compact header + filter row */}
-        <div className="lg:hidden mb-5">
-          <p className="text-xl font-bold text-gray-900 dark:text-white">My Bookings</p>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Tap a card to manage</p>
-          <div className="flex gap-2 overflow-x-auto pt-4 -mx-4 px-4 scrollbar-hide">
-            {FILTERS.map((status) => (
-              <button
-                key={status}
-                onClick={() => setFilter(status)}
-                className={`px-3.5 py-2 rounded-full font-semibold transition-all whitespace-nowrap text-sm shrink-0 ${
-                  filter === status
-                    ? 'bg-teal-600 text-white shadow-md shadow-teal-600/20'
-                    : 'bg-white dark:bg-white/5 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-white/10'
-                }`}
-              >
-                {status === 'all' ? 'All' : status}
-              </button>
-            ))}
-          </div>
+      ) : error ? (
+        <div role="alert">
+          <EmptyState
+            icon={AlertTriangle}
+            title="Bookings unavailable"
+            description={error}
+            action={<Button variant="secondary" icon={RefreshCw} onClick={loadBookings}>Try again</Button>}
+          />
         </div>
-
-        {/* Error State */}
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-2xl flex items-center gap-4">
-            <AlertCircle className="w-6 h-6 text-red-500 shrink-0" />
-            <div className="flex-1">
-              <p className="text-red-700 dark:text-red-300 font-semibold">Error loading bookings</p>
-              <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
-            </div>
-            <button
-              onClick={() => loadBookings(filter)}
-              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm shrink-0"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Retry
-            </button>
-          </div>
-        )}
-
-        {/* Empty State */}
-        {bookings.length === 0 && !error ? (
-          <div className="text-center py-16 bg-white dark:bg-[#0f1c2e] rounded-2xl shadow-sm border border-gray-100 dark:border-white/5">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-teal-50 dark:bg-teal-500/10 flex items-center justify-center">
-              <CalendarDays className="w-8 h-8 text-teal-500" />
-            </div>
-            <p className="text-gray-700 dark:text-gray-200 text-lg font-semibold">No bookings found</p>
-            <p className="text-gray-400 dark:text-gray-500 text-sm mt-1">
-              {filter === 'all'
-                ? "You haven't made any bookings yet."
-                : `No ${filter.toLowerCase()} bookings.`}
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {bookings.map((booking) => (
-              <BookingCard
-                key={booking._id}
-                booking={booking}
-                onModify={() => handleModifyClick(booking)}
-                onCancel={() => handleCancelClick(booking)}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Modify Booking Modal */}
-      {showModifyModal && selectedBooking && (
-        <ModifyBookingModal
-          booking={selectedBooking}
-          onClose={() => {
-            setShowModifyModal(false);
-            setSelectedBooking(null);
-          }}
-          onSuccess={handleModifySuccess}
+      ) : bookings.length === 0 ? (
+        <EmptyState
+          icon={CalendarDays}
+          title="No bookings found"
+          description={filter === 'all' ? 'You haven’t made any bookings yet.' : `No ${FILTER_LABELS[filter].toLowerCase()} bookings.`}
+          action={filter !== 'all' && <Button variant="secondary" onClick={() => setFilter('all')}>Show all bookings</Button>}
         />
+      ) : (
+        <div id={BOOKING_LIST_ID} className={cn('space-y-8 transition-opacity duration-150', loading && 'opacity-60')} aria-busy={loading || undefined}>
+          {groups.map((group) => (
+            <section key={group.key} aria-labelledby={group.title ? `group-${group.key}` : undefined}>
+              {group.title && (
+                <h2 id={`group-${group.key}`} className="g-h2 mb-3">
+                  {group.title} <span className="text-(--g-text-muted) guestNum">({group.items.length})</span>
+                </h2>
+              )}
+              <ul className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-5">
+                {group.items.map((booking) => (
+                  <li key={booking._id}>
+                    <BookingCard
+                      booking={booking}
+                      onModify={() => setModifyTarget(booking)}
+                      onCancel={() => setCancelTarget(booking)}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
       )}
 
-      {/* Cancel Booking Modal */}
-      {showCancelModal && selectedBooking && (
-        <CancelBookingModal
-          booking={selectedBooking}
-          onClose={() => {
-            setShowCancelModal(false);
-            setSelectedBooking(null);
-          }}
-          onSuccess={handleCancelSuccess}
-        />
+      {modifyTarget && (
+        <ModifyBookingSheet booking={modifyTarget} onClose={() => setModifyTarget(null)} onSuccess={handleModifySuccess} />
+      )}
+
+      {cancelTarget && (
+        <CancelBookingSheet booking={cancelTarget} onClose={() => setCancelTarget(null)} onDone={handleCancelDone} />
       )}
     </div>
   );
@@ -232,389 +192,409 @@ const BookingsView = () => {
 // Sub-components
 // ─────────────────────────────────────────
 
-const BookingCard = ({ booking, onModify, onCancel }) => {
-  const checkInDate = booking?.checkIn ? new Date(booking.checkIn) : null;
-  const checkOutDate = booking?.checkOut ? new Date(booking.checkOut) : null;
-  const nights = checkInDate && checkOutDate
-    ? Math.max(1, Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24)))
-    : 0;
+const DetailChip = ({ icon: Icon, label, children }) => (
+  <div className="rounded-(--g-radius-sm) bg-(--g-surface-sunken) px-3 py-2.5 flex items-center gap-2 min-w-0">
+    {Icon && <Icon className="w-4 h-4 shrink-0 text-(--g-primary-text)" aria-hidden="true" />}
+    <div className="min-w-0">
+      <p className="g-label text-(--g-text-muted)">{label}</p>
+      <p className="g-small font-semibold text-(--g-text) guestNum truncate">{children}</p>
+    </div>
+  </div>
+);
 
-  const meta = statusMeta[booking.status] || { icon: BadgeCheck, className: 'bg-gray-100 text-gray-600 dark:bg-gray-500/15 dark:text-gray-300' };
-  const StatusIcon = meta.icon;
+DetailChip.propTypes = { icon: PropTypes.elementType, label: PropTypes.string.isRequired, children: PropTypes.node };
 
-  // Format location - handle both object and string formats
-  const formatLocation = (location) => {
-    if (!location) return 'N/A';
-    if (typeof location === 'string') return location;
-    if (typeof location === 'object') {
-      const parts = [location.city, location.address].filter(Boolean);
-      return parts.length > 0 ? parts.join(', ') : 'N/A';
+const CopyCode = ({ code }) => {
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!copied) return undefined;
+    const t = setTimeout(() => setCopied(false), 2000);
+    return () => clearTimeout(t);
+  }, [copied]);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      toast.success('Confirmation code copied');
+    } catch {
+      toast.error('Couldn’t copy — please select the code manually');
     }
-    return 'N/A';
-  };
-
-  // Get room display text - show room type if room number not assigned
-  const getRoomDisplay = () => {
-    if (booking.room?.roomNumber) {
-      return booking.room.roomNumber;
-    }
-    if (booking.room?.type) {
-      return `${booking.room.type} Room`;
-    }
-    return 'TBD';
-  };
-
-  // Check if booking can be modified (24h before check-in, status Pending/Confirmed)
-  const canModify = () => {
-    if (!['Pending', 'Confirmed'].includes(booking.status)) return false;
-    if (!checkInDate) return false;
-    const hoursUntilCheckIn = (checkInDate - new Date()) / (1000 * 60 * 60);
-    return hoursUntilCheckIn >= 24;
-  };
-
-  // Check if booking can be cancelled
-  const canCancel = () => {
-    return !['Cancelled', 'Checked-Out', 'No-Show'].includes(booking.status);
   };
 
   return (
-    <div className="group bg-white dark:bg-[#0f1c2e] rounded-2xl shadow-sm hover:shadow-lg dark:hover:shadow-black/30 transition-all overflow-hidden border border-gray-100 dark:border-white/5">
-      {/* Image with gradient overlay + hotel name */}
-      <div className="relative h-44 bg-gradient-to-br from-teal-500 to-emerald-600 overflow-hidden">
-        {booking.hotel?.images?.[0] && (
-          <img
-            src={booking.hotel.images[0]}
-            alt={booking.hotel.name}
-            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
-        <span
-          className={`absolute top-3 right-3 px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 backdrop-blur-sm ${meta.className}`}
-        >
-          <StatusIcon className="w-3.5 h-3.5" />
-          {booking.status}
-        </span>
-        <div className="absolute bottom-0 left-0 right-0 p-4">
-          <h3 className="text-lg font-bold text-white drop-shadow-sm">{booking.hotel?.name || 'N/A'}</h3>
-          <div className="flex items-center gap-1.5 text-xs text-white/85 mt-0.5">
-            <MapPin className="w-3.5 h-3.5 shrink-0" />
-            <span className="truncate">{formatLocation(booking.hotel?.location)}</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="p-5">
-        {/* Detail chips */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-xl bg-gray-50 dark:bg-white/5 px-3 py-2.5">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">Check-in</p>
-            <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm mt-0.5">
-              {checkInDate ? checkInDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
-            </p>
-          </div>
-          <div className="rounded-xl bg-gray-50 dark:bg-white/5 px-3 py-2.5">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">Check-out</p>
-            <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm mt-0.5">
-              {checkOutDate ? checkOutDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
-            </p>
-          </div>
-          <div className="rounded-xl bg-gray-50 dark:bg-white/5 px-3 py-2.5 flex items-center gap-2">
-            <BedDouble className="w-4 h-4 text-teal-500 shrink-0" />
-            <div>
-              <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">Room</p>
-              <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{getRoomDisplay()}</p>
-            </div>
-          </div>
-          <div className="rounded-xl bg-gray-50 dark:bg-white/5 px-3 py-2.5 flex items-center gap-2">
-            <Clock className="w-4 h-4 text-teal-500 shrink-0" />
-            <div>
-              <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">Duration</p>
-              <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{nights} {nights === 1 ? 'night' : 'nights'}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Booking ID and confirmation code */}
-        <div className="mt-4 pt-4 border-t border-gray-100 dark:border-white/5 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-          <span className="flex items-center gap-1.5">
-            <Hash className="w-3.5 h-3.5" />
-            {booking.bookingId || booking._id?.slice(-8) || 'N/A'}
-          </span>
-          {booking.confirmationCode && (
-            <span className="font-mono text-gray-600 dark:text-gray-300">{booking.confirmationCode}</span>
-          )}
-        </div>
-
-        {/* Action Buttons */}
-        {(canModify() || canCancel()) && (
-          <div className="mt-4 flex gap-2.5">
-            {canModify() && (
-              <button
-                onClick={onModify}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl transition-colors font-semibold text-sm"
-              >
-                <Edit2 className="w-4 h-4" />
-                Modify
-              </button>
-            )}
-            {canCancel() && (
-              <button
-                onClick={onCancel}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-white dark:bg-white/5 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors font-semibold text-sm"
-              >
-                <X className="w-4 h-4" />
-                Cancel
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
+    <button
+      type="button"
+      onClick={copy}
+      aria-label={`Copy confirmation code ${code}`}
+      className="min-h-[44px] -my-2 -mr-2 px-2 inline-flex items-center gap-1.5 rounded-(--g-radius-sm) font-mono g-small font-semibold text-(--g-text) hover:bg-(--g-surface-sunken) select-all"
+    >
+      {code}
+      {copied
+        ? <Check className="w-4 h-4 text-(--g-success-text)" aria-hidden="true" />
+        : <Copy className="w-4 h-4 text-(--g-text-muted)" aria-hidden="true" />}
+    </button>
   );
 };
 
-// ─────────────────────────────────────────
-// Modify Booking Modal
-// ────────────────────────────────────────
+CopyCode.propTypes = { code: PropTypes.string.isRequired };
 
-const ModifyBookingModal = ({ booking, onClose, onSuccess }) => {
-  const [loading, setLoading] = useState(false);
+const HotelImage = ({ src, alt }) => {
+  const [failed, setFailed] = useState(false);
+  if (!src || failed) return <div className="absolute inset-0 bg-(--g-surface-sunken)" aria-hidden="true" />;
+  return <img src={src} alt={alt} loading="lazy" onError={() => setFailed(true)} className="absolute inset-0 w-full h-full object-cover" />;
+};
+
+HotelImage.propTypes = { src: PropTypes.string, alt: PropTypes.string };
+
+const BookingCard = ({ booking, onModify, onCancel }) => {
+  const nights = Math.max(1, nightsBetween(booking.checkIn, booking.checkOut));
+  const hasDates = Boolean(booking.checkIn && booking.checkOut);
+  const room = booking.room?.roomNumber || (booking.room?.type ? `${booking.room.type} room` : 'To be assigned');
+
+  // 24h rule mirrors bookingController.modifyBooking for non-staff users.
+  const modifiableStatus = ['Pending', 'Confirmed'].includes(booking.status);
+  const canModify = modifiableStatus && hoursUntil(booking.checkIn) >= 24;
+  const lockedByWindow = modifiableStatus && !canModify && Boolean(booking.checkIn);
+  const canCancel = !['Cancelled', 'Checked-Out', 'No-Show'].includes(booking.status);
+  const location = formatLocation(booking.hotel?.location);
+
+  return (
+    <article className="h-full flex flex-col rounded-(--g-radius-md) border border-(--g-border) bg-(--g-surface) shadow-(--g-shadow-sm) overflow-hidden">
+      <div className="relative aspect-video">
+        <HotelImage src={booking.hotel?.images?.[0]} alt={booking.hotel?.name || 'Hotel'} />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" aria-hidden="true" />
+        <StatusBadge domain="booking" status={booking.status} className="absolute top-3 right-3" />
+        <div className="absolute inset-x-0 bottom-0 p-4">
+          <h3 className="g-h2 text-white">{booking.hotel?.name || 'Hotel'}</h3>
+          {location && (
+            <p className="g-small text-white/90 mt-0.5 flex items-center gap-1.5 min-w-0">
+              <MapPin className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+              <span className="truncate">{location}</span>
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="flex-1 flex flex-col p-4 sm:p-5">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3">
+          <DetailChip icon={CalendarDays} label="Check-in">{formatDate(booking.checkIn)}</DetailChip>
+          <DetailChip icon={CalendarDays} label="Check-out">{formatDate(booking.checkOut)}</DetailChip>
+          <DetailChip icon={BedDouble} label="Room">{room}</DetailChip>
+          <DetailChip icon={Clock} label="Duration">{hasDates ? `${nights} ${nights === 1 ? 'night' : 'nights'}` : '—'}</DetailChip>
+        </div>
+
+        <div className="mt-4 pt-4 border-t border-(--g-border) flex items-center justify-between gap-3">
+          <span className="g-small text-(--g-text-muted) inline-flex items-center gap-1.5 min-w-0">
+            <Hash className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+            <span className="sr-only">Booking ID</span>
+            <span className="truncate guestNum">{booking.bookingId || booking._id?.slice(-8) || '—'}</span>
+          </span>
+          {booking.confirmationCode && <CopyCode code={booking.confirmationCode} />}
+        </div>
+
+        {lockedByWindow && (
+          <p className="mt-3 g-small text-(--g-text-muted) flex items-start gap-1.5">
+            <Info className="w-4 h-4 shrink-0 mt-px" aria-hidden="true" />
+            Changes close 24 hours before check-in. Contact the hotel to adjust this stay.
+          </p>
+        )}
+
+        {(canModify || canCancel) && (
+          <div className="mt-auto pt-4 flex gap-2.5">
+            {canModify && <Button className="flex-1" icon={Edit2} onClick={onModify}>Modify</Button>}
+            {canCancel && <Button className="flex-1" variant="dangerOutline" icon={X} onClick={onCancel}>Cancel</Button>}
+          </div>
+        )}
+      </div>
+    </article>
+  );
+};
+
+BookingCard.propTypes = {
+  booking: PropTypes.object.isRequired,
+  onModify: PropTypes.func.isRequired,
+  onCancel: PropTypes.func.isRequired,
+};
+
+// ─────────────────────────────────────────
+// Modify booking
+// ─────────────────────────────────────────
+
+const inputClass = (invalid) => cn(
+  'mt-1 w-full min-h-[44px] px-3 rounded-(--g-radius-sm) border bg-(--g-surface) text-(--g-text) g-body outline-none focus:border-(--g-primary)',
+  invalid ? 'border-(--g-danger)' : 'border-(--g-border)'
+);
+
+const FieldError = ({ id, children }) => (children ? <p id={id} className="g-small text-(--g-danger-text) mt-1">{children}</p> : null);
+FieldError.propTypes = { id: PropTypes.string.isRequired, children: PropTypes.node };
+
+const ModifyBookingSheet = ({ booking, onClose, onSuccess }) => {
+  const [saving, setSaving] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const [errors, setErrors] = useState({});
   const [formData, setFormData] = useState({
-    checkIn: booking.checkIn ? new Date(booking.checkIn).toISOString().split('T')[0] : '',
-    checkOut: booking.checkOut ? new Date(booking.checkOut).toISOString().split('T')[0] : '',
-    numGuests: booking.numGuests || 1,
+    checkIn: toDateInputValue(booking.checkIn),
+    checkOut: toDateInputValue(booking.checkOut),
+    numGuests: String(guestCount(booking)),
   });
+  const today = toDateInputValue(new Date());
+
+  const update = (key, value) => {
+    setFormData((prev) => ({ ...prev, [key]: value }));
+    setErrors((prev) => ({ ...prev, [key]: undefined }));
+  };
+
+  const validate = () => {
+    const next = {};
+    const inDate = fromDateInputValue(formData.checkIn);
+    const outDate = fromDateInputValue(formData.checkOut);
+    const guests = Number(formData.numGuests);
+    if (!inDate) next.checkIn = 'Choose a check-in date';
+    else if (formData.checkIn < today) next.checkIn = 'Check-in can’t be in the past';
+    if (!outDate) next.checkOut = 'Choose a check-out date';
+    else if (inDate && outDate <= inDate) next.checkOut = 'Check-out must be after check-in';
+    if (!Number.isInteger(guests) || guests < 1 || guests > MAX_GUESTS) next.numGuests = `Enter between 1 and ${MAX_GUESTS} guests`;
+    setErrors(next);
+    const first = Object.keys(next)[0];
+    if (first) document.getElementById(`modify-${first}`)?.focus();
+    return !first;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+    if (saving || !validate()) return;
     try {
-      setLoading(true);
-      const res = await modifyBooking(booking._id, formData);
-
+      setSaving(true);
+      setSubmitError('');
+      const res = await modifyBooking(booking._id, { ...formData, numGuests: Number(formData.numGuests) });
       if (res?.success) {
-        toast.success('Booking modified successfully!');
+        toast.success('Booking updated');
         onSuccess();
+      } else {
+        setSubmitError(res?.message || 'Failed to modify booking');
       }
     } catch (error) {
       console.error('Modify booking error:', error);
-      toast.error(error.response?.data?.message || 'Failed to modify booking');
+      setSubmitError(errorMessage(error, 'Failed to modify booking'));
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-[#0f1c2e] rounded-2xl shadow-2xl max-w-md w-full p-6 border border-transparent dark:border-white/10">
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Modify Booking</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10"
-          >
-            <X className="w-5 h-5" />
-          </button>
+    <Sheet
+      open
+      onClose={onClose}
+      dismissible={!saving}
+      title="Modify booking"
+      description={booking.hotel?.name}
+      footer={(
+        <div className="flex gap-3">
+          <Button variant="secondary" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button type="submit" form="modify-booking-form" className="flex-1" loading={saving}>
+            {saving ? 'Saving…' : 'Save changes'}
+          </Button>
         </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
+      )}
+    >
+      <form id="modify-booking-form" onSubmit={handleSubmit} noValidate className="space-y-4">
+        {submitError && (
+          <div role="alert" className="rounded-(--g-radius-md) bg-(--g-danger-bg) text-(--g-danger-text) p-3 g-small flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
+            {submitError}
+          </div>
+        )}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Check-in Date
-            </label>
+            <label htmlFor="modify-checkIn" className="g-label text-(--g-text-muted)">Check-in date</label>
             <input
+              id="modify-checkIn"
               type="date"
               value={formData.checkIn}
-              onChange={(e) => setFormData({ ...formData, checkIn: e.target.value })}
-              min={new Date().toISOString().split('T')[0]}
-              className="w-full px-4 py-2.5 border border-gray-200 dark:border-white/10 rounded-xl bg-white dark:bg-white/5 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+              min={today}
+              onChange={(e) => update('checkIn', e.target.value)}
+              aria-invalid={Boolean(errors.checkIn) || undefined}
+              aria-describedby={errors.checkIn ? 'modify-checkIn-error' : undefined}
+              className={inputClass(errors.checkIn)}
               required
             />
+            <FieldError id="modify-checkIn-error">{errors.checkIn}</FieldError>
           </div>
-
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Check-out Date
-            </label>
+            <label htmlFor="modify-checkOut" className="g-label text-(--g-text-muted)">Check-out date</label>
             <input
+              id="modify-checkOut"
               type="date"
               value={formData.checkOut}
-              onChange={(e) => setFormData({ ...formData, checkOut: e.target.value })}
-              min={formData.checkIn}
-              className="w-full px-4 py-2.5 border border-gray-200 dark:border-white/10 rounded-xl bg-white dark:bg-white/5 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+              min={formData.checkIn || today}
+              onChange={(e) => update('checkOut', e.target.value)}
+              aria-invalid={Boolean(errors.checkOut) || undefined}
+              aria-describedby={errors.checkOut ? 'modify-checkOut-error' : undefined}
+              className={inputClass(errors.checkOut)}
               required
             />
+            <FieldError id="modify-checkOut-error">{errors.checkOut}</FieldError>
           </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Number of Guests
-            </label>
-            <input
-              type="number"
-              value={formData.numGuests}
-              onChange={(e) => setFormData({ ...formData, numGuests: parseInt(e.target.value) })}
-              min="1"
-              max="10"
-              className="w-full px-4 py-2.5 border border-gray-200 dark:border-white/10 rounded-xl bg-white dark:bg-white/5 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
-              required
-            />
-          </div>
-
-          <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-xl p-3">
-            <p className="text-sm text-amber-800 dark:text-amber-300">
-              Note: Modifications can only be made at least 24 hours before check-in.
-            </p>
-          </div>
-
-          <div className="flex gap-3 pt-2">
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 py-3 bg-teal-600 text-white rounded-xl font-semibold hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Saving...
-                </span>
-              ) : (
-                'Save Changes'
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-6 py-3 bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300 rounded-xl font-semibold hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        </div>
+        <div>
+          <label htmlFor="modify-numGuests" className="g-label text-(--g-text-muted)">Number of guests</label>
+          <input
+            id="modify-numGuests"
+            type="number"
+            inputMode="numeric"
+            min="1"
+            max={MAX_GUESTS}
+            value={formData.numGuests}
+            onChange={(e) => update('numGuests', e.target.value)}
+            aria-invalid={Boolean(errors.numGuests) || undefined}
+            aria-describedby={errors.numGuests ? 'modify-numGuests-error' : undefined}
+            className={cn(inputClass(errors.numGuests), 'guestNum')}
+            required
+          />
+          <FieldError id="modify-numGuests-error">{errors.numGuests}</FieldError>
+        </div>
+        <p className="g-small text-(--g-text-muted) flex items-start gap-2">
+          <Info className="w-4 h-4 shrink-0 mt-px" aria-hidden="true" />
+          Changes can only be made at least 24 hours before check-in.
+        </p>
+      </form>
+    </Sheet>
   );
 };
 
+ModifyBookingSheet.propTypes = {
+  booking: PropTypes.object.isRequired,
+  onClose: PropTypes.func.isRequired,
+  onSuccess: PropTypes.func.isRequired,
+};
+
 // ─────────────────────────────────────────
-// Cancel Booking Modal
+// Cancel booking
 // ─────────────────────────────────────────
 
-const CancelBookingModal = ({ booking, onClose, onSuccess }) => {
+// Local estimate only — mirrors bookingController.cancelBooking. The server's
+// `refund` in the cancel response is authoritative and is shown afterwards.
+const estimateRefund = (booking) => {
+  const hours = hoursUntil(booking.checkIn);
+  const percentage = hours >= 48 ? 100 : hours >= 24 ? 50 : 0;
+  const policy = hours >= 48
+    ? 'Full refund (48+ hours before check-in)'
+    : hours >= 24
+      ? '50% refund (24–48 hours before check-in)'
+      : 'No refund (less than 24 hours before check-in)';
+  return { amount: ((Number(booking.totalAmount) || 0) * percentage) / 100, percentage, policy };
+};
+
+const CancelBookingSheet = ({ booking, onClose, onDone }) => {
   const [loading, setLoading] = useState(false);
   const [reason, setReason] = useState('');
-
-  // Calculate refund info
-  const calculateRefund = () => {
-    const now = new Date();
-    const checkInDate = new Date(booking.checkIn);
-    const hoursUntilCheckIn = (checkInDate - now) / (1000 * 60 * 60);
-
-    let refundPercentage = 0;
-    let refundPolicy = '';
-
-    if (hoursUntilCheckIn >= 48) {
-      refundPercentage = 100;
-      refundPolicy = 'Full refund (48+ hours before check-in)';
-    } else if (hoursUntilCheckIn >= 24) {
-      refundPercentage = 50;
-      refundPolicy = '50% refund (24-48 hours before check-in)';
-    } else {
-      refundPercentage = 0;
-      refundPolicy = 'No refund (less than 24 hours before check-in)';
-    }
-
-    const refundAmount = (booking.totalAmount * refundPercentage) / 100;
-
-    return { refundAmount, refundPercentage, refundPolicy };
-  };
-
-  const { refundAmount, refundPercentage, refundPolicy } = calculateRefund();
+  const [submitError, setSubmitError] = useState('');
+  const [result, setResult] = useState(null); // server refund after success
+  const estimate = useMemo(() => estimateRefund(booking), [booking]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+    if (loading) return;
     try {
       setLoading(true);
+      setSubmitError('');
       const res = await cancelBooking(booking._id, { reason });
-
       if (res?.success) {
-        toast.success('Booking cancelled successfully!');
-        onSuccess();
+        toast.success('Booking cancelled');
+        setResult(res.refund || { amount: null });
+      } else {
+        setSubmitError(res?.message || 'Failed to cancel booking');
       }
     } catch (error) {
       console.error('Cancel booking error:', error);
-      toast.error(error.response?.data?.message || 'Failed to cancel booking');
+      setSubmitError(errorMessage(error, 'Failed to cancel booking'));
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-[#0f1c2e] rounded-2xl shadow-2xl max-w-md w-full p-6 border border-transparent dark:border-white/10">
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Cancel Booking</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10"
-          >
-            <X className="w-5 h-5" />
-          </button>
+  if (result) {
+    const hasAmount = Number.isFinite(Number(result.amount)) && result.amount !== null;
+    return (
+      <Sheet open onClose={onDone} title="Booking cancelled" footer={<Button className="w-full" onClick={onDone} data-autofocus>Done</Button>}>
+        <div role="status" className="rounded-(--g-radius-md) bg-(--g-success-bg) text-(--g-success-text) p-4 flex items-start gap-3">
+          <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" aria-hidden="true" />
+          <div>
+            <p className="g-body-strong">Your booking at {booking.hotel?.name || 'the hotel'} is cancelled.</p>
+            {hasAmount ? (
+              <p className="g-small mt-1">
+                Refund confirmed by the hotel: <Money amount={Number(result.amount)} className="font-bold" />
+                {Number.isFinite(result.percentage) && <span className="guestNum"> ({result.percentage}%)</span>}
+                {result.policy && <span className="block mt-0.5">{result.policy}</span>}
+              </p>
+            ) : (
+              <p className="g-small mt-1">The hotel will confirm any refund with you directly.</p>
+            )}
+          </div>
         </div>
+      </Sheet>
+    );
+  }
 
-        <div className="mb-6 p-4 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl">
-          <p className="text-sm font-semibold text-red-800 dark:text-red-300 mb-1.5">Cancellation Policy</p>
-          <p className="text-sm text-red-700 dark:text-red-400">{refundPolicy}</p>
-          <p className="text-lg font-bold text-red-900 dark:text-red-200 mt-2">
-            Refund: NPR {refundAmount.toFixed(2)} ({refundPercentage}%)
+  return (
+    <Sheet
+      open
+      onClose={onClose}
+      dismissible={!loading}
+      title="Cancel booking"
+      description={booking.hotel?.name}
+      footer={(
+        <div className="flex gap-3">
+          <Button variant="secondary" onClick={onClose} disabled={loading}>Keep booking</Button>
+          <Button type="submit" form="cancel-booking-form" variant="danger" className="flex-1" loading={loading}>
+            {loading ? 'Cancelling…' : 'Confirm cancellation'}
+          </Button>
+        </div>
+      )}
+    >
+      <form id="cancel-booking-form" onSubmit={handleSubmit} className="space-y-4">
+        <div className="rounded-(--g-radius-md) border border-(--g-border) bg-(--g-surface-sunken) p-4">
+          <p className="g-label text-(--g-text-muted)">Estimated refund</p>
+          <p className="mt-1">
+            <Money amount={estimate.amount} size="lg" />
+            <span className="g-small text-(--g-text-muted) guestNum ml-2">({estimate.percentage}%)</span>
+          </p>
+          <p className="g-small text-(--g-text-muted) mt-1">{estimate.policy}</p>
+          <p className="g-small text-(--g-text-muted) mt-2 flex items-start gap-1.5">
+            <Info className="w-4 h-4 shrink-0 mt-px" aria-hidden="true" />
+            This is an estimate. The hotel confirms the final refund when you cancel.
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Reason for Cancellation (Optional)
-            </label>
-            <textarea
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              rows="3"
-              className="w-full px-4 py-2.5 border border-gray-200 dark:border-white/10 rounded-xl bg-white dark:bg-white/5 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none resize-none"
-              placeholder="Please let us know why you're cancelling..."
-            />
+        {submitError && (
+          <div role="alert" className="rounded-(--g-radius-md) bg-(--g-danger-bg) text-(--g-danger-text) p-3 g-small flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
+            {submitError}
           </div>
+        )}
 
-          <div className="flex gap-3 pt-2">
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Cancelling...
-                </span>
-              ) : (
-                'Confirm Cancellation'
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-6 py-3 bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300 rounded-xl font-semibold hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
-            >
-              Keep Booking
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div>
+          <label htmlFor="cancel-reason" className="g-label text-(--g-text-muted)">Reason for cancellation (optional)</label>
+          <textarea
+            id="cancel-reason"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            rows={3}
+            placeholder="Let the hotel know why you’re cancelling"
+            className="mt-1 w-full px-3 py-2.5 rounded-(--g-radius-sm) border border-(--g-border) bg-(--g-surface) text-(--g-text) g-body placeholder:text-(--g-text-subtle) outline-none focus:border-(--g-primary) resize-none"
+          />
+        </div>
+      </form>
+    </Sheet>
   );
+};
+
+CancelBookingSheet.propTypes = {
+  booking: PropTypes.object.isRequired,
+  onClose: PropTypes.func.isRequired,
+  onDone: PropTypes.func.isRequired,
 };
 
 export default BookingsView;

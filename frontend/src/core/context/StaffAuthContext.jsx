@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
-import axios from "axios";
-import { getApiBaseUrl } from "../../utils/apiConfig";
+import { refreshSession } from "../api/client";
+
 
 // Create the context
 const StaffAuthContext = createContext(null);
@@ -22,17 +22,8 @@ export const StaffAuthProvider = ({ children }) => {
     if (refreshInProgressRef.current) return false;
     refreshInProgressRef.current = true;
     try {
-      const { data } = await axios.post(
-        `${getApiBaseUrl()}/api/v1/staff/refresh-token`,
-        {},
-        { withCredentials: true }
-      );
-      
-      if (data.success && data.accessToken) {
-        sessionStorage.setItem("staffAccessToken", data.accessToken);
-        return true;
-      }
-      return false;
+      await refreshSession("staff");
+      return true;
     } catch {
       // Refresh token absent or expired — silently fail; the axios interceptor
       // in client.js will handle actual 401s from real API calls.

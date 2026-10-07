@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { getRooms, generateRoomQR, batchGenerateRoomQR, toggleRoomQR } from '../services/roomApi';
 import useHotelId from '../hooks/useHotelId';
-import ConfirmDialog from '../../../../components/ConfirmDialog';
+import ConfirmDialog from '../../../../shared/components/ConfirmDialog';
 import {
   PageHeader,
   Button,
@@ -88,6 +88,27 @@ const RoomQRManagement = () => {
 
   const setAct = (k, v) => setActionLoading((p) => ({ ...p, [k]: v }));
 
+  // Patch a single room in local state (merge changed fields) so an operation
+  // updates just that card — no full refetch, no loading-skeleton flash.
+  const patchRoom = (roomId, changes) =>
+    setRooms((prev) => prev.map((r) => (r._id === roomId ? { ...r, ...changes } : r)));
+
+  // Silent refetch: refresh data WITHOUT flipping the global loading flag, so
+  // the grid is updated in place rather than being blanked to skeletons.
+  const refetchSilently = useCallback(async () => {
+    if (!hotelId) return;
+    try {
+      const res = await getRooms({ hotelId });
+      if (res.data.success) {
+        const data = res.data.rooms || [];
+        setRooms(data);
+        if (data[0]?.hotel?.name) setHotelName(data[0].hotel.name);
+      }
+    } catch {
+      /* keep existing rooms on a background refresh failure */
+    }
+  }, [hotelId]);
+
   const fetchRooms = useCallback(async () => {
     if (!hotelId) { setLoading(false); return; }
     setLoading(true);
@@ -136,7 +157,18 @@ const RoomQRManagement = () => {
     setAct(`qr_${roomId}`, true);
     try {
       const res = await generateRoomQR(roomId);
-      if (res.data.success) { toast.success('QR code generated'); fetchRooms(); }
+      if (res.data.success) {
+        toast.success('QR code generated');
+        // Merge the returned QR fields into just this room. The controller sets
+        // isQrActive=true on generate, so reflect that locally too.
+        const updated = res.data.room || {};
+        patchRoom(roomId, {
+          qrCodeImage: updated.qrCodeImage,
+          qrCodeData: updated.qrCodeData,
+          uniqueToken: updated.uniqueToken ?? undefined,
+          isQrActive: true,
+        });
+      }
     } catch (e) {
       toast.error(e.response?.data?.message || 'QR generation failed');
     } finally {
@@ -151,7 +183,8 @@ const RoomQRManagement = () => {
       const res = await batchGenerateRoomQR(hotelId);
       if (res.data.success) {
         toast.success(`${res.data.successCount || stats.noQR} QR codes generated`);
-        fetchRooms();
+        // Many rooms change at once — refresh in place without the skeleton flash.
+        await refetchSilently();
       }
     } catch (e) {
       toast.error(e.response?.data?.message || 'Batch generation failed');
@@ -164,7 +197,11 @@ const RoomQRManagement = () => {
     setAct(`tog_${roomId}`, true);
     try {
       const res = await toggleRoomQR(roomId);
-      if (res.data.success) { toast.success(`QR ${isActive ? 'deactivated' : 'activated'}`); fetchRooms(); }
+      if (res.data.success) {
+        toast.success(`QR ${isActive ? 'deactivated' : 'activated'}`);
+        // Reflect the server's authoritative new state on just this room.
+        patchRoom(roomId, { isQrActive: res.data.isQrActive });
+      }
     } catch {
       toast.error('Status update failed');
     } finally {

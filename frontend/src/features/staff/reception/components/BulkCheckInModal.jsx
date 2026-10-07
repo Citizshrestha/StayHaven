@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axiosClient from '../../../../axiosClient';
+import axiosClient from '../../../../core/api/client';
 import {
   X,
   Users,
@@ -11,7 +11,7 @@ import {
   ArrowRight,
   Bed,
 } from 'lucide-react';
-import { useTheme } from '../../../../hooks/useTheme';
+import { useTheme } from '../../../../core/hooks/useTheme';
 
 // ============================================
 // BULK CHECK-IN MODAL
@@ -51,7 +51,7 @@ const BulkCheckInModal = ({ isOpen, onClose, hotelId = null }) => {
       });
 
       setBookings(todayArrivals);
-    } catch (err) {
+    } catch {
       setError('Failed to load bookings');
     } finally {
       setLoading(false);

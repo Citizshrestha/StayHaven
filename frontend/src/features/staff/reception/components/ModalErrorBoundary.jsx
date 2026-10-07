@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- boundary, HOC and hook ship together */
 import React from 'react';
 import { AlertTriangle, RefreshCw, X, Home } from 'lucide-react';
 
@@ -17,7 +18,7 @@ export class ModalErrorBoundary extends React.Component {
     };
   }
 
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError() {
     // Update state so the next render shows the fallback UI
     return { hasError: true };
   }

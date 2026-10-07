@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { ChefHat, Settings, LogOut, Bell, LayoutDashboard, MessageCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { staffLogout } from "../../../../api/staff";
+import { staffLogout } from "../../../../core/api/services/staffAccount.service";
 import { toast } from "react-toastify";
-import { useStaffAuth } from "../../../../context/StaffAuthContext";
-import StaffSettings from "../../../../components/shared/StaffSettings";
+import { useStaffAuth } from "../../../../core/context/StaffAuthContext";
+import StaffSettings from "../../../../shared/components/StaffSettings";
 
 const Sidebar = ({
   activeView,

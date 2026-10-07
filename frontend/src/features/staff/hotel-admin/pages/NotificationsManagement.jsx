@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Bell, Check, CheckCheck, Trash2, ShoppingBag, BellRing, MessageSquare, Activity } from 'lucide-react';
 import { useNotifications, NOTIFICATION_TYPES } from '../../../../core/context/useNotifications';
-import ConfirmDialog from '../../../../components/ConfirmDialog';
+import ConfirmDialog from '../../../../shared/components/ConfirmDialog';
 import {
   PageHeader,
   Button,

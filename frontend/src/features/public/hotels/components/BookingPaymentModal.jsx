@@ -1,10 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, CreditCard, Loader2, CheckCircle2, AlertCircle, Shield, Lock, ExternalLink, LogIn } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import { createBookingWithPayment, verifyCardPayment, isAuthenticated } from '../../../../api/publicBooking';
+import {
+  createBookingWithPayment, verifyCardPayment, isAuthenticated,
+  getPaymentGatewayConfig, getCheckoutIdempotencyKey, rememberPaymentAttempt, redirectToWalletPayment,
+} from '../../../../core/api/services/publicBooking.service';
 import PropTypes from 'prop-types';
 
 // Loaded once at module scope, same pattern as StripePaymentModal.jsx
@@ -52,7 +55,7 @@ const CardCheckoutForm = ({ amount, onSuccess, onError }) => {
       // point at which the booking is actually finalized.
       await onSuccess(paymentIntent.id);
     } catch (err) {
-      setFormError(err.message || 'An unexpected error occurred.');
+      setFormError('Payment could not be confirmed. Check your booking before paying again.');
       setSubmitting(false);
       onError?.(err);
     }
@@ -117,6 +120,14 @@ const BookingPaymentModal = ({
   const [isUserAuthenticated, setIsUserAuthenticated] = useState(false);
   const [cardClientSecret, setCardClientSecret] = useState(null);
   const [cardBookingInfo, setCardBookingInfo] = useState(null);
+  const [gatewayConfig, setGatewayConfig] = useState(null);
+  const [configLoading, setConfigLoading] = useState(true);
+  const [configError, setConfigError] = useState(false);
+  const [configReload, setConfigReload] = useState(0);
+  const [walletAttemptId, setWalletAttemptId] = useState(null);
+  const submittingRef = useRef(false);
+  const walletSelected = selectedMethod === 'esewa' || selectedMethod === 'khalti';
+  const walletUnavailable = walletSelected && (configLoading || gatewayConfig?.[selectedMethod]?.enabled !== true);
   const [bankTransferDetails, setBankTransferDetails] = useState({
     accountName: '',
     accountNumber: '',
@@ -125,25 +136,53 @@ const BookingPaymentModal = ({
   });
 
   useEffect(() => {
+    if (!isOpen) return;
+    const controller = new AbortController();
+    setConfigLoading(true);
+    setConfigError(false);
+    setGatewayConfig(null);
+    getPaymentGatewayConfig({ signal: controller.signal })
+      .then((result) => {
+        if (!controller.signal.aborted) setGatewayConfig(result.data);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setConfigError(true);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setConfigLoading(false);
+      });
+    return () => controller.abort();
+  }, [isOpen, configReload]);
+
+  useEffect(() => {
     // Check authentication status when modal opens
     if (isOpen) {
       const authenticated = isAuthenticated();
       setIsUserAuthenticated(authenticated);
 
       if (!authenticated) {
-        // Close modal and redirect to login immediately
         toast.warning('Please login to continue with booking', {
           position: 'top-center',
           autoClose: 2000,
         });
 
-        // Auto-redirect after 2 seconds
-        setTimeout(() => {
-          handleLoginRedirect();
+        const timer = setTimeout(() => {
+          sessionStorage.setItem('pendingBooking', JSON.stringify({
+            ...bookingData,
+            returnUrl: window.location.pathname
+          }));
+          onClose();
+          navigate('/login', {
+            state: {
+              from: window.location.pathname,
+              message: 'Please login to complete your booking'
+            }
+          });
         }, 2000);
+        return () => clearTimeout(timer);
       }
     }
-  }, [isOpen]);
+  }, [isOpen, bookingData, navigate, onClose]);
 
   if (!isOpen || !bookingData) return null;
 
@@ -233,20 +272,21 @@ const BookingPaymentModal = ({
         onPaymentSuccess({ ...cardBookingInfo, ...result.data });
         onClose();
       }, 2000);
-    } catch (error) {
+    } catch {
       setPaymentStatus('error');
-      const errorMsg = error.message || 'Payment verification failed. Please contact support if you were charged.';
+      const errorMsg = 'Payment could not be confirmed. Please contact support if you were charged.';
       setErrorMessage(errorMsg);
       toast.error(errorMsg, { position: 'top-center', autoClose: 5000, toastId: 'payment-error' });
-      if (onPaymentError) onPaymentError(error);
+      if (onPaymentError) onPaymentError(new Error(errorMsg));
     }
   };
 
   const handlePayment = async () => {
-    if (processing) return;
+    if (processing || submittingRef.current || walletUnavailable) return;
 
     if (selectedMethod === 'bank' && !validateBankTransferDetails()) return;
 
+    submittingRef.current = true;
     setProcessing(true);
     setErrorMessage('');
     let isRedirecting = false;
@@ -258,7 +298,26 @@ const BookingPaymentModal = ({
         ...(selectedMethod === 'bank' && { bankTransferDetails })
       };
 
-      const result = await createBookingWithPayment(payload);
+      const idempotencyKey = walletSelected ? await getCheckoutIdempotencyKey('booking', payload) : undefined;
+      const result = await createBookingWithPayment(payload, idempotencyKey);
+
+      if (walletSelected) {
+        if (!result.success) throw new Error(result.message || 'Payment could not be started. Please check again.');
+        if (!/^[a-f\d]{24}$/i.test(result.paymentAttemptId || '')) {
+          throw new Error('The server did not return a payment reference. Check your bookings before paying again.');
+        }
+        rememberPaymentAttempt(idempotencyKey, result.paymentAttemptId);
+        setWalletAttemptId(result.paymentAttemptId);
+        if (result.requiresRedirect && !result.requiresStatusCheck) {
+          redirectToWalletPayment(result);
+          isRedirecting = true;
+          setPaymentStatus('redirecting');
+        } else {
+          // A replayed checkout can already be pending or complete. Only the callback may confirm it.
+          navigate(`/payment-callback?attempt=${encodeURIComponent(result.paymentAttemptId)}`);
+        }
+        return;
+      }
 
       if (result.requiresClientConfirmation) {
         // Card path: booking created as Pending/unpaid, backend gave us a
@@ -298,17 +357,13 @@ const BookingPaymentModal = ({
       }
 
       if (result.requiresVerification) {
-        setPaymentStatus('success');
-        toast.success('Bank transfer details submitted successfully!');
+        setPaymentStatus('submitted');
+        toast.info('Bank transfer details submitted — awaiting verification.');
         toast.info('Your payment will be verified within 24 hours', { autoClose: 5000 });
-        setTimeout(() => {
-          onPaymentSuccess(result.data);
-          onClose();
-        }, 2000);
         return;
       }
 
-      if (result.success) {
+      if (result.success && result.data?.booking?.paymentStatus === 'paid') {
         setPaymentStatus('success');
         toast.success('Payment successful!');
         setTimeout(() => {
@@ -318,18 +373,9 @@ const BookingPaymentModal = ({
       } else {
         throw new Error(result.message || 'Payment failed');
       }
-    } catch (error) {
-      console.error('Payment error:', error);
-      setPaymentStatus('error');
-
-      // Extract meaningful error message
-      let errorMsg = 'Payment failed. Please try again.';
-
-      if (error.response?.data?.message) {
-        errorMsg = error.response.data.message;
-      } else if (error.message) {
-        errorMsg = error.message;
-      }
+    } catch {
+      setPaymentStatus(walletSelected ? 'pending' : 'error');
+      const errorMsg = 'Payment could not be confirmed. Check the same checkout before making another payment.';
 
       setErrorMessage(errorMsg);
 
@@ -340,9 +386,12 @@ const BookingPaymentModal = ({
         toastId: 'payment-error', // Prevent duplicates
       });
 
-      if (onPaymentError) onPaymentError(error);
+      if (onPaymentError && !walletSelected) onPaymentError(new Error(errorMsg));
     } finally {
-      if (!isRedirecting) setProcessing(false);
+      if (!isRedirecting) {
+        submittingRef.current = false;
+        setProcessing(false);
+      }
     }
   };
 
@@ -413,6 +462,7 @@ const BookingPaymentModal = ({
           </div>
 
           {/* Payment Status Messages */}
+          {paymentStatus === 'submitted' && <p role="status" className="bg-amber-50 p-4 rounded-xl text-amber-900">Bank transfer submitted. Your payment is awaiting manual verification.</p>}
           {paymentStatus === 'success' && (
             <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-start gap-3 animate-slideDown">
               <CheckCircle2 className="w-6 h-6 text-green-600 flex-shrink-0 mt-0.5" />
@@ -436,20 +486,34 @@ const BookingPaymentModal = ({
             </div>
           )}
 
-          {paymentStatus === 'error' && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3 animate-slideDown">
+          {(paymentStatus === 'error' || paymentStatus === 'pending') && (
+            <div role="status" className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3 animate-slideDown">
               <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
-                <h3 className="font-semibold text-red-900 mb-1">Payment Failed</h3>
+                <h3 className="font-semibold text-red-900 mb-1">{walletSelected ? 'Payment status not confirmed' : 'Payment Failed'}</h3>
                 <p className="text-sm text-red-700 mb-3">{errorMessage}</p>
+                {walletSelected && walletAttemptId && (
+                  <button
+                    onClick={() => navigate(`/payment-callback?attempt=${encodeURIComponent(walletAttemptId)}`)}
+                    className="block text-sm font-semibold text-teal-700 hover:underline mb-3"
+                  >
+                    Check payment status
+                  </button>
+                )}
                 <button
                   onClick={() => {
-                    setPaymentStatus(null);
-                    setErrorMessage('');
+                    if (walletSelected) {
+                      if (walletAttemptId) navigate(`/payment-callback?attempt=${walletAttemptId}`);
+                      else handlePayment();
+                    } else {
+                      setPaymentStatus(null);
+                      setErrorMessage('');
+                    }
                   }}
+                  disabled={processing}
                   className="text-sm font-semibold text-red-600 hover:underline"
                 >
-                  Try Again
+                  {walletSelected ? 'Retry same checkout' : 'Try Again'}
                 </button>
               </div>
             </div>
@@ -507,17 +571,24 @@ const BookingPaymentModal = ({
                   <Shield className="w-4 h-4 text-[#00BFA6]" />
                   Select Payment Method
                 </h3>
+                {configLoading && <p className="text-sm text-gray-600 mb-3" role="status">Checking wallet availability…</p>}
+                {configError && (
+                  <p className="text-sm text-amber-700 mb-3" role="status">
+                    Wallet availability could not be loaded.{' '}
+                    <button disabled={processing} onClick={() => setConfigReload((value) => value + 1)} className="underline font-semibold">Retry</button>
+                  </p>
+                )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {paymentMethods.map((method) => (
                     <button
                       key={method.id}
                       onClick={() => setSelectedMethod(method.id)}
-                      disabled={processing}
+                      disabled={processing || ((method.id === 'esewa' || method.id === 'khalti') && (configLoading || gatewayConfig?.[method.id]?.enabled !== true))}
                       className={`relative p-4 rounded-xl border-2 transition-all text-left ${
                         selectedMethod === method.id
                           ? 'border-[#00BFA6] bg-[#E5F5F2]'
                           : 'border-[rgba(0,191,166,0.2)] hover:border-[#00BFA6]/50'
-                      } cursor-pointer`}
+                      } cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
                       <div className="flex items-start gap-3">
                         <span className="text-2xl">{method.icon}</span>
@@ -531,6 +602,11 @@ const BookingPaymentModal = ({
                             )}
                           </div>
                           <p className="text-xs text-[#546E7A] mt-1">{method.description}</p>
+                          {(method.id === 'esewa' || method.id === 'khalti') && (
+                            <p className="text-xs text-amber-700 mt-1">
+                              {configLoading ? 'Checking availability…' : gatewayConfig?.[method.id]?.enabled !== true ? 'Currently unavailable' : gatewayConfig[method.id].testMode ? 'Test mode — no live payments' : ''}
+                            </p>
+                          )}
                         </div>
                       </div>
                       {selectedMethod === method.id && (
@@ -684,7 +760,7 @@ const BookingPaymentModal = ({
             </button>
             <button
               onClick={handlePayment}
-              disabled={processing}
+              disabled={processing || walletUnavailable}
               className="flex-1 px-6 py-3 bg-gradient-to-r from-[#00BFA6] to-[#00E5CC] hover:from-[#00A896] hover:to-[#00D4BB] text-white font-semibold rounded-lg transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {processing ? (

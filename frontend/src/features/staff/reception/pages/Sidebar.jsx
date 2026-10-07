@@ -1,10 +1,10 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useStaffAuth } from '../../../../context/StaffAuthContext';
+import { useStaffAuth } from '../../../../core/context/StaffAuthContext';
 import {
   LayoutDashboard, CalendarRange, LogIn, DoorOpen, Sparkles,
   Users, Receipt, BarChart3, UserCog, Settings, UtensilsCrossed,
-  LogOut, PanelLeftClose, PanelLeft, MessageCircle
+  LogOut, PanelLeftClose, PanelLeft, MessageCircle, Wallet
 } from 'lucide-react';
 
 const Sidebar = ({ activeView, onViewChange, collapsed, onToggleCollapse }) => {
@@ -35,6 +35,7 @@ const Sidebar = ({ activeView, onViewChange, collapsed, onToggleCollapse }) => {
         { id: 'housekeeping', label: 'Housekeeping', icon: Sparkles },
         { id: 'guests', label: 'Guests', icon: Users },
         { id: 'orders', label: 'Orders', icon: UtensilsCrossed },
+        { id: 'restaurantBills', label: 'Restaurant Bills', icon: Wallet },
         { id: 'billing', label: 'Billing', icon: Receipt },
         { id: 'messages', label: 'Messages', icon: MessageCircle },
       ]

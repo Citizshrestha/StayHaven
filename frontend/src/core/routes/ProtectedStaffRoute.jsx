@@ -12,10 +12,7 @@ const ProtectedStaffRoute = ({ children, allowedRoles = [] }) => {
   }
 
   if (!isAuthenticated) {
-    if (allowedRoles.includes("superadmin")) {
-      return <Navigate to="/login" replace />;
-    }
-    return <Navigate to="/staff/login" replace />;
+    return <Navigate to={allowedRoles.includes('superadmin') ? '/login' : '/staff/login'} replace />;
   }
 
   // If allowedRoles provided, ensure user's role is included
@@ -40,7 +37,7 @@ const ProtectedStaffRoute = ({ children, allowedRoles = [] }) => {
     }
 
     // Fallback to login if role is unknown
-    return <Navigate to="/staff/login" replace />;
+    return <Navigate to={allowedRoles.includes('superadmin') ? '/login' : '/staff/login'} replace />;
   }
 
   return children;

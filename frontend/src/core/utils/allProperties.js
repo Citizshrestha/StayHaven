@@ -173,7 +173,7 @@ export const allProperties = [
   {
     id: 203,
     name: "Pokhara Grande Resort",
-    location: "Lakeside, Pokhara",
+    location: "Fewa Lake, Pokhara",
     city: "Pokhara",
     category: "Resort",
     rating: 5,

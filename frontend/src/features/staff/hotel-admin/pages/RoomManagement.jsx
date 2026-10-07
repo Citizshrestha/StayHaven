@@ -18,7 +18,7 @@ import {
   deleteRoom,
 } from '../services/roomApi';
 import useHotelId from '../hooks/useHotelId';
-import ConfirmDialog from '../../../../components/ConfirmDialog';
+import ConfirmDialog from '../../../../shared/components/ConfirmDialog';
 import {
   PageHeader,
   Button,
@@ -80,13 +80,13 @@ const RoomsManagement = ({ onCount }) => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
-  const fetchRooms = useCallback(async () => {
+  const fetchRooms = useCallback(async ({ silent = false } = {}) => {
     if (!hotelId) {
       setError('No hotel selected');
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const response = await getRooms({ hotelId });
@@ -216,7 +216,7 @@ const RoomsManagement = ({ onCount }) => {
         toast.success(`Room ${formData.roomNumber} updated`);
       }
       setShowModal(false);
-      fetchRooms();
+      fetchRooms({ silent: true });
     } catch (err) {
       toast.error(err.response?.data?.message || `Failed to ${modalMode} room`);
     } finally {
@@ -231,7 +231,7 @@ const RoomsManagement = ({ onCount }) => {
       await deleteRoom(deleteTarget._id);
       toast.success(`Room ${deleteTarget.roomNumber} deleted`);
       setDeleteTarget(null);
-      fetchRooms();
+      fetchRooms({ silent: true });
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to delete room');
     } finally {

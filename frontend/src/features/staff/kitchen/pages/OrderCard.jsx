@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { X, ChevronRight, Clock, User, Check, CheckCircle2, Eye } from "lucide-react";
-import ItemCarousel from "../../../../components/shared/ItemCarousel";
-import useRelativeTime from "../../../../hooks/useRelativeTime";
+import ItemCarousel from "../../../../shared/components/ItemCarousel";
+import useRelativeTime from "../../../../core/hooks/useRelativeTime";
 import OrderDetailsModal from "../../waiter/pages/order/OrderDetailsModal";
 
 const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
@@ -33,7 +33,6 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
   };
 
   const isHighPriority = (order?.priority || "").toLowerCase() === "high";
-  const isCompleted = order.status === "delivered";
 
   const getCompletionDate = (o) => {
     const raw = o?.deliveredAt || o?.servedAt || o?.updatedAt;
@@ -262,17 +261,6 @@ const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
     padding: "12px 32px",
     backgroundColor: "#10B981",
     color: "white",
-    borderRadius: "9999px",
-    fontWeight: "700",
-    fontSize: "14px",
-    border: "none",
-    cursor: "pointer",
-  };
-
-  const secondaryButtonStyle = {
-    padding: "12px 32px",
-    backgroundColor: "#E5E7EB",
-    color: "#374151",
     borderRadius: "9999px",
     fontWeight: "700",
     fontSize: "14px",

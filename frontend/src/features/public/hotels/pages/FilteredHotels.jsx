@@ -51,8 +51,6 @@ const FilteredHotels = () => {
   // Handle URL parameters from Destination Modal
   useEffect(() => {
     const destination = searchParams.get('destination');
-    const type = searchParams.get('type');
-    const province = searchParams.get('province');
 
     if (destination) {
       setSelectedCity(destination);
@@ -60,7 +58,7 @@ const FilteredHotels = () => {
       setSelectedCity('');
     }
     setCurrentPage(1);
-    // type and province are captured but not used in current filter implementation
+    // `type` and `province` query params are not used by the current filters.
   }, [searchParams, hotelSearch]);
 
   useEffect(() => {
@@ -145,27 +143,30 @@ const FilteredHotels = () => {
                 <div style={{ marginBottom: '20px' }}>
                   <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#374151', marginBottom: '8px' }}>Rating</label>
                   <div style={{ display: 'flex', gap: '6px' }}>
-                    {[5, 4, 3, 2, 1].map((rating) => (
-                      <button
-                        key={rating}
-                        onClick={() => {
-                          const next = selectedRating === rating ? null : rating;
-                          setSelectedRating(next);
-                          setCurrentPage(1);
-                        }}
-                        style={{
-                          padding: '6px',
-                          border: selectedRating === rating ? '2px solid #FCD34D' : '2px solid #D1D5DB',
-                          borderRadius: '6px',
-                          backgroundColor: selectedRating === rating ? '#FEF3C7' : '#ffffff',
-                          color: selectedRating === rating ? '#FCD34D' : '#D1D5DB',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        <Star style={{ width: '16px', height: '16px' }} fill="currentColor" />
-                      </button>
-                    ))}
+                    {[1, 2, 3, 4, 5].map((rating) => {
+                      const isActive = selectedRating !== null && rating <= selectedRating;
+                      return (
+                        <button
+                          key={rating}
+                          onClick={() => {
+                            const next = selectedRating === rating ? null : rating;
+                            setSelectedRating(next);
+                            setCurrentPage(1);
+                          }}
+                          style={{
+                            padding: '6px',
+                            border: isActive ? '2px solid #FCD34D' : '2px solid #D1D5DB',
+                            borderRadius: '6px',
+                            backgroundColor: isActive ? '#FEF3C7' : '#ffffff',
+                            color: isActive ? '#FCD34D' : '#D1D5DB',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          <Star style={{ width: '16px', height: '16px' }} fill="currentColor" />
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 

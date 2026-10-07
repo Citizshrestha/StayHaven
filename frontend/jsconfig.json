@@ -3,12 +3,7 @@
     "ignoreDeprecations": "6.0",
     "baseUrl": "src",
     "paths": {
-      "@/*": ["./*"],
-      "components/*": ["components/*"],
-      "context/*": ["context/*"],
-      "api/*": ["api/*"],
-      "utils/*": ["utils/*"],
-      "shared/*": ["components/shared/*"]
+      "@/*": ["./*"]
     }
   },
   "include": ["src"],

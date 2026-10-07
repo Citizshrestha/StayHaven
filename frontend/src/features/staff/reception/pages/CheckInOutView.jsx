@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useTheme } from '../../../../hooks/useTheme';
+import { useTheme } from '../../../../core/hooks/useTheme';
 import {
   Search,
   ChevronDown,

@@ -7,7 +7,7 @@ import {
   Phone,
   MessageCircle,
 } from "lucide-react";
-import useRelativeTime from "../../../../hooks/useRelativeTime";
+import useRelativeTime from "../../../../core/hooks/useRelativeTime";
 
 // Separate component to use hook for each notification's time
 const NotificationTime = ({ date, color }) => {
@@ -572,7 +572,6 @@ const NotificationCard = ({
   return (
     <div
       onClick={onClick}
-      onMouseEnter={() => {}}
       style={{
         background: notification.isRead
           ? colors.cardBg

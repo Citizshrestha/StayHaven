@@ -3,37 +3,28 @@
  * API calls for hotel admin staff management
  */
 
-import axios from 'axios';
-import { setupCsrfInterceptor } from '../../../../utils/csrf';
-import { getApiUrl } from '../../../../utils/apiConfig';
+import { createApiClient } from '../../../../core/api/client';
+import { getApiUrl } from '../../../../core/utils/apiConfig';
 
-const api = axios.create({
-  baseURL: getApiUrl(),
-  withCredentials: true,
-});
-
-// Add auth token to requests
-api.interceptors.request.use((config) => {
-  const token = sessionStorage.getItem('staffAccessToken');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-// Setup CSRF token interceptor
-setupCsrfInterceptor(api);
+const api = createApiClient({ baseURL: getApiUrl(), authScope: 'staff' });
 
 // ────────────────────────────────
 // Staff Operations
 // ────────────────────────────────
 
-export const getStaffList = (params = {}) => api.get('/reception/staff', { params });
+export const getStaffList = (propertyId) => api.get(`/staff/manage/${encodeURIComponent(propertyId)}`);
 
 export const inviteStaff = (data) => api.post('/staff/invite', data);
+export const resendStaffInvite = (staffId) => api.post(`/staff/resend-invite/${encodeURIComponent(staffId)}`);
 
-export const updateStaffStatus = (staffId, isActive) =>
-  api.patch(`/staff/${staffId}/status`, { isActive });
+export const updateStaffStatus = (propertyId, staffId, isActive) =>
+  api.patch(`/staff/manage/${encodeURIComponent(propertyId)}/${encodeURIComponent(staffId)}/status`, { isActive });
+
+export const editStaff = (propertyId, staffId, data) =>
+  api.patch(`/staff/manage/${encodeURIComponent(propertyId)}/${encodeURIComponent(staffId)}`, data);
+
+export const removeStaff = (propertyId, staffId) =>
+  api.delete(`/staff/manage/${encodeURIComponent(propertyId)}/${encodeURIComponent(staffId)}`);
 
 export const notifyManagerAboutStaff = (staffId, data) =>
   api.post(`/reception/staff/${staffId}/notify-manager`, data);

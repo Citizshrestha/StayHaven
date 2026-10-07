@@ -66,7 +66,7 @@ const Finance = () => {
       setRevenueByHotel(byHotelRes.data || []);
       setChannelBreakdown(breakdownRes.data || []);
       setPaymentMethods(methodsRes.data || []);
-    } catch (error) {
+    } catch  {
       toast.error('Failed to load finance data');
     } finally {
       setLoading(false);

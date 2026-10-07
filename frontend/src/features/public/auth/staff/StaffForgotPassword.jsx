@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { forgotPassword } from "../../../../api/staff";
+import { forgotPassword } from "../../../../core/api/services/staffAccount.service";
 import { toast } from "react-toastify";
 
 const StaffForgotPassword = () => {

@@ -22,7 +22,7 @@ import {
   deleteStockItem,
   adjustStockQuantity,
 } from '../services/stockApi';
-import ConfirmDialog from '../../../../components/ConfirmDialog';
+import ConfirmDialog from '../../../../shared/components/ConfirmDialog';
 import {
   PageHeader,
   Button,
@@ -70,7 +70,7 @@ const getStockStatus = (item) => {
 const rs = (n) => `Rs. ${Number(n || 0).toLocaleString('en-IN')}`;
 const EMPTY_FORM = { name: '', category: 'Beverages', quantity: 0, unit: 'kg', lowStockLevel: 10, criticalLevel: 5, unitCost: 0, supplier: '', notes: '' };
 
-const StockManagement = () => {
+const StockPreview = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -94,8 +94,8 @@ const StockManagement = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
-  const fetchItems = useCallback(async () => {
-    setLoading(true);
+  const fetchItems = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const res = await getStockItems();
@@ -182,7 +182,7 @@ const StockManagement = () => {
         toast.success('Item added');
       }
       setShowModal(false);
-      fetchItems();
+      fetchItems({ silent: true });
     } catch {
       toast.error('Failed to save item');
     } finally {
@@ -197,7 +197,7 @@ const StockManagement = () => {
       await deleteStockItem(deleteTarget._id);
       toast.success('Item deleted');
       setDeleteTarget(null);
-      fetchItems();
+      fetchItems({ silent: true });
     } catch {
       toast.error('Failed to delete item');
     } finally {
@@ -217,7 +217,7 @@ const StockManagement = () => {
       await adjustStockQuantity(adjItem._id, adjType, Number(adjQty));
       toast.success(`Stock adjusted for ${adjItem.name}`);
       setAdjItem(null);
-      fetchItems();
+      fetchItems({ silent: true });
     } catch {
       toast.error('Failed to adjust stock');
     }
@@ -476,6 +476,22 @@ const StockManagement = () => {
       />
     </div>
   );
+};
+
+const StockManagement = () => {
+  if (import.meta.env.PROD) {
+    return (
+      <div className="ha-page">
+        <PageHeader title="Inventory" subtitle="Manage your property's stock and supplies." />
+        <EmptyState
+          icon={<Package size={28} />}
+          title="Inventory is not available yet"
+          description="Stock tracking is being prepared. Please continue using your current inventory records until this feature is available."
+        />
+      </div>
+    );
+  }
+  return <StockPreview />;
 };
 
 export default StockManagement;

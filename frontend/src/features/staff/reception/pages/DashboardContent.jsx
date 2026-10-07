@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useTheme } from '../../../../hooks/useTheme';
-import { useStaffAuth } from '../../../../context/StaffAuthContext';
+import { useTheme } from '../../../../core/hooks/useTheme';
+import { useStaffAuth } from '../../../../core/context/StaffAuthContext';
 import { useSocket } from '../../../../core/context/SocketContext';
 import { toast } from 'react-toastify';
 import {
@@ -18,6 +18,18 @@ import {
 } from './ActionModals';
 import * as msgService from '../../../../core/api/services/messaging.service';
 import * as receptionApi from '../../../../core/api/services/reception.service';
+
+/* ── Guest request rows (portal, room QR) for the dashboard queue ── */
+const REQUEST_ICONS = { 'Room Service': ConciergeBell, 'Checkout': Clock, 'Maintenance': Wrench, 'Amenities': Coffee, 'Other': AlertTriangle };
+const mapGuestRequests = (list = []) => list.map((r, i) => ({
+  id: r._id || i,
+  room: `Room ${r.roomNumber}`,
+  req: r.verifiedStay === false ? `${r.description} · no checked-in booking` : r.description,
+  time: new Date(r.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
+  priority: r.urgency, category: r.category, catIcon: REQUEST_ICONS[r.category] || AlertTriangle,
+  sla: r.isOverdue ? 'Overdue' : r.timeRemainingMinutes > 0 ? `${r.timeRemainingMinutes} min left` : 'Overdue',
+  overdue: r.isOverdue, actions: r.urgency === 'urgent' ? ['Assign', 'Ignore'] : ['Approve', 'Deny'], _id: r._id,
+}));
 
 /* ── Sparkline Component ── */
 const Sparkline = ({ data, color, height = 32 }) => {
@@ -467,10 +479,24 @@ const DashboardContent = ({ onNavigate }) => {
       }
     });
 
+    // Guest requests (portal + room QR) arrive and change in real time.
+    const refreshRequests = () => {
+      receptionApi.getGuestRequests()
+        .then((res) => { if (res?.success) setGuestRequests(mapGuestRequests(res.data)); })
+        .catch(() => { /* next full refresh will catch up */ });
+    };
+    const unsubscribeNewRequest = subscribe('new-guest-request', (data) => {
+      refreshRequests();
+      if (data?.message) toast.info(data.message, { toastId: `guest-request-${data.request?._id}` });
+    });
+    const unsubscribeRequestUpdate = subscribe('request-update', refreshRequests);
+
     return () => {
       unsubscribeMessages();
       unsubscribeNotifications();
       unsubscribeCalls();
+      unsubscribeNewRequest();
+      unsubscribeRequestUpdate();
     };
   }, [socket, isConnected, subscribe]);
 
@@ -596,13 +622,7 @@ const DashboardContent = ({ onNavigate }) => {
 
         // Guest Requests
         if (requestsRes.status === 'fulfilled' && requestsRes.value?.success) {
-          const catIconMap = { 'Room Service': ConciergeBell, 'Checkout': Clock, 'Maintenance': Wrench, 'Amenities': Coffee, 'Other': AlertTriangle };
-          setGuestRequests((requestsRes.value.data || []).map((r, i) => ({
-            id: r._id || i, room: `Room ${r.roomNumber}`, req: r.description, time: new Date(r.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
-            priority: r.urgency, category: r.category, catIcon: catIconMap[r.category] || AlertTriangle,
-            sla: r.isOverdue ? 'Overdue' : r.timeRemainingMinutes > 0 ? `${r.timeRemainingMinutes} min left` : 'Overdue',
-            overdue: r.isOverdue, actions: r.urgency === 'urgent' ? ['Assign', 'Ignore'] : ['Approve', 'Deny'], _id: r._id,
-          })));
+          setGuestRequests(mapGuestRequests(requestsRes.value.data));
         }
 
         // Activity Feed
@@ -715,6 +735,49 @@ const DashboardContent = ({ onNavigate }) => {
     } catch { /* silently ignore */ }
   };
 
+  // Which reception view a notification belongs to. Backend actionUrls like
+  // `/staff/orders/:id` aren't real routes here, so map by type instead.
+  const notifTargetView = (n) => {
+    switch (n.type) {
+      case 'new_order':
+      case 'order_status':
+      case 'order_delivered':
+        return 'orders';
+      case 'payment_received':
+      case 'payment_failed':
+        return 'billing';
+      case 'booking_confirmed':
+      case 'booking_cancelled':
+      case 'booking_reminder':
+        return 'bookings';
+      case 'message':
+        return 'messages';
+      default:
+        return null; // waiter_call, system, etc. stay on the dashboard
+    }
+  };
+
+  // ── Click a notification: mark it read, then go to its page ──
+  const handleNotificationClick = async (n) => {
+    if (!n.isRead) {
+      // Optimistic: update the list and badge immediately
+      setNotifications(prev => prev.map(x => (x._id === n._id ? { ...x, isRead: true } : x)));
+      setUnreadNotifCount(c => Math.max(0, c - 1));
+      if (isLoggedIn && n._id) {
+        try {
+          await msgService.markNotificationsRead([n._id]);
+        } catch {
+          // Roll back if the server didn't record it
+          setNotifications(prev => prev.map(x => (x._id === n._id ? { ...x, isRead: false } : x)));
+          setUnreadNotifCount(c => c + 1);
+        }
+      }
+    }
+    const view = notifTargetView(n);
+    setShowNotifications(false);
+    if (view && onNavigate) onNavigate(view);
+  };
+
   // Filter notifications by tab
   const notifTypeMap = { payment: ['payment_received', 'payment_failed'], request: ['waiter_call', 'order_status'], system: ['system', 'hotel_approved', 'booking_confirmed'] };
   const filteredNotifs = notifTab === 'all'
@@ -740,6 +803,7 @@ const DashboardContent = ({ onNavigate }) => {
     payment_received: { icon: DollarSign, color: '#10b981' },
     payment_failed: { icon: AlertTriangle, color: '#ef4444' },
     waiter_call: { icon: ConciergeBell, color: '#6366f1' },
+    guest_request: { icon: ConciergeBell, color: '#06b6d4' },
     order_status: { icon: Clock, color: '#f59e0b' },
     system: { icon: CheckCircle, color: '#10b981' },
     booking_confirmed: { icon: CalendarCheck, color: '#6366f1' },
@@ -819,7 +883,16 @@ const DashboardContent = ({ onNavigate }) => {
                     const iconInfo = notifIconMap[n.type] || notifIconMap.default;
                     const NIcon = iconInfo.icon;
                     return (
-                      <div key={n._id} className={`sh-notif-item ${!n.isRead ? 'unread' : ''}`}>
+                      <div
+                        key={n._id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => handleNotificationClick(n)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleNotificationClick(n); } }}
+                        aria-label={`${n.isRead ? '' : 'Unread: '}${n.title}. ${n.message}`}
+                        className={`sh-notif-item ${!n.isRead ? 'unread' : ''}`}
+                        style={{ cursor: 'pointer' }}
+                      >
                         <div className="sh-notif-icon" style={{ background: `${iconInfo.color}14` }}>
                           <NIcon size={16} style={{ color: iconInfo.color }} />
                         </div>

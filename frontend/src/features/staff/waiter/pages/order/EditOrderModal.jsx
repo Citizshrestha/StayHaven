@@ -10,6 +10,8 @@ const EditOrderModal = ({ order, onClose, onSave }) => {
         priority: order.priority || "normal",
         items: order.items ? order.items.map(item => ({
             id: item.id,
+            menuItemId: item.menuItemId,
+            existing: true,
             name: item.name,
             quantity: item.quantity,
             price: item.price,
@@ -338,12 +340,17 @@ const EditOrderModal = ({ order, onClose, onSave }) => {
                                         </button>
                                     </div>
                                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                                        <span style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-primary)" }}>$</span>
+                                        <span style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-primary)" }}>Rs</span>
+                                        {/* Ordered lines keep their menu price (the server enforces this);
+                                            only a new custom line — manager only — takes a typed price. */}
                                         <input
                                             type="number"
+                                            aria-label={`Price for ${item.name || "item"}`}
                                             value={item.price}
                                             step="0.01"
                                             min="0"
+                                            readOnly={item.existing}
+                                            title={item.existing ? "Menu price — cannot be changed here" : undefined}
                                             onChange={(e) => handleItemChange(index, "price", parseFloat(e.target.value) || 0)}
                                             style={{
                                                 width: "80px",

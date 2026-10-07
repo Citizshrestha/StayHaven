@@ -55,6 +55,14 @@ OTP: 123456 (6-digit verification code)
 
 **Test Environment:** https://test-pay.khalti.com
 
+**Setup Required:**
+1. Get your test API keys from https://test-admin.khalti.com
+2. Add to `Backend/.env`:
+   ```env
+   KHALTI_SECRET_KEY=test_secret_key_YOUR_KEY_HERE
+   ```
+3. Restart backend server
+
 **Test Credentials:**
 ```
 Mobile Number: 9800000001, 9800000002, 9800000003, 9800000004, 9800000005
@@ -81,16 +89,28 @@ OTP: 987654
 **Important Notes:**
 - Khalti test accounts have unlimited balance
 - All test transactions are simulated
-- Test mode uses `test-pay.khalti.com` domain
-- Production uses `khalti.com`
+- Test mode uses `a.khalti.com` API endpoint
+- Production uses `khalti.com` API endpoint
 - If MPIN gets locked, use a different test number
+- **Requires test API keys** - Get them from https://test-admin.khalti.com
 
-**Getting Your Own Test Keys:**
+**Getting Your Test API Keys:**
 1. Visit: https://test-admin.khalti.com
-2. Sign up for a merchant account
-3. Complete verification
-4. Get your test API keys from Settings → API Keys
-5. Update `KHALTI_SECRET_KEY` in `backend/.env`
+2. Sign up for a merchant account (free)
+3. Complete basic verification
+4. Navigate to: Settings → API Keys
+5. Copy your **test_secret_key_xxxxx**
+6. Add to `Backend/.env`:
+   ```env
+   KHALTI_SECRET_KEY=test_secret_key_xxxxx
+   ```
+7. Restart backend: `npm run dev`
+
+**Without API Keys (Development Only):**
+- If no API keys configured, system uses mock mode
+- Mock mode: instant confirmation, no real API calls
+- Payment marked as "khalti-mock" in database
+- Perfect for quick testing without API setup
 
 ---
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, CalendarRange, LogIn, Sparkles, Users, Settings, UtensilsCrossed } from 'lucide-react';
+import { LayoutDashboard, CalendarRange, LogIn, Sparkles, Users, Settings, UtensilsCrossed, Wallet } from 'lucide-react';
 
 const MobileBottomNav = ({ activeView, onViewChange }) => {
   const tabs = [
@@ -8,6 +8,7 @@ const MobileBottomNav = ({ activeView, onViewChange }) => {
     { id: 'checkinout', label: 'Check-In', icon: LogIn },
     { id: 'housekeeping', label: 'Housekeeping', icon: Sparkles },
     { id: 'orders', label: 'Orders', icon: UtensilsCrossed },
+    { id: 'restaurantBills', label: 'Bills', icon: Wallet },
     { id: 'guests', label: 'Guests', icon: Users },
     { id: 'settings', label: 'More', icon: Settings },
   ];

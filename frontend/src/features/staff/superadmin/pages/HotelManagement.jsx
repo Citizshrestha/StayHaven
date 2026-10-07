@@ -617,6 +617,7 @@ const HotelManagement = () => {
         selectedHotel={selectedHotel}
         onClose={closeModal}
         onSuccess={invalidateHotels}
+        onEdit={(hotel) => openModal('edit', hotel)}
       />
 
       <DeleteConfirmModal
@@ -642,7 +643,7 @@ const HotelThumb = ({ hotel }) => (
   </div>
 );
 
-const HotelCardsGrid = ({ hotels, loading, onView, onEdit, onDelete, onApprove, onReject, approveTarget, setApproveTarget, onApproveClick, popoverPosition }) => {
+const HotelCardsGrid = ({ hotels, loading, onView, onEdit, onApprove, onReject, approveTarget, setApproveTarget, onApproveClick, popoverPosition }) => {
   if (loading) {
     return (
       <div className="hm-cards-grid">
@@ -781,7 +782,7 @@ const HotelCardsGrid = ({ hotels, loading, onView, onEdit, onDelete, onApprove, 
   );
 };
 
-const HotelActionLayer = ({ modalType, selectedHotel, onClose, onSuccess }) => {
+const HotelActionLayer = ({ modalType, selectedHotel, onClose, onSuccess, onEdit }) => {
   const [loading, setLoading] = useState(false);
   const [hotelDetails, setHotelDetails] = useState(null);
   const [owners, setOwners] = useState([]);
@@ -1064,7 +1065,8 @@ const HotelActionLayer = ({ modalType, selectedHotel, onClose, onSuccess }) => {
 
               <div className="hm-drawer-footer">
                 <button className="hm-ghost-btn" onClick={onClose}>Close</button>
-                <button className="hm-add-btn" onClick={() => { onClose(); openModal('edit', hotel); }}>
+                {/* openModal lives in the parent; switching type re-renders this layer as the edit form. */}
+                <button className="hm-add-btn" onClick={() => onEdit(hotel)}>
                   <span className="material-symbols-outlined">edit</span>
                   Edit Hotel
                 </button>

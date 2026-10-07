@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import axiosClient from '../../../../axiosClient';
+import axiosClient from '../../../../core/api/client';
 import { X, Mail, Send, FileText, CheckCircle, AlertTriangle } from 'lucide-react';
-import { useTheme } from '../../../../hooks/useTheme';
+import { useTheme } from '../../../../core/hooks/useTheme';
 
 // ============================================
 // GUEST COMMUNICATION MODAL

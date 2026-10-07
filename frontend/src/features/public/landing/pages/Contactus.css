@@ -238,7 +238,8 @@ label {
   font-size: 1.1rem;
 }
 
-input, textarea {
+/* Scoped to the contact page: these used to be global and restyled every input in the app. */
+.contact-us-container input, .contact-us-container textarea {
   padding: 1rem 1.25rem;
   border: 2px solid #e5e7eb;
   border-radius: 12px;
@@ -249,18 +250,18 @@ input, textarea {
   resize: vertical;
 }
 
-input:focus, textarea:focus {
+.contact-us-container input:focus, .contact-us-container textarea:focus {
   outline: none;
   border-color: #00A797;
   box-shadow: 0 0 0 3px rgba(0, 167, 151, 0.1);
   transform: translateY(-1px);
 }
 
-input::placeholder, textarea::placeholder {
+.contact-us-container input::placeholder, .contact-us-container textarea::placeholder {
   color: #9ca3af;
 }
 
-input.error, textarea.error {
+.contact-us-container input.error, .contact-us-container textarea.error {
   border-color: #ef4444;
   background: #fef2f2;
 }
@@ -579,7 +580,7 @@ input.error, textarea.error {
 }
 
 /* Enhanced focus states */
-input:focus, textarea:focus, .quick-link:focus, .social-link:focus {
+.contact-us-container input:focus, .contact-us-container textarea:focus, .quick-link:focus, .social-link:focus {
   outline: 2px solid #00A797;
   outline-offset: 2px;
 }

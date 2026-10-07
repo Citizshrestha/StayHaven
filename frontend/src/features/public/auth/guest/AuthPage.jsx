@@ -6,11 +6,20 @@ import { GoogleLogin } from '@react-oauth/google';
 import { jwtDecode } from 'jwt-decode';
 import GoogleConfirmModal from '../../../../shared/ui/GoogleConfirmModal';
 import styles from './AuthPage.module.css';
-import { useStaffAuth } from '../../../../context/StaffAuthContext';
+import { useStaffAuth } from '../../../../core/context/StaffAuthContext';
 
 const AuthPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const paymentAttempt = new URLSearchParams(location.search).get('paymentAttempt');
+  const paymentReturnQuery = /^[a-f\d]{24}$/i.test(paymentAttempt || '')
+    ? `?paymentAttempt=${paymentAttempt}`
+    : '';
+  const resumePayment = () => {
+    if (!/^[a-f\d]{24}$/i.test(paymentAttempt || '')) return false;
+    navigate(`/payment-callback?attempt=${paymentAttempt}`, { replace: true });
+    return true;
+  };
   const { login: staffLoginContext } = useStaffAuth();
 
   // Determine initial tab based on route
@@ -79,9 +88,9 @@ const AuthPage = () => {
     setActiveTab(tab);
     // Update URL without page reload
     if (tab === 'signin') {
-      navigate('/login', { replace: true });
+      navigate(`/login${paymentReturnQuery}`, { replace: true });
     } else {
-      navigate('/register', { replace: true });
+      navigate(`/register${paymentReturnQuery}`, { replace: true });
     }
   };
 
@@ -107,6 +116,7 @@ const AuthPage = () => {
       const response = await login(signInData.email, signInData.password);
       if (response.success) {
         toast.success('Login successful! Welcome back.');
+        if (resumePayment()) return;
 
         const pendingBooking = sessionStorage.getItem('pendingBooking');
 
@@ -227,7 +237,13 @@ const AuthPage = () => {
       if (response.success) {
         setUserEmail(signUpData.email);
         setOtpStep(true);
-        toast.success('OTP sent to your email. Please check your inbox.');
+        if (response.emailDelivered === false) {
+          // Development fallback: the backend could not deliver the email but
+          // kept the OTP valid and logged it to its console.
+          toast.info(response.message || 'Email delivery failed. Check the backend console for your OTP.');
+        } else {
+          toast.success('OTP sent to your email. Please check your inbox.');
+        }
       }
     } catch (error) {
       console.error('Registration error:', error);
@@ -276,6 +292,7 @@ const AuthPage = () => {
 
         if (result.success) {
           toast.success('Welcome back!');
+          if (resumePayment()) return;
 
           const pendingBooking = sessionStorage.getItem('pendingBooking');
 

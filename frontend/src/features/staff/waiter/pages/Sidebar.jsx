@@ -6,19 +6,31 @@ import {
   LogOut,
   Phone,
   MessageCircle,
+  Receipt,
 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { staffLogout } from "../../../../api/staff";
-import { useStaffAuth } from "../../../../context/StaffAuthContext";
-import StaffSettings from "../../../../components/shared/StaffSettings";
+import { staffLogout } from "../../../../core/api/services/staffAccount.service";
+import { useStaffAuth } from "../../../../core/context/StaffAuthContext";
+import StaffSettings from "../../../../shared/components/StaffSettings";
 import { useTheme } from "../../../../core/hooks/useTheme";
 
 const Sidebar = ({ activeView = "dashboard", onViewChange, notificationCount = 0, waiterCallCount = 0, onMessagingToggle, unreadMessageCount = 0 }) => {
   const navigate = useNavigate();
   const { staffUser, activeProperty, logout, staffRole } = useStaffAuth();
   const [showSettings, setShowSettings] = useState(false);
+  // Tracks whether the profile picture URL failed to load (e.g. an expired
+  // Google-hosted photo URL, or the ui-avatars.com fallback being blocked)
+  // so we can drop to a locally-rendered initials badge instead of leaving
+  // a blank circle.
+  const [avatarFailed, setAvatarFailed] = useState(false);
+  const initials = (staffUser?.fullname || "Staff")
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
   const { isDark } = useTheme();
 
   // Determine if user is chief/kitchen staff (hide waiter-specific items)
@@ -117,11 +129,31 @@ const Sidebar = ({ activeView = "dashboard", onViewChange, notificationCount = 0
     <div style={containerStyle}>
       {/* User Profile */}
       <div style={profileSectionStyle}>
-        <img
-          src={staffUser?.profilePicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(staffUser?.fullname || 'Staff')}`}
-          alt="User"
-          style={profileImageStyle}
-        />
+        {staffUser?.profilePicture && !avatarFailed ? (
+          <img
+            src={staffUser.profilePicture}
+            alt="User"
+            style={profileImageStyle}
+            onError={() => setAvatarFailed(true)}
+          />
+        ) : (
+          <div
+            style={{
+              ...profileImageStyle,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "var(--color-accent-light)",
+              color: "var(--color-primary)",
+              fontWeight: "700",
+              fontSize: "16px",
+            }}
+            aria-label="User"
+            role="img"
+          >
+            {initials || "S"}
+          </div>
+        )}
         <div style={{ minWidth: 0 }}>
           <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "700", color: isDark ? "#F8FAFC" : "#0F172A" }}>
             {staffUser?.fullname ?? "Staff Member"}
@@ -164,6 +196,17 @@ const Sidebar = ({ activeView = "dashboard", onViewChange, notificationCount = 0
           >
             <UtensilsCrossed size={20} />
             <span style={{ fontSize: "14px" }}>Assigned Tables</span>
+          </button>
+        )}
+
+        {/* Table bills / payments - waiters only */}
+        {!isChief && (
+          <button
+            style={getMenuItemStyle(activeView === "bills")}
+            onClick={() => handleMenuClick("bills")}
+          >
+            <Receipt size={20} />
+            <span style={{ fontSize: "14px" }}>Bills</span>
           </button>
         )}
 

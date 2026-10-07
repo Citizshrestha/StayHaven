@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Tag, Calendar, Clock, AlertCircle, Inbox } from "lucide-react";
-import { useContent } from "../../../../hooks/useContent";
+import { useContent } from "../../../../core/hooks/useContent";
 import { getOffers } from "../../../../core/api/services/content.service";
 import "./OffersPage.css";
 

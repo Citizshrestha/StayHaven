@@ -1,15 +1,15 @@
 import { useState, useEffect, useMemo } from "react";
 import { X, Clock, MapPin, User, Trash2, MoreVertical, Edit, Copy, AlertTriangle, Printer, Send } from "lucide-react";
-import ItemCarousel from "../../../../../components/shared/ItemCarousel";
+import ItemCarousel from "../../../../../shared/components/ItemCarousel";
 import BillPreviewModal from "../../../../../shared/components/BillPreviewModal";
 import OrderDetailsModal from "./OrderDetailsModal";
 import axiosClient from "../../../../../core/api/client";
-import { deleteOrder } from "../../../../../api/staff";
+import { deleteOrder } from "../../../../../core/api/services/staffAccount.service";
 import { toast } from "react-toastify";
-import useClickOutside from "../../../../../hooks/useClickOutSide";
-import useRelativeTime from "../../../../../hooks/useRelativeTime";
+import useClickOutside from "../../../../../core/hooks/useClickOutSide";
+import useRelativeTime from "../../../../../core/hooks/useRelativeTime";
 import EditOrderModal from "./EditOrderModal";
-import { useStaffAuth } from "../../../../../context/StaffAuthContext";
+import { useStaffAuth } from "../../../../../core/context/StaffAuthContext";
 import { useSocket } from "../../../../../core/context/SocketContext";
 import { useTheme } from "../../../../../core/hooks/useTheme";
 
@@ -132,12 +132,6 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
     return null;
   }
 
-  // Calculate order total from items
-  const calculateOrderTotal = () => {
-    if (!order.items || !Array.isArray(order.items)) return '0.00';
-    return order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0).toFixed(2);
-  };
-
   const handleViewDetails = () => {
     setShowDetailsModal(true);
   };
@@ -249,10 +243,8 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
   const cardBg = isDark ? "#0F172A" : "var(--card-bg)";
   const cardBorder = isDark ? "#334155" : "var(--card-border)";
   const cardShadow = isDark ? "0 10px 30px rgba(0,0,0,0.28)" : "var(--shadow-sm)";
-  const panelBg = isDark ? "#111827" : "var(--bg-tertiary)";
   const primaryText = isDark ? "#F8FAFC" : "#111827";
   const secondaryText = isDark ? "#CBD5E1" : "#374151";
-  const mutedText = isDark ? "#94A3B8" : "#6B7280";
 
   // Responsive Inline Styles
   const cardStyle = {
@@ -457,18 +449,10 @@ const OrderCard = ({ order, onMarkServed, onDelete, onUpdate }) => {
 
   // Handle send bill
   const handleSendBill = async (orderId, billData) => {
-    try {
-      const response = await axiosClient.post(`/api/v1/staff/orders/${orderId}/send-bill`, billData);
-
-      if (response.data.success) {
-        // Just return success - the socket event will update the UI
-        // No need to call onUpdate which triggers the edit API
-        return response.data;
-      }
-    } catch (error) {
-
-      throw error;
-    }
+    const response = await axiosClient.post(`/api/v1/staff/orders/${orderId}/send-bill`, billData);
+    // Just return success - the socket event will update the UI.
+    // No need to call onUpdate which triggers the edit API.
+    return response.data.success ? response.data : undefined;
   };
 
   return (

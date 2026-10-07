@@ -26,10 +26,10 @@ import {
   MessageSquare,
   Hand
 } from "lucide-react";
-import { getActiveProperty } from "../../../../api/staff";
-import axiosClient from "../../../../axiosClient";
-import { useSocket } from "../../../../context/SocketContext";
-import useNotificationSound from "../../../../hooks/useNotificationSound";
+import { getActiveProperty } from "../../../../core/api/services/staffAccount.service";
+import axiosClient from "../../../../core/api/client";
+import { useSocket } from "../../../../core/context/SocketContext";
+import useNotificationSound from "../../../../core/hooks/useNotificationSound";
 import { useTheme } from "../../../../core/hooks/useTheme";
 
 const WaiterCallsPanel = ({ onClose, onCallCountChange }) => {

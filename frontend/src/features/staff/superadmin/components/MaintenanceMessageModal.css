@@ -108,3 +108,41 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* ==================== */
+/* Dark Mode            */
+/* ==================== */
+
+.sa-layout.dark .maint-msg-modal {
+  background: var(--sa-card-dark);
+  border: 1px solid var(--sa-border-dark);
+}
+
+.sa-layout.dark .maint-msg-modal-header h3 {
+  color: var(--sa-text-dark);
+}
+
+.sa-layout.dark .maint-msg-modal-desc {
+  color: var(--sa-text-secondary-dark);
+}
+
+.sa-layout.dark .maint-msg-modal label {
+  color: var(--sa-text-dark);
+}
+
+.sa-layout.dark .maint-msg-modal textarea {
+  background: var(--sa-bg-dark);
+  border-color: var(--sa-border-dark);
+  color: var(--sa-text-dark);
+}
+
+.sa-layout.dark .maint-msg-modal textarea::placeholder {
+  color: #64748b;
+}
+
+.sa-layout.dark .maint-msg-modal-actions .btn-ghost {
+  background: var(--sa-bg-dark);
+  border-color: var(--sa-border-dark);
+  color: var(--sa-text-dark);
+}
+

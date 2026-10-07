@@ -1,14 +1,18 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useSocket } from '../../../core/context/SocketContext';
-import { 
-  validateTableToken, 
-  getGuestMenu, 
+import {
+  validateTableToken,
+  getGuestMenu,
   createGuestOrder,
   callWaiter,
-  requestBill 
-} from '../../../api/qrService';
+  requestBill,
+  getTableTab,
+} from '../../../core/api/services/guestQr.service';
+import { getOrCreateGuestSessionId, generateIdempotencyKey } from './guestSession';
+import { formatMoney } from '../dashboard/utils/format';
+import '../dashboard/styles/guest-tokens.css';
 import './GuestQR.css';
 
 const Icons = {
@@ -20,8 +24,6 @@ const Icons = {
   Back: '←',
   Add: '+',
   Remove: '−',
-  Check: '✓',
-  Loading: '⏳',
   Error: '❌',
   Success: '✅',
   Arrow: '→',
@@ -30,20 +32,16 @@ const Icons = {
   User: '👤',
   Notes: '📝',
   Cart: '🛒',
+  Food: '🍲',
 };
 
-// Generate a stable session ID for anonymous QR guests.
-// Stored in localStorage so it survives soft navigation within the same tab.
-const getOrCreateGuestSessionId = () => {
-  let sessionId = localStorage.getItem('guestSessionId');
-  if (!sessionId) {
-    sessionId = typeof crypto !== 'undefined' && crypto.randomUUID
-      ? crypto.randomUUID()
-      : `GUEST-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    localStorage.setItem('guestSessionId', sessionId);
-  }
-  return sessionId;
-};
+const STATUS_STEPS = [
+  { key: 'pending',   label: 'Order received',   icon: '📝' },
+  { key: 'confirmed', label: 'Order confirmed',  icon: '✓' },
+  { key: 'preparing', label: 'Being prepared',   icon: '👨‍🍳' },
+  { key: 'ready',     label: 'Ready to serve',   icon: '🍽️' },
+  { key: 'delivered', label: 'Served',           icon: '✅' },
+];
 
 // Cart persistence key scoped to the QR token so carts don't bleed across tables
 const getCartKey = (token) => `guestCart_${token}`;
@@ -61,31 +59,48 @@ const writePersistedCart = (token, cart) => {
   try {
     sessionStorage.setItem(getCartKey(token), JSON.stringify(cart));
   } catch {
-    // sessionStorage unavailable — silent degradation
+    // sessionStorage unavailable (private mode / quota) — degrade silently,
+    // the cart still works for the life of the page.
   }
 };
 
 const GuestTableView = () => {
   const { token } = useParams();
   const { socket, subscribe } = useSocket();
-  
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [menuError, setMenuError] = useState(null);
   const [tableData, setTableData] = useState(null);
   const [hotelData, setHotelData] = useState(null);
   const [view, setView] = useState('home');
   const [menuItems, setMenuItems] = useState([]);
   const [categories, setCategories] = useState([]);
   const [activeCategory, setActiveCategory] = useState('All');
+  const [search, setSearch] = useState('');
   const [cart, setCart] = useState(() => readPersistedCart(token));
   const [customerInfo, setCustomerInfo] = useState({ name: '', phone: '', notes: '' });
   const [orderPlaced, setOrderPlaced] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
+  // 'idle' | 'sent' — reflects that the request was persisted server-side, not
+  // that a staff member has acknowledged it (the backend owns that state).
+  const [waiterCallState, setWaiterCallState] = useState('idle');
+  const [billRequestState, setBillRequestState] = useState('idle');
+  // The party's running bill (server-computed). `tab` is null when this
+  // device has no open bill; `lastClosed` is set right after staff settle it.
+  const [tab, setTab] = useState(null);
+  const [lastClosed, setLastClosed] = useState(null);
 
   // Stable session ID — created once, written to localStorage before SocketProvider
   // reads it (both run at mount, but getOrCreateGuestSessionId fires synchronously
-  // in useState initializer so localStorage is populated before the socket effect).
+  // in the useRef initializer so localStorage is populated before the socket effect).
   const guestSessionId = useRef(getOrCreateGuestSessionId()).current;
+
+  // Idempotency key for the in-flight/retried checkout attempt. Stays stable
+  // across retries of the SAME attempt (e.g. a timeout followed by the user
+  // tapping "Place Order" again) so the server treats it as one submission;
+  // cleared after a successful placement so the next order gets a fresh key.
+  const pendingOrderKeyRef = useRef(null);
 
   // Validate table token on mount
   useEffect(() => {
@@ -101,7 +116,7 @@ const GuestTableView = () => {
           setError(response.message || 'Invalid QR code');
         }
       } catch (err) {
-        setError(err.message || 'Failed to validate QR code. Please try again.');
+        setError(err?.response?.data?.message || err.message || 'Failed to validate QR code. Please try again.');
       } finally {
         setLoading(false);
       }
@@ -116,14 +131,14 @@ const GuestTableView = () => {
   }, [token]);
 
   // Join guest session room as soon as the socket is available.
-  // Re-runs whenever socket changes (e.g. after initial connect).
+  // Re-runs whenever socket changes (e.g. after a reconnect).
   useEffect(() => {
     if (!socket || !guestSessionId) return;
     socket.emit('join-guest-session', guestSessionId);
   }, [socket, guestSessionId]);
 
-  // Subscribe to real-time order status updates from the backend.
-  // Re-subscribes whenever socket changes so we never miss the connection window.
+  // Guests receive `order-status-update` (singular); staff rooms get
+  // `order-status-updated`. Both are emitted by finalizeStatusUpdate.
   const handleOrderStatusUpdate = useCallback((data) => {
     setOrderPlaced(prev => {
       if (!prev || String(prev._id) !== String(data.orderId)) return prev;
@@ -136,6 +151,48 @@ const GuestTableView = () => {
     return unsubscribe;
   }, [subscribe, handleOrderStatusUpdate]);
 
+  // Running bill: loaded on open, after ordering, and on every live update.
+  // Also restores order tracking after a page refresh.
+  const loadTab = useCallback(async () => {
+    if (!token || !guestSessionId) return;
+    try {
+      const res = await getTableTab(token, guestSessionId);
+      if (!res?.success) return;
+      if (res.data.active) {
+        const nextTab = res.data.tab;
+        setTab(nextTab);
+        setLastClosed(null);
+        setOrderPlaced(prev => {
+          if (prev) {
+            const fresh = nextTab.orders.find(o => String(o._id) === String(prev._id));
+            return fresh ? { ...prev, status: fresh.status } : prev;
+          }
+          const latest = [...nextTab.orders].reverse().find(o => !['delivered', 'cancelled'].includes(o.status));
+          return latest || null;
+        });
+      } else {
+        setTab(prevTab => {
+          // The open bill just went away → staff settled it.
+          if (prevTab && res.data.lastClosed) toast.success('Your bill has been settled. Thank you!');
+          return null;
+        });
+        setLastClosed(res.data.lastClosed || null);
+      }
+    } catch {
+      // Non-fatal: ordering still works; the bill view shows a retry.
+    }
+  }, [token, guestSessionId]);
+
+  useEffect(() => {
+    if (tableData) loadTab();
+  }, [tableData, loadTab]);
+
+  useEffect(() => {
+    const u1 = subscribe('table-tab-updated', loadTab);
+    const u2 = subscribe('order-status-update', loadTab);
+    return () => { u1?.(); u2?.(); };
+  }, [subscribe, loadTab]);
+
   // Persist cart to sessionStorage on every change
   useEffect(() => {
     writePersistedCart(token, cart);
@@ -144,13 +201,14 @@ const GuestTableView = () => {
   const fetchMenu = async () => {
     try {
       setLoading(true);
+      setMenuError(null);
       const response = await getGuestMenu(hotelData._id);
       if (response.success) {
         setMenuItems(response.menuItems || []);
         setCategories(['All', ...(response.categories || [])]);
       }
-    } catch {
-      toast.error('Failed to load menu');
+    } catch (err) {
+      setMenuError(err?.response?.data?.message || 'Failed to load the menu.');
     } finally {
       setLoading(false);
     }
@@ -167,17 +225,15 @@ const GuestTableView = () => {
     setCart(prev => {
       const existingItem = prev.find(i => i.menuItem === item._id);
       if (existingItem) {
-        return prev.map(i => 
-          i.menuItem === item._id 
-            ? { ...i, quantity: i.quantity + 1 }
-            : i
+        return prev.map(i =>
+          i.menuItem === item._id ? { ...i, quantity: i.quantity + 1 } : i
         );
       }
-      return [...prev, { 
-        menuItem: item._id, 
-        name: item.name, 
+      return [...prev, {
+        menuItem: item._id,
+        name: item.name,
         price: item.price,
-        quantity: 1 
+        quantity: 1
       }];
     });
     toast.success(`${item.name} added to cart`, { autoClose: 1500 });
@@ -187,10 +243,8 @@ const GuestTableView = () => {
     setCart(prev => {
       const existingItem = prev.find(i => i.menuItem === itemId);
       if (existingItem && existingItem.quantity > 1) {
-        return prev.map(i => 
-          i.menuItem === itemId 
-            ? { ...i, quantity: i.quantity - 1 }
-            : i
+        return prev.map(i =>
+          i.menuItem === itemId ? { ...i, quantity: i.quantity - 1 } : i
         );
       }
       return prev.filter(i => i.menuItem !== itemId);
@@ -209,13 +263,20 @@ const GuestTableView = () => {
     ));
   };
 
-  const getCartTotal = () => cart.reduce((total, item) => total + (item.price * item.quantity), 0);
-  const getCartCount = () => cart.reduce((total, item) => total + item.quantity, 0);
+  const cartTotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+  const cartCount = cart.reduce((total, item) => total + item.quantity, 0);
 
-  // Filter menu items by category (all items, available + unavailable)
-  const filteredMenuItems = activeCategory === 'All' 
-    ? menuItems 
-    : menuItems.filter(item => item.category === activeCategory);
+  // Category + free-text search. Unavailable items stay visible (clearly marked)
+  // so guests understand why something they expected is missing.
+  const filteredMenuItems = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return menuItems.filter(item => {
+      const matchesCategory = activeCategory === 'All' || item.category === activeCategory;
+      if (!matchesCategory) return false;
+      if (!query) return true;
+      return `${item.name} ${item.description || ''}`.toLowerCase().includes(query);
+    });
+  }, [menuItems, activeCategory, search]);
 
   // Count only AVAILABLE items per category for the tab badge
   const getCategoryCount = (category) => {
@@ -231,9 +292,20 @@ const GuestTableView = () => {
       toast.error('Please enter your name');
       return;
     }
+    if (cart.length === 0) {
+      toast.error('Your cart is empty');
+      return;
+    }
 
     try {
       setActionLoading(true);
+
+      // Reuse the key from a prior failed attempt so a retry after a
+      // timeout/network error cannot create a duplicate order.
+      if (!pendingOrderKeyRef.current) {
+        pendingOrderKeyRef.current = generateIdempotencyKey();
+      }
+
       const orderData = {
         hotelId: hotelData._id,
         tableToken: token,
@@ -242,6 +314,7 @@ const GuestTableView = () => {
         customerPhone: customerInfo.phone.trim(),
         notes: customerInfo.notes.trim(),
         guestSessionId,
+        idempotencyKey: pendingOrderKeyRef.current,
         items: cart.map(item => ({
           menuItem: item.menuItem,
           quantity: item.quantity,
@@ -251,14 +324,23 @@ const GuestTableView = () => {
 
       const response = await createGuestOrder(orderData);
       if (response.success) {
+        pendingOrderKeyRef.current = null;
         setOrderPlaced(response.order);
+        loadTab();
         setCart([]);
         sessionStorage.removeItem(getCartKey(token));
         setView('tracking');
         toast.success('Order placed successfully!');
       }
     } catch (err) {
-      toast.error(err.message || 'Failed to place order');
+      const message = err?.response?.data?.message || err.message || 'Failed to place order';
+      // A menu item became unavailable or the hotel/table context is stale —
+      // the retry key would only reproduce the same failure, so drop it and
+      // let the guest see the current menu state before trying again.
+      if (err?.response?.status === 400 || err?.response?.status === 404) {
+        pendingOrderKeyRef.current = null;
+      }
+      toast.error(message);
     } finally {
       setActionLoading(false);
     }
@@ -276,10 +358,11 @@ const GuestTableView = () => {
         guestName: customerInfo.name.trim() || undefined,
       });
       if (response.success) {
+        setWaiterCallState('sent');
         toast.success('Waiter has been notified! They will be with you shortly.');
       }
-    } catch {
-      toast.error('Failed to call waiter. Please try again.');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to call waiter. Please try again.');
     } finally {
       setActionLoading(false);
     }
@@ -296,10 +379,12 @@ const GuestTableView = () => {
         guestName: customerInfo.name.trim() || undefined,
       });
       if (response.success) {
+        setBillRequestState('sent');
         toast.success('Bill request sent! A waiter will bring your bill shortly.');
+        loadTab();
       }
-    } catch {
-      toast.error('Failed to request bill. Please try again.');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to request bill. Please try again.');
     } finally {
       setActionLoading(false);
     }
@@ -308,11 +393,11 @@ const GuestTableView = () => {
   // ── Loading ───────────────────────────────────────────────────────────────
   if (loading && view === 'home') {
     return (
-      <div className="guest-container">
+      <div className="guestPortal guest-container">
         <div className="guest-card">
           <div className="guest-loading">
-            <div className="guest-loading-spinner"></div>
-            <p className="guest-loading-text">Loading table information...</p>
+            <div className="guest-loading-spinner" />
+            <p className="guest-loading-text" role="status">Loading table information…</p>
           </div>
         </div>
       </div>
@@ -322,17 +407,18 @@ const GuestTableView = () => {
   // ── Error state ───────────────────────────────────────────────────────────
   if (error && view === 'home') {
     return (
-      <div className="guest-container">
+      <div className="guestPortal guest-container">
         <div className="guest-card">
           <div className="guest-error">
-            <div className="guest-error-icon">{Icons.Error}</div>
-            <h2>Oops!</h2>
+            <div className="guest-error-icon" aria-hidden="true">{Icons.Error}</div>
+            <h2>We couldn’t open this table</h2>
             <p>{error}</p>
-            <button 
+            <button
+              type="button"
               className="guest-error-btn"
               onClick={() => window.location.reload()}
             >
-              Try Again
+              Try again
             </button>
           </div>
         </div>
@@ -343,73 +429,187 @@ const GuestTableView = () => {
   // ── Home view ─────────────────────────────────────────────────────────────
   if (view === 'home') {
     return (
-      <div className="guest-container">
+      <div className="guestPortal guest-container">
         <div className="guest-card">
           <div className="guest-header">
-            <div className="guest-header-icon">{Icons.Table}</div>
+            <div className="guest-header-icon" aria-hidden="true">{Icons.Table}</div>
             <h1>{hotelData?.name || 'Restaurant'}</h1>
             <p>{hotelData?.location?.address || 'Welcome!'}</p>
           </div>
 
           <div className="guest-info">
-            <div className="guest-info-icon">{Icons.Location}</div>
+            <div className="guest-info-icon" aria-hidden="true">{Icons.Location}</div>
             <div className="guest-info-details">
               <h3>{tableData?.tableName || `Table ${tableData?.tableNumber}`}</h3>
-              <p>Capacity: {tableData?.capacity} guests • {tableData?.location || 'Indoor'}</p>
+              <p>
+                {tableData?.capacity ? `Capacity: ${tableData.capacity} guests • ` : ''}
+                {tableData?.location || 'Indoor'}
+              </p>
             </div>
           </div>
 
           <div className="guest-actions">
-            <button className="guest-action-btn" onClick={handleViewMenu}>
-              <div className="guest-action-icon primary">{Icons.Menu}</div>
+            <button type="button" className="guest-action-btn" onClick={handleViewMenu}>
+              <div className="guest-action-icon primary" aria-hidden="true">{Icons.Menu}</div>
               <div className="guest-action-content">
-                <h4>View Menu</h4>
-                <p>Browse our delicious offerings</p>
+                <h4>View menu</h4>
+                <p>Browse dishes and order from your table</p>
               </div>
-              <span className="guest-action-arrow">{Icons.Arrow}</span>
+              <span className="guest-action-arrow" aria-hidden="true">{Icons.Arrow}</span>
             </button>
 
-            <button 
-              className="guest-action-btn" 
+            <button
+              type="button"
+              className="guest-action-btn"
               onClick={() => handleCallWaiter()}
               disabled={actionLoading}
             >
-              <div className="guest-action-icon warning">{Icons.Waiter}</div>
+              <div className="guest-action-icon warning" aria-hidden="true">{Icons.Waiter}</div>
               <div className="guest-action-content">
-                <h4>Call Waiter</h4>
-                <p>Request assistance at your table</p>
+                <h4>Call waiter</h4>
+                <p>
+                  {waiterCallState === 'sent'
+                    ? 'Request sent — a waiter is on the way'
+                    : 'Request assistance at your table'}
+                </p>
               </div>
-              <span className="guest-action-arrow">{Icons.Arrow}</span>
+              <span className="guest-action-arrow" aria-hidden="true">{Icons.Arrow}</span>
             </button>
 
-            <button 
-              className="guest-action-btn" 
+            {tab && (
+              <button type="button" className="guest-action-btn" onClick={() => setView('bill')}>
+                <div className="guest-action-icon primary" aria-hidden="true">{Icons.Bill}</div>
+                <div className="guest-action-content">
+                  <h4>Your table bill · {formatMoney(tab.totals?.balance ?? 0)}</h4>
+                  <p>
+                    {tab.totals?.orderCount || 0} order{tab.totals?.orderCount === 1 ? '' : 's'} so far — see items, VAT and total
+                  </p>
+                </div>
+                <span className="guest-action-arrow" aria-hidden="true">{Icons.Arrow}</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              className="guest-action-btn"
               onClick={handleRequestBill}
-              disabled={actionLoading}
+              disabled={actionLoading || !tab}
+              aria-describedby={!tab ? 'guest-bill-hint' : undefined}
             >
-              <div className="guest-action-icon success">{Icons.Bill}</div>
+              <div className="guest-action-icon success" aria-hidden="true">{Icons.Bill}</div>
               <div className="guest-action-content">
-                <h4>Request Bill</h4>
-                <p>Ready to pay? We'll bring your bill</p>
+                <h4>Request bill</h4>
+                <p id="guest-bill-hint">
+                  {!tab
+                    ? 'Available once you have ordered'
+                    : billRequestState === 'sent' || tab.billRequestedAt
+                      ? 'Bill requested — a waiter will bring it over'
+                      : 'Ready to pay? We’ll bring your bill'}
+                </p>
               </div>
-              <span className="guest-action-arrow">{Icons.Arrow}</span>
+              <span className="guest-action-arrow" aria-hidden="true">{Icons.Arrow}</span>
             </button>
 
             {orderPlaced && (
-              <button 
-                className="guest-action-btn" 
+              <button
+                type="button"
+                className="guest-action-btn"
                 onClick={() => setView('tracking')}
               >
-                <div className="guest-action-icon success">{Icons.Order}</div>
+                <div className="guest-action-icon success" aria-hidden="true">{Icons.Order}</div>
                 <div className="guest-action-content">
-                  <h4>Track Order #{orderPlaced.orderNumber}</h4>
-                  <p>View your order status</p>
+                  <h4>Track order #{orderPlaced.orderNumber}</h4>
+                  <p>See live kitchen progress</p>
                 </div>
-                <span className="guest-action-arrow">{Icons.Arrow}</span>
+                <span className="guest-action-arrow" aria-hidden="true">{Icons.Arrow}</span>
               </button>
             )}
           </div>
+
+          {!tab && lastClosed && (
+            <p className="guest-payment-note" role="status">
+              <span aria-hidden="true">{Icons.Success}</span> Paid — receipt #{lastClosed.receiptNumber} ({formatMoney(lastClosed.total)}). Thank you!
+            </p>
+          )}
+
+          <p className="guest-payment-note">
+            Orders are added to your table bill — pay at the counter or with your waiter.
+          </p>
         </div>
+      </div>
+    );
+  }
+
+  // ── Table bill view ───────────────────────────────────────────────────────
+  if (view === 'bill') {
+    const t = tab?.totals || {};
+    return (
+      <div className="guestPortal guest-checkout">
+        <div className="guest-checkout-header">
+          <button type="button" className="guest-back-btn" onClick={() => setView('home')} aria-label="Back">
+            <span aria-hidden="true">{Icons.Back}</span>
+          </button>
+          <h2 className="guest-checkout-title">Table bill</h2>
+        </div>
+
+        {!tab ? (
+          <div className="guest-empty-cart" role="status">
+            <div className="guest-empty-cart-icon" aria-hidden="true">{lastClosed ? Icons.Success : Icons.Bill}</div>
+            <p>
+              {lastClosed
+                ? `Your bill is settled — receipt #${lastClosed.receiptNumber}, ${formatMoney(lastClosed.total)}. Thank you!`
+                : 'There is no open bill for this table on this phone yet.'}
+            </p>
+            <button type="button" className="guest-error-btn" onClick={() => setView('home')}>Back</button>
+          </div>
+        ) : (
+          <>
+            <div className="guest-order-items">
+              {tab.orders.map(order => (
+                <div key={order._id} className="guest-bill-order">
+                  <p className="guest-summary-note">
+                    Order #{order.orderNumber} · {STATUS_STEPS.find(s => s.key === order.status)?.label || (order.status === 'cancelled' ? 'Cancelled' : order.status)}
+                  </p>
+                  {order.items.map((item, idx) => (
+                    <div className="guest-order-item" key={`${order._id}-${idx}`} style={order.status === 'cancelled' ? { opacity: 0.5, textDecoration: 'line-through' } : undefined}>
+                      <div className="guest-order-item-qty">{item.quantity}×</div>
+                      <span className="guest-order-item-name">{item.name}</span>
+                      <span className="guest-order-item-price">{formatMoney(item.price * item.quantity)}</span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+
+            <div className="guest-order-summary" aria-live="polite">
+              <div className="guest-summary-row"><span>Subtotal</span><span>{formatMoney(t.subtotal)}</span></div>
+              {t.discount > 0 && <div className="guest-summary-row"><span>Discount</span><span>− {formatMoney(t.discount)}</span></div>}
+              {t.serviceCharge > 0 && (
+                <div className="guest-summary-row"><span>Service charge ({tab.charges?.serviceChargeRate}%)</span><span>{formatMoney(t.serviceCharge)}</span></div>
+              )}
+              <div className="guest-summary-row"><span>VAT ({tab.charges?.taxRate ?? 0}%)</span><span>{formatMoney(t.tax)}</span></div>
+              <div className="guest-summary-row total"><span>Total</span><span>{formatMoney(t.total)}</span></div>
+              {t.paid > 0 && (
+                <>
+                  <div className="guest-summary-row"><span>Paid</span><span>{formatMoney(t.paid)}</span></div>
+                  <div className="guest-summary-row total"><span>Balance due</span><span>{formatMoney(t.balance)}</span></div>
+                </>
+              )}
+            </div>
+
+            <button
+              type="button"
+              className="guest-place-order-btn"
+              onClick={handleRequestBill}
+              disabled={actionLoading}
+            >
+              {billRequestState === 'sent' || tab.billRequestedAt ? 'Bill requested — ask again' : `Request bill • ${formatMoney(t.balance)}`}
+            </button>
+            <p className="guest-payment-note">
+              Pay by cash, card, eSewa or Khalti with your waiter or at the counter.
+            </p>
+          </>
+        )}
       </div>
     );
   }
@@ -417,11 +617,16 @@ const GuestTableView = () => {
   // ── Menu view ─────────────────────────────────────────────────────────────
   if (view === 'menu') {
     return (
-      <div className="guest-menu-container">
+      <div className="guestPortal guest-menu-container">
         <div className="guest-menu-header">
           <div className="guest-menu-header-top">
-            <button className="guest-back-btn" onClick={() => setView('home')}>
-              {Icons.Back}
+            <button
+              type="button"
+              className="guest-back-btn"
+              onClick={() => setView('home')}
+              aria-label="Back to table home"
+            >
+              <span aria-hidden="true">{Icons.Back}</span>
             </button>
             <div className="guest-menu-title">
               <h2>Menu</h2>
@@ -429,29 +634,59 @@ const GuestTableView = () => {
             </div>
           </div>
 
-          {/* Category Tabs — counts reflect available items only */}
-          <div className="guest-category-tabs">
+          <div className="guest-menu-search">
+            <label className="guest-sr-only" htmlFor="guest-menu-search-input">
+              Search the menu
+            </label>
+            <input
+              id="guest-menu-search-input"
+              type="search"
+              className="guest-form-input"
+              placeholder="Search dishes…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+
+          {/* Category tabs — counts reflect available items only */}
+          <div className="guest-category-tabs g-scroll-x">
             {categories.map(category => (
               <button
+                type="button"
                 key={category}
                 className={`guest-category-tab ${activeCategory === category ? 'active' : ''}`}
+                aria-pressed={activeCategory === category}
                 onClick={() => setActiveCategory(category)}
               >
                 {category}
-                {' '}
-                <span style={{ fontSize: '0.75em', opacity: 0.8, marginLeft: 2 }}>
-                  ({getCategoryCount(category)})
-                </span>
+                <span className="guest-category-count">({getCategoryCount(category)})</span>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Menu Items */}
+        {menuError && (
+          <div className="guest-inline-error" role="alert">
+            <span>{menuError}</span>
+            <button type="button" className="guest-inline-retry" onClick={fetchMenu}>
+              Retry
+            </button>
+          </div>
+        )}
+
         {loading ? (
           <div className="guest-loading">
-            <div className="guest-loading-spinner"></div>
-            <p className="guest-loading-text">Loading menu...</p>
+            <div className="guest-loading-spinner" />
+            <p className="guest-loading-text" role="status">Loading menu…</p>
+          </div>
+        ) : filteredMenuItems.length === 0 ? (
+          <div className="guest-empty-cart">
+            <div className="guest-empty-cart-icon" aria-hidden="true">{Icons.Menu}</div>
+            <p>
+              {search.trim()
+                ? `No dishes match “${search.trim()}”.`
+                : 'Nothing on the menu in this category yet.'}
+            </p>
           </div>
         ) : (
           <div className="guest-menu-grid">
@@ -459,79 +694,80 @@ const GuestTableView = () => {
               const quantity = getItemQuantity(item._id);
               const unavailable = !item.isAvailable;
               return (
-                <div 
+                <div
                   key={item._id}
-                  className="guest-menu-item"
-                  style={unavailable ? {
-                    opacity: 0.5,
-                    filter: 'grayscale(40%)',
-                    position: 'relative'
-                  } : { position: 'relative' }}
+                  className={`guest-menu-item${unavailable ? ' unavailable' : ''}`}
                 >
-                  {/* SOLD OUT badge — shown only for unavailable items */}
-                  {unavailable && (
-                    <span style={{
-                      position: 'absolute',
-                      top: 8,
-                      right: 8,
-                      background: '#ef4444',
-                      color: 'white',
-                      fontSize: '10px',
-                      fontWeight: 700,
-                      letterSpacing: '0.06em',
-                      textTransform: 'uppercase',
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      zIndex: 2
-                    }}>
-                      SOLD OUT
-                    </span>
+                  {unavailable && <span className="guest-sold-out-badge">Sold out</span>}
+
+                  {item.image ? (
+                    <img
+                      src={item.image}
+                      alt={item.name}
+                      className="guest-menu-item-image"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div
+                      className="guest-menu-item-image guest-menu-item-image--placeholder"
+                      aria-hidden="true"
+                    >
+                      {Icons.Food}
+                    </div>
                   )}
-                  <img 
-                    src={item.image || 'https://via.placeholder.com/90x90?text=Food'} 
-                    alt={item.name}
-                    className="guest-menu-item-image"
-                  />
+
                   <div className="guest-menu-item-content">
                     <div className="guest-menu-item-header">
                       <h4 className="guest-menu-item-name">{item.name}</h4>
                       {item.isVeg !== undefined && (
-                        <div className={`guest-menu-item-veg ${item.isVeg ? 'veg' : 'non-veg'}`}></div>
+                        <div
+                          className={`guest-menu-item-veg ${item.isVeg ? 'veg' : 'non-veg'}`}
+                          role="img"
+                          aria-label={item.isVeg ? 'Vegetarian' : 'Non-vegetarian'}
+                        />
                       )}
                     </div>
                     {item.description && (
                       <p className="guest-menu-item-desc">{item.description}</p>
                     )}
                     <div className="guest-menu-item-footer">
-                      <span className="guest-menu-item-price">Rs. {item.price}</span>
+                      <span className="guest-menu-item-price">{formatMoney(item.price)}</span>
                       <div className="guest-menu-item-add">
                         {quantity === 0 ? (
-                          <button 
+                          <button
+                            type="button"
                             className="guest-add-btn"
                             onClick={() => addToCart(item)}
                             disabled={unavailable}
-                            style={unavailable ? {
-                              cursor: 'not-allowed',
-                              background: '#e2e8f0'
-                            } : {}}
+                            aria-label={
+                              unavailable
+                                ? `${item.name} is sold out`
+                                : `Add ${item.name} to cart`
+                            }
                           >
-                            ADD
+                            Add
                           </button>
                         ) : (
                           <div className="guest-qty-control">
-                            <button 
+                            <button
+                              type="button"
                               className="guest-qty-btn"
                               onClick={() => removeFromCart(item._id)}
+                              aria-label={`Remove one ${item.name}`}
                             >
-                              {Icons.Remove}
+                              <span aria-hidden="true">{Icons.Remove}</span>
                             </button>
-                            <span className="guest-qty-value">{quantity}</span>
-                            <button 
+                            <span className="guest-qty-value" aria-live="polite">
+                              {quantity}
+                            </span>
+                            <button
+                              type="button"
                               className="guest-qty-btn"
                               onClick={() => addToCart(item)}
                               disabled={unavailable}
+                              aria-label={`Add one more ${item.name}`}
                             >
-                              {Icons.Add}
+                              <span aria-hidden="true">{Icons.Add}</span>
                             </button>
                           </div>
                         )}
@@ -544,18 +780,20 @@ const GuestTableView = () => {
           </div>
         )}
 
-        {/* Cart Footer */}
         {cart.length > 0 && (
           <div className="guest-cart-footer">
             <div className="guest-cart-info">
-              <p className="guest-cart-count">{getCartCount()} items</p>
-              <p className="guest-cart-total">Rs. {getCartTotal()}</p>
+              <p className="guest-cart-count">
+                {cartCount} {cartCount === 1 ? 'item' : 'items'}
+              </p>
+              <p className="guest-cart-total">{formatMoney(cartTotal)}</p>
             </div>
-            <button 
+            <button
+              type="button"
               className="guest-cart-btn"
               onClick={() => setView('checkout')}
             >
-              {Icons.Cart} View Cart
+              <span aria-hidden="true">{Icons.Cart}</span> Review order
             </button>
           </div>
         )}
@@ -566,128 +804,166 @@ const GuestTableView = () => {
   // ── Checkout view ─────────────────────────────────────────────────────────
   if (view === 'checkout') {
     return (
-      <div className="guest-checkout">
+      <div className="guestPortal guest-checkout">
         <div className="guest-checkout-header">
-          <button className="guest-back-btn" onClick={() => setView('menu')}>
-            {Icons.Back}
+          <button
+            type="button"
+            className="guest-back-btn"
+            onClick={() => setView('menu')}
+            aria-label="Back to menu"
+          >
+            <span aria-hidden="true">{Icons.Back}</span>
           </button>
-          <h2 className="guest-checkout-title">Your Order</h2>
+          <h2 className="guest-checkout-title">Your order</h2>
         </div>
 
-        <div className="guest-order-items">
-          {cart.map(item => (
-            <div key={item.menuItem}>
-              <div className="guest-order-item">
-                <div className="guest-order-item-qty">{item.quantity}x</div>
-                <span className="guest-order-item-name">{item.name}</span>
-                <span className="guest-order-item-price">Rs. {item.price * item.quantity}</span>
-              </div>
-              <input
-                type="text"
-                className="guest-form-input"
-                style={{ margin: '4px 0 10px', fontSize: '0.85rem', padding: '8px 12px' }}
-                placeholder={`Note for ${item.name} (e.g. no onions)`}
-                maxLength={200}
-                value={item.notes || ''}
-                onChange={(e) => setItemNote(item.menuItem, e.target.value)}
-              />
+        {cart.length === 0 ? (
+          <div className="guest-empty-cart">
+            <div className="guest-empty-cart-icon" aria-hidden="true">{Icons.Cart}</div>
+            <p>Your cart is empty.</p>
+            <button
+              type="button"
+              className="guest-error-btn"
+              onClick={() => setView('menu')}
+            >
+              Browse the menu
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="guest-order-items">
+              {cart.map(item => (
+                <div key={item.menuItem}>
+                  <div className="guest-order-item">
+                    <div className="guest-order-item-qty">{item.quantity}×</div>
+                    <span className="guest-order-item-name">{item.name}</span>
+                    <span className="guest-order-item-price">
+                      {formatMoney(item.price * item.quantity)}
+                    </span>
+                  </div>
+                  <label className="guest-sr-only" htmlFor={`note-${item.menuItem}`}>
+                    Note for {item.name}
+                  </label>
+                  <input
+                    id={`note-${item.menuItem}`}
+                    type="text"
+                    className="guest-form-input guest-item-note-input"
+                    placeholder={`Note for ${item.name} (e.g. no onions)`}
+                    maxLength={200}
+                    value={item.notes || ''}
+                    onChange={(e) => setItemNote(item.menuItem, e.target.value)}
+                  />
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        <div className="guest-form">
-          <div className="guest-form-group">
-            <label className="guest-form-label">{Icons.User} Your Name *</label>
-            <input
-              type="text"
-              className="guest-form-input"
-              placeholder="Enter your name"
-              value={customerInfo.name}
-              onChange={(e) => setCustomerInfo(prev => ({ ...prev, name: e.target.value }))}
-            />
-          </div>
+            <div className="guest-form">
+              <div className="guest-form-group">
+                <label className="guest-form-label" htmlFor="guest-name">
+                  <span aria-hidden="true">{Icons.User}</span> Your name *
+                </label>
+                <input
+                  id="guest-name"
+                  type="text"
+                  className="guest-form-input"
+                  placeholder="Enter your name"
+                  autoComplete="name"
+                  required
+                  value={customerInfo.name}
+                  onChange={(e) => setCustomerInfo(prev => ({ ...prev, name: e.target.value }))}
+                />
+              </div>
 
-          <div className="guest-form-group">
-            <label className="guest-form-label">{Icons.Phone} Phone Number (optional)</label>
-            <input
-              type="tel"
-              className="guest-form-input"
-              placeholder="Enter phone number"
-              value={customerInfo.phone}
-              onChange={(e) => setCustomerInfo(prev => ({ ...prev, phone: e.target.value }))}
-            />
-          </div>
+              <div className="guest-form-group">
+                <label className="guest-form-label" htmlFor="guest-phone">
+                  <span aria-hidden="true">{Icons.Phone}</span> Phone number (optional)
+                </label>
+                <input
+                  id="guest-phone"
+                  type="tel"
+                  className="guest-form-input"
+                  placeholder="Enter phone number"
+                  autoComplete="tel"
+                  value={customerInfo.phone}
+                  onChange={(e) => setCustomerInfo(prev => ({ ...prev, phone: e.target.value }))}
+                />
+              </div>
 
-          <div className="guest-form-group">
-            <label className="guest-form-label">{Icons.Notes} Special Instructions (optional)</label>
-            <textarea
-              className="guest-form-textarea"
-              placeholder="Any allergies or special requests?"
-              value={customerInfo.notes}
-              onChange={(e) => setCustomerInfo(prev => ({ ...prev, notes: e.target.value }))}
-            />
-          </div>
-        </div>
+              <div className="guest-form-group">
+                <label className="guest-form-label" htmlFor="guest-notes">
+                  <span aria-hidden="true">{Icons.Notes}</span> Special instructions (optional)
+                </label>
+                <textarea
+                  id="guest-notes"
+                  className="guest-form-textarea"
+                  placeholder="Any allergies or special requests?"
+                  maxLength={500}
+                  value={customerInfo.notes}
+                  onChange={(e) => setCustomerInfo(prev => ({ ...prev, notes: e.target.value }))}
+                />
+              </div>
+            </div>
 
-        <div className="guest-order-summary">
-          <div className="guest-summary-row">
-            <span>Subtotal</span>
-            <span>Rs. {getCartTotal()}</span>
-          </div>
-          <div className="guest-summary-row total">
-            <span>Total</span>
-            <span>Rs. {getCartTotal()}</span>
-          </div>
-        </div>
+            <div className="guest-order-summary">
+              <div className="guest-summary-row">
+                <span>Subtotal</span>
+                <span>{formatMoney(cartTotal)}</span>
+              </div>
+              <p className="guest-summary-note">
+                {tab
+                  ? `VAT (${tab.charges?.taxRate ?? 13}%)${tab.charges?.serviceChargeRate ? ` and ${tab.charges.serviceChargeRate}% service charge` : ''} are added on your table bill.`
+                  : 'VAT (and any service charge) is added on your table bill.'}
+              </p>
+            </div>
 
-        <button 
-          className="guest-place-order-btn"
-          onClick={handlePlaceOrder}
-          disabled={actionLoading || cart.length === 0}
-        >
-          {actionLoading ? 'Placing Order...' : `Place Order • Nrs ${getCartTotal()}`}
-        </button>
+            <button
+              type="button"
+              className="guest-place-order-btn"
+              onClick={handlePlaceOrder}
+              disabled={actionLoading || cart.length === 0}
+            >
+              {actionLoading ? 'Placing order…' : `Place order • ${formatMoney(cartTotal)}`}
+            </button>
+
+            <p className="guest-payment-note">
+              No payment needed now — this is added to your table bill.
+            </p>
+          </>
+        )}
       </div>
     );
   }
 
   // ── Tracking view ─────────────────────────────────────────────────────────
   if (view === 'tracking' && orderPlaced) {
-    const STATUS_STEPS = [
-      { key: 'pending',   label: 'Order Received',    icon: '📝' },
-      { key: 'confirmed', label: 'Order Confirmed',   icon: Icons.Check },
-      { key: 'preparing', label: 'Being Prepared 🍳', icon: '👨‍🍳' },
-      { key: 'ready',     label: 'Ready for Pickup ✓',icon: '🍽️' },
-      { key: 'delivered', label: 'Delivered 🎉',       icon: Icons.Success },
-    ];
-
     const currentStatus = orderPlaced.status || 'pending';
     const isCancelled = currentStatus === 'cancelled';
     const currentStatusIndex = STATUS_STEPS.findIndex(s => s.key === currentStatus);
+    const currentStep = STATUS_STEPS[currentStatusIndex];
 
     return (
-      <div className="guest-container">
+      <div className="guestPortal guest-container">
         <div className="guest-card">
           <div className="guest-order-tracking">
+            {/* Announces live status changes to screen readers */}
+            <p className="guest-sr-only" role="status" aria-live="polite">
+              {isCancelled
+                ? `Order ${orderPlaced.orderNumber} was cancelled.`
+                : `Order ${orderPlaced.orderNumber} status: ${currentStep?.label || currentStatus}.`}
+            </p>
 
             {isCancelled ? (
               <>
-                <div style={{
-                  background: '#fef2f2',
-                  border: '1px solid #fecaca',
-                  borderRadius: '12px',
-                  padding: '16px 20px',
-                  marginBottom: '24px',
-                  textAlign: 'center'
-                }}>
-                  <p style={{ margin: 0, fontWeight: 700, fontSize: '1.05rem', color: '#dc2626' }}>
-                    {Icons.Error} Order Cancelled
-                  </p>
-                  <p style={{ margin: '6px 0 0', color: '#ef4444', fontSize: '0.88rem' }}>
+                <div className="guest-cancelled-notice">
+                  <h3>
+                    <span aria-hidden="true">{Icons.Error}</span> Order cancelled
+                  </h3>
+                  <p>
                     Your order was cancelled. Please place a new order or call the waiter.
                   </p>
                 </div>
                 <button
+                  type="button"
                   className="guest-place-order-btn"
                   onClick={() => {
                     setOrderPlaced(null);
@@ -696,22 +972,27 @@ const GuestTableView = () => {
                     setView('home');
                   }}
                 >
-                  Place New Order
+                  Place a new order
                 </button>
               </>
             ) : (
               <>
-                <div className="guest-order-success-icon">{Icons.Success}</div>
-                <h2>Order Placed!</h2>
+                <div className="guest-order-success-icon" aria-hidden="true">
+                  {Icons.Success}
+                </div>
+                <h2>Order placed</h2>
                 <p className="order-number">Order #{orderPlaced.orderNumber}</p>
+                <p className="guest-tracking-subtitle">
+                  {tableData?.tableName || `Table ${tableData?.tableNumber}`}
+                </p>
 
-                <div className="guest-status-timeline">
+                <ol className="guest-status-timeline">
                   {STATUS_STEPS.map((step, index) => {
                     const isCompleted = index < currentStatusIndex;
                     const isActive = index === currentStatusIndex;
 
                     return (
-                      <div 
+                      <li
                         key={step.key}
                         className={[
                           'guest-status-item',
@@ -720,43 +1001,30 @@ const GuestTableView = () => {
                           !isCompleted && !isActive ? 'pending' : ''
                         ].join(' ').trim()}
                       >
-                        <div
-                          className="guest-status-dot"
-                          style={isActive ? {
-                            boxShadow: '0 0 0 4px rgba(16,185,129,0.25)',
-                            animation: 'guestPulse 1.5s ease-in-out infinite'
-                          } : {}}
-                        >
+                        <div className="guest-status-dot" aria-hidden="true">
                           {step.icon}
                         </div>
                         <div className="guest-status-content">
-                          <h4
-                            className="guest-status-title"
-                            style={!isCompleted && !isActive ? { color: '#94a3b8' } : {}}
-                          >
-                            {step.label}
-                          </h4>
-                          {isActive && (
-                            <p className="guest-status-time">In progress...</p>
-                          )}
-                          {isCompleted && (
-                            <p className="guest-status-time">Completed</p>
-                          )}
+                          <h4 className="guest-status-title">{step.label}</h4>
+                          {isActive && <p className="guest-status-time">In progress…</p>}
+                          {isCompleted && <p className="guest-status-time">Done</p>}
                         </div>
-                      </div>
+                      </li>
                     );
                   })}
-                </div>
+                </ol>
 
-                <button 
-                  className="guest-action-btn"
+                <button
+                  type="button"
+                  className="guest-action-btn guest-tracking-back-btn"
                   onClick={() => setView('home')}
-                  style={{ marginTop: '24px' }}
                 >
-                  <div className="guest-action-icon primary">{Icons.Back}</div>
+                  <div className="guest-action-icon primary" aria-hidden="true">
+                    {Icons.Back}
+                  </div>
                   <div className="guest-action-content">
-                    <h4>Back to Home</h4>
-                    <p>Order more or call waiter</p>
+                    <h4>Back to home</h4>
+                    <p>Order more or call the waiter</p>
                   </div>
                 </button>
               </>

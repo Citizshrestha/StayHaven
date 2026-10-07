@@ -1,10 +1,8 @@
 import React from 'react';
-import { useLocation } from 'react-router-dom';
 import {
   BarChart3,
   BedDouble,
   Bell,
-  ChevronRight,
   ChevronsLeft,
   ChevronsRight,
   CreditCard,
@@ -49,8 +47,6 @@ const Sidebar = ({
   onToggleCollapse,
   onMobileClose,
 }) => {
-  useLocation();
-
   const hotelName =
     staffUser?.activeProperty?.name || staffUser?.fullname || 'Hotel Admin';
   const adminName = staffUser?.fullname || 'Admin';
@@ -72,7 +68,7 @@ const Sidebar = ({
       title={collapsed ? label : undefined}
     >
       <span className={`${styles.iconWrap} ${styles[iconClass]}`}>
-        <Icon size={16} strokeWidth={2} aria-hidden="true" />
+        {React.createElement(Icon, { size: 16, strokeWidth: 2, 'aria-hidden': true })}
       </span>
       <span className={styles.navLabel}>{label}</span>
       {badge !== undefined && badge !== null && badge > 0 && (
@@ -97,7 +93,7 @@ const Sidebar = ({
           <span className={styles.hotelName}>{hotelName}</span>
           <span className={styles.propertyLabel}>Property Management</span>
         </div>
-        <span className={styles.liveBadge} aria-label="System live">LIVE</span>
+        <span className={styles.liveBadge}>STAYHAVEN</span>
         <button
           type="button"
           className={styles.mobileClose}
@@ -148,13 +144,12 @@ const Sidebar = ({
 
       {/* ── Footer — Profile + Theme toggle + Logout ── */}
       <div className={styles.footer}>
-        <div className={styles.profileCard} role="button" tabIndex={0}>
+        <div className={styles.profileCard}>
           <div className={styles.avatar} aria-hidden="true">{avatarInitial}</div>
           <div className={styles.profileInfo}>
             <span className={styles.profileName}>{adminName}</span>
-            <span className={styles.profileRole}>Hotel Administrator</span>
+            <span className={styles.profileRole}>{staffUser?.role?.name || staffUser?.role || 'Hotel team'}</span>
           </div>
-          <ChevronRight size={14} className={styles.chevron} aria-hidden="true" />
         </div>
 
         {!collapsed && (

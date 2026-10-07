@@ -1,9 +1,13 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { X, Minus, Plus, ShoppingBag, Search, ChefHat } from "lucide-react";
-import { useOrderContext } from "../../../../context/useOrderContext";
+import { useOrderContext } from "../../../../core/context/useOrderContext";
 import { getMenuItems, getActiveProperty } from "../../../../core/api/services/staff.service";
+import { getHotelTables, newIdempotencyKey } from "../../../../core/api/services/dining.service";
+
+const rs = (n) => `Rs ${(Number(n) || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+const PHONE_PATTERN = /^[+\d][\d\s-]{5,19}$/;
 import { toast } from "react-toastify";
-import { useTheme } from "../../../../hooks/useTheme";
+import { useTheme } from "../../../../core/hooks/useTheme";
 
 const CATEGORIES = ["All", "Breakfast", "Lunch", "Dinner", "Snacks", "Drinks", "Dessert", "Appetizers"];
 
@@ -21,10 +25,27 @@ const OrderFormModal = ({ onClose }) => {
         orderType: "dineIn",
         roomNumber: "",
         tableNumber: "",
+        tableId: "",
         customerName: "",
+        customerPhone: "",
         notes: "",
         priority: "normal",
     });
+    // Real tables for the hotel. `null` = still loading; [] = hotel has no
+    // tables configured yet (falls back to a free-text table number).
+    const [tables, setTables] = useState(null);
+    const [submitting, setSubmitting] = useState(false);
+    // Stable across retries of the same submission so a double tap or a
+    // network retry can never create the order twice.
+    const submitKeyRef = useRef(newIdempotencyKey("ord"));
+
+    useEffect(() => {
+        const property = getActiveProperty();
+        if (!property?._id) { setTables([]); return; }
+        getHotelTables(property._id)
+            .then((res) => setTables((res.data || []).filter((t) => t.status !== "maintenance")))
+            .catch(() => setTables([]));
+    }, []);
 
     const colors = {
         bg: isDark ? '#1E293B' : 'white',
@@ -131,28 +152,60 @@ const OrderFormModal = ({ onClose }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (submitting) return;
         if (selectedItems.length === 0) {
             toast.error("Please select at least one item");
             return;
         }
+        const useTablePicker = formData.orderType === "dineIn" && Array.isArray(tables) && tables.length > 0;
+        if (useTablePicker && !formData.tableId) {
+            toast.error("Choose a table");
+            return;
+        }
+        if (formData.orderType === "takeaway") {
+            if (!formData.customerName.trim()) {
+                toast.error("Enter the customer's name so the order can be called out");
+                return;
+            }
+            if (formData.customerPhone.trim() && !PHONE_PATTERN.test(formData.customerPhone.trim())) {
+                toast.error("Enter a valid phone number");
+                return;
+            }
+        }
 
+        const { tableId, tableNumber, roomNumber, customerPhone, ...rest } = formData;
         const orderPayload = {
-            ...formData,
+            ...rest,
+            customerName: formData.customerName.trim(),
+            customerPhone: formData.orderType === "takeaway" ? customerPhone.trim() || undefined : undefined,
+            roomNumber: formData.orderType === "roomService" ? roomNumber : undefined,
+            tableId: formData.orderType === "dineIn" && useTablePicker ? tableId : undefined,
+            tableNumber: formData.orderType === "dineIn" && !useTablePicker ? tableNumber : undefined,
+            idempotencyKey: submitKeyRef.current,
+            // Menu lines only: the server prices every line from the menu.
             items: selectedItems.map(item => ({
                 menuItem: item.menuItemId,
-                name: item.name,
                 quantity: item.quantity,
-                price: item.price,
                 notes: item.notes,
             })),
         };
 
         try {
+            setSubmitting(true);
             await addOrder(orderPayload);
             onClose();
-            toast.success("Order created successfully");
+            toast.success(formData.orderType === "takeaway"
+                ? "Takeaway order created — take payment from Bills"
+                : "Order created successfully");
         } catch (err) {
-            toast.error("Failed to add order: " + (err.message || "Unknown error"));
+            const message = err?.response?.data?.message || err.message || "Unknown error";
+            // A validation failure won't succeed on retry; start a fresh submission.
+            if (err?.response?.status >= 400 && err?.response?.status < 500) {
+                submitKeyRef.current = newIdempotencyKey("ord");
+            }
+            toast.error("Failed to add order: " + message);
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -264,26 +317,90 @@ const OrderFormModal = ({ onClose }) => {
                                     top: "50%",
                                     transform: "translateY(-50%)",
                                     fontSize: "16px"
-                                }}>{formData.orderType === "dineIn" ? "🏪" : "🛏️"}</span>
-                                <input
-                                    type="text"
-                                    name={formData.orderType === "dineIn" ? "tableNumber" : "roomNumber"}
-                                    value={formData.orderType === "dineIn" ? formData.tableNumber : formData.roomNumber}
-                                    onChange={handleInputChange}
-                                    placeholder={formData.orderType === "dineIn" ? "e.g., Table 5" : "e.g., Room 204"}
-                                    required
-                                    style={{
-                                        width: "100%",
-                                        padding: "12px 12px 12px 42px",
-                                        borderRadius: "12px",
-                                        border: `1px solid ${colors.inputBorder}`,
-                                        backgroundColor: colors.inputBg,
-                                        color: colors.text,
-                                        fontSize: "14px",
-                                        outline: "none",
-                                        boxSizing: "border-box"
-                                    }} />
+                                }} aria-hidden="true">{formData.orderType === "dineIn" ? "🏪" : "🛏️"}</span>
+                                {formData.orderType === "dineIn" && Array.isArray(tables) && tables.length > 0 ? (
+                                    <select
+                                        name="tableId"
+                                        aria-label="Table"
+                                        value={formData.tableId}
+                                        onChange={handleInputChange}
+                                        required
+                                        style={{
+                                            width: "100%",
+                                            padding: "12px 12px 12px 42px",
+                                            borderRadius: "12px",
+                                            border: `1px solid ${colors.inputBorder}`,
+                                            backgroundColor: colors.inputBg,
+                                            color: colors.text,
+                                            fontSize: "14px",
+                                            outline: "none",
+                                            boxSizing: "border-box",
+                                            minHeight: "44px",
+                                        }}>
+                                        <option value="">Choose a table</option>
+                                        {tables.map((t) => (
+                                            <option key={t._id} value={t._id}>
+                                                Table {t.tableNumber}{t.status === "occupied" ? " · occupied (adds to the open bill)" : ""}
+                                            </option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <input
+                                        type="text"
+                                        aria-label={formData.orderType === "dineIn" ? "Table number" : "Room number"}
+                                        name={formData.orderType === "dineIn" ? "tableNumber" : "roomNumber"}
+                                        value={formData.orderType === "dineIn" ? formData.tableNumber : formData.roomNumber}
+                                        onChange={handleInputChange}
+                                        placeholder={formData.orderType === "dineIn" ? (tables === null ? "Loading tables…" : "e.g., 5") : "e.g., Room 204"}
+                                        required
+                                        style={{
+                                            width: "100%",
+                                            padding: "12px 12px 12px 42px",
+                                            borderRadius: "12px",
+                                            border: `1px solid ${colors.inputBorder}`,
+                                            backgroundColor: colors.inputBg,
+                                            color: colors.text,
+                                            fontSize: "14px",
+                                            outline: "none",
+                                            boxSizing: "border-box"
+                                        }} />
+                                )}
                             </div>
+                        </div>
+                    )}
+
+                    {/* Takeaway: phone so the customer can be called when it's ready */}
+                    {formData.orderType === "takeaway" && (
+                        <div style={{ marginBottom: "16px" }}>
+                            <label htmlFor="order-customer-phone" style={{
+                                display: "block",
+                                fontSize: "11px",
+                                fontWeight: "700",
+                                color: colors.textSecondary,
+                                textTransform: "uppercase",
+                                letterSpacing: "0.5px",
+                                marginBottom: "8px"
+                            }}>CUSTOMER PHONE (OPTIONAL)</label>
+                            <input
+                                id="order-customer-phone"
+                                type="tel"
+                                inputMode="tel"
+                                name="customerPhone"
+                                value={formData.customerPhone}
+                                onChange={handleInputChange}
+                                placeholder="98XXXXXXXX"
+                                maxLength={20}
+                                style={{
+                                    width: "100%",
+                                    padding: "12px",
+                                    borderRadius: "12px",
+                                    border: `1px solid ${colors.inputBorder}`,
+                                    backgroundColor: colors.inputBg,
+                                    color: colors.text,
+                                    fontSize: "14px",
+                                    outline: "none",
+                                    boxSizing: "border-box"
+                                }} />
                         </div>
                     )}
 
@@ -297,9 +414,12 @@ const OrderFormModal = ({ onClose }) => {
                             textTransform: "uppercase",
                             letterSpacing: "0.5px",
                             marginBottom: "8px"
-                        }}>CUSTOMER NAME</label>
+                        }}>{formData.orderType === "takeaway" ? "CUSTOMER NAME (REQUIRED)" : "CUSTOMER NAME"}</label>
                         <input
                             type="text"
+                            aria-label="Customer name"
+                            required={formData.orderType === "takeaway"}
+                            maxLength={100}
                             name="customerName"
                             value={formData.customerName}
                             onChange={handleInputChange}
@@ -449,7 +569,7 @@ const OrderFormModal = ({ onClose }) => {
                                                 {item.name}
                                             </div>
                                             <div style={{ fontSize: "12px", fontWeight: "700", color: "#10B981" }}>
-                                                ₹{item.price}
+                                                {rs(item.price)}
                                             </div>
                                             {inCart && (
                                                 <div style={{
@@ -517,7 +637,7 @@ const OrderFormModal = ({ onClose }) => {
                                                 {item.name}
                                             </div>
                                             <div style={{ fontSize: "12px", fontWeight: "700", color: "#10B981" }}>
-                                                ₹{item.price} x {item.quantity} = ₹{item.price * item.quantity}
+                                                {rs(item.price)} x {item.quantity} = {rs(item.price * item.quantity)}
                                             </div>
                                             <input
                                                 type="text"
@@ -608,7 +728,7 @@ const OrderFormModal = ({ onClose }) => {
                             border: `1px solid ${colors.border}`,
                         }}>
                             <span style={{ fontSize: "14px", fontWeight: "700", color: colors.text }}>Total</span>
-                            <span style={{ fontSize: "18px", fontWeight: "800", color: "#10B981" }}>₹{totalPrice}</span>
+                            <span style={{ fontSize: "18px", fontWeight: "800", color: "#10B981" }}>{rs(totalPrice)} <span style={{ fontSize: "11px", fontWeight: 600, color: colors.textTertiary }}>+ VAT</span></span>
                         </div>
                     )}
 
@@ -630,7 +750,7 @@ const OrderFormModal = ({ onClose }) => {
                             Cancel
                         </button>
                         <button type="submit"
-                            disabled={loading || selectedItems.length === 0}
+                            disabled={loading || submitting || selectedItems.length === 0}
                             style={{
                                 flex: 2,
                                 padding: "14px",
@@ -642,7 +762,7 @@ const OrderFormModal = ({ onClose }) => {
                                 fontSize: "15px",
                                 fontWeight: "700",
                             }}>
-                            {loading ? "Creating..." : `Create Order ${selectedItems.length > 0 ? "→" : ""}`}
+                            {loading || submitting ? "Creating..." : `Create Order ${selectedItems.length > 0 ? "→" : ""}`}
                         </button>
                     </div>
                 </form>

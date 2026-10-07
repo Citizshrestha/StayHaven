@@ -17,7 +17,6 @@ const ExtendStayModal = ({
   onExtendSuccess 
 }) => {
   const [additionalNights, setAdditionalNights] = useState(1);
-  const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(false);
   const [availability, setAvailability] = useState(null);
   const [extending, setExtending] = useState(false);

@@ -10,7 +10,7 @@ import {
 import OrderCard from "./order/OrderCard";
 import { useTheme } from "../../../../core/hooks/useTheme";
 
-const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed, onDeleteOrder, onRefresh, isRefreshing, onUpdateOrder, onMenuToggle }) => {
+const DashboardContent = ({ orders, error, activeFilter, setActiveFilter, onMarkServed, onDeleteOrder, onRefresh, isRefreshing, onUpdateOrder, onMenuToggle }) => {
   const { isDark } = useTheme();
   const [isMobile, setIsMobile] = useState(false);
   const [isTablet, setIsTablet] = useState(false);
@@ -259,7 +259,20 @@ const DashboardContent = ({ orders, activeFilter, setActiveFilter, onMarkServed,
           })}
         </div>
 
-        {filteredOrders.length === 0 && (
+        {filteredOrders.length === 0 && error && (
+          <div style={{ textAlign: "center", padding: "48px 0" }}>
+            <p style={{ color: "#DC2626", fontSize: "18px", fontWeight: "600" }}>
+              Couldn't load orders
+            </p>
+            <p style={{ color: isDark ? "#CBD5E1" : "#6B7280", fontSize: "14px", marginTop: "8px" }}>
+              {error === "No active property found"
+                ? "Your account isn't linked to a hotel yet. Try logging out and back in, or contact your manager."
+                : error}
+            </p>
+          </div>
+        )}
+
+        {filteredOrders.length === 0 && !error && (
           <div style={{ textAlign: "center", padding: "48px 0" }}>
             <p style={{ color: isDark ? "#ffffff" : "#000000", fontSize: "18px", fontWeight: "600" }}>
               No orders found

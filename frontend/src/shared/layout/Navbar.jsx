@@ -123,7 +123,12 @@ const Navbar = () => {
 
       try {
         const res = await axiosClient.get("/api/v1/auth/me");
-        const role = res.data.role?.name || res.data.companyRole || 'guest';
+        // /auth/me returns role as a plain string ("superadmin"); other endpoints
+        // return a populated role object. Handle both or every user reads as 'guest'.
+        const rawRole = res.data.role;
+        const role = (typeof rawRole === 'string' ? rawRole : rawRole?.name)
+          || res.data.companyRole
+          || 'guest';
 
         setUser({
           id: res.data._id || res.data.id,
@@ -309,8 +314,9 @@ const Navbar = () => {
             {user ? (
               <>
                 <button
+                  onClick={() => navigate('/saved-hotels')}
                   className="relative transition-colors duration-300 hover:text-red-500 text-gray-700"
-                  aria-label="View wishlist"
+                  aria-label="View saved hotels"
                 >
                   <Heart className="w-6 h-6" />
                   {wishlistCount > 0 && (
@@ -547,7 +553,13 @@ const Navbar = () => {
                     </div>
 
                     <div className="flex bg-white border border-gray-100 shadow-sm rounded-xl p-1">
-                       <button className="flex-1 flex flex-col items-center justify-center gap-1.5 py-2.5 text-gray-600 hover:text-red-500 transition-colors rounded-lg hover:bg-red-50/50">
+                       <button
+                         onClick={() => {
+                           navigate('/saved-hotels');
+                           setIsMobileMenuOpen(false);
+                         }}
+                         className="flex-1 flex flex-col items-center justify-center gap-1.5 py-2.5 text-gray-600 hover:text-red-500 transition-colors rounded-lg hover:bg-red-50/50"
+                       >
                           <div className="relative">
                             <Heart className="w-5 h-5" />
                             {wishlistCount > 0 && <span className="absolute -top-1.5 -right-2.5 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{wishlistCount}</span>}

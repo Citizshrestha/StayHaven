@@ -10,14 +10,15 @@ import HousekeepingView from './HousekeepingView';
 import GuestsView from './GuestsView';
 import BillingView from './BillingView';
 import ReceptionOrdersView from './ReceptionOrdersView';
+import TableBillsPanel from '../../../../shared/components/dining/TableBillsPanel';
 import ReportsView from './ReportsView';
 import StaffView from './StaffView';
 import ReceptionSettings from './ReceptionSettings';
 import MessagingPanel from '../../../../shared/components/MessagingPanel';
 import { ToastContainer } from '../../../../shared/components/Toast';
-import { useTheme } from '../../../../hooks/useTheme';
+import { useTheme } from '../../../../core/hooks/useTheme';
 import { useSocket } from '../../../../core/context/SocketContext';
-import { useStaffAuth } from '../../../../context/StaffAuthContext';
+import { useStaffAuth } from '../../../../core/context/StaffAuthContext';
 import { toast } from 'react-toastify';
 
 const formatOrderLocation = ({ orderType, roomNumber, tableNumber }) => {
@@ -118,6 +119,8 @@ const ReceptionDashboard = () => {
           </div>
         </div>,
         {
+          // Same id as the orders view's toast → the guest order shows once.
+          toastId: `new-order-${data.order?._id || data.order?.orderNumber}`,
           position: 'top-right',
           autoClose: 8000,
           onClick: () => dispatch({ type: 'SET_ACTIVE_VIEW', payload: 'orders' }),
@@ -211,18 +214,19 @@ const ReceptionDashboard = () => {
 
   const renderContent = () => {
     switch (state.activeView) {
-      case 'dashboard': return <DashboardContent onNavigate={(view) => dispatch({ type: 'SET_ACTIVE_VIEW', payload: view })} />;
+      case 'dashboard': return <DashboardContent onNavigate={handleViewChange} />;
       case 'bookings': return <BookingsView />;
       case 'checkinout': return <CheckInOutView />;
       case 'rooms': return <RoomsView />;
       case 'housekeeping': return <HousekeepingView />;
       case 'guests': return <GuestsView onMessageGuest={handleOpenMessageFor} />;
       case 'orders': return <ReceptionOrdersView />;
+      case 'restaurantBills': return <TableBillsPanel title="Restaurant bills" />;
       case 'billing': return <BillingView />;
       case 'reports': return <ReportsView />;
       case 'staff': return <StaffView onMessageStaff={handleOpenMessageFor} />;
       case 'settings': return <ReceptionSettings onClose={() => dispatch({ type: 'SET_ACTIVE_VIEW', payload: 'dashboard' })} />;
-      default: return <DashboardContent onNavigate={(view) => dispatch({ type: 'SET_ACTIVE_VIEW', payload: view })} />;
+      default: return <DashboardContent onNavigate={handleViewChange} />;
     }
   };
 

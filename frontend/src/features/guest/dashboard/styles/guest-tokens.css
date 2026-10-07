@@ -1,0 +1,280 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap');
+
+/* Guest portal design tokens. The ONLY place guest colours are defined. */
+.guestPortal {
+  --g-primary: #0D9488;
+  --g-primary-hover: #0F766E;
+  --g-primary-soft: #14B8A6;
+  --g-primary-tint: #F0FDFA;
+  --g-accent: #10B981;
+  /* AA companions: --g-primary is 3.7:1 on white, fine for icons/borders
+     (3:1) but not for text. Filled buttons and primary-coloured text use these. */
+  --g-primary-fill: #0F766E;
+  --g-primary-fill-hover: #115E59;
+  --g-primary-text: #0F766E;
+  --g-on-primary: #FFFFFF;
+
+  --g-bg: #F8FAFC;
+  --g-surface: #FFFFFF;
+  --g-surface-sunken: #F1F5F9;
+  --g-border: #E2E8F0;
+  --g-border-strong: #CBD5E1;
+
+  --g-text: #0F172A;
+  --g-text-muted: #475569;
+  --g-text-subtle: #94A3B8;
+
+  --g-success: #059669;
+  --g-success-bg: #D1FAE5;
+  --g-warning: #D97706;
+  --g-warning-bg: #FEF3C7;
+  --g-danger: #DC2626;
+  --g-danger-bg: #FEE2E2;
+  --g-info: #2563EB;
+  --g-info-bg: #DBEAFE;
+  --g-neutral: #64748B;
+  --g-neutral-bg: #F1F5F9;
+  /* Disabled controls: a soft slate chip with clearly muted (but legible) text */
+  --g-disabled-bg: #E7EBF0;
+  --g-disabled-text: #8A97A8;
+  --g-disabled-border: #D3DAE3;
+  /* Status text on its *-bg (all >= 4.5:1) and the white-text danger fill. */
+  --g-success-text: #047857;
+  --g-warning-text: #92400E;
+  --g-danger-text: #B91C1C;
+  --g-info-text: #1D4ED8;
+  --g-neutral-text: #475569;
+  --g-danger-fill: #B91C1C;
+
+  --g-shadow-sm: 0 1px 2px rgba(15, 23, 42, .04);
+  --g-shadow-md: 0 2px 8px rgba(15, 23, 42, .06);
+  --g-shadow-lg: 0 8px 24px rgba(15, 23, 42, .08);
+
+  --g-radius-sm: 10px;
+  --g-radius-md: 14px;
+  --g-radius-lg: 18px;
+  --g-radius-pill: 999px;
+
+  /* Accent palette — gives icons/features their own identity so the portal
+     isn't teal everywhere. Teal stays the brand for primary actions.
+     -bg  : soft tile/chip background
+     -fg  : icon/text on -bg (>= 4.5:1)
+     -fill: solid fill that carries white text (>= 4.5:1) */
+  --g-indigo-bg: #EEF2FF; --g-indigo-fg: #4338CA; --g-indigo-fill: #4F46E5;
+  --g-violet-bg: #F3EEFF; --g-violet-fg: #6D28D9; --g-violet-fill: #7C3AED;
+  --g-sky-bg:    #E0F2FE; --g-sky-fg:    #0369A1; --g-sky-fill:    #0369A1;
+  --g-amber-bg:  #FEF3C7; --g-amber-fg:  #92400E; --g-amber-fill:  #B45309;
+  --g-orange-bg: #FFEDD5; --g-orange-fg: #C2410C; --g-orange-fill: #C2410C;
+  --g-rose-bg:   #FFE4E6; --g-rose-fg:   #BE123C; --g-rose-fill:   #E11D48;
+  --g-teal-bg:   #CCFBF1; --g-teal-fg:   #0F766E; --g-teal-fill:   #0F766E;
+
+  /* White text sits on the gradient; the spec's #14B8A6→#10B981 is ~2.5:1,
+     so the stops are the deeper teal/emerald (both >= 5.4:1 with white). */
+  --g-gradient: linear-gradient(135deg, #0F766E, #047857);
+  /* Text on the solid white action button that sits on the hero gradient.
+     The gradient is the same in both themes, so this is too (7.4:1 on white). */
+  --g-on-hero-action: #115E59;
+  --g-ease: cubic-bezier(0.32, 0.72, 0, 1);
+
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  background: var(--g-bg);
+  color: var(--g-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+.dark .guestPortal {
+  --g-primary: #14B8A6;
+  --g-primary-hover: #2DD4BF;
+  --g-primary-soft: #2DD4BF;
+  --g-primary-tint: rgba(20, 184, 166, .12);
+  --g-accent: #34D399;
+  --g-primary-fill: #14B8A6;
+  --g-primary-fill-hover: #2DD4BF;
+  --g-primary-text: #2DD4BF;
+  --g-on-primary: #042F2E;
+
+  --g-bg: #0B1220;
+  --g-surface: #0F1C2E;
+  --g-surface-sunken: #16202F;
+  --g-border: rgba(255, 255, 255, .08);
+  --g-border-strong: rgba(255, 255, 255, .16);
+
+  --g-text: #F1F5F9;
+  --g-text-muted: #CBD5E1;
+  --g-text-subtle: #94A3B8;
+
+  --g-success: #34D399;
+  --g-success-bg: rgba(16, 185, 129, .15);
+  --g-warning: #FBBF24;
+  --g-warning-bg: rgba(245, 158, 11, .15);
+  --g-danger: #F87171;
+  --g-danger-bg: rgba(239, 68, 68, .15);
+  --g-info: #60A5FA;
+  --g-info-bg: rgba(59, 130, 246, .15);
+  --g-neutral: #94A3B8;
+  --g-neutral-bg: rgba(148, 163, 184, .12);
+  --g-disabled-bg: rgba(148, 163, 184, .16);
+  --g-disabled-text: #7C8CA1;
+  --g-disabled-border: rgba(255, 255, 255, .12);
+  --g-success-text: #34D399;
+  --g-warning-text: #FBBF24;
+  --g-danger-text: #F87171;
+  --g-info-text: #60A5FA;
+  --g-neutral-text: #CBD5E1;
+  --g-danger-fill: #B91C1C;
+
+  --g-shadow-sm: 0 1px 2px rgba(0, 0, 0, .3);
+  --g-shadow-md: 0 2px 8px rgba(0, 0, 0, .4);
+  --g-shadow-lg: 0 8px 24px rgba(0, 0, 0, .5);
+
+  --g-indigo-bg: rgba(99, 102, 241, .16);  --g-indigo-fg: #A5B4FC; --g-indigo-fill: #6366F1;
+  --g-violet-bg: rgba(139, 92, 246, .16);  --g-violet-fg: #C4B5FD; --g-violet-fill: #7C3AED;
+  --g-sky-bg:    rgba(14, 165, 233, .16);  --g-sky-fg:    #7DD3FC; --g-sky-fill:    #0284C7;
+  --g-amber-bg:  rgba(245, 158, 11, .16);  --g-amber-fg:  #FCD34D; --g-amber-fill:  #B45309;
+  --g-orange-bg: rgba(249, 115, 22, .16);  --g-orange-fg: #FDBA74; --g-orange-fill: #C2410C;
+  --g-rose-bg:   rgba(244, 63, 94, .16);   --g-rose-fg:   #FDA4AF; --g-rose-fill:   #E11D48;
+  --g-teal-bg:   rgba(20, 184, 166, .16);  --g-teal-fg:   #5EEAD4; --g-teal-fill:   #0F766E;
+}
+
+/* Accent helpers: `g-tone-<name>` = soft tile, `g-fill-<name>` = solid w/ white text. */
+.g-tone-indigo { background: var(--g-indigo-bg); color: var(--g-indigo-fg); }
+.g-tone-violet { background: var(--g-violet-bg); color: var(--g-violet-fg); }
+.g-tone-sky    { background: var(--g-sky-bg);    color: var(--g-sky-fg); }
+.g-tone-amber  { background: var(--g-amber-bg);  color: var(--g-amber-fg); }
+.g-tone-orange { background: var(--g-orange-bg); color: var(--g-orange-fg); }
+.g-tone-rose   { background: var(--g-rose-bg);   color: var(--g-rose-fg); }
+.g-tone-teal   { background: var(--g-teal-bg);   color: var(--g-teal-fg); }
+.g-fill-indigo { background: var(--g-indigo-fill); color: #fff; }
+.g-fill-violet { background: var(--g-violet-fill); color: #fff; }
+.g-fill-sky    { background: var(--g-sky-fill);    color: #fff; }
+.g-fill-amber  { background: var(--g-amber-fill);  color: #fff; }
+.g-fill-orange { background: var(--g-orange-fill); color: #fff; }
+.g-fill-rose   { background: var(--g-rose-fill);   color: #fff; }
+.g-fill-teal   { background: var(--g-teal-fill);   color: #fff; }
+
+/* Full-bleed chat: fills the space between the mobile top bar (56px) and the
+   bottom tab bar (60px + safe area); the whole viewport height on desktop. */
+.g-chat-shell {
+  height: calc(100vh - 116px);
+  height: calc(100dvh - 116px - env(safe-area-inset-bottom, 0px));
+  min-height: 420px;
+}
+@media (min-width: 1024px) {
+  .g-chat-shell { height: 100vh; height: 100dvh; min-height: 520px; }
+}
+
+/* The portal has its own pull-to-refresh; stop the browser's reload gesture. */
+html:has(.guestPortal) { overscroll-behavior-y: contain; }
+
+.guestNum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* Type scale */
+.g-display { font-size: 24px; line-height: 30px; font-weight: 700; letter-spacing: -0.01em; }
+.g-h1 { font-size: 20px; line-height: 28px; font-weight: 700; letter-spacing: -0.01em; }
+.g-h2 { font-size: 17px; line-height: 24px; font-weight: 600; }
+.g-body { font-size: 15px; line-height: 22px; }
+.g-body-strong { font-size: 15px; line-height: 22px; font-weight: 600; }
+.g-small { font-size: 13px; line-height: 18px; }
+.g-label { font-size: 11px; line-height: 14px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+.g-money { font-size: 17px; line-height: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.g-money-lg { font-size: 26px; line-height: 32px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+
+@media (min-width: 768px) {
+  .g-display { font-size: 28px; line-height: 34px; }
+  .g-h1 { font-size: 22px; line-height: 28px; }
+}
+
+/* Focus ring for every interactive element in the portal */
+.guestPortal :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--g-primary);
+  outline-offset: 2px;
+}
+
+/* Native controls (scrollbars, date pickers, autofill) follow the portal theme */
+.guestPortal { color-scheme: light; }
+.dark .guestPortal { color-scheme: dark; }
+
+/* Text inputs. Scoped under .guestPortal so stray global `input {}` rules
+   elsewhere in the app can't restyle them. */
+.guestPortal .g-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--g-border-strong);
+  border-radius: var(--g-radius-sm);
+  background: var(--g-surface-sunken);
+  color: var(--g-text);
+  font: inherit;
+  font-size: 15px;
+  line-height: 22px;
+  transition: border-color 150ms ease-out, box-shadow 150ms ease-out, background-color 150ms ease-out;
+}
+.guestPortal .g-input::placeholder { color: var(--g-text-subtle); opacity: 1; }
+.guestPortal .g-input:hover:not(:disabled) { border-color: var(--g-text-subtle); }
+.guestPortal .g-input:focus {
+  outline: none;
+  background: var(--g-surface);
+  border-color: var(--g-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--g-primary) 25%, transparent);
+}
+.guestPortal .g-input:disabled {
+  background: var(--g-surface-sunken);
+  color: var(--g-text-muted);
+  border-color: var(--g-border);
+  cursor: not-allowed;
+  opacity: 1;
+  -webkit-text-fill-color: var(--g-text-muted);
+}
+.guestPortal .g-input[aria-invalid='true'] { border-color: var(--g-danger); }
+.guestPortal .g-input[aria-invalid='true']:focus {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--g-danger) 25%, transparent);
+}
+/* Room for a leading icon / trailing button */
+.guestPortal .g-input.g-input--lead { padding-left: 42px; }
+.guestPortal .g-input.g-input--trail { padding-right: 48px; }
+/* Keep browser autofill from painting a light-yellow box in dark mode */
+.guestPortal .g-input:-webkit-autofill,
+.guestPortal .g-input:-webkit-autofill:hover,
+.guestPortal .g-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--g-text);
+  -webkit-box-shadow: 0 0 0 1000px var(--g-surface-sunken) inset;
+  caret-color: var(--g-text);
+  transition: background-color 9999s ease-out 0s;
+}
+
+/* Hides horizontal scrollbars on filter rows while keeping them scrollable */
+.g-scroll-x {
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.g-scroll-x::-webkit-scrollbar { display: none; }
+
+.g-lift { transition: transform 150ms ease-out, box-shadow 150ms ease-out; }
+@media (hover: hover) {
+  .g-lift:hover { transform: translateY(-2px); box-shadow: var(--g-shadow-lg); }
+}
+
+@keyframes g-shimmer {
+  0% { opacity: .55; }
+  50% { opacity: 1; }
+  100% { opacity: .55; }
+}
+.g-skeleton {
+  background: var(--g-surface-sunken);
+  animation: g-shimmer 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guestPortal *,
+  .guestPortal *::before,
+  .guestPortal *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .g-lift:hover { transform: none; }
+}

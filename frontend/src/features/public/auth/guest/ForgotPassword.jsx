@@ -20,7 +20,13 @@ const ForgotPassword = () => {
     try {
       const response = await sendResetPasswordOtp(email);
       if (response.success) {
-        toast.success('Password reset OTP sent to your email');
+        if (response.emailDelivered === false) {
+          // Development fallback: delivery failed but the OTP is still valid
+          // and was logged to the backend console.
+          toast.info(response.message || 'Email delivery failed. Check the backend console for your OTP.');
+        } else {
+          toast.success('Password reset OTP sent to your email');
+        }
         // Store email for the reset process
         localStorage.setItem('resetEmail', email);
         navigate('/reset-password');

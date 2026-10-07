@@ -102,7 +102,7 @@ const SystemConfiguration = () => {
     try {
       const result = await getPlatformSettings();
       setSettings(result.data);
-    } catch (error) {
+    } catch  {
       toast.error('Failed to load settings');
     } finally {
       setLoading(false);
@@ -114,7 +114,7 @@ const SystemConfiguration = () => {
     try {
       const result = await getIntegrationStatus();
       setIntegrations(result.data);
-    } catch (error) {
+    } catch  {
       toast.error('Failed to load integration status');
     } finally {
       setLoading(false);
@@ -268,7 +268,7 @@ const SystemConfiguration = () => {
       await updatePlatformSettings(updates);
       toast.success('Settings updated successfully');
       loadSettings();
-    } catch (error) {
+    } catch  {
       toast.error('Failed to update settings');
     }
   };
@@ -286,7 +286,7 @@ const SystemConfiguration = () => {
       await toggleMaintenanceMode({ enabled: false, message: settings.maintenanceMessage });
       toast.success('Maintenance mode disabled');
       loadSettings();
-    } catch (error) {
+    } catch  {
       toast.error('Failed to toggle maintenance mode');
     } finally {
       setTogglingMaintenance(false);
@@ -300,7 +300,7 @@ const SystemConfiguration = () => {
       toast.success('Maintenance mode enabled');
       setShowMaintenanceModal(false);
       loadSettings();
-    } catch (error) {
+    } catch  {
       toast.error('Failed to toggle maintenance mode');
     } finally {
       setTogglingMaintenance(false);
@@ -316,7 +316,7 @@ const SystemConfiguration = () => {
         toast.error('Khalti connection failed');
       }
       loadIntegrations();
-    } catch (error) {
+    } catch  {
       toast.error('Failed to test Khalti connection');
     }
   };
@@ -329,7 +329,7 @@ const SystemConfiguration = () => {
       } else {
         toast.error('SMTP test failed');
       }
-    } catch (error) {
+    } catch  {
       toast.error('Failed to test SMTP');
     }
   };
@@ -655,6 +655,7 @@ const SystemConfiguration = () => {
                           <input
                             id="currentPassword"
                             type="password"
+                            autoComplete="current-password"
                             className="form-input"
                             placeholder="Enter your current password"
                             value={passwordForm.currentPassword}
@@ -671,6 +672,7 @@ const SystemConfiguration = () => {
                           <input
                             id="newPassword"
                             type="password"
+                            autoComplete="new-password"
                             className="form-input"
                             placeholder="Enter your new password"
                             value={passwordForm.newPassword}
@@ -690,6 +692,7 @@ const SystemConfiguration = () => {
                           <input
                             id="confirmPassword"
                             type="password"
+                            autoComplete="new-password"
                             className="form-input"
                             placeholder="Confirm your new password"
                             value={passwordForm.confirmPassword}
@@ -808,6 +811,11 @@ const SystemConfiguration = () => {
             {/* INTEGRATIONS TAB */}
             {activeTab === 'integrations' && integrations && (
               <div className="integrations-tab">
+                <p className="integrations-intro">
+                  Read-only health check of the third-party services this deployment depends on.
+                  Credentials live in the server environment (<code>backend/.env</code>) and are never editable from the browser.
+                </p>
+
                 <div className="integration-card">
                   <div className="integration-header">
                     <h3>Khalti Payment Gateway</h3>
@@ -815,9 +823,11 @@ const SystemConfiguration = () => {
                       {integrations.khalti.configured ? 'Configured' : 'Not Configured'}
                     </span>
                   </div>
+                  <p className="integration-purpose">Processes guest booking and order payments.</p>
                   <div className="integration-details">
                     <p>Webhook Status: <strong>{integrations.khalti.webhookStatus}</strong></p>
                     <p>Mode: <strong>{integrations.khalti.isLive ? 'Live' : 'Test'}</strong></p>
+                    <p>Env key: <code>KHALTI_SECRET_KEY</code></p>
                   </div>
                   <button className="btn-secondary" onClick={handleTestKhalti}>
                     Test Connection
@@ -831,6 +841,12 @@ const SystemConfiguration = () => {
                       {integrations.smtp.configured ? 'Configured' : 'Not Configured'}
                     </span>
                   </div>
+                  <p className="integration-purpose">
+                    Sends booking confirmations, invoices, OTPs and password resets.
+                  </p>
+                  <div className="integration-details">
+                    <p>Env keys: <code>SMTP_USER</code>, <code>SMTP_PASS</code></p>
+                  </div>
                   <button className="btn-secondary" onClick={handleTestSmtp}>
                     Send Test Email
                   </button>
@@ -843,6 +859,12 @@ const SystemConfiguration = () => {
                       {integrations.cloudinary.configured ? 'Configured' : 'Not Configured'}
                     </span>
                   </div>
+                  <p className="integration-purpose">
+                    Hosts hotel photos, room images, menu images, avatars and QR codes.
+                  </p>
+                  <div className="integration-details">
+                    <p>Env keys: <code>CLOUDINARY_CLOUD_NAME</code>, <code>CLOUDINARY_API_KEY</code>, <code>CLOUDINARY_API_SECRET</code></p>
+                  </div>
                 </div>
 
                 <div className="integration-card">
@@ -852,6 +874,12 @@ const SystemConfiguration = () => {
                       {integrations.sentry.configured ? 'Configured' : 'Not Configured'}
                     </span>
                   </div>
+                  <p className="integration-purpose">
+                    Captures backend exceptions and performance traces. Optional.
+                  </p>
+                  <div className="integration-details">
+                    <p>Env key: <code>SENTRY_DSN</code></p>
+                  </div>
                 </div>
               </div>
             )}
@@ -859,56 +887,96 @@ const SystemConfiguration = () => {
             {/* MAINTENANCE TAB */}
             {activeTab === 'maintenance' && settings && (
               <div className="maintenance-tab">
-                <div className="maintenance-card">
-                  <div className="maintenance-status">
-                    <h3>Maintenance Mode</h3>
-                    <div className={`status-large ${settings.maintenanceMode ? 'maintenance-on' : 'online'}`}>
-                      {settings.maintenanceMode ? (
+                <div className={`maintenance-card ${settings.maintenanceMode ? 'is-active' : 'is-online'}`}>
+                  <div className="maintenance-hero">
+                    <div className="maintenance-heading">
+                      <span className={`maintenance-icon ${settings.maintenanceMode ? 'maintenance-on' : 'online'}`}>
+                        <span className="material-symbols-outlined">
+                          {settings.maintenanceMode ? 'construction' : 'verified'}
+                        </span>
+                      </span>
+                      <div>
+                        <span className="maintenance-eyebrow">Public website status</span>
+                        <h3>{settings.maintenanceMode ? 'Maintenance is active' : 'Site is live'}</h3>
+                        <p>
+                          {settings.maintenanceMode
+                            ? 'Visitors are seeing your maintenance message while staff tools stay available.'
+                            : 'Visitors can browse and book normally. Staff dashboards are available.'}
+                        </p>
+                      </div>
+                    </div>
+                    <span className={`maintenance-pill ${settings.maintenanceMode ? 'maintenance-on' : 'online'}`}>
+                      <span className="material-symbols-outlined">
+                        {settings.maintenanceMode ? 'report' : 'check_circle'}
+                      </span>
+                      {settings.maintenanceMode ? 'Maintenance' : 'Online'}
+                    </span>
+                  </div>
+
+                  <div className="maintenance-grid">
+                    <div className="maintenance-panel">
+                      <span className="maintenance-panel-label">Guest message</span>
+                      <p className="maintenance-message-preview">
+                        {settings.maintenanceMode
+                          ? settings.maintenanceMessage
+                          : settings.maintenanceMessage || "Under maintenance. We'll be back soon!"}
+                      </p>
+                      {settings.maintenanceScheduledEnd && (
+                        <div className="maintenance-meta">
+                          <span className="material-symbols-outlined">schedule</span>
+                          Ends {new Date(settings.maintenanceScheduledEnd).toLocaleString()}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="maintenance-panel">
+                      <span className="maintenance-panel-label">What changes</span>
+                      <ul className="maintenance-impact-list">
+                        <li>
+                          <span className="material-symbols-outlined">public_off</span>
+                          Public pages show the maintenance notice
+                        </li>
+                        <li>
+                          <span className="material-symbols-outlined">admin_panel_settings</span>
+                          Staff dashboards continue working
+                        </li>
+                        <li>
+                          <span className="material-symbols-outlined">lock_open</span>
+                          Login and admin access remain available
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div className="maintenance-actions">
+                    <div>
+                      <strong>{settings.maintenanceMode ? 'Ready to reopen?' : 'Need to pause bookings?'}</strong>
+                      <span>
+                        {settings.maintenanceMode
+                          ? 'Turn this off when the public site can accept visitors again.'
+                          : 'Add a short guest-facing message before enabling maintenance mode.'}
+                      </span>
+                    </div>
+                    <button
+                      className={`btn-large ${settings.maintenanceMode ? 'btn-success' : 'btn-danger'}`}
+                      onClick={handleToggleMaintenance}
+                      disabled={togglingMaintenance}
+                    >
+                      {togglingMaintenance ? (
                         <>
-                          <span className="material-symbols-outlined">warning</span>
-                          MAINTENANCE MODE
+                          <div className="btn-spinner"></div>
+                          Updating...
                         </>
                       ) : (
                         <>
-                          <span className="material-symbols-outlined">check_circle</span>
-                          ONLINE
+                          <span className="material-symbols-outlined">
+                            {settings.maintenanceMode ? 'restart_alt' : 'power_settings_new'}
+                          </span>
+                          {settings.maintenanceMode ? 'Disable Maintenance' : 'Enable Maintenance'}
                         </>
                       )}
-                    </div>
+                    </button>
                   </div>
-
-                  {settings.maintenanceMode && (
-                    <div className="maintenance-info">
-                      <p><strong>Message:</strong> {settings.maintenanceMessage}</p>
-                      {settings.maintenanceScheduledEnd && (
-                        <p>
-                          <strong>Scheduled End:</strong>{' '}
-                          {new Date(settings.maintenanceScheduledEnd).toLocaleString()}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="maintenance-warning">
-                    <span className="material-symbols-outlined">info</span>
-                    <p>
-                      {settings.maintenanceMode
-                        ? 'Guest-facing website pages are showing the maintenance message. Staff portals remain active.'
-                        : 'Enabling maintenance mode will show a maintenance message on the public website. Staff dashboards will continue to work.'}
-                    </p>
-                  </div>
-
-                  <button
-                    className={`btn-large ${settings.maintenanceMode ? 'btn-success' : 'btn-danger'}`}
-                    onClick={handleToggleMaintenance}
-                    disabled={togglingMaintenance}
-                  >
-                    {togglingMaintenance
-                      ? 'Updating...'
-                      : settings.maintenanceMode
-                        ? 'Disable Maintenance Mode'
-                        : 'Enable Maintenance Mode'}
-                  </button>
                 </div>
               </div>
             )}

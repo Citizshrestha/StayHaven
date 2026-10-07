@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import SuperAdminLayout from './SuperAdminLayout';
 import DeleteConfirmModal from '../components/DeleteConfirmModal';
@@ -166,7 +166,7 @@ const StringList = ({ label, items, onChange, placeholder }) => {
    GENERIC FIELD RENDERER
 ───────────────────────────────────────────── */
 const FieldRenderer = ({ field, value, onChange }) => {
-  const { key, label, type, placeholder, options, fields: subFields } = field;
+  const { label, type, placeholder, options, fields: subFields } = field;
 
   if (type === 'textarea') {
     return (

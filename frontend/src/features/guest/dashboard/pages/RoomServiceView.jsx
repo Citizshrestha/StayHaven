@@ -1,98 +1,83 @@
 /**
- * Guest Dashboard - Menu View
- * Menu browsing, cart management, real-time order tracking
- * Themed to match GuestDashboard teal/cyan color scheme
+ * Guest Dashboard - Room Service
+ * Menu browsing, cart (with per-item notes), and real-time order tracking.
+ * Styling comes exclusively from the guest design tokens (guest-tokens.css).
  */
 
-import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { getGuestMenu, placeOrder, getGuestOrders } from "../guestDashboardApi";
-import { useSocket } from '../../../../core/context/SocketContext';
-import { useTheme } from '../../../../core/hooks/useTheme';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import PropTypes from 'prop-types';
 import { toast } from 'react-toastify';
-import CancelOrderModal from '../../../../shared/components/CancelOrderModal';
 import {
-  ShoppingCart,
-  Plus,
-  Minus,
-  ChefHat,
-  Clock,
-  CheckCircle2,
-  Truck,
-  Loader2,
-  Search,
-  UtensilsCrossed,
-  Flame,
-  X,
+  ShoppingCart, Plus, Minus, Search, UtensilsCrossed, Flame, X, Clock, Truck,
+  ChevronDown, StickyNote, AlertTriangle, RefreshCw,
 } from 'lucide-react';
-import { motion as Motion, AnimatePresence } from 'framer-motion';
-
-// Brand colors matching DashboardView.jsx
-const LIGHT_BRAND = {
-  primary: '#00BFA6',
-  primaryDark: '#00A896',
-  background: '#F8FAFB',
-  card: '#FFFFFF',
-  textPrimary: '#263238',
-  textSecondary: '#546E7A',
-  border: '#E0E7EB',
-};
-
-const DARK_BRAND = {
-  primary: '#2DD4BF',
-  primaryDark: '#14B8A6',
-  background: '#020617',
-  card: '#0F172A',
-  textPrimary: '#E2E8F0',
-  textSecondary: '#94A3B8',
-  border: '#1E293B',
-};
+import { getGuestMenu, placeOrder, getGuestOrders } from '../guestDashboardApi';
+import { useSocket } from '../../../../core/context/SocketContext';
+import CancelOrderModal from '../../../../shared/components/CancelOrderModal';
+import { cn } from '../../../../core/utils/cn';
+import usePullToRefresh from '../hooks/usePullToRefresh';
+import { errorMessage, formatMoney } from '../utils/format';
+import Button from '../components/ui/Button';
+import Money from '../components/ui/Money';
+import PageHeader from '../components/ui/PageHeader';
+import FilterTabs from '../components/ui/FilterTabs';
+import StatusBadge from '../components/ui/StatusBadge';
+import EmptyState from '../components/ui/EmptyState';
+import Sheet from '../components/ui/Sheet';
+import PullIndicator from '../components/ui/PullIndicator';
+import { Skeleton, SkeletonCard } from '../components/ui/Skeleton';
 
 // NOTE: Menu items are loaded exclusively from the backend, which scopes them
 // to the hotel of the guest's active booking. We intentionally do NOT keep a
 // hardcoded sample-menu fallback here, because rendering items that don't
 // belong to the guest's current hotel would break tenant isolation.
 
+const ACTIVE_STATUSES = ['pending', 'confirmed', 'preparing', 'ready'];
+const NOTE_MAX = 120;
+const MAX_QTY = 50; // mirrors MAX_ITEM_QUANTITY in guestDashboardController.placeOrder
+const MENU_GRID_ID = 'room-service-menu';
+
+// Stage progress (20/40/60/80/100) and its colour, driven by status tokens.
+const STAGE = {
+  pending: { percent: 20, bar: 'bg-(--g-warning)', eta: 'Estimated 25–30 min', message: 'Waiting for the kitchen to confirm' },
+  confirmed: { percent: 40, bar: 'bg-(--g-info)', eta: 'Estimated 20–25 min', message: 'Confirmed — the kitchen will start soon' },
+  preparing: { percent: 60, bar: 'bg-(--g-primary)', eta: 'Estimated 10–15 min', message: 'Your food is being prepared' },
+  ready: { percent: 80, bar: 'bg-(--g-success)', eta: 'On its way to your room', message: 'Ready for delivery' },
+  delivered: { percent: 100, bar: 'bg-(--g-neutral)', eta: null, message: 'Delivered — enjoy your meal' },
+};
+
+const statusKey = (status) => String(status || '').toLowerCase();
+
 const RoomServiceView = () => {
   const { subscribe, isConnected } = useSocket();
-  const { isDark } = useTheme();
-  const BRAND = isDark ? DARK_BRAND : LIGHT_BRAND;
 
   const [menuLoading, setMenuLoading] = useState(true);
-  const [ordersLoading, setOrdersLoading] = useState(true);
+  const [menuError, setMenuError] = useState(null);
   const [menuData, setMenuData] = useState(null);
+  const [ordersLoading, setOrdersLoading] = useState(true);
+  const [activeOrders, setActiveOrders] = useState([]);
   const [cart, setCart] = useState([]);
   const [showCart, setShowCart] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [placingOrder, setPlacingOrder] = useState(false);
-  const [activeOrders, setActiveOrders] = useState([]);
   const [cancelTarget, setCancelTarget] = useState(null);
+  const [announcement, setAnnouncement] = useState('');
 
   const subscribedOrderIds = useRef(new Set());
+  const removalTimers = useRef(new Map());
 
-  const handleOrderCancelled = useCallback((cancelledOrder) => {
-    const id = cancelledOrder?._id || cancelTarget?._id;
-    if (id) {
-      setActiveOrders((prev) => prev.filter((o) => o._id !== id));
-      subscribedOrderIds.current.delete(id);
-    }
-    setCancelTarget(null);
-  }, [cancelTarget]);
-
-  // Load active orders on mount
   useEffect(() => {
-    loadActiveOrders();
+    const timers = removalTimers.current;
+    return () => { timers.forEach(clearTimeout); timers.clear(); };
   }, []);
 
-  const loadActiveOrders = async () => {
+  const loadActiveOrders = useCallback(async () => {
     try {
       setOrdersLoading(true);
       const res = await getGuestOrders({ limit: 20 });
       const allOrders = Array.isArray(res?.data) ? res.data : [];
-      const orders = allOrders.filter((order) =>
-        ['pending', 'confirmed', 'preparing', 'ready'].includes((order?.status || '').toLowerCase())
-      );
-
+      const orders = allOrders.filter((o) => ACTIVE_STATUSES.includes(statusKey(o?.status)));
       setActiveOrders(orders);
       orders.forEach((o) => subscribedOrderIds.current.add(o._id));
     } catch (error) {
@@ -100,48 +85,51 @@ const RoomServiceView = () => {
     } finally {
       setOrdersLoading(false);
     }
-  };
-
-  // Load menu on mount
-  useEffect(() => {
-    loadMenu();
   }, []);
 
-  const loadMenu = async () => {
+  // Errors render inline with a retry; the cart is never cleared by a failed load.
+  const loadMenu = useCallback(async () => {
     try {
       setMenuLoading(true);
+      setMenuError(null);
       const res = await getGuestMenu();
       if (res?.success) {
         setMenuData(res);
       } else {
-        console.error('Menu load failed:', res);
-        toast.error(res?.message || 'Failed to load menu');
+        setMenuError(res?.message || 'We couldn’t load the menu.');
       }
     } catch (error) {
       console.error('Menu load error:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to load menu. Please try refreshing the page.';
-      toast.error(errorMessage);
+      setMenuError(errorMessage(error, 'We couldn’t load the menu. Check your connection and try again.'));
     } finally {
       setMenuLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => { loadActiveOrders(); loadMenu(); }, [loadActiveOrders, loadMenu]);
+
+  const refreshAll = useCallback(() => Promise.all([loadMenu(), loadActiveOrders()]), [loadMenu, loadActiveOrders]);
+  const { pull, refreshing } = usePullToRefresh(refreshAll);
+
+  const scheduleRemoval = useCallback((orderId) => {
+    if (removalTimers.current.has(orderId)) return;
+    const timer = setTimeout(() => {
+      removalTimers.current.delete(orderId);
+      setActiveOrders((prev) => prev.filter((o) => o._id !== orderId));
+    }, 5000);
+    removalTimers.current.set(orderId, timer);
+  }, []);
 
   // Real-time order status updates via Socket
   const handleOrderStatusUpdate = useCallback((data) => {
     if (subscribedOrderIds.current.has(data.orderId)) {
-      setActiveOrders((prev) => {
-        if (data.status === 'delivered') {
-          setTimeout(() => {
-            setActiveOrders((p) => p.filter((o) => o._id !== data.orderId));
-          }, 5000);
-        }
-        return prev.map((order) =>
-          order._id === data.orderId
-            ? { ...order, status: data.status, items: data.items || order.items }
-            : order
-        );
-      });
+      setActiveOrders((prev) => prev.map((order) => (
+        order._id === data.orderId
+          ? { ...order, status: data.status, items: data.items || order.items }
+          : order
+      )));
     } else {
+      subscribedOrderIds.current.add(data.orderId);
       setActiveOrders((prev) => [
         ...prev,
         {
@@ -152,66 +140,68 @@ const RoomServiceView = () => {
           items: data.items || [],
         },
       ]);
-      subscribedOrderIds.current.add(data.orderId);
     }
 
-    if (data.status === 'delivered') {
-      toast.success(`🎉 Order #${data.orderNumber} has been delivered!`, { position: 'top-center', autoClose: 5000 });
-    } else if (data.status === 'ready') {
-      toast.success(`✅ Order #${data.orderNumber} is ready!`, { position: 'top-center', autoClose: 4000 });
-    } else if (data.status === 'preparing') {
-      toast.info(`👨‍🍳 Order #${data.orderNumber} is being prepared`, { position: 'top-center', autoClose: 3000 });
-    } else if (data.status === 'confirmed') {
-      toast.info(`✓ Order #${data.orderNumber} has been confirmed`, { position: 'top-center', autoClose: 3000 });
-    } else {
-      toast.info(`Order #${data.orderNumber} is now ${data.status}`, { position: 'top-center', autoClose: 3000 });
-    }
-  }, []);
+    const status = statusKey(data.status);
+    if (status === 'delivered') scheduleRemoval(data.orderId);
+
+    const label = `Order #${data.orderNumber}`;
+    const opts = { position: 'top-center', autoClose: 4000 };
+    if (status === 'delivered') toast.success(`${label} has been delivered`, opts);
+    else if (status === 'ready') toast.success(`${label} is ready`, opts);
+    else if (status === 'preparing') toast.info(`${label} is being prepared`, opts);
+    else if (status === 'confirmed') toast.info(`${label} has been confirmed`, opts);
+    else toast.info(`${label} is now ${data.status}`, opts);
+  }, [scheduleRemoval]);
 
   useEffect(() => {
-    if (!subscribe || !isConnected) return;
+    if (!subscribe || !isConnected) return undefined;
     const unsub = subscribe('order-status-update', handleOrderStatusUpdate);
     return () => { unsub(); };
   }, [subscribe, isConnected, handleOrderStatusUpdate]);
 
-  // Cart operations
-  const addToCart = (item) => {
+  const handleOrderCancelled = useCallback((cancelledOrder) => {
+    const id = cancelledOrder?._id || cancelTarget?._id;
+    if (id) {
+      setActiveOrders((prev) => prev.filter((o) => o._id !== id));
+      subscribedOrderIds.current.delete(id);
+    }
+    setCancelTarget(null);
+  }, [cancelTarget]);
+
+  // ── Cart ──────────────────────────────────────────────
+  const setQuantity = useCallback((item, next) => {
+    const quantity = Math.min(next, MAX_QTY);
     setCart((prev) => {
       const existing = prev.find((c) => c._id === item._id);
-      if (existing) {
-        return prev.map((c) =>
-          c._id === item._id ? { ...c, quantity: c.quantity + 1 } : c
-        );
-      }
-      return [...prev, { ...item, quantity: 1 }];
+      if (quantity <= 0) return prev.filter((c) => c._id !== item._id);
+      if (existing) return prev.map((c) => (c._id === item._id ? { ...c, quantity } : c));
+      return [...prev, { ...item, quantity, notes: '' }];
     });
-    toast.success(`${item.name} added to cart`);
-  };
+  }, []);
 
-  const updateQuantity = (itemId, delta) => {
-    setCart((prev) =>
-      prev
-        .map((item) =>
-          item._id === itemId
-            ? { ...item, quantity: item.quantity + delta }
-            : item
-        )
-        .filter((item) => item.quantity > 0)
-    );
-  };
+  const addToCart = useCallback((item) => {
+    setQuantity(item, 1);
+    setAnnouncement(`${item.name} added to cart`);
+  }, [setQuantity]);
 
-  const removeFromCart = (itemId) => {
-    setCart((prev) => prev.filter((item) => item._id !== itemId));
-    toast.info('Item removed from cart');
-  };
+  const removeFromCart = useCallback((item) => {
+    setQuantity(item, 0);
+    setAnnouncement(`${item.name} removed from cart`);
+  }, [setQuantity]);
 
+  const setNotes = useCallback((itemId, notes) => {
+    setCart((prev) => prev.map((c) => (c._id === itemId ? { ...c, notes: notes.slice(0, NOTE_MAX) } : c)));
+  }, []);
+
+  const cartQty = useMemo(() => new Map(cart.map((c) => [c._id, c.quantity])), [cart]);
   const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const submitOrder = async () => {
-    if (cart.length === 0) return;
+    if (cart.length === 0 || placingOrder) return;
     if (!menuData?.hotel?._id) {
-      toast.error('Hotel information not available. Please refresh the page.');
+      toast.error('Hotel information isn’t available. Please refresh the page.');
       return;
     }
 
@@ -222,300 +212,280 @@ const RoomServiceView = () => {
         items: cart.map(({ _id, quantity, notes }) => ({
           menuItem: _id,
           quantity,
-          notes,
+          notes: notes?.trim() || undefined,
         })),
         orderType: 'roomService',
       });
 
-      if (response.success) {
-        toast.success('Order placed successfully!');
+      if (response?.success) {
+        toast.success('Order placed');
         setCart([]);
         setShowCart(false);
-        setActiveOrders((prev) => [...prev, response.data]);
-        subscribedOrderIds.current.add(response.data._id);
+        if (response.data?._id) {
+          subscribedOrderIds.current.add(response.data._id);
+          setActiveOrders((prev) => [...prev, response.data]);
+        }
+      } else {
+        toast.error(response?.message || 'Failed to place order');
       }
     } catch (error) {
       console.error('Order placement error:', error);
-      toast.error(error.response?.data?.message || 'Failed to place order');
+      toast.error(errorMessage(error, 'Failed to place order'));
     } finally {
       setPlacingOrder(false);
     }
   };
 
-  // Filter menu items
+  // ── Menu filtering ────────────────────────────────────
   // SECURITY/ISOLATION: Only show items returned by the backend for the user's
   // *current* hotel (resolved server-side from their active booking). We never
   // fall back to hardcoded sample items, because those would leak dishes that
   // do not belong to the hotel the guest is checked into.
-  const filteredItems = React.useMemo(() => {
+  const allItems = useMemo(() => {
     if (!menuData) return [];
     let items = menuData.menuItems || menuData.data || [];
-
     if (menuData.groupedByCategory && items.length === 0) {
       items = Object.values(menuData.groupedByCategory).flat();
     }
-
-    if (selectedCategory !== 'all') {
-      items = items.filter((item) => item.category === selectedCategory);
-    }
-    if (searchQuery) {
-      items = items.filter((item) =>
-        item.name.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
     return items;
-  }, [menuData, selectedCategory, searchQuery]);
+  }, [menuData]);
+
+  const filteredItems = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return allItems.filter((item) => (
+      (selectedCategory === 'all' || item.category === selectedCategory)
+      && (!query || item.name?.toLowerCase().includes(query) || item.description?.toLowerCase().includes(query))
+    ));
+  }, [allItems, selectedCategory, searchQuery]);
 
   // Categories are sourced strictly from the backend response so the filter
-  // pills reflect only the current hotel's menu. No hardcoded fallback.
-  const categories = menuData?.categories || [];
+  // tabs reflect only the current hotel's menu. No hardcoded fallback.
+  const categoryOptions = useMemo(() => {
+    const categories = menuData?.categories || [];
+    return [
+      { value: 'all', label: 'All', count: allItems.length },
+      ...categories.map((cat) => ({
+        value: cat,
+        label: cat,
+        count: allItems.filter((i) => i.category === cat).length,
+      })),
+    ];
+  }, [menuData, allItems]);
+
+  const hotelName = menuData?.hotel?.name;
+  const hasHotel = Boolean(menuData?.hotel?._id);
+  const isFiltered = Boolean(searchQuery.trim()) || selectedCategory !== 'all';
+
+  const cartButton = (
+    <button
+      type="button"
+      onClick={() => setShowCart(true)}
+      aria-label={cartItemCount ? `Open cart, ${cartItemCount} item${cartItemCount > 1 ? 's' : ''}` : 'Open cart'}
+      className="relative w-11 h-11 flex items-center justify-center rounded-(--g-radius-sm) border border-(--g-border) bg-(--g-surface) text-(--g-text) hover:bg-(--g-surface-sunken) transition-colors duration-150"
+    >
+      <ShoppingCart className="w-5 h-5" aria-hidden="true" />
+      {cartItemCount > 0 && (
+        <span aria-hidden="true" className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1 rounded-(--g-radius-pill) bg-(--g-primary-fill) text-(--g-on-primary) text-[11px] font-bold guestNum flex items-center justify-center">
+          {cartItemCount}
+        </span>
+      )}
+    </button>
+  );
 
   return (
-    <div className="min-h-screen pb-24 md:pb-8" style={{ background: BRAND.background }}>
-      <div className="max-w-7xl mx-auto px-4 md:px-6 py-5 md:py-8 space-y-6">
-        {/* Header */}
-        <section
-          className="rounded-2xl p-5 md:p-7 text-white shadow-lg relative overflow-hidden"
-          style={{
-            background: 'linear-gradient(135deg, #00BFA6, #00E5CC)',
-          }}
-        >
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <UtensilsCrossed size={24} />
-                <h1 className="text-2xl md:text-3xl font-bold drop-shadow-sm">Menu</h1>
-              </div>
-              <p className="text-sm md:text-base text-white/90">
-                Order delicious meals to your room • Fresh ingredients, authentic flavors
-              </p>
-            </div>
-            <button
-              onClick={() => setShowCart(!showCart)}
-              className="relative h-12 w-12 rounded-full bg-white/20 backdrop-blur-md border border-white/40 flex items-center justify-center hover:bg-white/30 transition"
-            >
-              <ShoppingCart className="w-5 h-5" />
-              {cartItemCount > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-5 h-5 rounded-full px-1 text-[11px] bg-rose-500 text-white flex items-center justify-center font-semibold">
-                  {cartItemCount}
-                </span>
-              )}
-            </button>
-          </div>
+    <div>
+      <PullIndicator pull={pull} refreshing={refreshing} />
+      <p className="sr-only" aria-live="polite">{announcement}</p>
 
-          {/* Search & Filter */}
-          <div className="mt-5 flex flex-col sm:flex-row gap-3">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/70" />
-              <input
-                type="text"
-                placeholder="Search dishes..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/20 backdrop-blur-md border border-white/40 text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-white/50"
-              />
-            </div>
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-4 py-2.5 rounded-xl bg-white/20 backdrop-blur-md border border-white/40 text-white focus:outline-none focus:ring-2 focus:ring-white/50"
-            >
-              <option value="all" className="text-slate-900">All Categories</option>
-              {categories.map((cat) => (
-                <option key={cat} value={cat} className="text-slate-900">{cat}</option>
-              ))}
-            </select>
-          </div>
-        </section>
+      <PageHeader
+        title="Room Service"
+        subtitle={hotelName ? `Delivered to your room from ${hotelName}` : 'Order meals to your room'}
+        actions={cartButton}
+      />
 
-        {/* Active Orders */}
-        {ordersLoading ? (
-          <div className="flex justify-center py-6">
-            <Loader2 className="w-6 h-6 animate-spin" style={{ color: BRAND.primary }} />
-          </div>
-        ) : activeOrders.length > 0 && (
-          <SectionCard title="Active Orders" brand={BRAND}>
-            <div className="space-y-3">
-              {activeOrders.map((order) => (
-                <OrderStatusCard
-                  key={order._id}
-                  order={order}
-                  brand={BRAND}
-                  onCancel={() => setCancelTarget(order)}
-                />
-              ))}
-            </div>
-          </SectionCard>
-        )}
-
-        {/* Popular Items Badge */}
-        {selectedCategory === 'all' && !searchQuery && (
-          <div className="flex items-center gap-2">
-            <Flame className="w-5 h-5" style={{ color: BRAND.primary }} />
-            <span className="font-semibold" style={{ color: BRAND.textPrimary }}>Popular Items</span>
-          </div>
-        )}
-
-        {/* Menu Items */}
-        {menuLoading ? (
-          <div className="flex justify-center py-24">
-            <Loader2 className="w-10 h-10 animate-spin" style={{ color: BRAND.primary }} />
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
-            {filteredItems.map((item) => (
-              <MenuItemCard key={item._id} item={item} onAdd={() => addToCart(item)} brand={BRAND} />
+      {/* Active orders sit above the menu whenever any exist */}
+      {ordersLoading ? (
+        <div className="mb-6" role="status" aria-live="polite">
+          <span className="sr-only">Loading your orders…</span>
+          <SkeletonCard lines={2} />
+        </div>
+      ) : activeOrders.length > 0 && (
+        <section aria-labelledby="active-orders-title" className="mb-6">
+          <h2 id="active-orders-title" className="g-h2 mb-3">
+            Active orders <span className="text-(--g-text-muted) guestNum">({activeOrders.length})</span>
+          </h2>
+          <ul className="grid gap-3 lg:grid-cols-2">
+            {activeOrders.map((order) => (
+              <li key={order._id}>
+                <OrderStatusCard order={order} onCancel={() => setCancelTarget(order)} />
+              </li>
             ))}
-          </div>
-        )}
+          </ul>
+        </section>
+      )}
 
-        {filteredItems.length === 0 && !menuLoading && (
-          <div className="text-center py-12">
-            <UtensilsCrossed className="w-12 h-12 mx-auto mb-4 opacity-30" style={{ color: BRAND.textSecondary }} />
-            {!menuData?.hotel?._id ? (
-              <>
-                <p className="font-medium mb-1" style={{ color: BRAND.textPrimary }}>
-                  Menu unavailable
-                </p>
-                <p className="text-sm" style={{ color: BRAND.textSecondary }}>
-                  We couldn't find an active booking to load a hotel menu for.
-                </p>
-              </>
-            ) : searchQuery || selectedCategory !== 'all' ? (
-              <p style={{ color: BRAND.textSecondary }}>
-                No items match your search at {menuData.hotel.name || 'this hotel'}.
-              </p>
-            ) : (
-              <p style={{ color: BRAND.textSecondary }}>
-                {menuData.hotel.name || 'Your hotel'} hasn't added any menu items yet.
-              </p>
+      {/* Search + categories: sticky under the mobile top bar */}
+      {!menuError && (allItems.length > 0 || menuLoading) && (
+        <div className="sticky top-14 lg:top-0 z-20 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3 mb-4 bg-(--g-bg)/95 backdrop-blur border-b border-(--g-border)">
+          <label htmlFor="menu-search" className="sr-only">Search dishes</label>
+          <div className="relative mb-3">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-(--g-text-subtle)" aria-hidden="true" />
+            <input
+              id="menu-search"
+              type="search"
+              placeholder="Search dishes"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full min-h-[44px] pl-10 pr-10 rounded-(--g-radius-sm) border border-(--g-border) bg-(--g-surface) text-(--g-text) g-body placeholder:text-(--g-text-subtle) focus:border-(--g-primary) outline-none"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                aria-label="Clear search"
+                className="absolute right-0 top-0 w-11 h-11 flex items-center justify-center text-(--g-text-muted) hover:text-(--g-text)"
+              >
+                <X className="w-4 h-4" aria-hidden="true" />
+              </button>
             )}
           </div>
-        )}
-      </div>
+          {categoryOptions.length > 1 && (
+            <FilterTabs
+              label="Menu categories"
+              options={categoryOptions}
+              value={selectedCategory}
+              onChange={setSelectedCategory}
+              controls={MENU_GRID_ID}
+            />
+          )}
+        </div>
+      )}
 
-      {/* Cart Sidebar */}
-      <AnimatePresence>
-        {showCart && (
-          <Motion.div
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 25 }}
-            className="fixed right-0 top-0 h-screen w-full max-w-md shadow-2xl z-50 overflow-y-auto"
-            style={{ background: BRAND.card, borderLeft: `1px solid ${BRAND.border}` }}
-          >
-            <div className="p-5 md:p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold" style={{ color: BRAND.textPrimary }}>Your Cart</h2>
-                <button
-                  onClick={() => setShowCart(false)}
-                  className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-                  style={{ color: BRAND.textSecondary }}
-                >
-                  <Minus className="w-5 h-5" />
-                </button>
-              </div>
-
-              {cart.length === 0 ? (
-                <div className="text-center py-12">
-                  <ShoppingCart className="w-16 h-16 mx-auto mb-4 opacity-30" style={{ color: BRAND.textSecondary }} />
-                  <p style={{ color: BRAND.textSecondary }}>Your cart is empty</p>
-                  <p className="text-sm mt-1" style={{ color: BRAND.textSecondary }}>Add some delicious items!</p>
-                </div>
-              ) : (
-                <>
-                  <div className="space-y-3 mb-6">
-                    {cart.map((item) => (
-                      <div
-                        key={item._id}
-                        className="flex items-center gap-4 rounded-xl p-3"
-                        style={{ background: isDark ? 'rgba(30, 41, 59, 0.5)' : '#F1F5F9' }}
-                      >
-                        {item.image && (
-                          <img src={item.image} alt={item.name} className="w-14 h-14 rounded-lg object-cover" />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate" style={{ color: BRAND.textPrimary }}>{item.name}</p>
-                          <p className="text-sm" style={{ color: BRAND.textSecondary }}>NPR {item.price}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => updateQuantity(item._id, -1)}
-                            className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 transition"
-                            style={{ color: BRAND.textSecondary }}
-                          >
-                            <Minus className="w-4 h-4" />
-                          </button>
-                          <span className="w-8 text-center font-semibold" style={{ color: BRAND.textPrimary }}>{item.quantity}</span>
-                          <button
-                            onClick={() => updateQuantity(item._id, 1)}
-                            className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 transition"
-                            style={{ color: BRAND.textSecondary }}
-                          >
-                            <Plus className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => removeFromCart(item._id)}
-                            aria-label={`Remove ${item.name} from cart`}
-                            className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-rose-100 dark:hover:bg-rose-900/30 transition text-rose-500"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="border-t pt-4 mb-6" style={{ borderColor: BRAND.border }}>
-                    <div className="flex justify-between items-center">
-                      <span className="font-semibold" style={{ color: BRAND.textPrimary }}>Total</span>
-                      <span className="text-2xl font-bold" style={{ color: BRAND.primary }}>NPR {cartTotal.toFixed(2)}</span>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={submitOrder}
-                    disabled={placingOrder}
-                    className="w-full py-3 rounded-xl font-semibold text-white transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                    style={{ background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.primaryDark})` }}
-                  >
-                    {placingOrder ? (
-                      <span className="flex items-center justify-center gap-2">
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        Placing Order...
-                      </span>
-                    ) : (
-                      'Place Order'
-                    )}
-                  </button>
-                </>
+      {/* Menu */}
+      {menuLoading ? (
+        <div role="status" aria-live="polite" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-5">
+          <span className="sr-only">Loading menu…</span>
+          {Array.from({ length: 6 }, (_, i) => <MenuCardSkeleton key={i} />)}
+        </div>
+      ) : menuError ? (
+        <div role="alert">
+          <EmptyState
+            icon={AlertTriangle}
+            title="Menu unavailable"
+            description={cart.length ? `${menuError} Your cart is saved.` : menuError}
+            action={<Button variant="secondary" icon={RefreshCw} onClick={loadMenu}>Try again</Button>}
+          />
+        </div>
+      ) : !hasHotel ? (
+        <EmptyState
+          icon={UtensilsCrossed}
+          title="Menu unavailable"
+          description="We couldn’t find an active booking to load a hotel menu for."
+        />
+      ) : allItems.length === 0 ? (
+        <EmptyState
+          icon={UtensilsCrossed}
+          title="No dishes yet"
+          description={`${hotelName || 'Your hotel'} hasn’t added any menu items yet.`}
+        />
+      ) : (
+        <>
+          <p className="g-small text-(--g-text-muted) mb-3" aria-live="polite">
+            <span className="guestNum">{filteredItems.length}</span> dish{filteredItems.length === 1 ? '' : 'es'}
+            {selectedCategory !== 'all' && ` in ${selectedCategory}`}
+            {searchQuery.trim() && ` matching “${searchQuery.trim()}”`}
+          </p>
+          {filteredItems.length === 0 ? (
+            <EmptyState
+              icon={Search}
+              title="No matching dishes"
+              description={`Nothing at ${hotelName || 'this hotel'} matches your search.`}
+              action={isFiltered && (
+                <Button variant="secondary" onClick={() => { setSearchQuery(''); setSelectedCategory('all'); }}>
+                  Clear filters
+                </Button>
               )}
-            </div>
-          </Motion.div>
-        )}
-      </AnimatePresence>
+            />
+          ) : (
+            <ul id={MENU_GRID_ID} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-5">
+              {filteredItems.map((item) => (
+                <li key={item._id}>
+                  <MenuItemCard
+                    item={item}
+                    quantity={cartQty.get(item._id) || 0}
+                    onAdd={addToCart}
+                    onSetQuantity={setQuantity}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
 
-      {/* Cancel Order Modal */}
+      {/* Floating cart button — mobile only, clears the bottom nav */}
+      {!showCart && cartItemCount > 0 && (
+        <button
+          type="button"
+          onClick={() => setShowCart(true)}
+          className="lg:hidden fixed right-4 bottom-[calc(88px+env(safe-area-inset-bottom))] z-40 min-h-[52px] px-5 rounded-(--g-radius-pill) bg-(--g-primary-fill) text-(--g-on-primary) shadow-(--g-shadow-lg) flex items-center gap-3 g-body-strong"
+        >
+          <ShoppingCart className="w-5 h-5" aria-hidden="true" />
+          <span className="guestNum">{cartItemCount} item{cartItemCount > 1 ? 's' : ''}</span>
+          <span className="guestNum">{formatMoney(cartTotal, 0)}</span>
+        </button>
+      )}
+
+      <Sheet
+        open={showCart}
+        onClose={() => setShowCart(false)}
+        dismissible={!placingOrder}
+        title="Your cart"
+        description={cartItemCount ? `${cartItemCount} item${cartItemCount > 1 ? 's' : ''}` : undefined}
+        footer={cart.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-baseline justify-between">
+              <span className="g-body-strong">Total</span>
+              <Money amount={cartTotal} size="lg" />
+            </div>
+            <Button className="w-full" onClick={submitOrder} loading={placingOrder}>
+              {placingOrder ? 'Placing order…' : 'Place order'}
+            </Button>
+          </div>
+        )}
+      >
+        {cart.length === 0 ? (
+          <div className="py-8 text-center">
+            <span className="w-14 h-14 mx-auto mb-4 rounded-(--g-radius-md) bg-(--g-primary-tint) text-(--g-primary-text) flex items-center justify-center">
+              <ShoppingCart className="w-7 h-7" aria-hidden="true" />
+            </span>
+            <p className="g-h2">Your cart is empty</p>
+            <p className="g-small text-(--g-text-muted) mt-1">Add dishes from the menu to get started.</p>
+            <Button variant="secondary" className="mt-5" data-autofocus onClick={() => setShowCart(false)}>
+              Browse menu
+            </Button>
+          </div>
+        ) : (
+          <ul className="space-y-3">
+            {cart.map((item) => (
+              <CartLine
+                key={item._id}
+                item={item}
+                onSetQuantity={setQuantity}
+                onRemove={removeFromCart}
+                onNotes={setNotes}
+              />
+            ))}
+          </ul>
+        )}
+      </Sheet>
+
       <CancelOrderModal
         isOpen={!!cancelTarget}
         onClose={() => setCancelTarget(null)}
         order={cancelTarget}
         onCancelSuccess={handleOrderCancelled}
       />
-
-      {/* Floating Cart Button (Mobile) */}
-      {!showCart && cartItemCount > 0 && (
-        <button
-          onClick={() => setShowCart(true)}
-          className="fixed bottom-20 md:bottom-6 right-4 h-14 px-5 rounded-full shadow-xl flex items-center gap-3 text-white font-semibold z-40"
-          style={{ background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.primaryDark})` }}
-        >
-          <ShoppingCart className="w-5 h-5" />
-          <span>{cartItemCount} items</span>
-          <span className="font-bold">NPR {cartTotal.toFixed(0)}</span>
-        </button>
-      )}
     </div>
   );
 };
@@ -524,253 +494,289 @@ const RoomServiceView = () => {
 // Sub-components
 // ─────────────────────────────────────────
 
-const SectionCard = ({ title, children, brand }) => (
-  <div
-    className="rounded-2xl p-4 md:p-5 border shadow-sm"
-    style={{
-      background: brand.card,
-      borderColor: brand.border,
-      boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-    }}
-  >
-    <h2 className="text-lg font-semibold mb-4" style={{ color: brand.textPrimary }}>{title}</h2>
-    {children}
+const Stepper = ({ name, quantity, onDecrease, onIncrease, className }) => (
+  <div role="group" aria-label={`Quantity of ${name}`} className={cn('inline-flex items-center rounded-(--g-radius-sm) border border-(--g-border) bg-(--g-surface)', className)}>
+    <button
+      type="button"
+      onClick={onDecrease}
+      aria-label={quantity === 1 ? `Remove ${name}` : `Decrease ${name}`}
+      className="w-11 h-11 flex items-center justify-center text-(--g-text-muted) hover:text-(--g-text) hover:bg-(--g-surface-sunken) rounded-l-(--g-radius-sm)"
+    >
+      <Minus className="w-4 h-4" aria-hidden="true" />
+    </button>
+    <span className="min-w-8 text-center g-body-strong guestNum" aria-live="polite">{quantity}</span>
+    <button
+      type="button"
+      onClick={onIncrease}
+      disabled={quantity >= MAX_QTY}
+      aria-label={`Increase ${name}`}
+      className="w-11 h-11 flex items-center justify-center text-(--g-text-muted) hover:text-(--g-text) hover:bg-(--g-surface-sunken) rounded-r-(--g-radius-sm) disabled:opacity-40 disabled:cursor-not-allowed"
+    >
+      <Plus className="w-4 h-4" aria-hidden="true" />
+    </button>
   </div>
 );
 
-const MenuItemCard = React.memo(({ item, onAdd, brand }) => {
-  const isDark = brand.background !== '#F8FAFB';
+Stepper.propTypes = {
+  name: PropTypes.string.isRequired,
+  quantity: PropTypes.number.isRequired,
+  onDecrease: PropTypes.func.isRequired,
+  onIncrease: PropTypes.func.isRequired,
+  className: PropTypes.string,
+};
 
-  return (
-    <div
-      className="rounded-2xl border overflow-hidden transition-all hover:-translate-y-1 hover:shadow-xl group"
-      style={{
-        background: brand.card,
-        borderColor: brand.border,
-        boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
-      }}
-    >
-      {/* Image */}
-      <div className="relative h-44 overflow-hidden">
-        {item.image ? (
-          <img
-            src={item.image}
-            alt={item.name}
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center" style={{ background: isDark ? '#1E293B' : '#F1F5F9' }}>
-            <UtensilsCrossed size={40} className="opacity-30" style={{ color: brand.textSecondary }} />
-          </div>
-        )}
-        {/* Popular Badge */}
-        {item.isPopular && (
-          <div className="absolute top-3 left-3 flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold text-white" style={{ background: 'linear-gradient(135deg, #F59E0B, #EF4444)' }}>
-            <Flame size={12} />
-            Popular
-          </div>
-        )}
-        {/* Category Badge */}
-        <div className="absolute top-3 right-3 px-2 py-1 rounded-full text-xs font-medium" style={{ background: isDark ? 'rgba(15, 23, 42, 0.8)' : 'rgba(255,255,255,0.9)', color: brand.primary }}>
-          {item.category}
-        </div>
+const ItemImage = ({ src, alt, className }) => {
+  const [failed, setFailed] = useState(false);
+  if (!src || failed) {
+    return (
+      <div className={cn('flex items-center justify-center bg-(--g-surface-sunken) text-(--g-text-subtle)', className)} aria-hidden="true">
+        <UtensilsCrossed className="w-8 h-8" />
       </div>
+    );
+  }
+  return <img src={src} alt={alt} loading="lazy" onError={() => setFailed(true)} className={cn('object-cover', className)} />;
+};
 
-      {/* Content */}
-      <div className="p-4">
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <h3 className="font-semibold text-base" style={{ color: brand.textPrimary }}>{item.name}</h3>
-          <span className="text-lg font-bold shrink-0" style={{ color: brand.primary }}>NPR {item.price}</span>
-        </div>
-        {item.description && (
-          <p className="text-sm mb-4 line-clamp-2" style={{ color: brand.textSecondary }}>{item.description}</p>
+ItemImage.propTypes = { src: PropTypes.string, alt: PropTypes.string, className: PropTypes.string };
+
+const MenuItemCard = React.memo(({ item, quantity, onAdd, onSetQuantity }) => (
+  <article className="g-lift h-full flex flex-col rounded-(--g-radius-md) border border-(--g-border) bg-(--g-surface) shadow-(--g-shadow-sm) overflow-hidden">
+    <div className="relative">
+      <ItemImage src={item.image} alt={item.name} className="w-full aspect-[4/3]" />
+      {item.isPopular && (
+        <span className="absolute top-3 left-3 inline-flex items-center gap-1 px-2.5 py-1 rounded-(--g-radius-pill) bg-(--g-warning-bg) text-(--g-warning-text) g-small font-semibold">
+          <Flame className="w-3.5 h-3.5" aria-hidden="true" />
+          Popular
+        </span>
+      )}
+      {item.category && (
+        <span className="absolute top-3 right-3 px-2.5 py-1 rounded-(--g-radius-pill) bg-(--g-surface) text-(--g-primary-text) g-small font-semibold shadow-(--g-shadow-sm)">
+          {item.category}
+        </span>
+      )}
+    </div>
+
+    <div className="flex-1 flex flex-col p-4">
+      <div className="flex items-start justify-between gap-3">
+        <h3 className="g-h2 min-w-0">{item.name}</h3>
+        <Money amount={item.price} size="md" className="shrink-0 text-(--g-text)" />
+      </div>
+      {item.description && (
+        <p className="g-small text-(--g-text-muted) mt-1 line-clamp-2">{item.description}</p>
+      )}
+      <div className="mt-auto pt-4">
+        {quantity > 0 ? (
+          <div className="flex items-center justify-between gap-3">
+            <span className="g-small font-semibold text-(--g-primary-text)">In cart</span>
+            <Stepper
+              name={item.name}
+              quantity={quantity}
+              onDecrease={() => onSetQuantity(item, quantity - 1)}
+              onIncrease={() => onSetQuantity(item, quantity + 1)}
+            />
+          </div>
+        ) : (
+          <Button className="w-full" icon={Plus} onClick={() => onAdd(item)} aria-label={`Add ${item.name} to cart`}>
+            Add to cart
+          </Button>
         )}
-        <button
-          onClick={onAdd}
-          className="w-full py-2.5 rounded-xl font-semibold text-white transition-all hover:shadow-lg flex items-center justify-center gap-2"
-          style={{ background: `linear-gradient(135deg, ${brand.primary}, ${brand.primaryDark})` }}
-        >
-          <Plus size={18} />
-          Add to Cart
-        </button>
       </div>
     </div>
-  );
-});
+  </article>
+));
 
-const OrderStatusCard = ({ order, brand, onCancel }) => {
-  const isDark = brand.background !== '#F8FAFB';
-  const [showItems, setShowItems] = useState(false);
-  const canCancel = ['pending', 'confirmed'].includes((order.status || '').toLowerCase());
+MenuItemCard.displayName = 'MenuItemCard';
+MenuItemCard.propTypes = {
+  item: PropTypes.object.isRequired,
+  quantity: PropTypes.number.isRequired,
+  onAdd: PropTypes.func.isRequired,
+  onSetQuantity: PropTypes.func.isRequired,
+};
 
-  const statusIcons = {
-    pending: <Clock className="w-5 h-5" style={{ color: '#F59E0B' }} />,
-    confirmed: <CheckCircle2 className="w-5 h-5" style={{ color: '#3B82F6' }} />,
-    preparing: <ChefHat className="w-5 h-5" style={{ color: '#F97316' }} />,
-    ready: <Truck className="w-5 h-5" style={{ color: '#10B981' }} />,
-    delivered: <CheckCircle2 className="w-5 h-5" style={{ color: '#6B7280' }} />,
-  };
+const MenuCardSkeleton = () => (
+  <div aria-hidden="true" className="rounded-(--g-radius-md) border border-(--g-border) bg-(--g-surface) overflow-hidden">
+    <Skeleton className="w-full aspect-[4/3] rounded-none" />
+    <div className="p-4 space-y-3">
+      <div className="flex justify-between gap-3">
+        <Skeleton className="h-5 w-1/2" />
+        <Skeleton className="h-5 w-1/5" />
+      </div>
+      <Skeleton className="h-4 w-4/5" />
+      <Skeleton className="h-11 w-full" />
+    </div>
+  </div>
+);
 
-  const statusColors = {
-    pending: 'bg-amber-100 text-amber-700',
-    confirmed: 'bg-blue-100 text-blue-700',
-    preparing: 'bg-orange-100 text-orange-700',
-    ready: 'bg-emerald-100 text-emerald-700',
-    delivered: 'bg-slate-100 text-slate-700',
-  };
-
-  const statusMessages = {
-    pending: 'Waiting for confirmation',
-    confirmed: 'Order confirmed - Kitchen will start soon',
-    preparing: 'Your food is being prepared',
-    ready: 'Order is ready for delivery',
-    delivered: 'Delivered - Enjoy your meal!',
-  };
-
-  const progressPercent = {
-    pending: 20,
-    confirmed: 40,
-    preparing: 60,
-    ready: 80,
-    delivered: 100,
-  };
-
-  const progressColors = {
-    pending: '#F59E0B',
-    confirmed: '#3B82F6',
-    preparing: '#F97316',
-    ready: '#10B981',
-    delivered: '#6B7280',
-  };
-
-  const items = order.items || [];
+const CartLine = ({ item, onSetQuantity, onRemove, onNotes }) => {
+  const [noteOpen, setNoteOpen] = useState(Boolean(item.notes));
+  const noteId = `note-${item._id}`;
 
   return (
-    <div
-      className="rounded-xl p-4 border transition-all"
-      style={{
-        background: isDark ? 'rgba(30, 41, 59, 0.5)' : '#F8FAFB',
-        borderColor: brand.border,
-      }}
-    >
-      <div className="flex items-center justify-between mb-3">
-        <div>
-          <p className="font-bold text-lg" style={{ color: brand.textPrimary }}>Order #{order.orderNumber}</p>
-          <p className="text-sm" style={{ color: brand.textSecondary }}>NPR {order.totalPrice}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {statusIcons[order.status] || <Clock className="w-5 h-5" />}
-          <span className={`px-3 py-1.5 rounded-full text-xs font-semibold capitalize ${statusColors[order.status] || 'bg-slate-100 text-slate-600'}`}>
-            {order.status}
-          </span>
+    <li className="rounded-(--g-radius-md) bg-(--g-surface-sunken) p-3">
+      <div className="flex items-start gap-3">
+        <ItemImage src={item.image} alt="" className="w-14 h-14 shrink-0 rounded-(--g-radius-sm)" />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <p className="g-body-strong truncate">{item.name}</p>
+            <button
+              type="button"
+              onClick={() => onRemove(item)}
+              aria-label={`Remove ${item.name} from cart`}
+              className="-mt-2 -mr-2 w-11 h-11 shrink-0 flex items-center justify-center rounded-(--g-radius-sm) text-(--g-danger-text) hover:bg-(--g-danger-bg)"
+            >
+              <X className="w-4 h-4" aria-hidden="true" />
+            </button>
+          </div>
+          <p className="g-small text-(--g-text-muted)">
+            <Money amount={item.price} /> each
+          </p>
         </div>
       </div>
 
-      <p className="text-sm mb-3" style={{ color: brand.textSecondary }}>
-        {statusMessages[order.status] || 'Processing your order'}
-      </p>
+      <div className="mt-2 flex items-center justify-between gap-3">
+        <Stepper
+          name={item.name}
+          quantity={item.quantity}
+          onDecrease={() => onSetQuantity(item, item.quantity - 1)}
+          onIncrease={() => onSetQuantity(item, item.quantity + 1)}
+        />
+        <Money amount={item.price * item.quantity} size="md" />
+      </div>
 
-      {/* Items Ordered Section */}
-      {items.length > 0 && (
-        <div className="mb-3">
-          <button
-            onClick={() => setShowItems(!showItems)}
-            className="flex items-center gap-2 text-sm font-medium transition-colors"
-            style={{ color: brand.primary }}
-          >
-            <UtensilsCrossed size={16} />
-            <span>{items.length} item{items.length > 1 ? 's' : ''} ordered</span>
-            <Motion.span
-              animate={{ rotate: showItems ? 180 : 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              ▼
-            </Motion.span>
-          </button>
-
-          <AnimatePresence>
-            {showItems && (
-              <Motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="overflow-hidden"
-              >
-                <div className="mt-2 space-y-2">
-                  {items.map((item, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center justify-between py-2 px-3 rounded-lg"
-                      style={{
-                        background: isDark ? 'rgba(15, 23, 42, 0.5)' : 'rgba(255, 255, 255, 0.8)',
-                        border: `1px solid ${brand.border}`
-                      }}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold"
-                          style={{ background: brand.primary, color: 'white' }}
-                        >
-                          {item.quantity}×
-                        </div>
-                        <div>
-                          <p className="font-medium text-sm" style={{ color: brand.textPrimary }}>
-                            {item.name}
-                          </p>
-                          {item.notes && (
-                            <p className="text-xs" style={{ color: brand.textSecondary }}>
-                              📝 {item.notes}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <p className="font-semibold text-sm" style={{ color: brand.primary }}>
-                        NPR {item.price * item.quantity}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </Motion.div>
-            )}
-          </AnimatePresence>
+      {noteOpen ? (
+        <div className="mt-3">
+          <label htmlFor={noteId} className="g-label text-(--g-text-muted)">Note for the kitchen</label>
+          <input
+            id={noteId}
+            type="text"
+            value={item.notes || ''}
+            maxLength={NOTE_MAX}
+            onChange={(e) => onNotes(item._id, e.target.value)}
+            placeholder="e.g. no onions, extra spicy"
+            aria-describedby={`${noteId}-count`}
+            className="mt-1 w-full min-h-[44px] px-3 rounded-(--g-radius-sm) border border-(--g-border) bg-(--g-surface) text-(--g-text) g-small placeholder:text-(--g-text-subtle) focus:border-(--g-primary) outline-none"
+          />
+          <p id={`${noteId}-count`} className="g-small text-(--g-text-subtle) mt-1 text-right guestNum">
+            {(item.notes || '').length}/{NOTE_MAX}
+          </p>
         </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setNoteOpen(true)}
+          className="mt-2 min-h-[44px] inline-flex items-center gap-1.5 g-small font-semibold text-(--g-primary-text) hover:underline"
+        >
+          <StickyNote className="w-4 h-4" aria-hidden="true" />
+          Add a note
+        </button>
       )}
+    </li>
+  );
+};
 
-      <div className="w-full rounded-full h-2 mb-2" style={{ background: isDark ? '#1E293B' : '#E2E8F0' }}>
+CartLine.propTypes = {
+  item: PropTypes.object.isRequired,
+  onSetQuantity: PropTypes.func.isRequired,
+  onRemove: PropTypes.func.isRequired,
+  onNotes: PropTypes.func.isRequired,
+};
+
+const OrderStatusCard = ({ order, onCancel }) => {
+  const [showItems, setShowItems] = useState(false);
+  const status = statusKey(order.status);
+  const stage = STAGE[status];
+  const canCancel = ['pending', 'confirmed'].includes(status);
+  const items = order.items || [];
+  const itemsId = `order-items-${order._id}`;
+
+  return (
+    <div className="h-full rounded-(--g-radius-md) border border-(--g-border) bg-(--g-surface) shadow-(--g-shadow-sm) p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="g-body-strong">Order #{order.orderNumber}</p>
+          <Money amount={order.totalPrice} className="g-small text-(--g-text-muted)" />
+        </div>
+        <StatusBadge domain="order" status={order.status} />
+      </div>
+
+      <p className="g-small text-(--g-text-muted) mt-2">{stage?.message || 'Processing your order'}</p>
+
+      <div
+        role="progressbar"
+        aria-label={`Order #${order.orderNumber} progress`}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={stage?.percent || 0}
+        className="mt-3 h-2 w-full rounded-(--g-radius-pill) bg-(--g-surface-sunken) overflow-hidden"
+      >
         <div
-          className="h-2 rounded-full transition-all duration-500"
-          style={{
-            width: `${progressPercent[order.status] || 0}%`,
-            background: progressColors[order.status] || '#94A3B8',
-          }}
+          className={cn('h-full rounded-(--g-radius-pill) transition-[width] duration-500', stage?.bar || 'bg-(--g-neutral)')}
+          style={{ width: `${stage?.percent || 0}%` }}
         />
       </div>
 
-      {order.status !== 'delivered' && order.status !== 'cancelled' && (
-        <p className="text-xs mt-2" style={{ color: brand.textSecondary }}>
-          {order.status === 'pending' && '⏱️ Estimated: 25-30 minutes'}
-          {order.status === 'confirmed' && '⏱️ Estimated: 20-25 minutes'}
-          {order.status === 'preparing' && '⏱️ Estimated: 10-15 minutes'}
-          {order.status === 'ready' && '🚀 Delivering to your room now'}
+      {stage?.eta && (
+        <p className="g-small text-(--g-text-muted) mt-2 inline-flex items-center gap-1.5">
+          {status === 'ready'
+            ? <Truck className="w-4 h-4" aria-hidden="true" />
+            : <Clock className="w-4 h-4" aria-hidden="true" />}
+          {stage.eta}
         </p>
       )}
 
+      {items.length > 0 && (
+        <div className="mt-2">
+          <button
+            type="button"
+            onClick={() => setShowItems((v) => !v)}
+            aria-expanded={showItems}
+            aria-controls={itemsId}
+            className="min-h-[44px] inline-flex items-center gap-1.5 g-small font-semibold text-(--g-primary-text)"
+          >
+            <UtensilsCrossed className="w-4 h-4" aria-hidden="true" />
+            {items.length} item{items.length > 1 ? 's' : ''} ordered
+            <ChevronDown className={cn('w-4 h-4 transition-transform duration-150', showItems && 'rotate-180')} aria-hidden="true" />
+          </button>
+
+          {showItems && (
+            <ul id={itemsId} className="mt-1 space-y-2">
+              {items.map((item, idx) => (
+                <li key={item._id || idx} className="flex items-start justify-between gap-3 rounded-(--g-radius-sm) bg-(--g-surface-sunken) px-3 py-2">
+                  <div className="flex items-start gap-3 min-w-0">
+                    <span className="shrink-0 min-w-8 h-8 px-1 rounded-(--g-radius-sm) bg-(--g-primary-tint) text-(--g-primary-text) g-small font-bold guestNum flex items-center justify-center">
+                      {item.quantity}×
+                    </span>
+                    <div className="min-w-0">
+                      <p className="g-small font-semibold truncate">{item.name}</p>
+                      {item.notes && (
+                        <p className="g-small text-(--g-text-muted) inline-flex items-start gap-1">
+                          <StickyNote className="w-3.5 h-3.5 mt-0.5 shrink-0" aria-hidden="true" />
+                          <span className="sr-only">Note:</span>
+                          {item.notes}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <Money amount={(item.price || 0) * (item.quantity || 0)} size="sm" className="shrink-0" />
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
       {canCancel && onCancel && (
-        <button
-          onClick={onCancel}
-          className="mt-3 w-full py-2 rounded-lg text-sm font-semibold border transition-colors"
-          style={{
-            color: '#e11d48',
-            borderColor: isDark ? 'rgba(225,29,72,0.4)' : 'rgba(225,29,72,0.25)',
-            background: isDark ? 'rgba(225,29,72,0.08)' : 'rgba(225,29,72,0.04)',
-          }}
-        >
-          Cancel Order
-        </button>
+        <Button variant="dangerOutline" className="mt-3 w-full" onClick={onCancel}>
+          Cancel order
+        </Button>
       )}
     </div>
   );
+};
+
+OrderStatusCard.propTypes = {
+  order: PropTypes.object.isRequired,
+  onCancel: PropTypes.func,
 };
 
 export default RoomServiceView;

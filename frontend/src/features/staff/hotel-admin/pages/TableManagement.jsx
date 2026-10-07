@@ -20,7 +20,7 @@ import {
   generateTableQR, updateTableStatus, batchCreateTables,
 } from '../services/tableApi';
 import useHotelId from '../hooks/useHotelId';
-import ConfirmDialog from '../../../../components/ConfirmDialog';
+import ConfirmDialog from '../../../../shared/components/ConfirmDialog';
 import {
   PageHeader,
   Button,
@@ -105,9 +105,9 @@ const TableManagement = () => {
 
   const setAct = (k, v) => setActionLoading((p) => ({ ...p, [k]: v }));
 
-  const fetchTables = useCallback(async () => {
+  const fetchTables = useCallback(async ({ silent = false } = {}) => {
     if (!hotelId) { setLoading(false); return; }
-    setLoading(true);
+    if (!silent) setLoading(true);
     try {
       const res = await getTables({ hotelId });
       if (res.data.success) {
@@ -171,10 +171,10 @@ const TableManagement = () => {
     try {
       if (selTable) {
         const res = await updateTable(selTable._id, form);
-        if (res.data.success) { toast.success('Table updated'); fetchTables(); setShowModal(false); }
+        if (res.data.success) { toast.success('Table updated'); fetchTables({ silent: true }); setShowModal(false); }
       } else {
         const res = await createTable({ ...form, hotelId });
-        if (res.data.success) { toast.success('Table created'); fetchTables(); setShowModal(false); }
+        if (res.data.success) { toast.success('Table created'); fetchTables({ silent: true }); setShowModal(false); }
       }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Operation failed');
@@ -188,7 +188,7 @@ const TableManagement = () => {
     setDeleting(true);
     try {
       const res = await deleteTable(deleteTarget._id);
-      if (res.data.success) { toast.success('Table deleted'); setDeleteTarget(null); fetchTables(); }
+      if (res.data.success) { toast.success('Table deleted'); setDeleteTarget(null); fetchTables({ silent: true }); }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Delete failed');
     } finally {
