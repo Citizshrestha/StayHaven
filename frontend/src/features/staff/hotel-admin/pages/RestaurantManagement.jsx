@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { toast } from 'react-toastify';
 import {
   UtensilsCrossed,
@@ -69,6 +69,7 @@ const RestaurantManagement = ({ onNavigate }) => {
   const [tab, setTab] = useState('tables');
   const [actionLoading, setActionLoading] = useState({});
   const setAct = (key, val) => setActionLoading((p) => ({ ...p, [key]: val }));
+  const menuSaving = useRef(false); // synchronous double-submit guard
 
   /* menu */
   const [menuItems, setMenuItems] = useState([]);
@@ -128,6 +129,8 @@ const RestaurantManagement = ({ onNavigate }) => {
       setMenuFormErr(errs);
       return;
     }
+    if (menuSaving.current) return;
+    menuSaving.current = true;
     setAct('msubmit', true);
     setMenuAlert('');
     try {
@@ -157,6 +160,7 @@ const RestaurantManagement = ({ onNavigate }) => {
     } catch (err) {
       setMenuAlert(err.response?.data?.message || 'Could not save the menu item. Please try again.');
     } finally {
+      menuSaving.current = false;
       setAct('msubmit', false);
     }
   };

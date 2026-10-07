@@ -28,6 +28,9 @@ import useHotelId from '../hooks/useHotelId';
 
 const stripHtml = (str = '') => String(str).replace(/<[^>]*>/g, '');
 const rs = (n) => `Rs. ${Number(n || 0).toLocaleString('en-IN')}`;
+// Sample-data seeding is a dev tool: never shown in production builds
+// (the API also refuses it when NODE_ENV=production).
+const SEED_ENABLED = !import.meta.env.PROD;
 
 /**
  * Hotel-admin dashboard home.
@@ -71,6 +74,7 @@ export default function DashboardHome({ onNavigate, onStats }) {
   // orders, bookings, invoices) when it's empty. Idempotent server-side —
   // only creates records for collections that have none.
   const handleSeed = async () => {
+    if (seeding) return; // double-click guard
     if (!hotelId) {
       toast.error('No hotel selected — cannot seed data.');
       return;
@@ -148,16 +152,18 @@ export default function DashboardHome({ onNavigate, onStats }) {
               Welcome back — here's what's happening across your property today.
             </p>
           </div>
-          <div className="ha-page-header__actions">
-            <Button variant="secondary" onClick={handleSeed} disabled={seeding || !hotelId}>
-              <Database size={16} aria-hidden="true" /> {seeding ? 'Seeding…' : 'Seed sample data'}
-            </Button>
-          </div>
+          {SEED_ENABLED && (
+            <div className="ha-page-header__actions">
+              <Button variant="secondary" onClick={handleSeed} loading={seeding} disabled={!hotelId}>
+                {!seeding && <Database size={16} aria-hidden="true" />} {seeding ? 'Seeding…' : 'Seed sample data'}
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Empty-property helper — shown when this hotel has no rooms yet */}
-      {totalRooms === 0 && (
+      {SEED_ENABLED && totalRooms === 0 && (
         <div
           className="ha-card"
           role="note"
@@ -170,7 +176,7 @@ export default function DashboardHome({ onNavigate, onStats }) {
               Seed real sample records (rooms, tables, menu, staff, orders, invoices) into the database to get started.
             </div>
           </div>
-          <Button variant="primary" size="sm" onClick={handleSeed} disabled={seeding || !hotelId}>
+          <Button variant="primary" size="sm" onClick={handleSeed} loading={seeding} disabled={!hotelId}>
             {seeding ? 'Seeding…' : 'Seed now'}
           </Button>
         </div>
