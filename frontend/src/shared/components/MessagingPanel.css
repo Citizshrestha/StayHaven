@@ -1828,3 +1828,22 @@
         opacity: 1;
     }
 }
+
+/* QA rules F: touch targets >= 44px, and keep the FAB above dashboard bottom
+   navs (dashboards with a phone bottom nav set --bottom-nav-height). */
+.msg-fab {
+    bottom: calc(var(--bottom-nav-height, 0px) + 24px + env(safe-area-inset-bottom, 0px));
+}
+@media (max-width: 640px) {
+    .msg-fab {
+        right: 16px;
+        bottom: calc(var(--bottom-nav-height, 0px) + 16px + env(safe-area-inset-bottom, 0px));
+    }
+}
+.msg-header-btn {
+    width: 44px;
+    height: 44px;
+}
+.msg-tab {
+    min-height: 44px;
+}

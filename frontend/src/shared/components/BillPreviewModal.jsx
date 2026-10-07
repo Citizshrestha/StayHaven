@@ -86,6 +86,21 @@ const BillPreviewModal = ({
       return;
     }
     setChargesState('loading');
+    // Orders on a dining tab keep the rates the tab was opened with.
+    const sessionId = order?.session?._id || (typeof order?.session === 'string' ? order.session : null);
+    if (sessionId) {
+      try {
+        const { data } = await apiClient.get(`/api/v1/staff/dining/sessions/${encodeURIComponent(sessionId)}`);
+        const tabCharges = data?.data?.session?.charges;
+        if (tabCharges) {
+          setCharges(tabCharges);
+          setChargesState('ready');
+          return;
+        }
+      } catch {
+        // Fall back to the hotel's current settings below.
+      }
+    }
     try {
       const { data } = await apiClient.get('/api/v1/staff/dining/settings', { params: { hotelId } });
       setCharges(data?.data || null);
@@ -93,7 +108,7 @@ const BillPreviewModal = ({
     } catch {
       setChargesState('error');
     }
-  }, [hotelId]);
+  }, [hotelId, order?.session]);
 
   useEffect(() => {
     if (isOpen && order) loadCharges();

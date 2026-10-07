@@ -20,7 +20,7 @@ const ItemCarousel = ({ items = [], width = 280, height = 200 }) => {
   // Handle width as number or "100%"
   const widthStyle = typeof width === 'number' ? `${width}px` : width;
   const isNarrow = widthStyle === "100%" || (typeof width === "number" && width <= 360);
-  const arrowSize = isNarrow ? 28 : 32;
+  const arrowSize = 44; // touch target (rules F); icon size unchanged
   const arrowInset = isNarrow ? 6 : 8;
   const arrowIconSize = isNarrow ? 16 : 18;
 
@@ -184,6 +184,8 @@ const ItemCarousel = ({ items = [], width = 280, height = 200 }) => {
 
         {/* Left Arrow */}
         <button
+          type="button"
+          aria-label="Previous item"
           onClick={goToPrevious}
           style={{
             position: "absolute",
@@ -216,6 +218,8 @@ const ItemCarousel = ({ items = [], width = 280, height = 200 }) => {
 
         {/* Right Arrow */}
         <button
+          type="button"
+          aria-label="Next item"
           onClick={goToNext}
           style={{
             position: "absolute",
@@ -319,7 +323,7 @@ const ItemCarousel = ({ items = [], width = 280, height = 200 }) => {
             left: "50%",
             transform: "translateX(-50%)",
             display: "flex",
-            gap: "6px",
+            gap: "8px",
             padding: "4px 8px",
             backgroundColor: "rgba(0,0,0,0.4)",
             borderRadius: "9999px",
@@ -328,6 +332,9 @@ const ItemCarousel = ({ items = [], width = 280, height = 200 }) => {
           {items.map((_, index) => (
             <button
               key={index}
+              type="button"
+              aria-label={`Show item ${index + 1}`}
+              aria-current={index === currentIndex ? "true" : undefined}
               onClick={() => goToSlide(index)}
               style={{
                 width: index === currentIndex ? "16px" : "8px",
@@ -349,7 +356,7 @@ const ItemCarousel = ({ items = [], width = 280, height = 200 }) => {
         style={{
           marginTop: "12px",
           display: "flex",
-          gap: "6px",
+          gap: "8px",
           flexWrap: "wrap",
         }}
       >

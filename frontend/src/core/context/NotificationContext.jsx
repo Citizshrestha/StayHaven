@@ -20,6 +20,10 @@ import { useStaffAuth } from "./StaffAuthContext";
 import useNotificationSound from "../hooks/useNotificationSound";
 import { NOTIFICATION_TYPES } from "./useNotifications";
 import { getNotifications, markNotificationsRead } from "../api/services/messaging.service";
+import axiosClient from "../api/client";
+
+const getActiveWaiterCalls = (hotelId) =>
+  axiosClient.get("/api/v1/staff/waiter-calls", { params: { hotelId } }).then((r) => r.data);
 import { getCurrentStaffUser } from "../api/services/staffAccount.service";
 
 const formatOrderLocation = ({ orderType, roomNumber, tableNumber }) => {
@@ -86,8 +90,12 @@ const SoundUnlockPrompt = ({ onEnable }) => (
   <button
     type="button"
     onClick={onEnable}
+    data-sound-unlock=""
     style={{
-      position: "fixed", left: 16, bottom: 16, zIndex: 9999,
+      // Dashboards with a phone bottom nav set --bottom-nav-height so the
+      // prompt sits above it instead of covering the tabs.
+      position: "fixed", left: 16, zIndex: 9999, maxWidth: "calc(100vw - 32px)", minHeight: 44,
+      bottom: "calc(var(--bottom-nav-height, 0px) + 16px + env(safe-area-inset-bottom, 0px))",
       display: "inline-flex", alignItems: "center", gap: 8,
       padding: "10px 16px", borderRadius: 999, border: "1px solid rgba(255,255,255,.12)",
       background: "#1e293b", color: "#f8fafc", font: "600 13px/1.2 system-ui, sans-serif",
@@ -143,6 +151,23 @@ export const NotificationProvider = ({ children }) => {
   const { playWithVibration, audioState, enableSound } = useNotificationSound();
   const alertedOrdersRef = useRef(new Map()); // orderId -> timestamp
   const alertedStatusRef = useRef(new Map()); // `${orderId}:${status}` -> timestamp
+  const openCallIdsRef = useRef(new Set()); // open waiter-call ids (badge = size)
+
+  // Waiters: start the call badge from the calls already open on the server,
+  // not from 0 on every page load.
+  const activeHotelId = staffUser?.activeProperty?._id;
+  useEffect(() => {
+    if (!isAuthenticated || staffRole !== 'waiter' || !activeHotelId) return undefined;
+    let cancelled = false;
+    getActiveWaiterCalls(activeHotelId)
+      .then((res) => {
+        if (cancelled || !Array.isArray(res?.calls)) return;
+        openCallIdsRef.current = new Set(res.calls.map((c) => String(c._id)));
+        setWaiterCallCount(openCallIdsRef.current.size);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [isAuthenticated, staffRole, activeHotelId]);
 
   // Get current user ID for filtering self-notifications
   const currentUserId = staffUser?._id;
@@ -189,7 +214,16 @@ export const NotificationProvider = ({ children }) => {
             priority: n.priority,
           }));
 
-          setNotifications(transformedNotifications);
+          // The server can hold two records for one status step (e.g. an
+          // order_status and an order_delivered row); show one card.
+          const seenSteps = new Set();
+          setNotifications(transformedNotifications.filter((n) => {
+            if (!n.orderId || !n.status) return true;
+            const key = `${n.orderId}:${n.status}`;
+            if (seenSteps.has(key)) return false;
+            seenSteps.add(key);
+            return true;
+          }));
         }
       } catch {
         // Backend unreachable — keep localStorage notifications as fallback
@@ -224,15 +258,17 @@ export const NotificationProvider = ({ children }) => {
     };
 
     setNotifications(prev => {
-      // Prevent duplicates: same type + orderId + status within last 5 seconds.
-      // Status is part of the key so a quick preparing → ready → delivered
-      // sequence produces one entry per step instead of swallowing later steps.
+      // Prevent duplicates. An order status step (orderId + status) or a
+      // waiter call (callId) is one card no matter how many channels deliver
+      // it (socket event, persisted echo, reload). Other entries for the same
+      // order (e.g. "order updated") are only merged within 5 seconds.
       const isDuplicate = prev.some(n =>
-        n.type === notification.type &&
-        String(n.orderId) === String(notification.orderId) &&
-        (n.status || null) === (notification.status || null) &&
-        notification.orderId && // Only check if orderId exists
-        (new Date() - new Date(n.createdAt)) < 5000 // Within 5 seconds
+        (notification.id && n.id === notification.id) ||
+        (notification.callId && n.type === notification.type && String(n.callId) === String(notification.callId)) ||
+        (notification.orderId && String(n.orderId) === String(notification.orderId) && (
+          (notification.status && n.status === notification.status) ||
+          (n.type === notification.type && !notification.status && !n.status && (new Date() - new Date(n.createdAt)) < 5000)
+        ))
       );
 
       if (isDuplicate) {
@@ -459,22 +495,31 @@ export const NotificationProvider = ({ children }) => {
 
     // Waiter call notifications (for waiters only)
     if (staffRole === 'waiter') {
+      // A call can arrive on two rooms (hotel + waiters): count and beep once per call id.
       unsubscribers.push(
         subscribe('new-waiter-call', (data) => {
+          const callId = data?.call?._id ? String(data.call._id) : null;
+          if (callId && openCallIdsRef.current.has(callId)) return;
+          if (callId) openCallIdsRef.current.add(callId);
           playWithVibration('waiterCall');
-          setWaiterCallCount(prev => prev + 1);
-          
+          setWaiterCallCount(openCallIdsRef.current.size || ((prev) => prev + 1));
+
           addNotification({
             type: NOTIFICATION_TYPES.WAITER_CALL,
-            message: `${data.call.priority} priority request from Room ${data.call.roomNumber}`,
+            message: `${data.call.priority} priority request from ${data.call.roomNumber ? `Room ${data.call.roomNumber}` : data.call.tableNumber ? `Table ${data.call.tableNumber}` : 'a guest'}`,
             callId: data.call._id,
           });
         })
       );
 
       unsubscribers.push(
-        subscribe('waiter-call-resolved', () => {
-          setWaiterCallCount(prev => Math.max(0, prev - 1));
+        subscribe('waiter-call-resolved', (data) => {
+          const callId = data?.callId ? String(data.callId) : null;
+          if (callId && openCallIdsRef.current.delete(callId)) {
+            setWaiterCallCount(openCallIdsRef.current.size);
+          } else if (!callId) {
+            setWaiterCallCount(prev => Math.max(0, prev - 1));
+          }
         })
       );
     }
