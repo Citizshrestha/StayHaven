@@ -1,0 +1,159 @@
+/* ============================================================================
+ * Shared dashboard design tokens (`--db-*`)
+ * ----------------------------------------------------------------------------
+ * The UI contract every staff dashboard follows (QA rules G). Values are taken
+ * from features/staff/hotel-admin/styles/hotel-admin-tokens.css so hotel admin
+ * can alias its --ha-* variables onto these without a visual change.
+ *
+ * Opt-in: add class `dashboardShell` to a dashboard's root element and import
+ * this file. Nothing imports it yet; each dashboard adopts it after merge.
+ * Dark values apply under the global `.dark` class (ThemeContext).
+ * ========================================================================== */
+
+.dashboardShell {
+  /* Type: one family, scale 12/14/16/20/24/30, tabular numbers for data */
+  --db-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --db-text-xs: 12px;
+  --db-text-sm: 14px;
+  --db-text-md: 16px;
+  --db-text-lg: 20px;
+  --db-text-xl: 24px;
+  --db-text-2xl: 30px;
+
+  /* Spacing: 4/8-pt scale */
+  --db-s1: 4px;  --db-s2: 8px;  --db-s3: 12px; --db-s4: 16px;
+  --db-s5: 20px; --db-s6: 24px; --db-s8: 32px; --db-s10: 40px;
+  --db-gutter: 16px; /* page gutter on phones */
+
+  /* Radii: 8 inputs/buttons, 12 cards, 16 modals/sheets */
+  --db-radius-control: 8px;
+  --db-radius-card: 12px;
+  --db-radius-modal: 16px;
+  --db-radius-pill: 999px;
+
+  /* One shadow scale */
+  --db-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --db-shadow-md: 0 2px 8px rgba(15, 23, 42, 0.08);
+  --db-shadow-lg: 0 8px 24px rgba(15, 23, 42, 0.10);
+
+  /* Controls: 36px desktop, 44px touch */
+  --db-control-h: 36px;
+  --db-control-h-touch: 44px;
+
+  /* Surfaces / text */
+  --db-primary: #10b981;
+  --db-primary-hover: #059669;
+  --db-primary-soft: rgba(16, 185, 129, 0.10);
+  --db-bg: #f9fafb;
+  --db-surface: #ffffff;
+  --db-surface-sunken: #f3f4f6;
+  --db-border: #e5e7eb;
+  --db-border-strong: #d1d5db;
+  --db-text: #111827;
+  --db-text-muted: #374151;
+  --db-text-subtle: #6b7280;
+  --db-text-inverse: #ffffff;
+  --db-danger: #dc2626;
+  --db-danger-hover: #b91c1c;
+
+  /* Status colours mean the same everywhere (always pair with text/icon).
+     fg = text/icon colour on bg; both pairs meet 4.5:1. */
+  --db-status-pending-fg: #92400e;   --db-status-pending-bg: #fef3c7;   /* amber  */
+  --db-status-confirmed-fg: #1e40af; --db-status-confirmed-bg: #dbeafe; /* blue   */
+  --db-status-preparing-fg: #5b21b6; --db-status-preparing-bg: #ede9fe; /* indigo/purple */
+  --db-status-ready-fg: #065f46;     --db-status-ready-bg: #d1fae5;     /* green  */
+  --db-status-served-fg: #115e59;    --db-status-served-bg: #ccfbf1;    /* teal (served/delivered/completed) */
+  --db-status-cancelled-fg: #991b1b; --db-status-cancelled-bg: #fee2e2; /* red (cancelled/failed) */
+  --db-status-paid-fg: #065f46;      --db-status-paid-bg: #d1fae5;      /* green  */
+  --db-status-unpaid-fg: #92400e;    --db-status-unpaid-bg: #fef3c7;    /* amber  */
+
+  /* Layering: content < sticky bars < drawers < modals < toasts */
+  --db-z-sticky: 20;
+  --db-z-drawer: 900;
+  --db-z-modal: 1000;
+  --db-z-toast: 10050;
+
+  --db-focus-ring: 0 0 0 2px var(--db-surface), 0 0 0 4px var(--db-primary);
+
+  font-family: var(--db-font);
+  color: var(--db-text);
+}
+
+.dark .dashboardShell,
+.dashboardShell.dark {
+  --db-primary: #34d399;
+  --db-primary-hover: #10b981;
+  --db-primary-soft: rgba(52, 211, 153, 0.14);
+  --db-bg: #0f1419;
+  --db-surface: #1a1f2e;
+  --db-surface-sunken: #16202f;
+  --db-border: #2d3748;
+  --db-border-strong: rgba(255, 255, 255, 0.16);
+  --db-text: #ffffff;
+  --db-text-muted: #cbd5e1;
+  --db-text-subtle: #94a3b8;
+  --db-danger: #f87171;
+  --db-danger-hover: #ef4444;
+
+  --db-status-pending-fg: #fcd34d;   --db-status-pending-bg: rgba(245, 158, 11, 0.16);
+  --db-status-confirmed-fg: #93c5fd; --db-status-confirmed-bg: rgba(59, 130, 246, 0.16);
+  --db-status-preparing-fg: #c4b5fd; --db-status-preparing-bg: rgba(139, 92, 246, 0.18);
+  --db-status-ready-fg: #6ee7b7;     --db-status-ready-bg: rgba(16, 185, 129, 0.16);
+  --db-status-served-fg: #5eead4;    --db-status-served-bg: rgba(20, 184, 166, 0.16);
+  --db-status-cancelled-fg: #fca5a5; --db-status-cancelled-bg: rgba(239, 68, 68, 0.16);
+  --db-status-paid-fg: #6ee7b7;      --db-status-paid-bg: rgba(16, 185, 129, 0.16);
+  --db-status-unpaid-fg: #fcd34d;    --db-status-unpaid-bg: rgba(245, 158, 11, 0.16);
+
+  --db-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --db-shadow-md: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --db-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+/* ── Opt-in primitives (class names only; no global element styles) ── */
+.dashboardShell .db-num { font-variant-numeric: tabular-nums; }
+
+.dashboardShell .db-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--db-s2);
+  min-height: var(--db-control-h); padding: 0 var(--db-s4);
+  border-radius: var(--db-radius-control); border: 1px solid transparent;
+  font: 600 var(--db-text-sm) / 1.2 var(--db-font); cursor: pointer;
+}
+@media (pointer: coarse) { .dashboardShell .db-btn { min-height: var(--db-control-h-touch); } }
+.dashboardShell .db-btn:focus-visible { outline: none; box-shadow: var(--db-focus-ring); }
+.dashboardShell .db-btn:disabled, .dashboardShell .db-btn[aria-busy='true'] { opacity: 0.6; cursor: not-allowed; }
+.dashboardShell .db-btn--primary { background: var(--db-primary); color: var(--db-text-inverse); }
+.dashboardShell .db-btn--primary:hover:not(:disabled) { background: var(--db-primary-hover); }
+.dashboardShell .db-btn--secondary { background: var(--db-surface); color: var(--db-text); border-color: var(--db-border-strong); }
+.dashboardShell .db-btn--ghost { background: transparent; color: var(--db-text-muted); }
+.dashboardShell .db-btn--danger { background: var(--db-danger); color: #fff; }
+.dashboardShell .db-btn--danger:hover:not(:disabled) { background: var(--db-danger-hover); }
+
+.dashboardShell .db-card {
+  background: var(--db-surface); border: 1px solid var(--db-border);
+  border-radius: var(--db-radius-card); box-shadow: var(--db-shadow-sm);
+}
+
+.dashboardShell .db-badge {
+  display: inline-flex; align-items: center; gap: var(--db-s1);
+  padding: 2px var(--db-s2); border-radius: var(--db-radius-pill);
+  font: 600 var(--db-text-xs) / 1.4 var(--db-font);
+}
+.dashboardShell .db-badge--pending   { color: var(--db-status-pending-fg);   background: var(--db-status-pending-bg); }
+.dashboardShell .db-badge--confirmed { color: var(--db-status-confirmed-fg); background: var(--db-status-confirmed-bg); }
+.dashboardShell .db-badge--preparing { color: var(--db-status-preparing-fg); background: var(--db-status-preparing-bg); }
+.dashboardShell .db-badge--ready     { color: var(--db-status-ready-fg);     background: var(--db-status-ready-bg); }
+.dashboardShell .db-badge--served,
+.dashboardShell .db-badge--delivered,
+.dashboardShell .db-badge--completed { color: var(--db-status-served-fg);    background: var(--db-status-served-bg); }
+.dashboardShell .db-badge--cancelled,
+.dashboardShell .db-badge--failed    { color: var(--db-status-cancelled-fg); background: var(--db-status-cancelled-bg); }
+.dashboardShell .db-badge--paid      { color: var(--db-status-paid-fg);      background: var(--db-status-paid-bg); }
+.dashboardShell .db-badge--unpaid    { color: var(--db-status-unpaid-fg);    background: var(--db-status-unpaid-bg); }
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboardShell *, .dashboardShell *::before, .dashboardShell *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
