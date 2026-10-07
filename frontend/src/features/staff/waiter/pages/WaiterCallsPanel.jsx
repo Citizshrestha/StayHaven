@@ -12,7 +12,7 @@
  * - Acknowledge and resolve actions
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Bell,
   CheckCircle,
@@ -26,10 +26,10 @@ import {
   MessageSquare,
   Hand
 } from "lucide-react";
-import { getActiveProperty } from "../../../../core/api/services/staffAccount.service";
+import { toast } from "react-toastify";
+import { getActiveProperty, getCurrentStaffUser } from "../../../../core/api/services/staffAccount.service";
 import axiosClient from "../../../../core/api/client";
 import { useSocket } from "../../../../core/context/SocketContext";
-import useNotificationSound from "../../../../core/hooks/useNotificationSound";
 import { useTheme } from "../../../../core/hooks/useTheme";
 
 const WaiterCallsPanel = ({ onClose, onCallCountChange }) => {
@@ -41,7 +41,10 @@ const WaiterCallsPanel = ({ onClose, onCallCountChange }) => {
   const { isDark } = useTheme();
 
   const { subscribe, isConnected } = useSocket();
-  const { playWithVibration } = useNotificationSound();
+  // Sound and vibration for a new call are played once, app-wide, by NotificationContext
+  // (it also keeps the badge count), so this panel stays silent to avoid a double beep.
+  const myId = getCurrentStaffUser()?._id;
+  const myRole = getCurrentStaffUser()?.role;
 
   // Check screen size
   useEffect(() => {
@@ -63,9 +66,9 @@ const WaiterCallsPanel = ({ onClose, onCallCountChange }) => {
   }, [calls, onCallCountChange]);
 
   // Fetch active waiter calls
-  const fetchCalls = useCallback(async () => {
+  const fetchCalls = useCallback(async ({ silent = false } = {}) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       setError(null);
 
       const activeProperty = getActiveProperty();
@@ -94,30 +97,38 @@ const WaiterCallsPanel = ({ onClose, onCallCountChange }) => {
     fetchCalls();
   }, [fetchCalls]);
 
+  // After a dropped connection (network loss, backend restart) events may have been missed:
+  // reload the list once the socket is back.
+  const wasConnected = useRef(isConnected);
+  useEffect(() => {
+    if (isConnected && !wasConnected.current) fetchCalls({ silent: true });
+    wasConnected.current = isConnected;
+  }, [isConnected, fetchCalls]);
+
   // Subscribe to real-time waiter call events
   useEffect(() => {
     if (!subscribe) return;
 
     // New waiter call received
     const unsubscribeNew = subscribe('new-waiter-call', (data) => {
-      console.log('📞 New waiter call:', data);
-      playWithVibration('waiterCall');
-      setCalls(prev => [data.call, ...prev]);
+      const incoming = data?.call || data;
+      if (!incoming?._id) return;
+      // The server emits to the waiters room and the hotel room, and a reconnect can replay
+      // the event: never list the same call twice.
+      setCalls(prev => (prev.some(c => c._id === incoming._id) ? prev : [incoming, ...prev]));
     });
 
     // Call acknowledged by someone
     const unsubscribeAck = subscribe('waiter-call-acknowledged', (data) => {
-      console.log('✅ Call acknowledged:', data);
       setCalls(prev => prev.map(call =>
         call._id === data.callId
-          ? { ...call, status: 'acknowledged', acknowledgedAt: data.acknowledgedAt }
+          ? { ...call, status: 'acknowledged', acknowledgedAt: data.acknowledgedAt, acknowledgedBy: data.acknowledgedBy }
           : call
       ));
     });
 
     // Call resolved
     const unsubscribeResolved = subscribe('waiter-call-resolved', (data) => {
-      console.log('✅ Call resolved:', data);
       setCalls(prev => prev.filter(call => call._id !== data.callId));
     });
 
@@ -126,7 +137,7 @@ const WaiterCallsPanel = ({ onClose, onCallCountChange }) => {
       unsubscribeAck();
       unsubscribeResolved();
     };
-  }, [subscribe, playWithVibration]);
+  }, [subscribe]);
 
   // Acknowledge a call
   const handleAcknowledge = async (callId) => {
@@ -135,8 +146,8 @@ const WaiterCallsPanel = ({ onClose, onCallCountChange }) => {
       await axiosClient.put(`/api/v1/staff/waiter-calls/${callId}/acknowledge`);
       // Socket will update the state automatically
     } catch (err) {
-      console.error("Failed to acknowledge call:", err);
-      alert(err.response?.data?.message || "Failed to acknowledge call");
+      toast.error(err.response?.data?.message || "Failed to acknowledge call");
+      fetchCalls({ silent: true }); // someone else may have taken it: show the real state
     } finally {
       setProcessingCall(null);
     }
@@ -149,8 +160,8 @@ const WaiterCallsPanel = ({ onClose, onCallCountChange }) => {
       await axiosClient.put(`/api/v1/staff/waiter-calls/${callId}/resolve`);
       // Socket will update the state automatically
     } catch (err) {
-      console.error("Failed to resolve call:", err);
-      alert(err.response?.data?.message || "Failed to resolve call");
+      toast.error(err.response?.data?.message || "Failed to resolve call");
+      fetchCalls({ silent: true });
     } finally {
       setProcessingCall(null);
     }
@@ -160,13 +171,13 @@ const WaiterCallsPanel = ({ onClose, onCallCountChange }) => {
   const getPriorityStyle = (priority) => {
     switch (priority) {
       case 'urgent':
-        return { bg: '#FEE2E2', color: '#DC2626', label: 'Urgent' };
+        return { bg: '#FEE2E2', color: '#B91C1C', label: 'Urgent' };
       case 'high':
-        return { bg: '#FEF3C7', color: '#D97706', label: 'High' };
+        return { bg: '#FEF3C7', color: '#92400E', label: 'High' };
       case 'medium':
-        return { bg: '#DBEAFE', color: '#2563EB', label: 'Medium' };
+        return { bg: '#DBEAFE', color: '#1D4ED8', label: 'Medium' };
       default:
-        return { bg: '#F3F4F6', color: '#6B7280', label: 'Low' };
+        return { bg: '#F3F4F6', color: '#4B5563', label: 'Low' };
     }
   };
 
@@ -200,10 +211,10 @@ const WaiterCallsPanel = ({ onClose, onCallCountChange }) => {
   // Styles
   const containerStyle = {
     backgroundColor: 'var(--bg-secondary)',
-    minHeight: '100vh',
+    minHeight: '100%',
     padding: isMobile ? '16px' : '32px 48px',
     fontFamily: "'Nunito', sans-serif",
-    paddingBottom: isMobile ? '100px' : '32px',
+    paddingBottom: isMobile ? 'calc(88px + env(safe-area-inset-bottom, 0px))' : '32px',
   };
 
   const headerStyle = {
@@ -216,7 +227,7 @@ const WaiterCallsPanel = ({ onClose, onCallCountChange }) => {
   };
 
   const titleStyle = {
-    fontSize: isMobile ? '28px' : '36px',
+    fontSize: isMobile ? '24px' : '36px',
     fontWeight: '800',
     color: isDark ? '#ffffff' : '#000000',
     margin: 0,
@@ -238,6 +249,8 @@ const WaiterCallsPanel = ({ onClose, onCallCountChange }) => {
   };
 
   const buttonStyle = {
+    minHeight: '44px',
+    justifyContent: 'center',
     padding: '10px 16px',
     borderRadius: '10px',
     border: 'none',
@@ -287,7 +300,7 @@ const WaiterCallsPanel = ({ onClose, onCallCountChange }) => {
               fontSize: '14px',
               color: 'var(--text-tertiary)'
             }}>
-              {isConnected ? 'Live updates active' : 'Connecting...'}
+              <span role="status" aria-live="polite">{isConnected ? 'Live updates active' : 'Reconnecting… calls will refresh when back online'}</span>
             </span>
           </div>
         </div>
@@ -316,7 +329,9 @@ const WaiterCallsPanel = ({ onClose, onCallCountChange }) => {
                 backgroundColor: 'var(--bg-tertiary)',
                 color: 'var(--text-secondary)',
                 padding: '10px',
+                minWidth: '44px',
               }}
+              aria-label="Close"
             >
               <X size={20} />
             </button>
@@ -367,6 +382,11 @@ const WaiterCallsPanel = ({ onClose, onCallCountChange }) => {
           {calls.map((call) => {
             const priorityStyle = getPriorityStyle(call.priority);
             const isProcessing = processingCall === call._id;
+            const assigneeId = call.assignedTo?._id || call.assignedTo;
+            const takerName = call.acknowledgedBy || call.assignedTo?.fullname || 'another waiter';
+            // A call another waiter is handling can only be closed by them or a supervisor (the server enforces it too).
+            const takenByOther = call.status !== 'open' && (assigneeId ? String(assigneeId) !== String(myId) : !!call.acknowledgedBy && call.acknowledgedBy !== getCurrentStaffUser()?.fullname);
+            const canResolve = !takenByOther || ['manager', 'owner', 'admin'].includes(myRole);
 
             return (
               <div key={call._id} style={callCardStyle(call.priority)}>
@@ -471,7 +491,7 @@ const WaiterCallsPanel = ({ onClose, onCallCountChange }) => {
                           gap: '4px'
                         }}>
                           <User size={14} />
-                          Acknowledged
+                          {takenByOther ? `Taken by ${takerName}` : call.assignedTo || call.acknowledgedBy ? 'You are on it' : 'Acknowledged'}
                         </span>
                       )}
                     </div>
@@ -481,7 +501,8 @@ const WaiterCallsPanel = ({ onClose, onCallCountChange }) => {
                   <div style={{
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '8px'
+                    gap: '8px',
+                    width: isMobile ? '100%' : 'auto',
                   }}>
                     {call.status === 'open' && (
                       <button
@@ -500,12 +521,14 @@ const WaiterCallsPanel = ({ onClose, onCallCountChange }) => {
                     )}
                     <button
                       onClick={() => handleResolve(call._id)}
-                      disabled={isProcessing}
+                      disabled={isProcessing || !canResolve}
+                      title={canResolve ? undefined : `${takerName} is handling this call`}
                       style={{
                         ...buttonStyle,
                         backgroundColor: '#10B981',
                         color: 'white',
-                        opacity: isProcessing ? 0.7 : 1,
+                        opacity: isProcessing || !canResolve ? 0.5 : 1,
+                        cursor: canResolve ? 'pointer' : 'not-allowed',
                       }}
                     >
                       <CheckCircle size={16} />

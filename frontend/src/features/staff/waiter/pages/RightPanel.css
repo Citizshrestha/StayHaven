@@ -99,7 +99,7 @@
 
 .rp-assigned-count {
     font-size: 14px;
-    color: #9CA3AF;
+    color: #4B5563;
     font-weight: 500;
 }
 
@@ -173,12 +173,28 @@
 
 .rp-modal {
     background-color: white;
-    border-radius: 24px;
+    border-radius: 16px;
     padding: 40px;
     width: 90%;
     max-width: 460px;
     max-height: 90vh;
+    max-height: calc(100dvh - 32px);
     overflow-y: auto;
+}
+
+@media (max-width: 1023px) {
+    .rp-container {
+        padding: 16px;
+        gap: 16px;
+    }
+
+    .rp-modal {
+        padding: 20px;
+    }
+
+    .rp-new-order-btn {
+        min-height: 44px;
+    }
 }
 
 .rp-modal.dark {

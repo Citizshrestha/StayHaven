@@ -180,8 +180,15 @@ const NotificationPanel = ({
     return STATUS_COLORS[status] || STATUS_COLORS.new;
   };
 
-  const getLocation = (notification) => {
-    const orderType = notification.type || notification.orderType;
+  const getLocation = (rawNotification) => {
+    const payload = rawNotification.payload || {};
+    const notification = {
+      ...rawNotification,
+      table_number: rawNotification.table_number || payload.tableNumber,
+      room_number: rawNotification.room_number || payload.roomNumber,
+      orderType: rawNotification.orderType || payload.orderType,
+    };
+    const orderType = notification.orderType || notification.type;
 
     if (orderType === "takeaway") return "Takeaway";
     if (orderType === "roomService" || orderType === "room_service") {
@@ -392,6 +399,7 @@ const NotificationPanel = ({
                 onClick={() => setActiveTab(tab.key)}
                 style={{
                   padding: isMobile ? "8px 14px" : "8px 18px",
+                  minHeight: "44px",
                   borderRadius: "9999px",
                   border: isActive ? "none" : `1px solid ${colors.border}`,
                   background: isActive
@@ -568,6 +576,12 @@ const NotificationCard = ({
   getLocation,
 }) => {
   const IconComponent = style.Icon;
+  const [compact, setCompact] = useState(() => typeof window !== "undefined" && window.innerWidth < 640);
+  useEffect(() => {
+    const onResize = () => setCompact(window.innerWidth < 640);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   return (
     <div
@@ -578,14 +592,14 @@ const NotificationCard = ({
           : isDarkMode
             ? "linear-gradient(135deg, rgba(15,23,42,1) 0%, rgba(17,24,39,1) 100%)"
             : "linear-gradient(135deg, #ECFDFB 0%, #FFFFFF 100%)",
-        borderRadius: "24px",
-        padding: "18px 20px",
+        borderRadius: compact ? "16px" : "24px",
+        padding: compact ? "14px" : "18px 20px",
         border: `1px solid ${colors.border}`,
         borderLeft: `4px solid ${style.dot}`,
         boxShadow: notification.isRead ? colors.shadow : `${colors.shadow}, ${colors.unreadGlow}`,
         display: "grid",
-        gridTemplateColumns: "48px 1fr auto",
-        gap: "14px",
+        gridTemplateColumns: compact ? "44px 1fr" : "48px 1fr auto",
+        gap: compact ? "10px 12px" : "14px",
         alignItems: "center",
         transition: "transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease",
         cursor: notification.orderId ? "pointer" : "default",
@@ -629,7 +643,8 @@ const NotificationCard = ({
             lineHeight: "1.35",
             overflow: "hidden",
             textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
+            whiteSpace: compact ? "normal" : "nowrap",
+            overflowWrap: "anywhere",
           }}
         >
           {notification.title || notification.message}
@@ -644,7 +659,8 @@ const NotificationCard = ({
               lineHeight: "1.4",
               overflow: "hidden",
               textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
+              whiteSpace: compact ? "normal" : "nowrap",
+              overflowWrap: "anywhere",
             }}
           >
             {notification.message}
@@ -685,8 +701,11 @@ const NotificationCard = ({
       <div
         style={{
           display: "flex",
-          flexDirection: "column",
-          alignItems: "flex-end",
+          flexDirection: compact ? "row" : "column",
+          flexWrap: "wrap",
+          alignItems: compact ? "center" : "flex-end",
+          justifyContent: compact ? "space-between" : "flex-start",
+          gridColumn: compact ? "1 / -1" : "auto",
           gap: "10px",
         }}
       >
@@ -717,6 +736,7 @@ const NotificationCard = ({
               fontSize: "0.9rem",
               fontWeight: "700",
               padding: "10px 16px",
+              minHeight: "44px",
               borderRadius: "9999px",
               cursor: "pointer",
               transition: "transform 0.12s ease, filter 0.2s ease",
@@ -748,7 +768,8 @@ const NotificationCard = ({
               color: colors.textTertiary,
               fontSize: "0.85rem",
               fontWeight: "700",
-              padding: "6px 10px",
+              padding: "6px 14px",
+              minHeight: "44px",
               borderRadius: "9999px",
               cursor: "pointer",
               transition: "all 0.15s ease",

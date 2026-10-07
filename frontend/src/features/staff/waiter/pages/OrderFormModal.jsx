@@ -8,6 +8,9 @@ const rs = (n) => `Rs ${(Number(n) || 0).toLocaleString("en-IN", { maximumFracti
 const PHONE_PATTERN = /^[+\d][\d\s-]{5,19}$/;
 import { toast } from "react-toastify";
 import { useTheme } from "../../../../core/hooks/useTheme";
+import "./OrderFormModal.css";
+
+const MAX_QTY = 50; // same limit the server enforces per line
 
 const CATEGORIES = ["All", "Breakfast", "Lunch", "Dinner", "Snacks", "Drinks", "Dessert", "Appetizers"];
 
@@ -38,6 +41,25 @@ const OrderFormModal = ({ onClose }) => {
     // Stable across retries of the same submission so a double tap or a
     // network retry can never create the order twice.
     const submitKeyRef = useRef(newIdempotencyKey("ord"));
+    // Synchronous guard: state updates are async, so a fast double tap could pass `submitting` twice.
+    const submittingRef = useRef(false);
+    const [submitError, setSubmitError] = useState("");
+    const sheetRef = useRef(null);
+
+    // Modal behaviour: lock background scroll, close on Esc, focus the dialog, restore on close.
+    useEffect(() => {
+        const prevOverflow = document.body.style.overflow;
+        const opener = document.activeElement;
+        document.body.style.overflow = "hidden";
+        sheetRef.current?.focus();
+        const onKey = (e) => { if (e.key === "Escape" && !submittingRef.current) onClose(); };
+        document.addEventListener("keydown", onKey);
+        return () => {
+            document.body.style.overflow = prevOverflow;
+            document.removeEventListener("keydown", onKey);
+            if (opener && typeof opener.focus === "function") opener.focus();
+        };
+    }, [onClose]);
 
     useEffect(() => {
         const property = getActiveProperty();
@@ -99,12 +121,16 @@ const OrderFormModal = ({ onClose }) => {
     };
 
     const addMenuItem = (menuItem) => {
+        if (menuItem.isAvailable === false) {
+            toast.error(`${menuItem.name} is sold out`);
+            return;
+        }
         setSelectedItems(prev => {
             const existing = prev.find(i => i.menuItemId === menuItem._id);
             if (existing) {
                 return prev.map(i =>
                     i.menuItemId === menuItem._id
-                        ? { ...i, quantity: i.quantity + 1 }
+                        ? { ...i, quantity: Math.min(MAX_QTY, i.quantity + 1) }
                         : i
                 );
             }
@@ -123,7 +149,7 @@ const OrderFormModal = ({ onClose }) => {
         setSelectedItems(prev =>
             prev.map(i =>
                 i.menuItemId === menuItemId
-                    ? { ...i, quantity: Math.max(1, i.quantity + delta) }
+                    ? { ...i, quantity: Math.min(MAX_QTY, Math.max(1, i.quantity + delta)) }
                     : i
             )
         );
@@ -152,7 +178,8 @@ const OrderFormModal = ({ onClose }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (submitting) return;
+        if (submitting || submittingRef.current) return;
+        setSubmitError("");
         if (selectedItems.length === 0) {
             toast.error("Please select at least one item");
             return;
@@ -191,6 +218,7 @@ const OrderFormModal = ({ onClose }) => {
         };
 
         try {
+            submittingRef.current = true;
             setSubmitting(true);
             await addOrder(orderPayload);
             onClose();
@@ -203,45 +231,43 @@ const OrderFormModal = ({ onClose }) => {
             if (err?.response?.status >= 400 && err?.response?.status < 500) {
                 submitKeyRef.current = newIdempotencyKey("ord");
             }
+            // No response means the network dropped: keep the draft and the same key, so Retry is safe.
+            setSubmitError(err?.response ? message : "No connection. Your order is saved on this screen. Tap Retry when you are back online.");
             toast.error("Failed to add order: " + message);
         } finally {
+            submittingRef.current = false;
             setSubmitting(false);
         }
     };
 
     return (
-        <div style={{
-            position: "fixed",
-            top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: "rgba(0,0,0,0.6)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-            padding: "16px"
-        }}>
-            <div style={{
-                backgroundColor: colors.bg,
-                borderRadius: "24px",
-                padding: "28px",
-                width: "100%",
-                maxWidth: "520px",
-                maxHeight: "92vh",
-                overflowY: "auto",
-                boxShadow: isDark
-                    ? "0 25px 50px -12px rgba(0, 0, 0, 0.5)"
-                    : "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
-            }}>
+        <div className="ofm-overlay">
+            <div
+                className="ofm-sheet"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="ofm-title"
+                tabIndex={-1}
+                ref={sheetRef}
+                style={{
+                    backgroundColor: colors.bg,
+                    "--ofm-bg": colors.bg,
+                    "--ofm-border": colors.border,
+                    boxShadow: isDark
+                        ? "0 25px 50px -12px rgba(0, 0, 0, 0.5)"
+                        : "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+                }}>
                 {/* Header */}
-                <div style={{ marginBottom: "20px" }}>
+                <div className="ofm-head">
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "4px" }}>
-                        <h2 style={{ fontSize: "22px", fontWeight: "800", color: colors.text, margin: 0, lineHeight: "1.2" }}>Create New Order</h2>
-                        <button onClick={onClose} style={{
+                        <h2 id="ofm-title" style={{ fontSize: "22px", fontWeight: "800", color: colors.text, margin: 0, lineHeight: "1.2" }}>Create New Order</h2>
+                        <button type="button" onClick={onClose} aria-label="Close order form" style={{
                             background: colors.closeBtn,
                             border: "none",
                             cursor: "pointer",
-                            width: "36px",
-                            height: "36px",
+                            width: "44px",
+                            height: "44px",
+                            flexShrink: 0,
                             borderRadius: "50%",
                             display: "flex",
                             alignItems: "center",
@@ -253,7 +279,8 @@ const OrderFormModal = ({ onClose }) => {
                     <p style={{ fontSize: "13px", color: colors.textTertiary, margin: 0 }}>Select menu items and add customer details</p>
                 </div>
 
-                <form onSubmit={handleSubmit}>
+                <form onSubmit={handleSubmit} className="ofm-form" noValidate={false}>
+                    <div className="ofm-body">
                     {/* Order Type */}
                     <div style={{ marginBottom: "16px" }}>
                         <label style={{
@@ -352,7 +379,9 @@ const OrderFormModal = ({ onClose }) => {
                                         value={formData.orderType === "dineIn" ? formData.tableNumber : formData.roomNumber}
                                         onChange={handleInputChange}
                                         placeholder={formData.orderType === "dineIn" ? (tables === null ? "Loading tables…" : "e.g., 5") : "e.g., Room 204"}
-                                        required
+                                        // While the hotel's tables load, the field is locked so a typed number is not lost when it turns into the table list.
+                                        disabled={formData.orderType === "dineIn" && tables === null}
+                                        required={!(formData.orderType === "dineIn" && tables === null)}
                                         style={{
                                             width: "100%",
                                             padding: "12px 12px 12px 42px",
@@ -458,11 +487,14 @@ const OrderFormModal = ({ onClose }) => {
                             )}
                         </div>
 
+                        <div className="ofm-sticky-tools">
                         {/* Search */}
                         <div style={{ position: "relative", marginBottom: "8px" }}>
                             <Search size={16} color={colors.textTertiary} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)" }} />
                             <input
-                                type="text"
+                                type="search"
+                                aria-label="Search menu items"
+                                enterKeyHint="search"
                                 placeholder="Search menu items..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -512,6 +544,8 @@ const OrderFormModal = ({ onClose }) => {
                             ))}
                         </div>
 
+                        </div>
+
                         {/* Menu Items Grid */}
                         {menuLoading ? (
                             <div style={{ textAlign: "center", padding: "24px", color: colors.textTertiary, fontSize: "13px" }}>
@@ -522,13 +556,10 @@ const OrderFormModal = ({ onClose }) => {
                                 {searchQuery ? "No items match your search" : "No menu items available"}
                             </div>
                         ) : (
-                            <div style={{
+                            <div className="ofm-menu-grid" style={{
                                 display: "grid",
                                 gridTemplateColumns: "repeat(2, 1fr)",
                                 gap: "8px",
-                                maxHeight: "280px",
-                                overflowY: "auto",
-                                paddingRight: "4px",
                             }}>
                                 {filteredItems.map(item => {
                                     const inCart = selectedItems.find(si => si.menuItemId === item._id);
@@ -537,6 +568,8 @@ const OrderFormModal = ({ onClose }) => {
                                             key={item._id}
                                             type="button"
                                             onClick={() => addMenuItem(item)}
+                                            disabled={item.isAvailable === false}
+                                            aria-label={`${item.name}, ${rs(item.price)}${item.isAvailable === false ? ", sold out" : inCart ? ", " + inCart.quantity + " in order" : ""}`}
                                             style={{
                                                 display: "flex",
                                                 flexDirection: "column",
@@ -571,6 +604,11 @@ const OrderFormModal = ({ onClose }) => {
                                             <div style={{ fontSize: "12px", fontWeight: "700", color: "#10B981" }}>
                                                 {rs(item.price)}
                                             </div>
+                                            {item.isAvailable === false && (
+                                                <div style={{ fontSize: "11px", fontWeight: "700", color: "#B91C1C", backgroundColor: "#FEE2E2", borderRadius: "6px", padding: "2px 8px" }}>
+                                                    Sold out
+                                                </div>
+                                            )}
                                             {inCart && (
                                                 <div style={{
                                                     position: "absolute",
@@ -613,9 +651,10 @@ const OrderFormModal = ({ onClose }) => {
                                 {selectedItems.map((item, index) => (
                                     <div key={item.menuItemId} style={{
                                         display: "flex",
+                                        flexWrap: "wrap",
                                         alignItems: "flex-start",
                                         gap: "10px",
-                                        padding: "8px 0",
+                                        padding: "10px 0",
                                         borderBottom: index < selectedItems.length - 1 ? `1px solid ${colors.border}` : "none",
                                     }}>
                                         <img
@@ -632,8 +671,8 @@ const OrderFormModal = ({ onClose }) => {
                                                 e.target.src = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop";
                                             }}
                                         />
-                                        <div style={{ flex: 1, minWidth: 0 }}>
-                                            <div style={{ fontSize: "13px", fontWeight: "600", color: colors.text, marginBottom: "2px" }}>
+                                        <div style={{ flex: "1 1 calc(100% - 64px)", minWidth: 0 }}>
+                                            <div style={{ fontSize: "14px", fontWeight: "600", color: colors.text, marginBottom: "2px", overflowWrap: "anywhere" }}>
                                                 {item.name}
                                             </div>
                                             <div style={{ fontSize: "12px", fontWeight: "700", color: "#10B981" }}>
@@ -641,6 +680,8 @@ const OrderFormModal = ({ onClose }) => {
                                             </div>
                                             <input
                                                 type="text"
+                                                aria-label={`Notes for ${item.name}`}
+                                                maxLength={200}
                                                 placeholder="Special instructions..."
                                                 value={item.notes}
                                                 onChange={(e) => updateItemNotes(item.menuItemId, e.target.value)}
@@ -658,46 +699,27 @@ const OrderFormModal = ({ onClose }) => {
                                                 }}
                                             />
                                         </div>
-                                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" }}>
-                                            <button type="button"
-                                                onClick={() => updateItemQuantity(item.menuItemId, 1)}
-                                                style={{
-                                                    width: "28px",
-                                                    height: "28px",
-                                                    borderRadius: "6px",
-                                                    border: "none",
-                                                    background: "#10B981",
-                                                    color: "white",
-                                                    cursor: "pointer",
-                                                    display: "flex",
-                                                    alignItems: "center",
-                                                    justifyContent: "center",
-                                                }}>
-                                                <Plus size={14} />
-                                            </button>
-                                            <span style={{ fontSize: "13px", fontWeight: "700", color: colors.text }}>{item.quantity}</span>
-                                            <button type="button"
+                                        <div className="ofm-stepper">
+                                            <button type="button" className="ofm-step" aria-label={`Decrease ${item.name}`}
                                                 onClick={() => updateItemQuantity(item.menuItemId, -1)}
-                                                style={{
-                                                    width: "28px",
-                                                    height: "28px",
-                                                    borderRadius: "6px",
-                                                    border: "none",
-                                                    background: "#10B981",
-                                                    color: "white",
-                                                    cursor: "pointer",
-                                                    display: "flex",
-                                                    alignItems: "center",
-                                                    justifyContent: "center",
-                                                }}>
-                                                <Minus size={14} />
+                                                disabled={item.quantity <= 1}
+                                                style={{ borderRadius: "8px", border: "none", background: "#10B981", color: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                                <Minus size={18} />
+                                            </button>
+                                            <span aria-live="polite" style={{ fontSize: "16px", fontWeight: "700", color: colors.text, minWidth: "28px", textAlign: "center", fontVariantNumeric: "tabular-nums" }}>{item.quantity}</span>
+                                            <button type="button" className="ofm-step" aria-label={`Increase ${item.name}`}
+                                                onClick={() => updateItemQuantity(item.menuItemId, 1)}
+                                                disabled={item.quantity >= MAX_QTY}
+                                                style={{ borderRadius: "8px", border: "none", background: "#10B981", color: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                                <Plus size={18} />
                                             </button>
                                         </div>
-                                        <button type="button"
+                                        <button type="button" className="ofm-step"
+                                            aria-label={`Remove ${item.name}`}
                                             onClick={() => removeSelectedItem(item.menuItemId)}
                                             style={{
-                                                width: "28px",
-                                                height: "28px",
+                                                width: "44px",
+                                                height: "44px",
                                                 borderRadius: "6px",
                                                 border: "none",
                                                 background: colors.removeBtnBg,
@@ -707,7 +729,7 @@ const OrderFormModal = ({ onClose }) => {
                                                 justifyContent: "center",
                                                 flexShrink: 0,
                                             }}>
-                                            <X size={14} color="#DC2626" />
+                                            <X size={18} color="#DC2626" />
                                         </button>
                                     </div>
                                 ))}
@@ -715,55 +737,31 @@ const OrderFormModal = ({ onClose }) => {
                         </div>
                     )}
 
-                    {/* Total & Actions */}
-                    {selectedItems.length > 0 && (
-                        <div style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            marginBottom: "16px",
-                            padding: "12px 16px",
-                            backgroundColor: colors.cardBg,
-                            borderRadius: "12px",
-                            border: `1px solid ${colors.border}`,
-                        }}>
-                            <span style={{ fontSize: "14px", fontWeight: "700", color: colors.text }}>Total</span>
-                            <span style={{ fontSize: "18px", fontWeight: "800", color: "#10B981" }}>{rs(totalPrice)} <span style={{ fontSize: "11px", fontWeight: 600, color: colors.textTertiary }}>+ VAT</span></span>
-                        </div>
-                    )}
+                    </div>
 
-                    {/* Action Buttons */}
-                    <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
-                        <button type="button"
-                            onClick={onClose}
-                            style={{
-                                flex: 1,
-                                padding: "14px",
-                                backgroundColor: colors.cancelBtnBg,
-                                color: colors.cancelBtnText,
-                                border: "none",
-                                borderRadius: "12px",
-                                cursor: "pointer",
-                                fontSize: "15px",
-                                fontWeight: "600",
-                            }}>
-                            Cancel
-                        </button>
-                        <button type="submit"
-                            disabled={loading || submitting || selectedItems.length === 0}
-                            style={{
-                                flex: 2,
-                                padding: "14px",
-                                backgroundColor: loading || selectedItems.length === 0 ? "#9CA3AF" : "#10B981",
-                                color: "white",
-                                border: "none",
-                                borderRadius: "12px",
-                                cursor: loading || selectedItems.length === 0 ? "not-allowed" : "pointer",
-                                fontSize: "15px",
-                                fontWeight: "700",
-                            }}>
-                            {loading || submitting ? "Creating..." : `Create Order ${selectedItems.length > 0 ? "→" : ""}`}
-                        </button>
+                    <div className="ofm-foot">
+                        {submitError && <div className="ofm-error" role="alert">{submitError}</div>}
+                        {selectedItems.length > 0 && (
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "10px" }}>
+                                <span style={{ fontSize: "14px", fontWeight: "700", color: colors.text }}>
+                                    Total · {selectedItems.reduce((s, i) => s + i.quantity, 0)} item{selectedItems.reduce((s, i) => s + i.quantity, 0) === 1 ? "" : "s"}
+                                </span>
+                                <span style={{ fontSize: "20px", fontWeight: "800", color: "#059669", fontVariantNumeric: "tabular-nums" }}>
+                                    {rs(totalPrice)} <span style={{ fontSize: "12px", fontWeight: 600, color: colors.textSecondary }}>+ VAT</span>
+                                </span>
+                            </div>
+                        )}
+                        <div style={{ display: "flex", gap: "10px" }}>
+                            <button type="button" onClick={onClose} disabled={submitting}
+                                style={{ flex: 1, padding: "12px", backgroundColor: colors.cancelBtnBg, color: colors.cancelBtnText, border: "none", borderRadius: "12px", cursor: "pointer", fontSize: "16px", fontWeight: "600" }}>
+                                Cancel
+                            </button>
+                            <button type="submit"
+                                disabled={loading || submitting || selectedItems.length === 0}
+                                style={{ flex: 2, padding: "12px", backgroundColor: "#059669", color: "white", border: "none", borderRadius: "12px", cursor: "pointer", fontSize: "16px", fontWeight: "700" }}>
+                                {loading || submitting ? "Creating..." : submitError ? "Retry" : "Create order"}
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>
