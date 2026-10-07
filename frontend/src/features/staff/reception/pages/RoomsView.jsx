@@ -78,7 +78,7 @@ const RoomsView = () => {
                         beds: bedFormatted,
                         sqft: 300,
                         amenities: r.amenities || [],
-                        rating: r.rating || 4.0,
+                        rating: r.rating ?? null, // untracked → hidden, not a fabricated 4.0
                         lastCleaned: r.lastCleaned ? new Date(r.lastCleaned) : null,
                         condition: 'good',
                         guest: (isOccupied && r.guest) ? {
@@ -663,10 +663,12 @@ const RoomsView = () => {
                                 )}
 
                                 <div className="rv-room-footer">
-                                    <div className="rv-room-rating">
-                                        <Star size={14} />
-                                        <span>{room.rating}</span>
-                                    </div>
+                                    {room.rating != null && (
+                                        <div className="rv-room-rating" aria-label={`Rating ${room.rating}`}>
+                                            <Star size={14} aria-hidden="true" />
+                                            <span>{room.rating}</span>
+                                        </div>
+                                    )}
                                     {room.condition === 'needs-attention' && (
                                         <span className="rv-needs-attention">
                                             <AlertTriangle size={12} />
