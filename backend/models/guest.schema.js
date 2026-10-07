@@ -69,8 +69,14 @@ guestSchema.index({ company: 1, blacklisted: 1 });
 // Auto-generate guestId
 guestSchema.pre("save", async function (next) {
   if (!this.guestId) {
-    const count = await mongoose.model("Guest").countDocuments({ company: this.company });
-    this.guestId = `G-${(10001 + count).toString().padStart(5, "0")}`;
+    // guestId has a global unique index, so the sequence must be global too:
+    // a per-company count made the first guest of every second company collide
+    // (E11000) with the first guest of the first one. Skip forward past any id
+    // already taken (deleted guests leave gaps; concurrent creates race).
+    const Guest = mongoose.model("Guest");
+    let next = 10001 + (await Guest.estimatedDocumentCount());
+    while (await Guest.exists({ guestId: `G-${next}` })) next += 1;
+    this.guestId = `G-${next}`;
   }
   next();
 });
