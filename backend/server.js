@@ -169,7 +169,9 @@ app.use(
         callback(null, true);
       } else {
         logger.warn(`CORS rejected origin: ${origin}`);
-        callback(new Error(`Origin ${origin} not allowed by CORS`));
+        // 403, not the default 500: a disallowed origin is a client error and
+        // must not page on-call or be reported to Sentry as a server fault.
+        callback(Object.assign(new Error("Origin not allowed"), { status: 403 }));
       }
     },
     credentials: true,
@@ -246,11 +248,21 @@ app.use(auditMiddleware);
 
 // Cookie parser and body parsers
 app.use(cookieParser());
-app.use(express.urlencoded({ extended: true }));
+app.use((req, res, next) => {
+  express.urlencoded({ extended: true })(req, res, (err) => {
+    if (err?.type === "entity.too.large") {
+      return res.status(413).json({ success: false, message: "Request body is too large." });
+    }
+    next(err);
+  });
+});
 
 // Wrap express.json so we can immediately handle malformed JSON and avoid uncaught exceptions
 app.use((req, res, next) => {
   express.json()(req, res, (err) => {
+    if (err?.type === "entity.too.large") {
+      return res.status(413).json({ success: false, message: "Request body is too large." });
+    }
     if (err) {
       // Malformed JSON — respond immediately
       return res.status(400).json({

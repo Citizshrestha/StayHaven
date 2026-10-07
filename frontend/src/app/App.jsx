@@ -22,6 +22,7 @@ import { NotificationProvider } from "../core/context/NotificationContext";
 // CORE - Routes (Guards & Protection)
 // ============================================
 import ProtectedStaffRoute from "../core/routes/ProtectedStaffRoute";
+import { DASHBOARD_ROLES } from "../core/routes/staffRoleRoutes";
 import ProtectedGuestRoute from "../core/routes/ProtectedGuestRoute";
 
 // ============================================
@@ -252,7 +253,7 @@ const App = () => {
                       <Route
                         path="/waiter-dashboard"
                         element={
-                          <ProtectedStaffRoute allowedRoles={["waiter"]}>
+                          <ProtectedStaffRoute allowedRoles={DASHBOARD_ROLES.waiter}>
                             <WaiterDashboard />
                           </ProtectedStaffRoute>
                         }
@@ -262,7 +263,7 @@ const App = () => {
                       <Route
                         path="/kitchen-dashboard"
                         element={
-                          <ProtectedStaffRoute allowedRoles={["chief"]}>
+                          <ProtectedStaffRoute allowedRoles={DASHBOARD_ROLES.kitchen}>
                             <KitchenDashboard />
                           </ProtectedStaffRoute>
                         }
@@ -272,7 +273,7 @@ const App = () => {
                       <Route
                         path="/reception-dashboard"
                         element={
-                          <ProtectedStaffRoute allowedRoles={["receptionist", "manager", "admin", "owner"]}>
+                          <ProtectedStaffRoute allowedRoles={DASHBOARD_ROLES.reception}>
                             <ReceptionDashboard />
                           </ProtectedStaffRoute>
                         }
@@ -282,7 +283,7 @@ const App = () => {
                       <Route
                         path="/superadmindashboard"
                         element={
-                          <ProtectedStaffRoute allowedRoles={["superadmin"]}>
+                          <ProtectedStaffRoute allowedRoles={DASHBOARD_ROLES.superadmin}>
                             <SuperadminDashboard />
                           </ProtectedStaffRoute>
                         }
@@ -290,7 +291,7 @@ const App = () => {
                       <Route
                         path="/usermanagement"
                         element={
-                          <ProtectedStaffRoute allowedRoles={["superadmin"]}>
+                          <ProtectedStaffRoute allowedRoles={DASHBOARD_ROLES.superadmin}>
                             <UserManagement />
                           </ProtectedStaffRoute>
                         }
@@ -298,7 +299,7 @@ const App = () => {
                       <Route
                         path="/hotelmanagement"
                         element={
-                          <ProtectedStaffRoute allowedRoles={["superadmin"]}>
+                          <ProtectedStaffRoute allowedRoles={DASHBOARD_ROLES.superadmin}>
                             <HotelManagement />
                           </ProtectedStaffRoute>
                         }
@@ -307,7 +308,7 @@ const App = () => {
                       <Route
                         path="/contentmanagement"
                         element={
-                          <ProtectedStaffRoute allowedRoles={["superadmin"]}>
+                          <ProtectedStaffRoute allowedRoles={DASHBOARD_ROLES.superadmin}>
                             <ContentManagement />
                           </ProtectedStaffRoute>
                         }
@@ -315,7 +316,7 @@ const App = () => {
                       <Route
                         path="/finance"
                         element={
-                          <ProtectedStaffRoute allowedRoles={["superadmin"]}>
+                          <ProtectedStaffRoute allowedRoles={DASHBOARD_ROLES.superadmin}>
                             <Finance />
                           </ProtectedStaffRoute>
                         }
@@ -323,7 +324,7 @@ const App = () => {
                       <Route
                         path="/reviews"
                         element={
-                          <ProtectedStaffRoute allowedRoles={["superadmin"]}>
+                          <ProtectedStaffRoute allowedRoles={DASHBOARD_ROLES.superadmin}>
                             <ReviewModeration />
                           </ProtectedStaffRoute>
                         }
@@ -331,7 +332,7 @@ const App = () => {
                       <Route
                         path="/system-config"
                         element={
-                          <ProtectedStaffRoute allowedRoles={["superadmin"]}>
+                          <ProtectedStaffRoute allowedRoles={DASHBOARD_ROLES.superadmin}>
                             <SystemConfiguration />
                           </ProtectedStaffRoute>
                         }
@@ -341,7 +342,7 @@ const App = () => {
                       <Route
                         path="/hoteladmin-dashboard"
                         element={
-                          <ProtectedStaffRoute allowedRoles={['owner', 'hoteladmin', 'admin', 'manager']}>
+                          <ProtectedStaffRoute allowedRoles={DASHBOARD_ROLES.hotelAdmin}>
                             <HoteladminDashboard />
                           </ProtectedStaffRoute>
                         }

@@ -112,6 +112,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    // SHA-256 of the staff refresh token that was just rotated out, kept for a
+    // few seconds so two tabs refreshing at once don't trip reuse detection.
+    previousRefreshTokenHash: { type: String, default: null, select: false },
+    refreshRotatedAt: { type: Date, default: null, select: false },
     inviteToken: {
       type: String,
       default: null,

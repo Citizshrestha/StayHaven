@@ -45,6 +45,18 @@ test('staff tables and explicit hotel authorization stay separate from a simulta
   assert.equal(h.config('/api/v1/staff/me').headers.Authorization, undefined);
 });
 
+test('superadmin CMS writes and admin reads carry the staff token; public content reads stay guest-scoped', () => {
+  const h = harness();
+  h.localStorage.setItem('accessToken', 'guest');
+  h.sessionStorage.setItem('staffAccessToken', 'staff');
+  const cfg = (url, method) => h.clients[0].request({ url, method, baseURL: 'https://api.example', headers: {} });
+  assert.equal(cfg('/api/v1/content/offers/admin', 'get').headers.Authorization, 'Bearer staff');
+  assert.equal(cfg('/api/v1/content/offers', 'post').headers.Authorization, 'Bearer staff');
+  assert.equal(cfg('/api/v1/content/offers/abc/publish', 'patch').headers.Authorization, 'Bearer staff');
+  assert.equal(cfg('/api/v1/content/featured-hotels/approved-hotels', 'get').headers.Authorization, 'Bearer staff');
+  assert.equal(cfg('/api/v1/content/offers', 'get').headers.Authorization, 'Bearer guest');
+});
+
 test('concurrent staff requests share a rotation while guest refresh has a separate promise', async () => {
   const calls = [], resolvers = [];
   const h = harness((...args) => { calls.push(args); return new Promise((resolve) => resolvers.push(resolve)); });

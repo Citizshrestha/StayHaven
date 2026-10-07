@@ -215,10 +215,14 @@ export const bookingLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// General write operations limiter — for all POST/PUT/DELETE endpoints
+// General write operations limiter — for all POST/PUT/DELETE endpoints.
+// Keyed per authenticated user (it always runs after protect()); the old
+// per-IP key made every waiter/chef behind one hotel Wi-Fi share 100 writes/h,
+// which a single busy dinner service exhausts.
 export const writeOperationLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: isDev ? 1000 : 100, // dev: 1000 | prod: 100 write operations per hour per user
+  max: isDev ? 1000 : 600, // prod: 600 write operations per hour per user
+  keyGenerator: (req) => (req.user?._id ? `user:${req.user._id}` : ipKeyGenerator(req.ip || "")),
   store: redisStore("write-op"),
   message: {
     success: false,

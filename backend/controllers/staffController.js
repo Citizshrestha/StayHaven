@@ -10,11 +10,17 @@ import {
   generateSecureToken,
   hashToken,
   getRefreshTokenSecret,
+  getAccessTokenSecret,
 } from "../utils/tokenUtils.js";
 import { validatePasswordStrength } from "../utils/passwordValidation.js";
 import { transporter } from "../config/nodemailer.js";
 import { uploadToCloudinary } from "../middleware/upload.js";
+import { STAFF_ROLES, staffHomeRoute } from "../utils/staffRoleRoutes.js";
 // import { JWT } from "google-auth-library";
+
+// How long a just-rotated staff refresh token may still mint an access token
+// (two tabs or two requests refreshing at the same moment).
+const REFRESH_REUSE_GRACE_MS = 30 * 1000;
 
 const isAssignedToProperty = (user, propertyId) =>
   user.assignedProperties?.some((assigned) => String(assigned?._id || assigned) === String(propertyId));
@@ -163,15 +169,7 @@ export const staffLogin = asyncHandler(async (req, res) => {
 
   // Check if user has a staff role
   // Use companyRole as fallback if role.name is not available
-  const allowedRoles = [
-    "chief",
-    "waiter",
-    "manager",
-    "admin",
-    "owner",
-    "receptionist",
-    "superadmin",
-  ];
+  const allowedRoles = STAFF_ROLES;
   const userRoleName = user.role?.name || user.companyRole;
 
   // Make role check case-insensitive
@@ -245,32 +243,8 @@ export const staffLogin = asyncHandler(async (req, res) => {
   user.refreshToken = refreshToken;
   await user.save();
 
-  // Determine redirect path based on role
-  const roleForRouting = String(userRoleName || "").toLowerCase();
-  let redirectPath = "/";
-  switch (roleForRouting) {
-    case "chief":
-      redirectPath = "/kitchen-dashboard";
-      break;
-    case "waiter":
-      redirectPath = "/waiter-dashboard";
-      break;
-    case "manager":
-      redirectPath = "/manager-dashboard";
-      break;
-    case "receptionist":
-      redirectPath = "/reception-dashboard";
-      break;
-    case "owner":
-    case "hoteladmin":
-      redirectPath = "/hoteladmin-dashboard";
-      break;
-    case "superadmin":
-      redirectPath = "/superadmindashboard";
-      break;
-    default:
-      redirectPath = "/dashboard";
-  }
+  // Determine redirect path based on role (shared map, mirrored in the frontend)
+  const redirectPath = staffHomeRoute(userRoleName) || "/staff/login";
 
   // Audit log successful login
   req.audit?.loginSuccess(user._id, user.email);
@@ -551,12 +525,35 @@ export const updateStaffStatus = asyncHandler(async (req, res) => {
   });
 });
 
+// Logout must revoke the server-side refresh token even when the access token
+// has already expired (the usual case after a long idle shift), so identify the
+// user from a correctly signed access token (expiry ignored) or the refresh cookie.
+const identifyLogoutUser = (req) => {
+  const header = req.headers.authorization;
+  const bearer = typeof header === "string" && header.startsWith("Bearer ") ? header.slice(7) : null;
+  const candidates = [
+    [bearer || req.cookies?.accessToken, getAccessTokenSecret(), "access"],
+    [req.cookies?.refreshToken, getRefreshTokenSecret(), "refresh"],
+  ];
+  for (const [token, secret, type] of candidates) {
+    if (!token || !secret) continue;
+    try {
+      const decoded = jwt.verify(token, secret, { algorithms: ["HS256"], ignoreExpiration: type === "access" });
+      if (decoded.type === type && typeof decoded.id === "string") return decoded.id;
+    } catch {
+      // Try the next credential.
+    }
+  }
+  return null;
+};
+
 export const staffLogout = asyncHandler(async (req, res) => {
-  if (req.user) {
+  const userId = req.user?._id || identifyLogoutUser(req);
+  if (userId) {
     // Audit log logout
-    req.audit?.logout(req.user._id);
+    req.audit?.logout(userId);
     // clear refresh token in db
-    await User.findByIdAndUpdate(req.user._id, {
+    await User.findByIdAndUpdate(userId, {
       refreshToken: null,
     });
   }
@@ -615,26 +612,43 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
     });
   }
 
-  const user = await User.findById(decoded.id);
-  if (!user || user.refreshToken !== refreshToken || user.isActive === false || user.isDeleted || user.accountStatus === 'deactivated') {
-    // token reused detected! so invalidate all token for this user
-    if (user) {
-      user.refreshToken = null;
-      await user.save();
-    }
-    return res.status(401).json({
-      success: false,
-      message: "Invalid Refresh Token. Please Login Again",
-    });
+  const invalid = () => res.status(401).json({
+    success: false,
+    message: "Invalid Refresh Token. Please Login Again",
+  });
+  const user = await User.findById(decoded.id).select("+previousRefreshTokenHash +refreshRotatedAt");
+  if (!user || user.isActive === false || user.isDeleted || user.accountStatus === 'deactivated') {
+    if (user) await User.updateOne({ _id: user._id }, { $set: { refreshToken: null } });
+    return invalid();
   }
 
-  // generate new tokens
+  const presentedHash = hashToken(refreshToken);
   const newAccessToken = generateAccessToken(user._id);
   const newRefreshToken = generateRefreshToken(user._id);
+  // Atomic compare-and-swap: of two simultaneous requests carrying the same
+  // cookie exactly one rotates; the other falls through to the grace check.
+  const rotated = user.refreshToken === refreshToken && (await User.updateOne(
+    { _id: user._id, refreshToken },
+    { $set: { refreshToken: newRefreshToken, previousRefreshTokenHash: presentedHash, refreshRotatedAt: new Date() } }
+  )).modifiedCount === 1;
 
-  // save new refresh token to db
-  user.refreshToken = newRefreshToken;
-  await user.save();
+  if (!rotated) {
+    const latest = await User.findById(user._id).select("+previousRefreshTokenHash +refreshRotatedAt");
+    const withinGrace = latest?.previousRefreshTokenHash === presentedHash && latest.refreshToken &&
+      latest.refreshRotatedAt && Date.now() - latest.refreshRotatedAt.getTime() < REFRESH_REUSE_GRACE_MS;
+    if (!withinGrace) {
+      // Token reuse detected: revoke the whole session family for this user.
+      await User.updateOne({ _id: user._id }, { $set: { refreshToken: null, previousRefreshTokenHash: null } });
+      return invalid();
+    }
+    // A parallel tab rotated this token a moment ago and its response already
+    // set the new cookie, so only a fresh access token is returned here.
+    return res.status(200).json({
+      success: true,
+      message: "Tokens refresh successfully!",
+      accessToken: newAccessToken,
+    });
+  }
 
   // Cookie options for cross-origin compatibility
   const isProduction = process.env.NODE_ENV === "production";

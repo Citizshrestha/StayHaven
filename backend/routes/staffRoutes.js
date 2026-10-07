@@ -85,7 +85,7 @@ import {
   getUnreadCount,
   createNotification,
 } from "../controllers/notificationController.js";
-import { protect, authorize } from "../middleware/authMiddleware.js";
+import { protect, authorize, requireStaffRole } from "../middleware/authMiddleware.js";
 import { upload } from "../middleware/upload.js";
 import { authLimiter, passwordResetLimiter, sensitiveOpLimiter, writeOperationLimiter, batchLimiter } from "../middleware/rateLimiter.js";
 import { sanitizeAll } from "../middleware/sanitization.js";
@@ -103,11 +103,14 @@ router.get("/verify-invite/:token", verifyInviteToken);
 router.post("/complete-onboard", authLimiter, completeOnBoarding);
 router.post("/forgot-password", passwordResetLimiter, forgotPassword);
 router.post("/reset-password", passwordResetLimiter, resetPassword);
+// Logout identifies the session itself (an expired access token or the refresh
+// cookie is enough) so the server-side refresh token is always revoked.
+router.post("/logout", staffLogout);
 
 
-// PROTECTED ROUTES (Requires valid access token)
+// PROTECTED ROUTES (Requires valid access token from a staff account)
+router.use(protect, requireStaffRole);
 router.get("/me", protect, getStaffProfile);
-router.post("/logout", protect, staffLogout);
 router.put("/change-password", protect, writeOperationLimiter, changePassword);
 router.patch("/profile-picture", protect, writeOperationLimiter, upload.single("profilePicture"), updateProfilePicture);
 router.patch("/profile", protect, writeOperationLimiter, updateStaffProfile);
