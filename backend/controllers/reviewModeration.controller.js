@@ -3,6 +3,7 @@ import { Review } from "../models/review.model.js";
 import { Booking } from "../models/booking.schema.js";
 import { PlatformSettings } from "../models/platformSettings.model.js";
 import { logAudit } from "../middleware/auditLogger.js";
+import { parsePaging } from "../utils/searchQuery.js";
 
 const PROFANITY_WORDS = [
   "spam",
@@ -53,21 +54,35 @@ const runAutoFlag = (review, rules) => {
   return { shouldFlag, autoFlagReasons };
 };
 
+const MODERATION_STATUSES = Review.schema.path("moderationStatus").enumValues;
+const REVIEW_SORTS = new Set(["createdAt", "rating", "updatedAt", "moderatedAt"]);
+const isObjectId = (value) => typeof value === "string" && /^[0-9a-fA-F]{24}$/.test(value);
+const badRequest = (res, message) => res.status(400).json({ success: false, message });
+const isShortText = (value, max) => typeof value === "string" && value.trim().length > 0 && value.length <= max;
+
 export const getPendingReviews = async (req, res) => {
   try {
-    const { status = "pending", hotelId, page = 1, limit = 20, sortBy = "createdAt" } = req.query;
+    const { status = "pending", hotelId } = req.query;
+    const sortBy = REVIEW_SORTS.has(req.query.sortBy) ? req.query.sortBy : "createdAt";
+    const { page, limit, skip } = parsePaging(req.query, { defaultLimit: 20, maxLimit: 100 });
 
     const query = {};
-    if (status) query.moderationStatus = status;
-    if (hotelId) query.hotel = hotelId;
+    if (status && status !== "all") {
+      if (!MODERATION_STATUSES.includes(status)) return badRequest(res, "Invalid status filter");
+      query.moderationStatus = status;
+    }
+    if (hotelId) {
+      if (!isObjectId(hotelId)) return badRequest(res, "Invalid hotel id");
+      query.hotel = hotelId;
+    }
 
     const reviews = await Review.find(query)
       .populate("guest", "fullname email")
       .populate("hotel", "name")
       .populate("booking", "checkIn checkOut")
       .sort({ [sortBy]: -1 })
-      .skip((parseInt(page) - 1) * parseInt(limit))
-      .limit(parseInt(limit))
+      .skip(skip)
+      .limit(limit)
       .lean();
 
     const total = await Review.countDocuments(query);
@@ -93,8 +108,8 @@ export const getPendingReviews = async (req, res) => {
       success: true,
       data: reviewsWithVerification,
       total,
-      page: parseInt(page),
-      limit: parseInt(limit),
+      page,
+      limit,
     });
   } catch (error) {
     res.status(500).json({
@@ -108,6 +123,7 @@ export const getPendingReviews = async (req, res) => {
 export const moderateReview = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!isObjectId(id)) return badRequest(res, "Invalid review id");
     const { action, reason } = req.body;
 
     if (!["approve", "reject", "flag"].includes(action)) {
@@ -115,6 +131,9 @@ export const moderateReview = async (req, res) => {
         success: false,
         message: "Invalid action. Must be approve, reject, or flag",
       });
+    }
+    if (reason !== undefined && reason !== null && reason !== "" && !isShortText(reason, 500)) {
+      return badRequest(res, "Reason must be at most 500 characters");
     }
 
     const review = await Review.findById(id);
@@ -130,15 +149,20 @@ export const moderateReview = async (req, res) => {
     if (action === "approve") {
       review.moderationStatus = "approved";
     } else if (action === "reject") {
-      if (!reason) {
+      if (!reason || !String(reason).trim()) {
         return res.status(400).json({
           success: false,
           message: "Rejection reason is required",
         });
       }
       review.moderationStatus = "rejected";
+      // Keep the reason with the review (the "common rejection reasons"
+      // metric aggregates these flags) and drop it from the landing page.
+      review.flags.push({ reason: String(reason).trim(), flaggedAt: new Date(), flaggedBy: req.user.email });
+      review.isFeatured = false;
     } else if (action === "flag") {
       review.moderationStatus = "flagged";
+      review.isFeatured = false;
       review.flags.push({
         reason: reason || "Manual flag by moderator",
         flaggedAt: new Date(),
@@ -194,20 +218,33 @@ export const getAutoFlagRules = async (req, res) => {
 
 export const updateAutoFlagRules = async (req, res) => {
   try {
-    const rules = req.body;
+    const body = req.body || {};
+    const rules = {};
+    for (const key of ["profanityEnabled", "spamEnabled", "duplicateCheckEnabled", "lowRatingAutoFlag"]) {
+      if (body[key] === undefined) continue;
+      if (typeof body[key] !== "boolean") return badRequest(res, `${key} must be true or false`);
+      rules[`autoFlagRules.${key}`] = body[key];
+    }
+    if (body.minLength !== undefined) {
+      if (!Number.isInteger(body.minLength) || body.minLength < 0 || body.minLength > 2000) {
+        return badRequest(res, "minLength must be a whole number between 0 and 2000");
+      }
+      rules["autoFlagRules.minLength"] = body.minLength;
+    }
+    if (Object.keys(rules).length === 0) return badRequest(res, "No auto-flag rules in the request");
 
     const settings = await PlatformSettings.findOneAndUpdate(
       { _id: "singleton" },
       {
         $set: {
-          autoFlagRules: rules,
+          ...rules,
           updatedBy: req.user._id,
         },
       },
-      { upsert: true, new: true }
+      { upsert: true, new: true, runValidators: true }
     );
 
-    await logAudit(req.user._id, "update_auto_flag_rules", "platformSettings", "singleton", null, rules, req);
+    await logAudit(req.user._id, "update_auto_flag_rules", "platformSettings", null, null, rules, req);
 
     res.json({
       success: true,
@@ -226,8 +263,11 @@ export const updateAutoFlagRules = async (req, res) => {
 export const addHotelReply = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!isObjectId(id)) return badRequest(res, "Invalid review id");
     const { text, isPublic = true } = req.body;
 
+    if (text !== undefined && !isShortText(text, 1000)) return badRequest(res, "Reply must be 1-1000 characters");
+    if (typeof isPublic !== "boolean") return badRequest(res, "isPublic must be true or false");
     if (!text) {
       return res.status(400).json({
         success: false,
@@ -272,6 +312,7 @@ export const addHotelReply = async (req, res) => {
 export const moderateHotelReply = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!isObjectId(id)) return badRequest(res, "Invalid review id");
     const { action } = req.body;
 
     if (!["approve", "reject"].includes(action)) {
@@ -313,6 +354,7 @@ export const moderateHotelReply = async (req, res) => {
 export const submitAppeal = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!isObjectId(id)) return badRequest(res, "Invalid review id");
     const { reason } = req.body;
 
     if (!reason) {
@@ -321,6 +363,7 @@ export const submitAppeal = async (req, res) => {
         message: "Appeal reason is required",
       });
     }
+    if (!isShortText(reason, 1000)) return badRequest(res, "Appeal reason must be at most 1000 characters");
 
     const review = await Review.findById(id);
     if (!review) {
@@ -363,6 +406,7 @@ export const submitAppeal = async (req, res) => {
 export const resolveAppeal = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!isObjectId(id)) return badRequest(res, "Invalid review id");
     const { decision, notes } = req.body;
 
     if (!["upheld", "overturned"].includes(decision)) {
@@ -370,6 +414,9 @@ export const resolveAppeal = async (req, res) => {
         success: false,
         message: "Invalid decision. Must be upheld or overturned",
       });
+    }
+    if (notes !== undefined && notes !== null && notes !== "" && !isShortText(notes, 500)) {
+      return badRequest(res, "Notes must be at most 500 characters");
     }
 
     const review = await Review.findById(id);
@@ -544,8 +591,10 @@ export const getReviewInsights = async (req, res) => {
     };
 
     if (hotelId) {
+      if (!isObjectId(hotelId)) return badRequest(res, "Invalid hotel id");
       query.hotel = new mongoose.Types.ObjectId(hotelId);
     }
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return badRequest(res, "Invalid date range");
 
     const sentimentTrend = await Review.aggregate([
       { $match: query },
@@ -632,7 +681,7 @@ export const getReviewInsights = async (req, res) => {
 
 export const getFeaturedTestimonials = async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 10;
+    const { limit } = parsePaging(req.query, { defaultLimit: 10, maxLimit: 50 });
 
     const testimonials = await Review.find({
       moderationStatus: "approved",
@@ -672,7 +721,12 @@ export const getFeaturedTestimonials = async (req, res) => {
 export const toggleFeaturedReview = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!isObjectId(id)) return badRequest(res, "Invalid review id");
     const { isFeatured, featuredOrder } = req.body;
+    if (isFeatured !== undefined && typeof isFeatured !== "boolean") return badRequest(res, "isFeatured must be true or false");
+    if (featuredOrder !== undefined && (!Number.isInteger(featuredOrder) || featuredOrder < 0 || featuredOrder > 1000)) {
+      return badRequest(res, "featuredOrder must be a whole number between 0 and 1000");
+    }
 
     const review = await Review.findById(id);
     if (!review) {

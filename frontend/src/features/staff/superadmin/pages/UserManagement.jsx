@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
+import { apiError } from '../utils/apiError';
 import SuperAdminLayout from './SuperAdminLayout';
 import DeleteConfirmModal from '../components/DeleteConfirmModal';
 import { getAdminUsers, updateUserStatus, deleteUser } from '../../../../core/api/services/user.service';
@@ -85,7 +86,7 @@ const UserManagement = () => {
         setTotal(response.total || 0);
         setTotalPages(response.totalPages || 1);
       } catch (error) {
-        toast.error(error?.message || 'Failed to load users');
+        toast.error(apiError(error, 'Failed to load users'));
       } finally {
         setLoading(false);
       }
@@ -148,7 +149,7 @@ const UserManagement = () => {
       );
       toast.success(`User ${nextStatus ? 'activated' : 'suspended'} successfully`);
     } catch (error) {
-      toast.error(error?.message || 'Failed to update status');
+      toast.error(apiError(error, 'Failed to update status'));
     }
   };
 
@@ -182,7 +183,7 @@ const UserManagement = () => {
         setTotal(response.total || 0);
         setTotalPages(response.totalPages || 1);
       } catch (error) {
-        toast.error(error?.message || 'Failed to load users');
+        toast.error(apiError(error, 'Failed to load users'));
       } finally {
         setLoading(false);
       }
@@ -201,7 +202,7 @@ const UserManagement = () => {
       setDeleteTarget(null);
       handleModalSuccess();
     } catch (error) {
-      toast.error(error?.message || 'Failed to delete user');
+      toast.error(apiError(error, 'Failed to delete user'));
     } finally {
       setIsDeleting(false);
     }

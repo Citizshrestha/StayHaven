@@ -23,7 +23,8 @@ import {
 const router = express.Router();
 
 router.use(protect);
-router.use(authorize("superadmin", "admin"));
+// Platform-wide data: superadmin only ("admin" is a company-level role).
+router.use(authorize("superadmin"));
 
 router.get("/overview", getFinanceOverview);
 router.get("/revenue/summary", getRevenueSummary);

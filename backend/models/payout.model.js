@@ -72,5 +72,8 @@ payoutSchema.index({ hotel: 1, status: 1 });
 payoutSchema.index({ hotel: 1, createdAt: -1 });
 payoutSchema.index({ status: 1, scheduledFor: 1 });
 payoutSchema.index({ createdAt: -1 });
+// One payout per hotel and period: stops a double-submitted "create payout"
+// from paying the same bookings twice (overlaps are rejected in the controller).
+payoutSchema.index({ hotel: 1, "period.from": 1, "period.to": 1 }, { unique: true });
 
 export const Payout = mongoose.model("Payout", payoutSchema);

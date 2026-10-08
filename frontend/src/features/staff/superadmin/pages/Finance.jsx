@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import SuperAdminLayout from './SuperAdminLayout';
 import { toast } from 'react-toastify';
+import { apiError } from '../utils/apiError';
 import DeleteConfirmModal from '../components/DeleteConfirmModal';
 import {
   getFinanceOverview,
@@ -17,9 +18,17 @@ import {
   getFinancialReport,
   seedFinanceData,
 } from '../../../../core/api/services/finance.service';
+import { formatRs, formatDayKey } from '../utils/format';
 import './Finance.css';
 
-const formatNRS = (amount) => `NRS ${Number(amount || 0).toLocaleString('en-NP')}`;
+const formatNRS = formatRs;
+
+// Irreversible money steps get a confirmation with the consequence spelled out.
+const CONFIRM_COPY = {
+  'payout:completed': { title: 'Mark payout as paid?', confirmText: 'Mark as paid', icon: 'task_alt', warning: 'Only do this after the bank transfer has gone out. A completed payout cannot be reopened.' },
+  'refund:rejected': { title: 'Reject this refund?', confirmText: 'Reject refund', icon: 'block', warning: 'The guest will not be refunded. A rejected refund cannot be reopened; a new request would be needed.' },
+  'refund:processed': { title: 'Mark refund as processed?', confirmText: 'Mark processed', icon: 'task_alt', warning: 'Only do this after the money has been returned to the guest through the gateway.' },
+};
 
 const METHOD_LABELS = {
   khalti: 'Khalti',
@@ -48,6 +57,8 @@ const Finance = () => {
 
   const [deleteCommissionTarget, setDeleteCommissionTarget] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [busyId, setBusyId] = useState(null); // payout/refund id with a request in flight
+  const [confirmAction, setConfirmAction] = useState(null); // { kind, id, status, name }
 
   const dateParams = { dateRange };
 
@@ -66,8 +77,8 @@ const Finance = () => {
       setRevenueByHotel(byHotelRes.data || []);
       setChannelBreakdown(breakdownRes.data || []);
       setPaymentMethods(methodsRes.data || []);
-    } catch  {
-      toast.error('Failed to load finance data');
+    } catch (error) {
+      toast.error(apiError(error, 'Failed to load finance data'));
     } finally {
       setLoading(false);
     }
@@ -78,8 +89,8 @@ const Finance = () => {
     try {
       const result = await getPayouts({ page: 1, limit: 20 });
       setPayouts(result.data || []);
-    } catch {
-      toast.error('Failed to load payouts');
+    } catch (error) {
+      toast.error(apiError(error, 'Failed to load payouts'));
     } finally {
       setLoading(false);
     }
@@ -90,8 +101,8 @@ const Finance = () => {
     try {
       const result = await getRefunds({ page: 1, limit: 20 });
       setRefunds(result.data || []);
-    } catch {
-      toast.error('Failed to load refunds');
+    } catch (error) {
+      toast.error(apiError(error, 'Failed to load refunds'));
     } finally {
       setLoading(false);
     }
@@ -102,8 +113,8 @@ const Finance = () => {
     try {
       const result = await getCommissionRules();
       setCommissionRules(result.data || []);
-    } catch {
-      toast.error('Failed to load commission rules');
+    } catch (error) {
+      toast.error(apiError(error, 'Failed to load commission rules'));
     } finally {
       setLoading(false);
     }
@@ -114,8 +125,8 @@ const Finance = () => {
     try {
       const result = await getFinancialReport(dateParams);
       setReportData(result.data || []);
-    } catch {
-      toast.error('Failed to load report');
+    } catch (error) {
+      toast.error(apiError(error, 'Failed to load report'));
     } finally {
       setLoading(false);
     }
@@ -139,31 +150,50 @@ const Finance = () => {
       else if (activeTab === 'refunds') loadRefundsData();
       else if (activeTab === 'commissions') loadCommissionsData();
       else loadReportData();
-    } catch {
-      toast.error('Failed to seed data. Run superadmin-data seed first.');
+    } catch (error) {
+      toast.error(apiError(error, 'Failed to seed data. Run superadmin-data seed first.'));
     } finally {
       setSeeding(false);
     }
   };
 
+  // One request per row at a time: a double-click can't send two transitions.
   const handleUpdatePayoutStatus = async (id, status) => {
+    if (busyId) return;
+    setBusyId(id);
     try {
       await updatePayoutStatus(id, { status });
       toast.success('Payout status updated');
       loadPayoutsData();
-    } catch {
-      toast.error('Failed to update payout status');
+    } catch (error) {
+      toast.error(apiError(error, 'Failed to update payout status'));
+      if (error?.response?.status === 409) loadPayoutsData();
+    } finally {
+      setBusyId(null);
     }
   };
 
   const handleUpdateRefundStatus = async (id, status) => {
+    if (busyId) return;
+    setBusyId(id);
     try {
       await updateRefundStatus(id, { status });
       toast.success('Refund status updated');
       loadRefundsData();
-    } catch {
-      toast.error('Failed to update refund status');
+    } catch (error) {
+      toast.error(apiError(error, 'Failed to update refund status'));
+      if (error?.response?.status === 409) loadRefundsData();
+    } finally {
+      setBusyId(null);
     }
+  };
+
+  const runConfirmedAction = async () => {
+    if (!confirmAction) return;
+    const { kind, id, status } = confirmAction;
+    if (kind === 'payout') await handleUpdatePayoutStatus(id, status);
+    else await handleUpdateRefundStatus(id, status);
+    setConfirmAction(null);
   };
 
   const exportReport = async () => {
@@ -176,8 +206,8 @@ const Finance = () => {
       a.download = `financial-report-${Date.now()}.csv`;
       a.click();
       toast.success('Report exported');
-    } catch {
-      toast.error('Failed to export report');
+    } catch (error) {
+      toast.error(apiError(error, 'Failed to export report'));
     }
   };
 
@@ -189,8 +219,8 @@ const Finance = () => {
       toast.success('Commission rule deleted');
       setDeleteCommissionTarget(null);
       loadCommissionsData();
-    } catch {
-      toast.error('Failed to delete commission rule');
+    } catch (error) {
+      toast.error(apiError(error, 'Failed to delete commission rule'));
     } finally {
       setIsDeleting(false);
     }
@@ -417,12 +447,12 @@ const Finance = () => {
                         <tbody>
                           {revenueByHotel.map((hotel) => (
                             <tr key={hotel.hotelId}>
-                              <td className="fin-hotel-name">{hotel.hotelName}</td>
-                              <td>{hotel.bookingCount}</td>
-                              <td>{formatNRS(hotel.grossRevenue)}</td>
-                              <td className="fin-commission">{formatNRS(hotel.commission)}</td>
-                              <td className="fin-payout">{formatNRS(hotel.netPayout)}</td>
-                              <td>{formatNRS(hotel.avgBookingValue)}</td>
+                              <td className="fin-hotel-name" data-label="Hotel">{hotel.hotelName}</td>
+                              <td className="fin-num" data-label="Bookings">{hotel.bookingCount}</td>
+                              <td className="fin-num" data-label="Gross revenue">{formatNRS(hotel.grossRevenue)}</td>
+                              <td className="fin-num fin-commission" data-label="Commission">{formatNRS(hotel.commission)}</td>
+                              <td className="fin-num fin-payout" data-label="Net payout">{formatNRS(hotel.netPayout)}</td>
+                              <td className="fin-num" data-label="Avg value">{formatNRS(hotel.avgBookingValue)}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -460,21 +490,26 @@ const Finance = () => {
                         <tbody>
                           {payouts.map((payout) => (
                             <tr key={payout._id}>
-                              <td className="fin-hotel-name">{payout.hotel?.name || 'N/A'}</td>
-                              <td>
+                              <td className="fin-hotel-name" data-label="Hotel">{payout.hotel?.name || 'N/A'}</td>
+                              <td data-label="Period">
                                 {new Date(payout.period.from).toLocaleDateString()} – {new Date(payout.period.to).toLocaleDateString()}
                               </td>
-                              <td>{formatNRS(payout.grossRevenue)}</td>
-                              <td>{formatNRS(payout.platformCommission)}</td>
-                              <td className="fin-payout">{formatNRS(payout.netPayout)}</td>
-                              <td><span className={`status-badge status-${payout.status}`}>{payout.status}</span></td>
-                              <td>{payout.scheduledFor ? new Date(payout.scheduledFor).toLocaleDateString() : '—'}</td>
-                              <td className="fin-actions">
+                              <td className="fin-num" data-label="Gross">{formatNRS(payout.grossRevenue)}</td>
+                              <td className="fin-num" data-label="Commission">{formatNRS(payout.platformCommission)}</td>
+                              <td className="fin-num fin-payout" data-label="Net payout">{formatNRS(payout.netPayout)}</td>
+                              <td data-label="Status"><span className={`status-badge status-${payout.status}`}>{payout.status}</span></td>
+                              <td data-label="Scheduled">{payout.scheduledFor ? new Date(payout.scheduledFor).toLocaleDateString() : '—'}</td>
+                              <td className="fin-actions" data-label="Actions">
                                 {payout.status === 'pending' && (
-                                  <button className="btn-small btn-primary" onClick={() => handleUpdatePayoutStatus(payout._id, 'processing')}>Process</button>
+                                  <button type="button" className="btn-small btn-primary" disabled={busyId === payout._id} onClick={() => handleUpdatePayoutStatus(payout._id, 'processing')}>
+                                    {busyId === payout._id ? 'Saving…' : 'Process'}
+                                  </button>
                                 )}
                                 {payout.status === 'processing' && (
-                                  <button className="btn-small btn-success" onClick={() => handleUpdatePayoutStatus(payout._id, 'completed')}>Complete</button>
+                                  <button type="button" className="btn-small btn-success" disabled={busyId === payout._id}
+                                    onClick={() => setConfirmAction({ kind: 'payout', id: payout._id, status: 'completed', name: `${payout.hotel?.name || 'Hotel'} · ${formatNRS(payout.netPayout)}` })}>
+                                    Complete
+                                  </button>
                                 )}
                               </td>
                             </tr>
@@ -514,22 +549,30 @@ const Finance = () => {
                         <tbody>
                           {refunds.map((refund) => (
                             <tr key={refund._id}>
-                              <td>{refund.booking?.bookingId || 'N/A'}</td>
-                              <td>{refund.hotel?.name || 'N/A'}</td>
-                              <td>{refund.guest?.fullname || 'N/A'}</td>
-                              <td className="fin-refund-amt">{formatNRS(refund.amount)}</td>
-                              <td>{refund.reason?.replace('_', ' ')}</td>
-                              <td><span className={`status-badge status-${refund.status}`}>{refund.status}</span></td>
-                              <td>{new Date(refund.requestedAt).toLocaleDateString()}</td>
-                              <td className="fin-actions">
-                                {refund.status === 'requested' && (
+                              <td data-label="Booking">{refund.booking?.bookingId || 'N/A'}</td>
+                              <td data-label="Hotel">{refund.hotel?.name || 'N/A'}</td>
+                              <td data-label="Guest">{refund.guest?.fullname || 'N/A'}</td>
+                              <td className="fin-num fin-refund-amt" data-label="Amount">{formatNRS(refund.amount)}</td>
+                              <td data-label="Reason">{refund.reason?.replaceAll('_', ' ')}</td>
+                              <td data-label="Status"><span className={`status-badge status-${refund.status}`}>{refund.status?.replaceAll('_', ' ')}</span></td>
+                              <td data-label="Requested">{new Date(refund.requestedAt).toLocaleDateString()}</td>
+                              <td className="fin-actions" data-label="Actions">
+                                {['requested', 'under_review'].includes(refund.status) && (
                                   <>
-                                    <button className="btn-small btn-success" onClick={() => handleUpdateRefundStatus(refund._id, 'approved')}>Approve</button>
-                                    <button className="btn-small btn-danger" onClick={() => handleUpdateRefundStatus(refund._id, 'rejected')}>Reject</button>
+                                    <button type="button" className="btn-small btn-success" disabled={busyId === refund._id} onClick={() => handleUpdateRefundStatus(refund._id, 'approved')}>
+                                      {busyId === refund._id ? 'Saving…' : 'Approve'}
+                                    </button>
+                                    <button type="button" className="btn-small btn-danger" disabled={busyId === refund._id}
+                                      onClick={() => setConfirmAction({ kind: 'refund', id: refund._id, status: 'rejected', name: `${refund.booking?.bookingId || 'Refund'} · ${formatNRS(refund.amount)}` })}>
+                                      Reject
+                                    </button>
                                   </>
                                 )}
                                 {refund.status === 'approved' && (
-                                  <button className="btn-small btn-primary" onClick={() => handleUpdateRefundStatus(refund._id, 'processed')}>Process</button>
+                                  <button type="button" className="btn-small btn-primary" disabled={busyId === refund._id}
+                                    onClick={() => setConfirmAction({ kind: 'refund', id: refund._id, status: 'processed', name: `${refund.booking?.bookingId || 'Refund'} · ${formatNRS(refund.amount)}` })}>
+                                    Process
+                                  </button>
                                 )}
                               </td>
                             </tr>
@@ -570,15 +613,15 @@ const Finance = () => {
                         <tbody>
                           {commissionRules.map((rule) => (
                             <tr key={rule._id}>
-                              <td><span className="fin-scope-badge">{rule.scope}</span></td>
-                              <td>{rule.hotel?.name || 'Global'}</td>
-                              <td>{rule.roomType || 'All'}</td>
-                              <td className="fin-commission">{rule.rate}%</td>
-                              <td>{formatNRS(rule.flatFee)}</td>
-                              <td>{rule.validFrom ? new Date(rule.validFrom).toLocaleDateString() : '—'}</td>
-                              <td>{rule.priority}</td>
-                              <td><span className={`status-badge status-${rule.isActive ? 'active' : 'inactive'}`}>{rule.isActive ? 'Active' : 'Inactive'}</span></td>
-                              <td>
+                              <td data-label="Scope"><span className="fin-scope-badge">{rule.scope}</span></td>
+                              <td data-label="Hotel">{rule.hotel?.name || 'Global'}</td>
+                              <td data-label="Room type">{rule.roomType || 'All'}</td>
+                              <td className="fin-num fin-commission" data-label="Rate">{rule.rate}%</td>
+                              <td className="fin-num" data-label="Flat fee">{formatNRS(rule.flatFee)}</td>
+                              <td data-label="Valid from">{rule.validFrom ? new Date(rule.validFrom).toLocaleDateString() : '—'}</td>
+                              <td className="fin-num" data-label="Priority">{rule.priority}</td>
+                              <td data-label="Status"><span className={`status-badge status-${rule.isActive ? 'active' : 'inactive'}`}>{rule.isActive ? 'Active' : 'Inactive'}</span></td>
+                              <td className="fin-actions" data-label="Actions">
                                 <button className="btn-small btn-danger" onClick={() => setDeleteCommissionTarget({ id: rule._id, name: `${rule.scope} - ${rule.rate}%` })}>Delete</button>
                               </td>
                             </tr>
@@ -624,12 +667,12 @@ const Finance = () => {
                         <tbody>
                           {reportData.map((row) => (
                             <tr key={row.date}>
-                              <td>{new Date(row.date).toLocaleDateString()}</td>
-                              <td>{row.bookings}</td>
-                              <td>{formatNRS(row.revenue)}</td>
-                              <td>{formatNRS(row.commission)}</td>
-                              <td className="fin-payout">{formatNRS(row.payouts)}</td>
-                              <td className="fin-refund-amt">{formatNRS(row.refunds)}</td>
+                              <td data-label="Date">{formatDayKey(row.date)}</td>
+                              <td className="fin-num" data-label="Bookings">{row.bookings}</td>
+                              <td className="fin-num" data-label="Revenue">{formatNRS(row.revenue)}</td>
+                              <td className="fin-num" data-label="Commission">{formatNRS(row.commission)}</td>
+                              <td className="fin-num fin-payout" data-label="Payouts">{formatNRS(row.payouts)}</td>
+                              <td className="fin-num fin-refund-amt" data-label="Refunds">{formatNRS(row.refunds)}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -651,6 +694,20 @@ const Finance = () => {
           itemName={deleteCommissionTarget?.name}
           confirmText="Delete Rule"
           isDeleting={isDeleting}
+        />
+
+        <DeleteConfirmModal
+          isOpen={!!confirmAction}
+          onClose={() => { if (!busyId) setConfirmAction(null); }}
+          onConfirm={runConfirmedAction}
+          title={CONFIRM_COPY[`${confirmAction?.kind}:${confirmAction?.status}`]?.title}
+          message="Please confirm this step."
+          itemName={confirmAction?.name}
+          confirmText={CONFIRM_COPY[`${confirmAction?.kind}:${confirmAction?.status}`]?.confirmText}
+          confirmIcon={CONFIRM_COPY[`${confirmAction?.kind}:${confirmAction?.status}`]?.icon}
+          warningText={CONFIRM_COPY[`${confirmAction?.kind}:${confirmAction?.status}`]?.warning}
+          busyText="Saving..."
+          isDeleting={!!busyId}
         />
       </div>
     </SuperAdminLayout>

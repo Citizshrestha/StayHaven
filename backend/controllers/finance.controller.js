@@ -1,40 +1,50 @@
 import mongoose from "mongoose";
 import { Booking } from "../models/booking.schema.js";
-import { Hotel } from "../models/hotel.schema.js";
 import { PaymentTransaction } from "../models/paymentTransaction.schema.js";
 import { Payout } from "../models/payout.model.js";
 import { Refund } from "../models/refund.model.js";
 import { Commission } from "../models/commission.model.js";
 import { logAudit } from "../middleware/auditLogger.js";
 import { resolveFinanceDateRange } from "../utils/financeDateRange.js";
+import { parsePaging } from "../utils/searchQuery.js";
+import {
+  isObjectId,
+  toPaisa,
+  fromPaisa,
+  getCommissionRate,
+  splitGross,
+  splitGrossRupees,
+  sumPaisa,
+  parseDate,
+  csvCell,
+} from "../services/platformFinance.js";
+
+const REVENUE_STATUSES = ["Confirmed", "Checked-In", "Checked-Out"];
+const badRequest = (res, message) => res.status(400).json({ success: false, message });
+// 5xx responses keep the generic message; the detail goes to the server log.
+const serverError = (res, message, error) => {
+  console.error(`[finance] ${message}:`, error?.message);
+  return res.status(500).json({ success: false, message });
+};
+const paidRevenueMatch = (startDate, endDate) => ({
+  createdAt: { $gte: startDate, $lte: endDate },
+  status: { $in: REVENUE_STATUSES },
+  paymentStatus: "paid",
+});
 
 export const getFinanceOverview = async (req, res) => {
   try {
     const { startDate, endDate } = resolveFinanceDateRange(req.query);
 
-    const pendingPayouts = await Payout.find({
-      status: { $in: ["pending", "scheduled", "processing"] },
-    }).lean();
+    const [pendingPayouts, outstandingRefunds, failedPayments, bookings, rate] = await Promise.all([
+      Payout.find({ status: { $in: ["pending", "scheduled", "processing"] } }).select("netPayout").lean(),
+      Refund.find({ status: { $in: ["requested", "under_review", "approved"] } }).select("amount").lean(),
+      PaymentTransaction.find({ createdAt: { $gte: startDate, $lte: endDate }, status: "failed" }).select("amount").lean(),
+      Booking.find(paidRevenueMatch(startDate, endDate)).select("totalAmount").lean(),
+      getCommissionRate(),
+    ]);
 
-    const outstandingRefunds = await Refund.find({
-      status: { $in: ["requested", "under_review", "approved"] },
-    }).lean();
-
-    const failedPayments = await PaymentTransaction.find({
-      createdAt: { $gte: startDate, $lte: endDate },
-      status: "failed",
-    }).lean();
-
-    const bookings = await Booking.find({
-      createdAt: { $gte: startDate, $lte: endDate },
-      status: { $in: ["Confirmed", "Checked-In", "Checked-Out"] },
-      paymentStatus: "paid",
-    }).lean();
-
-    const grossRevenue = bookings.reduce((sum, b) => sum + b.totalAmount, 0);
-    const platformCommission = Math.round(grossRevenue * 0.15);
-    const taxes = Math.round(platformCommission * 0.13);
-    const netHotelPayout = Math.round(grossRevenue - platformCommission - taxes);
+    const split = splitGrossRupees(sumPaisa(bookings, (b) => b.totalAmount), rate);
 
     res.json({
       success: true,
@@ -42,33 +52,30 @@ export const getFinanceOverview = async (req, res) => {
         kpis: {
           pendingPayouts: {
             count: pendingPayouts.length,
-            amount: Math.round(pendingPayouts.reduce((s, p) => s + p.netPayout, 0)),
+            amount: fromPaisa(sumPaisa(pendingPayouts, (p) => p.netPayout)),
           },
           outstandingRefunds: {
             count: outstandingRefunds.length,
-            amount: Math.round(outstandingRefunds.reduce((s, r) => s + r.amount, 0)),
+            amount: fromPaisa(sumPaisa(outstandingRefunds, (r) => r.amount)),
           },
           failedPayments: {
             count: failedPayments.length,
-            amount: Math.round(failedPayments.reduce((s, t) => s + t.amount, 0)),
+            amount: fromPaisa(sumPaisa(failedPayments, (t) => t.amount)),
           },
-          taxesCollected: taxes,
+          taxesCollected: split.taxes,
         },
         waterfall: {
-          grossRevenue: Math.round(grossRevenue),
-          platformCommission,
-          taxes,
-          netHotelPayout,
+          grossRevenue: split.gross,
+          platformCommission: split.commission,
+          taxes: split.taxes,
+          netHotelPayout: split.net,
         },
+        commissionRate: rate,
         currency: "NRS",
       },
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch finance overview",
-      error: error.message,
-    });
+    serverError(res, "Failed to fetch finance overview", error);
   }
 };
 
@@ -76,130 +83,95 @@ export const getRevenueSummary = async (req, res) => {
   try {
     const { startDate, endDate } = resolveFinanceDateRange(req.query);
 
-    const bookings = await Booking.find({
-      createdAt: { $gte: startDate, $lte: endDate },
-      status: { $in: ["Confirmed", "Checked-In", "Checked-Out"] },
-      paymentStatus: "paid",
-    }).lean();
+    const [bookings, rate] = await Promise.all([
+      Booking.find(paidRevenueMatch(startDate, endDate)).select("totalAmount createdAt").lean(),
+      getCommissionRate(),
+    ]);
 
-    const totalRevenue = bookings.reduce((sum, b) => sum + b.totalAmount, 0);
-    const platformCommission = Math.round(totalRevenue * 0.15);
-    const taxes = Math.round(platformCommission * 0.13);
-    const hotelsPayouts = totalRevenue - platformCommission - taxes;
+    const split = splitGrossRupees(sumPaisa(bookings, (b) => b.totalAmount), rate);
 
     const byDay = {};
     bookings.forEach((booking) => {
       const date = new Date(booking.createdAt).toISOString().split("T")[0];
-      if (!byDay[date]) {
-        byDay[date] = 0;
-      }
-      byDay[date] += booking.totalAmount;
+      byDay[date] = (byDay[date] || 0) + toPaisa(booking.totalAmount);
     });
 
     const dayArray = Object.keys(byDay)
       .sort()
-      .map((date) => ({
-        date,
-        revenue: byDay[date],
-      }));
+      .map((date) => ({ date, revenue: fromPaisa(byDay[date]) }));
 
     res.json({
       success: true,
       data: {
         summary: {
-          totalRevenue: Math.round(totalRevenue),
-          platformCommission,
-          hotelsPayouts: Math.round(hotelsPayouts),
-          taxes,
+          totalRevenue: split.gross,
+          platformCommission: split.commission,
+          hotelsPayouts: split.net,
+          taxes: split.taxes,
           totalBookings: bookings.length,
+          commissionRate: rate,
           currency: "NRS",
         },
         byDay: dayArray,
       },
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch revenue summary",
-      error: error.message,
-    });
+    serverError(res, "Failed to fetch revenue summary", error);
   }
 };
 
 export const getRevenueByHotel = async (req, res) => {
   try {
-    const { hotelId, page = 1, limit = 10, sortBy = "revenue" } = req.query;
+    const { hotelId, sortBy = "revenue" } = req.query;
     const { startDate, endDate } = resolveFinanceDateRange(req.query);
+    const { page, limit, skip } = parsePaging(req.query, { defaultLimit: 10, maxLimit: 100 });
 
-    const matchStage = {
-      createdAt: { $gte: startDate, $lte: endDate },
-      status: { $in: ["Confirmed", "Checked-In", "Checked-Out"] },
-      paymentStatus: "paid",
-    };
-
+    const matchStage = paidRevenueMatch(startDate, endDate);
     if (hotelId) {
+      if (!isObjectId(hotelId)) return badRequest(res, "Invalid hotel id");
       matchStage.hotel = new mongoose.Types.ObjectId(hotelId);
     }
 
-    const aggregation = await Booking.aggregate([
-      { $match: matchStage },
-      {
-        $group: {
-          _id: "$hotel",
-          bookingCount: { $sum: 1 },
-          grossRevenue: { $sum: "$totalAmount" },
+    const [aggregation, total, rate] = await Promise.all([
+      Booking.aggregate([
+        { $match: matchStage },
+        {
+          $group: {
+            _id: "$hotel",
+            bookingCount: { $sum: 1 },
+            grossPaisa: { $sum: { $round: [{ $multiply: ["$totalAmount", 100] }, 0] } },
+          },
         },
-      },
-      {
-        $lookup: {
-          from: "hotels",
-          localField: "_id",
-          foreignField: "_id",
-          as: "hotelInfo",
-        },
-      },
-      { $unwind: "$hotelInfo" },
-      {
-        $project: {
-          hotelId: "$_id",
-          hotelName: "$hotelInfo.name",
-          bookingCount: 1,
-          grossRevenue: 1,
-          commission: { $multiply: ["$grossRevenue", 0.15] },
-          netPayout: { $multiply: ["$grossRevenue", 0.85] },
-          avgBookingValue: { $divide: ["$grossRevenue", "$bookingCount"] },
-        },
-      },
-      { $sort: sortBy === "revenue" ? { grossRevenue: -1 } : { bookingCount: -1 } },
-      { $skip: (parseInt(page) - 1) * parseInt(limit) },
-      { $limit: parseInt(limit) },
-    ]);
-
-    const total = await Booking.aggregate([
-      { $match: matchStage },
-      { $group: { _id: "$hotel" } },
-      { $count: "total" },
+        { $lookup: { from: "hotels", localField: "_id", foreignField: "_id", as: "hotelInfo" } },
+        { $unwind: "$hotelInfo" },
+        { $project: { hotelId: "$_id", hotelName: "$hotelInfo.name", bookingCount: 1, grossPaisa: 1 } },
+        { $sort: sortBy === "revenue" ? { grossPaisa: -1 } : { bookingCount: -1 } },
+        { $skip: skip },
+        { $limit: limit },
+      ]),
+      Booking.aggregate([{ $match: matchStage }, { $group: { _id: "$hotel" } }, { $count: "total" }]),
+      getCommissionRate(),
     ]);
 
     res.json({
       success: true,
-      data: aggregation.map((item) => ({
-        ...item,
-        grossRevenue: Math.round(item.grossRevenue),
-        commission: Math.round(item.commission),
-        netPayout: Math.round(item.netPayout),
-        avgBookingValue: Math.round(item.avgBookingValue),
-      })),
+      data: aggregation.map(({ grossPaisa, ...item }) => {
+        const split = splitGross(grossPaisa, rate);
+        return {
+          ...item,
+          grossRevenue: fromPaisa(split.gross),
+          commission: fromPaisa(split.commission),
+          taxes: fromPaisa(split.taxes),
+          netPayout: fromPaisa(split.net),
+          avgBookingValue: fromPaisa(Math.round(split.gross / item.bookingCount)),
+        };
+      }),
       total: total[0]?.total || 0,
-      page: parseInt(page),
-      limit: parseInt(limit),
+      page,
+      limit,
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch revenue by hotel",
-      error: error.message,
-    });
+    serverError(res, "Failed to fetch revenue by hotel", error);
   }
 };
 
@@ -208,11 +180,7 @@ export const getRevenueBreakdown = async (req, res) => {
     const { groupBy = "channel" } = req.query;
     const { startDate, endDate } = resolveFinanceDateRange(req.query);
 
-    const matchStage = {
-      createdAt: { $gte: startDate, $lte: endDate },
-      status: { $in: ["Confirmed", "Checked-In", "Checked-Out"] },
-      paymentStatus: "paid",
-    };
+    const matchStage = paidRevenueMatch(startDate, endDate);
 
     let groupField = "$hotel";
     let lookupCollection = "hotels";
@@ -238,14 +206,7 @@ export const getRevenueBreakdown = async (req, res) => {
       },
       ...(lookupCollection
         ? [
-            {
-              $lookup: {
-                from: lookupCollection,
-                localField: "_id",
-                foreignField: "_id",
-                as: "info",
-              },
-            },
+            { $lookup: { from: lookupCollection, localField: "_id", foreignField: "_id", as: "info" } },
             { $unwind: { path: "$info", preserveNullAndEmptyArrays: true } },
           ]
         : []),
@@ -257,20 +218,13 @@ export const getRevenueBreakdown = async (req, res) => {
     const breakdown = aggregation.map((item) => ({
       label: lookupCollection ? item.info?.[lookupField] || "Unknown" : item._id || "Direct",
       count: item.count,
-      revenue: Math.round(item.revenue),
+      revenue: fromPaisa(toPaisa(item.revenue)),
       percentage: totalRevenue > 0 ? parseFloat(((item.revenue / totalRevenue) * 100).toFixed(1)) : 0,
     }));
 
-    res.json({
-      success: true,
-      data: breakdown,
-    });
+    res.json({ success: true, data: breakdown });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch revenue breakdown",
-      error: error.message,
-    });
+    serverError(res, "Failed to fetch revenue breakdown", error);
   }
 };
 
@@ -280,87 +234,81 @@ export const getPaymentMethodMix = async (req, res) => {
 
     const transactions = await PaymentTransaction.find({
       createdAt: { $gte: startDate, $lte: endDate },
-    }).lean();
+    })
+      .select("method amount status")
+      .lean();
 
     const methods = {};
     transactions.forEach((txn) => {
       const method = txn.method || "cash";
       if (!methods[method]) {
-        methods[method] = {
-          method,
-          count: 0,
-          amount: 0,
-          successCount: 0,
-          failedCount: 0,
-          failedAmount: 0,
-        };
+        methods[method] = { method, count: 0, amount: 0, successCount: 0, failedCount: 0, failedAmount: 0 };
       }
       methods[method].count++;
-      methods[method].amount += txn.amount;
+      methods[method].amount += toPaisa(txn.amount);
 
       if (txn.status === "captured" || txn.status === "settled") {
         methods[method].successCount++;
       } else if (txn.status === "failed") {
         methods[method].failedCount++;
-        methods[method].failedAmount += txn.amount;
+        methods[method].failedAmount += toPaisa(txn.amount);
       }
     });
 
     const result = Object.values(methods).map((m) => ({
       ...m,
-      amount: Math.round(m.amount),
-      failedAmount: Math.round(m.failedAmount),
+      amount: fromPaisa(m.amount),
+      failedAmount: fromPaisa(m.failedAmount),
       successRate: m.count > 0 ? parseFloat(((m.successCount / m.count) * 100).toFixed(1)) : 0,
     }));
 
-    res.json({
-      success: true,
-      data: result,
-    });
+    res.json({ success: true, data: result });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch payment method mix",
-      error: error.message,
-    });
+    serverError(res, "Failed to fetch payment method mix", error);
   }
+};
+
+const PAYOUT_STATUSES = ["pending", "processing", "completed", "failed", "scheduled"];
+const REFUND_STATUSES = ["requested", "under_review", "approved", "processed", "rejected", "chargeback"];
+
+// Shared filter parsing for the payout/refund lists. Returns null after
+// sending a 400 when an input is malformed.
+const buildListQuery = (req, res, statuses, dateField) => {
+  const { status, hotelId, dateFrom, dateTo } = req.query;
+  const query = {};
+  if (status) {
+    if (!statuses.includes(status)) return badRequest(res, "Invalid status filter") && null;
+    query.status = status;
+  }
+  if (hotelId) {
+    if (!isObjectId(hotelId)) return badRequest(res, "Invalid hotel id") && null;
+    query.hotel = hotelId;
+  }
+  const from = parseDate(dateFrom);
+  const to = parseDate(dateTo);
+  if (from === undefined || to === undefined) return badRequest(res, "Invalid date filter") && null;
+  if (from || to) {
+    query[dateField] = {};
+    if (from) query[dateField].$gte = from;
+    if (to) query[dateField].$lte = to;
+  }
+  return query;
 };
 
 export const getPayouts = async (req, res) => {
   try {
-    const { status, hotelId, dateFrom, dateTo, page = 1, limit = 10 } = req.query;
+    const query = buildListQuery(req, res, PAYOUT_STATUSES, "createdAt");
+    if (!query) return;
+    const { page, limit, skip } = parsePaging(req.query, { defaultLimit: 10, maxLimit: 100 });
 
-    const query = {};
-    if (status) query.status = status;
-    if (hotelId) query.hotel = hotelId;
-    if (dateFrom || dateTo) {
-      query.createdAt = {};
-      if (dateFrom) query.createdAt.$gte = new Date(dateFrom);
-      if (dateTo) query.createdAt.$lte = new Date(dateTo);
-    }
+    const [payouts, total] = await Promise.all([
+      Payout.find(query).populate("hotel", "name").sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      Payout.countDocuments(query),
+    ]);
 
-    const payouts = await Payout.find(query)
-      .populate("hotel", "name")
-      .sort({ createdAt: -1 })
-      .skip((parseInt(page) - 1) * parseInt(limit))
-      .limit(parseInt(limit))
-      .lean();
-
-    const total = await Payout.countDocuments(query);
-
-    res.json({
-      success: true,
-      data: payouts,
-      total,
-      page: parseInt(page),
-      limit: parseInt(limit),
-    });
+    res.json({ success: true, data: payouts, total, page, limit });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch payouts",
-      error: error.message,
-    });
+    serverError(res, "Failed to fetch payouts", error);
   }
 };
 
@@ -369,57 +317,81 @@ export const createPayout = async (req, res) => {
     const { hotelId, periodFrom, periodTo, scheduledFor } = req.body;
 
     if (!hotelId || !periodFrom || !periodTo) {
-      return res.status(400).json({
-        success: false,
-        message: "Hotel ID, period from, and period to are required",
-      });
+      return badRequest(res, "Hotel ID, period from, and period to are required");
+    }
+    if (!isObjectId(hotelId)) return badRequest(res, "Invalid hotel id");
+    const from = parseDate(periodFrom);
+    const to = parseDate(periodTo);
+    const scheduled = parseDate(scheduledFor);
+    if (!from || !to) return badRequest(res, "Invalid payout period dates");
+    if (from > to) return badRequest(res, "Period start must be before period end");
+    if (scheduled === undefined) return badRequest(res, "Invalid scheduled date");
+
+    // A booking may be paid out only once: reject any period that overlaps an
+    // existing (non-failed) payout for the same hotel. Failed payouts are
+    // retried through their status (failed -> pending), not re-created.
+    const overlapping = await Payout.exists({
+      hotel: hotelId,
+      status: { $ne: "failed" },
+      "period.from": { $lte: to },
+      "period.to": { $gte: from },
+    });
+    if (overlapping) {
+      return res.status(409).json({ success: false, message: "A payout already covers part of this period for this hotel" });
     }
 
-    const bookings = await Booking.find({
-      hotel: hotelId,
-      checkOut: { $gte: new Date(periodFrom), $lte: new Date(periodTo) },
-      status: "Checked-Out",
-      paymentStatus: "paid",
-    }).lean();
+    const [bookings, rate] = await Promise.all([
+      Booking.find({
+        hotel: hotelId,
+        checkOut: { $gte: from, $lte: to },
+        status: "Checked-Out",
+        paymentStatus: "paid",
+      })
+        .select("totalAmount")
+        .lean(),
+      getCommissionRate(),
+    ]);
 
-    const grossRevenue = bookings.reduce((sum, b) => sum + b.totalAmount, 0);
-    const platformCommission = Math.round(grossRevenue * 0.15);
-    const taxes = Math.round(platformCommission * 0.13);
-    const netPayout = grossRevenue - platformCommission - taxes;
+    const split = splitGrossRupees(sumPaisa(bookings, (b) => b.totalAmount), rate);
 
     const payout = new Payout({
       hotel: hotelId,
-      period: {
-        from: new Date(periodFrom),
-        to: new Date(periodTo),
-      },
+      period: { from, to },
       totalBookings: bookings.length,
-      grossRevenue: Math.round(grossRevenue),
-      platformCommission,
-      taxes,
-      netPayout: Math.round(netPayout),
+      grossRevenue: split.gross,
+      platformCommission: split.commission,
+      taxes: split.taxes,
+      netPayout: split.net,
       currency: "NRS",
-      status: scheduledFor ? "scheduled" : "pending",
-      scheduledFor: scheduledFor ? new Date(scheduledFor) : null,
+      status: scheduled ? "scheduled" : "pending",
+      scheduledFor: scheduled || null,
       createdBy: req.user._id,
     });
 
-    await payout.save();
+    try {
+      await payout.save();
+    } catch (error) {
+      // Unique (hotel, period) index: a concurrent double-submit lost the race.
+      if (error?.code === 11000) {
+        return res.status(409).json({ success: false, message: "A payout for this hotel and period already exists" });
+      }
+      throw error;
+    }
 
     await logAudit(req.user._id, "create_payout", "payout", payout._id, null, payout.toObject(), req);
 
-    res.json({
-      success: true,
-      message: "Payout created successfully",
-      data: payout,
-    });
+    res.json({ success: true, message: "Payout created successfully", data: payout });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to create payout",
-      error: error.message,
-    });
+    serverError(res, "Failed to create payout", error);
   }
+};
+
+const PAYOUT_TRANSITIONS = {
+  pending: ["processing", "scheduled"],
+  scheduled: ["processing"],
+  processing: ["completed", "failed"],
+  completed: [],
+  failed: ["pending"],
 };
 
 export const updatePayoutStatus = async (req, res) => {
@@ -427,137 +399,102 @@ export const updatePayoutStatus = async (req, res) => {
     const { id } = req.params;
     const { status, transactionRef, notes } = req.body;
 
-    const validTransitions = {
-      pending: ["processing", "scheduled"],
-      scheduled: ["processing"],
-      processing: ["completed", "failed"],
-      completed: [],
-      failed: ["pending"],
-    };
-
-    const payout = await Payout.findById(id);
-    if (!payout) {
-      return res.status(404).json({
-        success: false,
-        message: "Payout not found",
-      });
+    if (!isObjectId(id)) return badRequest(res, "Invalid payout id");
+    if (typeof status !== "string" || !PAYOUT_STATUSES.includes(status)) return badRequest(res, "Invalid payout status");
+    if (transactionRef !== undefined && (typeof transactionRef !== "string" || transactionRef.length > 100)) {
+      return badRequest(res, "Transaction reference must be a string of at most 100 characters");
+    }
+    if (notes !== undefined && (typeof notes !== "string" || notes.length > 1000)) {
+      return badRequest(res, "Notes must be a string of at most 1000 characters");
     }
 
-    const before = payout.toObject();
+    const payout = await Payout.findById(id).lean();
+    if (!payout) return res.status(404).json({ success: false, message: "Payout not found" });
 
-    if (!validTransitions[payout.status].includes(status)) {
-      return res.status(400).json({
-        success: false,
-        message: `Cannot transition from ${payout.status} to ${status}`,
-      });
+    if (!PAYOUT_TRANSITIONS[payout.status]?.includes(status)) {
+      return badRequest(res, `Cannot transition from ${payout.status} to ${status}`);
     }
 
-    payout.status = status;
-    if (transactionRef) payout.transactionRef = transactionRef;
-    if (notes) payout.notes = notes;
-    if (status === "completed") payout.processedAt = new Date();
+    const set = { status };
+    if (transactionRef) set.transactionRef = transactionRef.trim();
+    if (notes) set.notes = notes;
+    if (status === "completed") set.processedAt = new Date();
 
-    await payout.save();
+    // Compare-and-set on the status we validated against, so two admins
+    // approving / marking paid at the same time can only succeed once.
+    const updated = await Payout.findOneAndUpdate({ _id: id, status: payout.status }, { $set: set }, { new: true, runValidators: true });
+    if (!updated) {
+      return res.status(409).json({ success: false, message: "This payout was updated by someone else. Refresh and try again." });
+    }
 
-    await logAudit(req.user._id, "update_payout_status", "payout", payout._id, before, payout.toObject(), req);
+    await logAudit(req.user._id, "update_payout_status", "payout", updated._id, payout, updated.toObject(), req);
 
-    res.json({
-      success: true,
-      message: "Payout status updated successfully",
-      data: payout,
-    });
+    res.json({ success: true, message: "Payout status updated successfully", data: updated });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to update payout status",
-      error: error.message,
-    });
+    serverError(res, "Failed to update payout status", error);
   }
 };
 
 export const getRefunds = async (req, res) => {
   try {
-    const { status, hotelId, dateFrom, dateTo, page = 1, limit = 10 } = req.query;
+    const query = buildListQuery(req, res, REFUND_STATUSES, "requestedAt");
+    if (!query) return;
+    const { page, limit, skip } = parsePaging(req.query, { defaultLimit: 10, maxLimit: 100 });
 
-    const query = {};
-    if (status) query.status = status;
-    if (hotelId) query.hotel = hotelId;
-    if (dateFrom || dateTo) {
-      query.requestedAt = {};
-      if (dateFrom) query.requestedAt.$gte = new Date(dateFrom);
-      if (dateTo) query.requestedAt.$lte = new Date(dateTo);
-    }
+    const [refunds, total] = await Promise.all([
+      Refund.find(query)
+        .populate("booking", "bookingId")
+        .populate("hotel", "name")
+        .populate("guest", "fullname email")
+        .sort({ requestedAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Refund.countDocuments(query),
+    ]);
 
-    const refunds = await Refund.find(query)
-      .populate("booking", "bookingId")
-      .populate("hotel", "name")
-      .populate("guest", "fullname email")
-      .sort({ requestedAt: -1 })
-      .skip((parseInt(page) - 1) * parseInt(limit))
-      .limit(parseInt(limit))
-      .lean();
-
-    const total = await Refund.countDocuments(query);
-
-    res.json({
-      success: true,
-      data: refunds,
-      total,
-      page: parseInt(page),
-      limit: parseInt(limit),
-    });
+    res.json({ success: true, data: refunds, total, page, limit });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch refunds",
-      error: error.message,
-    });
+    serverError(res, "Failed to fetch refunds", error);
   }
 };
+
+const REFUND_REASONS = Refund.schema.path("reason").enumValues;
 
 export const createRefund = async (req, res) => {
   try {
     const { bookingId, amount, reason, reasonDetail } = req.body;
 
-    if (!bookingId || !amount || !reason) {
-      return res.status(400).json({
-        success: false,
-        message: "Booking ID, amount, and reason are required",
-      });
+    if (!bookingId || amount === undefined || !reason) {
+      return badRequest(res, "Booking ID, amount, and reason are required");
+    }
+    if (!isObjectId(bookingId)) return badRequest(res, "Invalid booking id");
+    const amountNumber = typeof amount === "number" ? amount : typeof amount === "string" && amount.trim() ? Number(amount) : NaN;
+    if (!Number.isFinite(amountNumber) || amountNumber <= 0 || Math.round(amountNumber * 100) !== Number((amountNumber * 100).toFixed(6))) {
+      return badRequest(res, "Amount must be a positive number with at most two decimals");
+    }
+    if (!REFUND_REASONS.includes(reason)) return badRequest(res, "Invalid refund reason");
+    if (reasonDetail !== undefined && (typeof reasonDetail !== "string" || reasonDetail.length > 1000)) {
+      return badRequest(res, "Reason detail must be at most 1000 characters");
     }
 
     const booking = await Booking.findById(bookingId);
-    if (!booking) {
-      return res.status(404).json({
-        success: false,
-        message: "Booking not found",
-      });
+    if (!booking) return res.status(404).json({ success: false, message: "Booking not found" });
+
+    if (toPaisa(amountNumber) > toPaisa(booking.totalAmount)) {
+      return badRequest(res, "Refund amount cannot exceed booking amount");
     }
 
-    if (amount > booking.totalAmount) {
-      return res.status(400).json({
-        success: false,
-        message: "Refund amount cannot exceed booking amount",
-      });
-    }
-
-    const existingRefund = await Refund.findOne({
-      booking: bookingId,
-      status: { $nin: ["rejected"] },
-    });
-
+    const existingRefund = await Refund.findOne({ booking: bookingId, status: { $nin: ["rejected"] } });
     if (existingRefund) {
-      return res.status(400).json({
-        success: false,
-        message: "A refund request already exists for this booking",
-      });
+      return badRequest(res, "A refund request already exists for this booking");
     }
 
     const refund = new Refund({
       booking: bookingId,
       hotel: booking.hotel,
       guest: booking.user || booking.guest,
-      amount,
+      amount: fromPaisa(toPaisa(amountNumber)),
       currency: booking.currency || "NRS",
       reason,
       reasonDetail,
@@ -568,18 +505,19 @@ export const createRefund = async (req, res) => {
 
     await logAudit(req.user._id, "create_refund", "refund", refund._id, null, refund.toObject(), req);
 
-    res.json({
-      success: true,
-      message: "Refund request created successfully",
-      data: refund,
-    });
+    res.json({ success: true, message: "Refund request created successfully", data: refund });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to create refund",
-      error: error.message,
-    });
+    serverError(res, "Failed to create refund", error);
   }
+};
+
+const REFUND_TRANSITIONS = {
+  requested: ["under_review", "approved", "rejected"],
+  under_review: ["approved", "rejected"],
+  approved: ["processed", "rejected"],
+  processed: ["chargeback"],
+  rejected: [],
+  chargeback: [],
 };
 
 export const updateRefundStatus = async (req, res) => {
@@ -587,93 +525,85 @@ export const updateRefundStatus = async (req, res) => {
     const { id } = req.params;
     const { status, rejectionReason, khaltiRefRef } = req.body;
 
-    const refund = await Refund.findById(id);
-    if (!refund) {
-      return res.status(404).json({
-        success: false,
-        message: "Refund not found",
-      });
+    if (!isObjectId(id)) return badRequest(res, "Invalid refund id");
+    if (typeof status !== "string" || !REFUND_STATUSES.includes(status)) return badRequest(res, "Invalid refund status");
+    if (rejectionReason !== undefined && (typeof rejectionReason !== "string" || rejectionReason.length > 1000)) {
+      return badRequest(res, "Rejection reason must be at most 1000 characters");
+    }
+    if (khaltiRefRef !== undefined && (typeof khaltiRefRef !== "string" || khaltiRefRef.length > 100)) {
+      return badRequest(res, "Gateway reference must be at most 100 characters");
     }
 
-    const before = refund.toObject();
+    const refund = await Refund.findById(id).lean();
+    if (!refund) return res.status(404).json({ success: false, message: "Refund not found" });
 
-    refund.status = status;
-    refund.processedBy = req.user._id;
-    refund.processedAt = new Date();
+    if (!REFUND_TRANSITIONS[refund.status]?.includes(status)) {
+      return badRequest(res, `Cannot move a refund from ${refund.status} to ${status}`);
+    }
 
-    if (rejectionReason) refund.rejectionReason = rejectionReason;
-    if (khaltiRefRef) refund.khaltiRefRef = khaltiRefRef;
+    const set = { status, processedBy: req.user._id, processedAt: new Date() };
+    if (rejectionReason) set.rejectionReason = rejectionReason;
+    if (khaltiRefRef) set.khaltiRefRef = khaltiRefRef;
 
-    await refund.save();
+    const updated = await Refund.findOneAndUpdate({ _id: id, status: refund.status }, { $set: set }, { new: true, runValidators: true });
+    if (!updated) {
+      return res.status(409).json({ success: false, message: "This refund was updated by someone else. Refresh and try again." });
+    }
 
-    await logAudit(req.user._id, "update_refund_status", "refund", refund._id, before, refund.toObject(), req);
+    await logAudit(req.user._id, "update_refund_status", "refund", updated._id, refund, updated.toObject(), req);
 
-    res.json({
-      success: true,
-      message: "Refund status updated successfully",
-      data: refund,
-    });
+    res.json({ success: true, message: "Refund status updated successfully", data: updated });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to update refund status",
-      error: error.message,
-    });
+    serverError(res, "Failed to update refund status", error);
   }
 };
 
 export const getCommissionRules = async (req, res) => {
   try {
-    const rules = await Commission.find({ isActive: true })
-      .populate("hotel", "name")
-      .sort({ priority: -1 })
-      .lean();
-
-    res.json({
-      success: true,
-      data: rules,
-    });
+    const rules = await Commission.find({ isActive: true }).populate("hotel", "name").sort({ priority: -1 }).lean();
+    res.json({ success: true, data: rules });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch commission rules",
-      error: error.message,
-    });
+    serverError(res, "Failed to fetch commission rules", error);
   }
+};
+
+const COMMISSION_SCOPES = Commission.schema.path("scope").enumValues;
+
+// Validates the editable commission-rule fields; returns an error message or null.
+const validateCommissionFields = (body, { partial }) => {
+  const { scope, hotel, roomType, rate, flatFee, validFrom, validUntil, promoCode, priority } = body;
+  if (!partial || scope !== undefined) {
+    if (!COMMISSION_SCOPES.includes(scope)) return "Invalid scope";
+  }
+  if (!partial || rate !== undefined) {
+    if (typeof rate !== "number" || !Number.isFinite(rate) || rate < 0 || rate > 100) return "Rate must be a number between 0 and 100";
+  }
+  if (hotel !== undefined && hotel !== null && hotel !== "" && !isObjectId(hotel)) return "Invalid hotel id";
+  if (flatFee !== undefined && (typeof flatFee !== "number" || !Number.isFinite(flatFee) || flatFee < 0)) return "Flat fee must be a non-negative number";
+  if (priority !== undefined && (!Number.isInteger(priority) || Math.abs(priority) > 1000)) return "Priority must be an integer";
+  for (const [key, value] of Object.entries({ roomType, promoCode })) {
+    if (value !== undefined && value !== null && (typeof value !== "string" || value.length > 50)) return `${key} must be at most 50 characters`;
+  }
+  for (const [key, value] of Object.entries({ validFrom, validUntil })) {
+    if (parseDate(value) === undefined) return `Invalid ${key}`;
+  }
+  return null;
 };
 
 export const createCommissionRule = async (req, res) => {
   try {
     const { scope, hotel, roomType, rate, flatFee, validFrom, validUntil, promoCode, priority } = req.body;
 
-    if (!scope || rate === undefined) {
-      return res.status(400).json({
-        success: false,
-        message: "Scope and rate are required",
-      });
-    }
+    if (!scope || rate === undefined) return badRequest(res, "Scope and rate are required");
+    const invalid = validateCommissionFields(req.body, { partial: false });
+    if (invalid) return badRequest(res, invalid);
 
-    if (rate < 0 || rate > 100) {
-      return res.status(400).json({
-        success: false,
-        message: "Rate must be between 0 and 100",
-      });
-    }
-
-    const conflictQuery = {
-      isActive: true,
-      scope,
-    };
+    const conflictQuery = { isActive: true, scope };
     if (hotel) conflictQuery.hotel = hotel;
     if (roomType) conflictQuery.roomType = roomType;
 
     const conflicting = await Commission.findOne(conflictQuery);
-    if (conflicting) {
-      return res.status(400).json({
-        success: false,
-        message: "A conflicting commission rule already exists",
-      });
-    }
+    if (conflicting) return badRequest(res, "A conflicting commission rule already exists");
 
     const rule = new Commission({
       scope,
@@ -681,8 +611,8 @@ export const createCommissionRule = async (req, res) => {
       roomType: roomType || null,
       rate,
       flatFee: flatFee || 0,
-      validFrom: validFrom ? new Date(validFrom) : null,
-      validUntil: validUntil ? new Date(validUntil) : null,
+      validFrom: parseDate(validFrom),
+      validUntil: parseDate(validUntil),
       promoCode: promoCode || null,
       priority: priority || 0,
       createdBy: req.user._id,
@@ -692,70 +622,49 @@ export const createCommissionRule = async (req, res) => {
 
     await logAudit(req.user._id, "create_commission_rule", "commission", rule._id, null, rule.toObject(), req);
 
-    res.json({
-      success: true,
-      message: "Commission rule created successfully",
-      data: rule,
-    });
+    res.json({ success: true, message: "Commission rule created successfully", data: rule });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to create commission rule",
-      error: error.message,
-    });
+    serverError(res, "Failed to create commission rule", error);
   }
 };
+
+const COMMISSION_EDITABLE = ["scope", "hotel", "roomType", "rate", "flatFee", "validFrom", "validUntil", "promoCode", "priority"];
 
 export const updateCommissionRule = async (req, res) => {
   try {
     const { id } = req.params;
-    const updates = req.body;
+    if (!isObjectId(id)) return badRequest(res, "Invalid commission rule id");
+    const invalid = validateCommissionFields(req.body, { partial: true });
+    if (invalid) return badRequest(res, invalid);
 
     const rule = await Commission.findById(id);
-    if (!rule) {
-      return res.status(404).json({
-        success: false,
-        message: "Commission rule not found",
-      });
-    }
+    if (!rule) return res.status(404).json({ success: false, message: "Commission rule not found" });
 
     const before = rule.toObject();
 
-    Object.keys(updates).forEach((key) => {
-      if (updates[key] !== undefined && key !== "_id") {
-        rule[key] = updates[key];
-      }
-    });
+    // Only rule fields are editable; createdBy, isActive, _id etc. are ignored.
+    for (const key of COMMISSION_EDITABLE) {
+      if (req.body[key] === undefined) continue;
+      rule[key] = key === "validFrom" || key === "validUntil" ? parseDate(req.body[key]) : req.body[key] === "" ? null : req.body[key];
+    }
 
     await rule.save();
 
     await logAudit(req.user._id, "update_commission_rule", "commission", rule._id, before, rule.toObject(), req);
 
-    res.json({
-      success: true,
-      message: "Commission rule updated successfully",
-      data: rule,
-    });
+    res.json({ success: true, message: "Commission rule updated successfully", data: rule });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to update commission rule",
-      error: error.message,
-    });
+    serverError(res, "Failed to update commission rule", error);
   }
 };
 
 export const deleteCommissionRule = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!isObjectId(id)) return badRequest(res, "Invalid commission rule id");
 
     const rule = await Commission.findById(id);
-    if (!rule) {
-      return res.status(404).json({
-        success: false,
-        message: "Commission rule not found",
-      });
-    }
+    if (!rule) return res.status(404).json({ success: false, message: "Commission rule not found" });
 
     const before = rule.toObject();
     rule.isActive = false;
@@ -763,22 +672,16 @@ export const deleteCommissionRule = async (req, res) => {
 
     await logAudit(req.user._id, "delete_commission_rule", "commission", rule._id, before, rule.toObject(), req);
 
-    res.json({
-      success: true,
-      message: "Commission rule deleted successfully",
-    });
+    res.json({ success: true, message: "Commission rule deleted successfully" });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to delete commission rule",
-      error: error.message,
-    });
+    serverError(res, "Failed to delete commission rule", error);
   }
 };
 
 export const generateInvoice = async (req, res) => {
   try {
     const { bookingId } = req.params;
+    if (!isObjectId(bookingId)) return badRequest(res, "Invalid booking id");
 
     const booking = await Booking.findById(bookingId)
       .populate("hotel", "name address")
@@ -786,14 +689,9 @@ export const generateInvoice = async (req, res) => {
       .populate("room", "type pricePerNight")
       .lean();
 
-    if (!booking) {
-      return res.status(404).json({
-        success: false,
-        message: "Booking not found",
-      });
-    }
+    if (!booking) return res.status(404).json({ success: false, message: "Booking not found" });
 
-    const nights = Math.ceil((new Date(booking.checkOut) - new Date(booking.checkIn)) / (1000 * 60 * 60 * 24));
+    const nights = Math.max(1, Math.ceil((new Date(booking.checkOut) - new Date(booking.checkIn)) / (1000 * 60 * 60 * 24)));
 
     const invoice = {
       invoiceNumber: `INV-${booking.bookingId}`,
@@ -820,7 +718,7 @@ export const generateInvoice = async (req, res) => {
         {
           description: `${booking.room?.type || "Room"} - ${nights} night(s)`,
           quantity: nights,
-          unitPrice: Math.round(booking.totalAmount / nights),
+          unitPrice: fromPaisa(Math.round(toPaisa(booking.totalAmount) / nights)),
           total: booking.totalAmount,
         },
       ],
@@ -832,16 +730,9 @@ export const generateInvoice = async (req, res) => {
       paymentStatus: booking.paymentStatus,
     };
 
-    res.json({
-      success: true,
-      data: invoice,
-    });
+    res.json({ success: true, data: invoice });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to generate invoice",
-      error: error.message,
-    });
+    serverError(res, "Failed to generate invoice", error);
   }
 };
 
@@ -850,51 +741,47 @@ export const getFinancialReport = async (req, res) => {
     const { format = "json" } = req.query;
     const { startDate, endDate } = resolveFinanceDateRange(req.query);
 
-    const bookings = await Booking.find({
-      createdAt: { $gte: startDate, $lte: endDate },
-      status: { $in: ["Confirmed", "Checked-In", "Checked-Out"] },
-      paymentStatus: "paid",
-    }).lean();
-
-    const refunds = await Refund.find({
-      requestedAt: { $gte: startDate, $lte: endDate },
-      status: "processed",
-    }).lean();
+    const [bookings, refunds, rate] = await Promise.all([
+      Booking.find(paidRevenueMatch(startDate, endDate)).select("createdAt totalAmount").lean(),
+      Refund.find({ requestedAt: { $gte: startDate, $lte: endDate }, status: "processed" }).select("requestedAt amount").lean(),
+      getCommissionRate(),
+    ]);
 
     const groupedData = {};
-
     bookings.forEach((booking) => {
       const date = new Date(booking.createdAt).toISOString().split("T")[0];
       if (!groupedData[date]) {
-        groupedData[date] = {
-          date,
-          bookings: 0,
-          revenue: 0,
-          commission: 0,
-          payouts: 0,
-          refunds: 0,
-        };
+        groupedData[date] = { date, bookings: 0, gross: 0, refunds: 0 };
       }
       groupedData[date].bookings++;
-      groupedData[date].revenue += booking.totalAmount;
-      groupedData[date].commission += Math.round(booking.totalAmount * 0.15);
-      groupedData[date].payouts += Math.round(booking.totalAmount * 0.85);
+      groupedData[date].gross += toPaisa(booking.totalAmount);
     });
 
     refunds.forEach((refund) => {
       const date = new Date(refund.requestedAt).toISOString().split("T")[0];
-      if (groupedData[date]) {
-        groupedData[date].refunds += refund.amount;
-      }
+      if (groupedData[date]) groupedData[date].refunds += toPaisa(refund.amount);
     });
 
-    const report = Object.values(groupedData).sort((a, b) => a.date.localeCompare(b.date));
+    const report = Object.values(groupedData)
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .map((row) => {
+        const split = splitGross(row.gross, rate);
+        return {
+          date: row.date,
+          bookings: row.bookings,
+          revenue: fromPaisa(split.gross),
+          commission: fromPaisa(split.commission),
+          taxes: fromPaisa(split.taxes),
+          payouts: fromPaisa(split.net),
+          refunds: fromPaisa(row.refunds),
+        };
+      });
 
     if (format === "csv") {
       const csv = [
-        "Date,Bookings,Revenue,Commission,Payouts,Refunds",
-        ...report.map(
-          (row) => `${row.date},${row.bookings},${row.revenue},${row.commission},${row.payouts},${row.refunds}`
+        "Date,Bookings,Revenue,Commission,Taxes,Payouts,Refunds",
+        ...report.map((row) =>
+          [row.date, row.bookings, row.revenue, row.commission, row.taxes, row.payouts, row.refunds].map(csvCell).join(",")
         ),
       ].join("\n");
 
@@ -903,15 +790,8 @@ export const getFinancialReport = async (req, res) => {
       return res.send(csv);
     }
 
-    res.json({
-      success: true,
-      data: report,
-    });
+    res.json({ success: true, data: report });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to generate financial report",
-      error: error.message,
-    });
+    serverError(res, "Failed to generate financial report", error);
   }
 };

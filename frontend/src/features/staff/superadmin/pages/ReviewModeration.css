@@ -433,3 +433,9 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* QA-06 touch layout */
+@media (max-width: 1023px) {
+  .filter-controls select { font-size: 16px; min-height: 44px; }
+  .review-actions button, .moderation-status button, .btn-seed { min-height: 44px; }
+}

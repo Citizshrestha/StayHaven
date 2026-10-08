@@ -8,16 +8,11 @@ import {
   getRecentBookingsForDashboard
 } from '../../../../core/api/services/superadmin.service';
 import { toast } from 'react-toastify';
+import { formatRs } from '../utils/format';
+import { apiError } from '../utils/apiError';
 
-// Format NPR currency
-const formatNPR = (amount) => {
-  return new Intl.NumberFormat('en-NP', {
-    style: 'currency',
-    currency: 'NPR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(amount);
-};
+// Rules G money format, same as Finance ("Rs. 1,234.50").
+const formatNPR = formatRs;
 
 // Format date
 const formatDate = (dateString) => {
@@ -117,17 +112,16 @@ const SuperadminDashboard = () => {
         setPendingActions(pendingRes.data);
       }
 
-      // Static commission breakdown (can be fetched from API later)
-      setCommissionBreakdown([
-        { type: 'Luxury Hotels', percentage: 75, rate: '15%' },
-        { type: 'Boutique Hotels', percentage: 55, rate: '12%' },
-        { type: 'Resort Hotels', percentage: 40, rate: '10%' },
-        { type: 'Budget Hotels', percentage: 25, rate: '8%' },
+      // Commission is charged at one platform-wide rate (System Configuration);
+      // the old per-category bars were hard-coded and didn't match what
+      // Finance actually charges.
+      const rate = metricsRes.success ? metricsRes.data.commission.averageRate : null;
+      setCommissionBreakdown(rate == null ? [] : [
+        { type: 'All hotels (global rate)', percentage: Math.min(100, Number(rate) || 0), rate: `${rate}%` },
       ]);
 
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-      toast.error('Failed to load dashboard data');
+      toast.error(apiError(error, 'Failed to load dashboard data'));
     } finally {
       setLoading(false);
     }

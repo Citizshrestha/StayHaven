@@ -130,8 +130,11 @@ const isBlank = (value) => value == null || (typeof value === "string" && value.
 
 const normalizeUrl = (value) => {
   if (isBlank(value)) return undefined;
+  if (typeof value !== "string") throw new Error("Image and link fields must be text URLs.");
   const url = cleanString(value);
-  if (url.startsWith("/") || url.startsWith("http://") || url.startsWith("https://")) return url;
+  // "//host" and "/\host" are protocol-relative: they leave the site.
+  const appRelative = url.startsWith("/") && !url.startsWith("//") && !url.startsWith("/\\");
+  if (appRelative || url.startsWith("#") || /^https?:\/\/[^\s/]/i.test(url) || /^(mailto|tel):[^\s]+$/i.test(url)) return url;
   throw new Error("Image and link fields must be absolute HTTP(S) URLs or app-relative paths.");
 };
 
@@ -145,8 +148,12 @@ const normalizeArray = (value) => {
 const isObjectIdString = (value) =>
   typeof value === "string" && /^[0-9a-fA-F]{24}$/.test(value);
 
+// Server-owned fields a CMS body must never set.
+const PROTECTED_FIELDS = ["_id", "__v", "id", "createdAt", "updatedAt", "createdBy", "updatedBy"];
+
 const sanitizePayload = (Model, body = {}) => {
   const payload = { ...body };
+  PROTECTED_FIELDS.forEach((key) => delete payload[key]);
 
   Object.keys(payload).forEach((key) => {
     const value = payload[key];
@@ -172,6 +179,21 @@ const sanitizePayload = (Model, body = {}) => {
     if (key in payload) {
       payload[key] = normalizeArray(payload[key]).map(cleanString).filter(Boolean);
     }
+  });
+  if (Array.isArray(payload.images)) payload.images = payload.images.map(normalizeUrl).filter(Boolean);
+
+  // Link/image fields nested in list items (footer links, social links, team
+  // photos) get the same http(s)/app-relative rule as top-level links.
+  Object.keys(payload).forEach((key) => {
+    if (!Array.isArray(payload[key])) return;
+    payload[key] = payload[key].map((item) => {
+      if (!item || typeof item !== "object" || Array.isArray(item)) return item;
+      const next = { ...item };
+      ["href", "url", "image", "link", "avatar"].forEach((field) => {
+        if (field in next) next[field] = normalizeUrl(next[field]);
+      });
+      return next;
+    });
   });
 
   ["displayOrder", "hotelsCount", "discountPercent", "discountFlat", "price", "liveViewers"].forEach((key) => {

@@ -4,6 +4,47 @@ import { Booking } from "../models/booking.schema.js";
 import { Company } from "../models/company.schema.js";
 import { Role } from "../models/role.schema.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { searchRegex, parsePaging } from "../utils/searchQuery.js";
+import { logAudit } from "../middleware/auditLogger.js";
+
+// These handlers manage EVERY tenant's users and hotels. The routers mount
+// them behind authorize("admin"), but "admin" is a company-level role, so the
+// platform-wide check lives here: only a superadmin may proceed.
+const ensureSuperadmin = (req, res) => {
+  if ((req.user?.role?.name || req.user?.companyRole) === "superadmin") return true;
+  res.status(403).json({ success: false, message: "Super admin access required" });
+  return false;
+};
+
+const ensureObjectId = (res, id, label = "id") => {
+  if (typeof id === "string" && /^[0-9a-fA-F]{24}$/.test(id)) return true;
+  res.status(400).json({ success: false, message: `Invalid ${label}` });
+  return false;
+};
+
+// Sorting is limited to non-sensitive columns (sorting by password/resetOtp
+// would leak their ordering).
+const USER_SORTS = new Set(["createdAt", "-createdAt", "fullname", "-fullname", "email", "-email", "lastLoginAt", "-lastLoginAt"]);
+const HOTEL_SORTS = new Set(["createdAt", "-createdAt", "name", "-name", "starRating", "-starRating", "status", "-status"]);
+const COMPANY_ROLES = new Set(User.schema.path("companyRole").enumValues);
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+// Revokes the user's existing sessions: access tokens issued before now fail
+// protect()'s passwordChangedAt check, and the refresh token is dropped.
+const revokeSessions = (user) => {
+  user.passwordChangedAt = new Date();
+  user.refreshToken = null;
+};
+
+const auditUser = (user) => ({
+  _id: user._id,
+  email: user.email,
+  fullname: user.fullname,
+  role: user.role?.name || user.role,
+  companyRole: user.companyRole,
+  isActive: user.isActive,
+  isDeleted: user.isDeleted,
+});
 
 const normalizeStatusFilter = (status) => {
   if (!status) return undefined;
@@ -17,33 +58,29 @@ const normalizeStatusFilter = (status) => {
 // @route   GET /api/v1/users/admin/all
 // @access  Private (Admin/Superadmin)
 export const getAdminUsers = asyncHandler(async (req, res) => {
-  const {
-    search,
-    role,
-    status,
-    page = 1,
-    limit = 20,
-    sort = "-createdAt",
-  } = req.query;
+  if (!ensureSuperadmin(req, res)) return;
+  const { search, role, status } = req.query;
+  const sort = USER_SORTS.has(req.query.sort) ? req.query.sort : "-createdAt";
+  const { page, limit, skip } = parsePaging(req.query, { defaultLimit: 20, maxLimit: 100 });
 
   const filters = [
     { isDeleted: { $ne: true } }, // Exclude soft-deleted users
     { _id: { $ne: req.user._id } }, // Exclude current admin from list
   ];
 
-  if (search) {
-    const searchRegex = new RegExp(search, "i");
+  const regex = searchRegex(search);
+  if (regex) {
     filters.push({
       $or: [
-        { fullname: searchRegex },
-        { username: searchRegex },
-        { email: searchRegex },
-        { contact: searchRegex },
+        { fullname: regex },
+        { username: regex },
+        { email: regex },
+        { contact: regex },
       ],
     });
   }
 
-  if (role && role !== "all") {
+  if (typeof role === "string" && role && role !== "all") {
     const roleDoc = await Role.findOne({ name: role });
     const roleConditions = [{ companyRole: role }];
     if (roleDoc) {
@@ -59,14 +96,12 @@ export const getAdminUsers = asyncHandler(async (req, res) => {
 
   const query = { $and: filters };
 
-  const skip = (Number(page) - 1) * Number(limit);
-
   const users = await User.find(query)
-    .select("-password -refreshToken -resetOtp -resetOtpExpireAt")
+    .select("-password -refreshToken -resetOtp -resetOtpExpireAt -inviteToken -googleId")
     .populate("role", "name")
     .sort(sort)
     .skip(skip)
-    .limit(Number(limit));
+    .limit(limit);
 
   const total = await User.countDocuments(query);
 
@@ -74,8 +109,8 @@ export const getAdminUsers = asyncHandler(async (req, res) => {
     success: true,
     count: users.length,
     total,
-    totalPages: Math.ceil(total / Number(limit)),
-    currentPage: Number(page),
+    totalPages: Math.ceil(total / limit),
+    currentPage: page,
     users,
   });
 });
@@ -84,6 +119,7 @@ export const getAdminUsers = asyncHandler(async (req, res) => {
 // @route   PUT /api/v1/users/admin/:id/status
 // @access  Private (Admin/Superadmin)
 export const updateUserStatus = asyncHandler(async (req, res) => {
+  if (!ensureSuperadmin(req, res) || !ensureObjectId(res, req.params.id, "user id")) return;
   const { isActive } = req.body;
 
   if (typeof isActive !== "boolean") {
@@ -116,8 +152,11 @@ export const updateUserStatus = asyncHandler(async (req, res) => {
     });
   }
 
+  const before = auditUser(user);
   user.isActive = isActive;
+  if (!isActive) user.refreshToken = null; // a suspended user can't silently refresh back in
   await user.save();
+  await logAudit(req.user._id, isActive ? "activate_user" : "suspend_user", "user", user._id, before, auditUser(user), req);
 
   res.status(200).json({
     success: true,
@@ -137,8 +176,9 @@ export const updateUserStatus = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/users/admin/:id
 // @access  Private (Admin/Superadmin)
 export const getUserById = asyncHandler(async (req, res) => {
+  if (!ensureSuperadmin(req, res) || !ensureObjectId(res, req.params.id, "user id")) return;
   const user = await User.findById(req.params.id)
-    .select("-password -refreshToken -resetOtp -resetOtpExpireAt")
+    .select("-password -refreshToken -resetOtp -resetOtpExpireAt -inviteToken -googleId")
     .populate("role", "name")
     .populate("company", "name");
 
@@ -186,7 +226,19 @@ export const getUserById = asyncHandler(async (req, res) => {
 // @route   PATCH /api/v1/users/admin/:id
 // @access  Private (Admin/Superadmin)
 export const updateUser = asyncHandler(async (req, res) => {
+  if (!ensureSuperadmin(req, res) || !ensureObjectId(res, req.params.id, "user id")) return;
+  // Only these fields are editable here; password, company, isDeleted,
+  // permissions etc. in the body are ignored.
   const { fullname, email, contact, role, companyRole, isActive } = req.body;
+
+  const invalid = (message) => res.status(400).json({ success: false, message });
+  for (const [key, value] of Object.entries({ fullname, email, contact, role, companyRole })) {
+    if (value !== undefined && value !== null && typeof value !== "string") return invalid(`${key} must be a string`);
+  }
+  if (isActive !== undefined && typeof isActive !== "boolean") return invalid("isActive must be true or false");
+  if (fullname !== undefined && (!fullname || !fullname.trim() || fullname.trim().length > 100)) return invalid("Full name must be 1-100 characters");
+  if (email !== undefined && (!email || !EMAIL_RE.test(email.trim()) || email.length > 254)) return invalid("Please enter a valid email");
+  if (contact !== undefined && contact !== null && contact.length > 20) return invalid("Contact must be at most 20 characters");
 
   const user = await User.findById(req.params.id).populate("role", "name");
 
@@ -212,25 +264,54 @@ export const updateUser = asyncHandler(async (req, res) => {
     }
   }
 
-  // Update fields if provided
-  if (fullname !== undefined) user.fullname = fullname;
-  if (email !== undefined) user.email = email;
-  if (contact !== undefined) user.contact = contact;
-  if (companyRole !== undefined) user.companyRole = companyRole;
-  if (isActive !== undefined) user.isActive = isActive;
+  const before = auditUser(user);
+  const previousRoleName = user.role?.name || null;
+  const previousCompanyRole = user.companyRole || null;
+  const previousActive = user.isActive;
 
-  // Handle role update
-  if (role !== undefined) {
-    const roleDoc = await Role.findOne({ name: role });
-    if (roleDoc) {
-      user.role = roleDoc._id;
-    }
+  let roleDoc = null;
+  if (role !== undefined && role !== null && role !== "") {
+    roleDoc = await Role.findOne({ name: role });
+    if (!roleDoc) return invalid("Unknown role");
+  }
+  if (companyRole !== undefined && companyRole !== null && companyRole !== "") {
+    if (!COMPANY_ROLES.has(companyRole)) return invalid("Unknown company role");
+    if (!user.company) return invalid("A company role needs a user that belongs to a company");
   }
 
+  // Never leave the platform without an active superadmin.
+  if (previousRoleName === "superadmin" && ((roleDoc && roleDoc.name !== "superadmin") || isActive === false)) {
+    const superRole = await Role.findOne({ name: "superadmin" });
+    const remaining = await User.countDocuments({ _id: { $ne: user._id }, role: superRole?._id, isActive: true, isDeleted: { $ne: true } });
+    if (remaining < 1) return res.status(400).json({ success: false, message: "Cannot demote or deactivate the last superadmin" });
+  }
+
+  if (email !== undefined) {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (normalizedEmail !== user.email && (await User.exists({ email: normalizedEmail, _id: { $ne: user._id } }))) {
+      return res.status(409).json({ success: false, message: "Another account already uses this email" });
+    }
+    user.email = normalizedEmail;
+  }
+  if (fullname !== undefined) user.fullname = fullname.trim();
+  if (contact !== undefined) user.contact = contact;
+  if (companyRole !== undefined) user.companyRole = companyRole || undefined;
+  if (isActive !== undefined) user.isActive = isActive;
+  if (roleDoc) user.role = roleDoc._id;
+
+  // A role change or suspension must not leave old sessions with the old
+  // privileges: revoke every existing access/refresh token.
+  const privilegeChanged = (roleDoc && roleDoc.name !== previousRoleName) ||
+    (companyRole !== undefined && (companyRole || null) !== previousCompanyRole) ||
+    (isActive === false && previousActive !== false);
+  if (privilegeChanged) revokeSessions(user);
+
   await user.save();
+  await user.populate("role", "name");
+  await logAudit(req.user._id, "update_user", "user", user._id, before, auditUser(user), req);
 
   const updatedUser = await User.findById(user._id)
-    .select("-password -refreshToken -resetOtp -resetOtpExpireAt")
+    .select("-password -refreshToken -resetOtp -resetOtpExpireAt -inviteToken -googleId")
     .populate("role", "name");
 
   res.status(200).json({
@@ -244,6 +325,7 @@ export const updateUser = asyncHandler(async (req, res) => {
 // @route   DELETE /api/v1/users/admin/:id
 // @access  Private (Admin/Superadmin)
 export const deleteUser = asyncHandler(async (req, res) => {
+  if (!ensureSuperadmin(req, res) || !ensureObjectId(res, req.params.id, "user id")) return;
   const user = await User.findById(req.params.id).populate("role", "name");
 
   if (!user || user.isDeleted) {
@@ -267,13 +349,16 @@ export const deleteUser = asyncHandler(async (req, res) => {
     });
   }
 
+  const before = auditUser(user);
   // Soft delete
   user.isDeleted = true;
   user.deletedAt = new Date();
   user.deletedBy = req.user._id;
   user.isActive = false;
+  revokeSessions(user);
 
   await user.save();
+  await logAudit(req.user._id, "delete_user", "user", user._id, before, auditUser(user), req);
 
   res.status(200).json({
     success: true,
@@ -285,6 +370,7 @@ export const deleteUser = asyncHandler(async (req, res) => {
 // @route   POST /api/v1/users/admin/:id/reset-password
 // @access  Private (Admin/Superadmin)
 export const resetUserPassword = asyncHandler(async (req, res) => {
+  if (!ensureSuperadmin(req, res) || !ensureObjectId(res, req.params.id, "user id")) return;
   const user = await User.findById(req.params.id);
 
   if (!user || user.isDeleted) {
@@ -303,16 +389,17 @@ export const resetUserPassword = asyncHandler(async (req, res) => {
   user.resetOtpExpireAt = resetOtpExpireAt;
 
   await user.save();
+  await logAudit(req.user._id, "reset_user_password", "user", user._id, null, { email: user.email }, req);
 
   // TODO: Send email with reset OTP
   // For now, just return success
   // In production, integrate with your email service
 
+  // The OTP is never returned to the browser (it used to be echoed back in
+  // development, i.e. to whoever triggered the reset).
   res.status(200).json({
     success: true,
     message: "Password reset email sent successfully",
-    // Remove this in production - only for testing
-    debug: process.env.NODE_ENV === "development" ? { resetOtp } : undefined,
   });
 });
 
@@ -320,41 +407,36 @@ export const resetUserPassword = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/hotels/admin/all
 // @access  Private (Admin/Superadmin)
 export const getAdminHotels = asyncHandler(async (req, res) => {
-  const {
-    search,
-    status,
-    city,
-    category,
-    isActive,
-    page = 1,
-    limit = 12,
-    sort = "-createdAt",
-  } = req.query;
+  if (!ensureSuperadmin(req, res)) return;
+  const { search, status, city, category, isActive } = req.query;
+  const sort = HOTEL_SORTS.has(req.query.sort) ? req.query.sort : "-createdAt";
+  const { page, limit, skip } = parsePaging(req.query, { defaultLimit: 12, maxLimit: 100 });
 
   const filters = [];
 
-  if (search) {
-    const searchRegex = new RegExp(search, "i");
+  const regex = searchRegex(search);
+  if (regex) {
     filters.push({
       $or: [
-        { name: searchRegex },
-        { description: searchRegex },
-        { "location.city": searchRegex },
+        { name: regex },
+        { description: regex },
+        { "location.city": regex },
       ],
     });
   }
 
   if (status === "active") {
     filters.push({ status: "approved", isActive: true });
-  } else if (status && status !== "all") {
+  } else if (typeof status === "string" && status && status !== "all") {
     filters.push({ status });
   }
 
-  if (city) {
-    filters.push({ "location.city": new RegExp(city, "i") });
+  const cityRegex = searchRegex(city);
+  if (cityRegex) {
+    filters.push({ "location.city": cityRegex });
   }
 
-  if (category && category !== "all") {
+  if (typeof category === "string" && category && category !== "all") {
     filters.push({ category });
   }
 
@@ -367,14 +449,12 @@ export const getAdminHotels = asyncHandler(async (req, res) => {
 
   const query = filters.length > 0 ? { $and: filters } : {};
 
-  const skip = (Number(page) - 1) * Number(limit);
-
   const hotels = await Hotel.find(query)
     .populate("owner", "fullname email")
     .populate("propertyManager", "fullname email")
     .sort(sort)
     .skip(skip)
-    .limit(Number(limit));
+    .limit(limit);
 
   const total = await Hotel.countDocuments(query);
 
@@ -383,14 +463,14 @@ export const getAdminHotels = asyncHandler(async (req, res) => {
     data: hotels,
     pagination: {
       total,
-      totalPages: Math.ceil(total / Number(limit)),
-      currentPage: Number(page),
-      limit: Number(limit),
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      limit,
     },
     count: hotels.length,
     total,
-    totalPages: Math.ceil(total / Number(limit)),
-    currentPage: Number(page),
+    totalPages: Math.ceil(total / limit),
+    currentPage: page,
     hotels,
   });
 });
@@ -399,6 +479,7 @@ export const getAdminHotels = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/hotels/admin/stats
 // @access  Private (Admin/Superadmin)
 export const getAdminHotelStats = asyncHandler(async (req, res) => {
+  if (!ensureSuperadmin(req, res)) return;
   const [total, approved, active, pending] = await Promise.all([
     Hotel.countDocuments({}),
     Hotel.countDocuments({ status: "approved" }),
@@ -417,6 +498,7 @@ export const getAdminHotelStats = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/hotels/admin/:id
 // @access  Private (Admin/Superadmin)
 export const getAdminHotelById = asyncHandler(async (req, res) => {
+  if (!ensureSuperadmin(req, res) || !ensureObjectId(res, req.params.id, "hotel id")) return;
   const hotel = await Hotel.findById(req.params.id)
     .populate("owner", "fullname username email profilePicture")
     .populate("propertyManager", "fullname username email profilePicture");
@@ -476,6 +558,9 @@ export const getAdminHotelById = asyncHandler(async (req, res) => {
 // @route   POST /api/v1/hotels/admin
 // @access  Private (Admin/Superadmin)
 export const createAdminHotel = asyncHandler(async (req, res) => {
+  if (!ensureSuperadmin(req, res)) return;
+  if (req.body?.owner !== undefined && !ensureObjectId(res, req.body.owner, "owner id")) return;
+  if (req.body?.propertyManager && !ensureObjectId(res, req.body.propertyManager, "property manager id")) return;
   const {
     name,
     description,
@@ -533,6 +618,7 @@ export const createAdminHotel = asyncHandler(async (req, res) => {
     contact,
     status: "pending",
   });
+  await logAudit(req.user._id, "create_hotel", "hotel", hotel._id, null, { name: hotel.name, owner: ownerUser._id, company: company._id }, req);
 
   res.status(201).json({
     success: true,
