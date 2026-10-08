@@ -9,6 +9,9 @@ import {
   getHotelStatistics,
   updateHotelStatus,
   toggleFeatured,
+  getHotelAvailability,
+  getHotelReviews,
+  getBankTransferDetails,
 } from '../controllers/hotelController.js';
 import { createAdminHotel, getAdminHotelById, getAdminHotels, getAdminHotelStats } from '../controllers/adminController.js';
 import { protect, authorize } from '../middleware/authMiddleware.js';
@@ -27,6 +30,10 @@ router.get('/admin/stats', protect, authorize('admin'), getAdminHotelStats);
 router.post('/admin', protect, authorize('admin'), writeOperationLimiter, createAdminHotel);
 router.get('/admin/:id', protect, authorize('admin'), getAdminHotelById);
 router.get('/:id', getHotelById);
+router.get('/:id/availability', getHotelAvailability);
+router.get('/:id/reviews', getHotelReviews);
+// Bank transfer instructions are shown only to a signed-in guest who is paying
+router.get('/:id/bank-transfer-details', protect, getBankTransferDetails);
 
 // Protected routes - Hotel Owners
 router.post('/', protect, authorize('owner', 'admin'), writeOperationLimiter, createHotel);

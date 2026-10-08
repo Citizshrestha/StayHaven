@@ -1,18 +1,20 @@
 import { Hotel } from "../models/hotel.schema.js";
 import { Room } from "../models/room.schema.js";
 import { Booking } from "../models/booking.schema.js";
+import { Review } from "../models/review.model.js";
 import { User } from "../models/user.schema.js";
 import { Company } from "../models/company.schema.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { notifySuperadmins } from "./notificationController.js";
 import { sendEmail } from "../config/nodemailer.js";
 import { createLogger } from "../utils/logger.js";
+import { searchRegex, parsePaging } from "../utils/searchQuery.js";
+import { activeReservationFilter } from "../services/bookingAvailability.js";
 
 const logger = createLogger('HotelController');
 
 const optionalObjectIdFields = ['propertyManager'];
 
-const escapeRegExp = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const sanitizeHotelUpdateFields = (fields) => {
   const sanitized = { ...fields };
@@ -116,124 +118,123 @@ export const createHotel = asyncHandler(async (req, res) => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// PUBLIC (unauthenticated) hotel reads.
+// These responses go to anyone on the internet, so they use an explicit
+// field allow-list by exclusion of everything operational/private: owner and
+// company ids + PII, payout bank details, restaurant billing config, revenue
+// counters, and room QR tokens (a room QR token grants in-room guest access).
+// ---------------------------------------------------------------------------
+const PUBLIC_HOTEL_EXCLUDE = '-owner -company -propertyManager -bankTransferAccount -restaurantBilling -totalRevenue -totalBookings -totalRooms -availableRooms -__v';
+const PUBLIC_ROOM_EXCLUDE = '-uniqueToken -qrCodeData -qrCodeImage -QR -isQrActive -reservationVersion -company -lastCleaned -status -__v';
+const PUBLIC_SORTS = new Map([
+  ['-rating', { rating: -1, _id: 1 }], ['rating', { rating: 1, _id: 1 }],
+  ['-createdAt', { createdAt: -1, _id: 1 }], ['createdAt', { createdAt: 1, _id: 1 }],
+  ['name', { name: 1, _id: 1 }], ['-name', { name: -1, _id: 1 }],
+  ['-starRating', { starRating: -1, _id: 1 }], ['starRating', { starRating: 1, _id: 1 }],
+  ['priceRange.min', { 'priceRange.min': 1, _id: 1 }], ['-priceRange.min', { 'priceRange.min': -1, _id: 1 }],
+  ['price', { 'priceRange.min': 1, _id: 1 }], ['-price', { 'priceRange.min': -1, _id: 1 }],
+]);
+const finiteNumber = (value) => {
+  if (typeof value !== 'string' && typeof value !== 'number') return null;
+  if (typeof value === 'string' && value.trim() === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+};
+const parseStayDates = (checkIn, checkOut) => {
+  const start = new Date(checkIn);
+  const end = new Date(checkOut);
+  if (typeof checkIn !== 'string' || typeof checkOut !== 'string' ||
+      Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start >= end) return null;
+  return { start, end };
+};
+
+// IDs of rooms (from `roomIds`) that already have a live reservation overlapping the stay.
+const bookedRoomIdSet = async (roomIds, start, end) => {
+  if (!roomIds.length) return new Set();
+  const booked = await Booking.distinct('room', {
+    room: { $in: roomIds },
+    checkIn: { $lt: end },
+    checkOut: { $gt: start },
+    ...activeReservationFilter(),
+  });
+  return new Set(booked.map(String));
+};
+
 // @desc    Get all hotels (with filters)
 // @route   GET /api/hotels
 // @access  Public
 export const getAllHotels = asyncHandler(async (req, res) => {
-  const {
-    city,
-    category,
-    starRating,
-    minRating,
-    minPrice,
-    maxPrice,
-    amenities,
-    search,
-    page = 1,
-    limit = 12,
-    sort = '-rating',
-    destination,
-    checkIn,
-    checkOut,
-  } = req.query;
+  const { city, category, starRating, minRating, maxRating, minPrice, maxPrice, amenities, search,
+    sort, destination, checkIn, checkOut } = req.query;
+  const { page, limit, skip } = parsePaging(req.query, { defaultLimit: 12, maxLimit: 50 });
 
-  // Build query
+  // Only approved + active hotels are ever public.
   const query = { status: 'approved', isActive: true };
 
-  // Destination search (alias for city)
-  const searchCity = destination || city;
-  if (searchCity) {
-    query['location.city'] = { $regex: searchCity, $options: 'i' };
-  }
+  const cityRegex = searchRegex(destination) || searchRegex(city);
+  if (cityRegex) query['location.city'] = cityRegex;
 
-  if (category) {
-    query.category = category;
-  }
+  if (typeof category === 'string' && category.trim()) query.category = category.trim();
 
-  if (starRating) {
-    query.starRating = parseInt(starRating);
-  }
+  const stars = finiteNumber(starRating);
+  if (stars !== null) query.starRating = Math.trunc(stars);
 
-  if (minRating) {
-    query.rating = { ...(query.rating || {}), $gte: parseFloat(minRating) };
-  }
-  if (req.query.maxRating !== undefined && req.query.maxRating !== '') {
-    query.rating = { ...(query.rating || {}), $lte: parseFloat(req.query.maxRating) };
-  }
+  const ratingFilter = {};
+  const minR = finiteNumber(minRating);
+  const maxR = finiteNumber(maxRating);
+  if (minR !== null) ratingFilter.$gte = minR;
+  if (maxR !== null) ratingFilter.$lte = maxR;
+  if (Object.keys(ratingFilter).length) query.rating = ratingFilter;
 
   // Price filtering: match hotels whose price range overlaps the requested range.
-  // - minPrice means: hotel.priceRange.max >= minPrice
-  // - maxPrice means: hotel.priceRange.min <= maxPrice
-  if (minPrice) {
-    query['priceRange.max'] = { $gte: parseInt(minPrice) };
-  }
-  if (maxPrice) {
-    query['priceRange.min'] = { ...(query['priceRange.min'] || {}), $lte: parseInt(maxPrice) };
-  }
+  const minP = finiteNumber(minPrice);
+  const maxP = finiteNumber(maxPrice);
+  if (minP !== null) query['priceRange.max'] = { $gte: minP };
+  if (maxP !== null) query['priceRange.min'] = { $lte: maxP };
 
-  if (amenities) {
-    const amenitiesArray = amenities.split(',');
-    query.amenities = { $all: amenitiesArray };
-  }
+  const amenityList = (Array.isArray(amenities) ? amenities : typeof amenities === 'string' ? amenities.split(',') : [])
+    .filter((a) => typeof a === 'string').map((a) => a.trim()).filter(Boolean).slice(0, 30);
+  if (amenityList.length) query.amenities = { $all: amenityList };
 
-  if (search) {
-    const searchRegex = new RegExp(escapeRegExp(search), 'i');
+  const textRegex = searchRegex(search);
+  if (textRegex) {
     query.$or = [
-      { name: searchRegex },
-      { description: searchRegex },
-      { 'location.city': searchRegex },
-      { 'location.country': searchRegex },
-      { 'location.address': searchRegex },
+      { name: textRegex }, { description: textRegex }, { 'location.city': textRegex },
+      { 'location.country': textRegex }, { 'location.address': textRegex },
     ];
   }
 
-  // Execute query with pagination
-  const skip = (page - 1) * limit;
-  let hotels = await Hotel.find(query)
-    .populate('owner', 'fullname email')
-    .sort(sort)
-    .skip(skip)
-    .limit(parseInt(limit));
+  const sortSpec = PUBLIC_SORTS.get(typeof sort === 'string' ? sort : '-rating') || PUBLIC_SORTS.get('-rating');
 
-  // If check-in/check-out dates provided, keep hotels with at least one room free.
-  if (checkIn && checkOut) {
-    const checkInDate = new Date(checkIn);
-    const checkOutDate = new Date(checkOut);
-
-    if (Number.isNaN(checkInDate.getTime()) || Number.isNaN(checkOutDate.getTime()) || checkInDate >= checkOutDate) {
-      return res.status(400).json({
-        success: false,
-        message: 'Valid check-in and check-out dates are required',
-      });
+  let hotels;
+  let total;
+  if (checkIn !== undefined || checkOut !== undefined) {
+    // Date-aware search: keep hotels with at least one bookable room for the stay.
+    const dates = parseStayDates(checkIn, checkOut);
+    if (!dates) {
+      return res.status(400).json({ success: false, message: 'Valid check-in and check-out dates are required' });
     }
-
-    hotels = (await Promise.all(hotels.map(async (hotel) => {
-      const rooms = await Room.find({
-        hotel: hotel._id,
-        status: { $ne: 'maintenance' },
-      }).select('_id');
-
-      if (!rooms.length) return null;
-
-      const bookedRoomIds = await Booking.distinct('room', {
-        room: { $in: rooms.map((room) => room._id) },
-        status: { $in: ['Confirmed', 'Checked-In', 'Pending'] },
-        checkIn: { $lt: checkOutDate },
-        checkOut: { $gt: checkInDate },
-      });
-
-      return bookedRoomIds.length < rooms.length ? hotel : null;
-    }))).filter(Boolean);
+    const candidates = await Hotel.find(query).select(PUBLIC_HOTEL_EXCLUDE).sort(sortSpec).limit(500).lean();
+    const rooms = await Room.find({ hotel: { $in: candidates.map((h) => h._id) }, status: { $ne: 'maintenance' } }).select('_id hotel').lean();
+    const booked = await bookedRoomIdSet(rooms.map((r) => r._id), dates.start, dates.end);
+    const free = new Set(rooms.filter((r) => !booked.has(String(r._id))).map((r) => String(r.hotel)));
+    const available = candidates.filter((h) => free.has(String(h._id)));
+    total = available.length;
+    hotels = available.slice(skip, skip + limit);
+  } else {
+    [hotels, total] = await Promise.all([
+      Hotel.find(query).select(PUBLIC_HOTEL_EXCLUDE).sort(sortSpec).skip(skip).limit(limit).lean(),
+      Hotel.countDocuments(query),
+    ]);
   }
-
-  const total = hotels.length;
 
   res.status(200).json({
     success: true,
     count: hotels.length,
     total,
     totalPages: Math.ceil(total / limit),
-    currentPage: parseInt(page),
+    currentPage: page,
     hotels,
   });
 });
@@ -242,28 +243,115 @@ export const getAllHotels = asyncHandler(async (req, res) => {
 // @route   GET /api/hotels/:id
 // @access  Public
 export const getHotelById = asyncHandler(async (req, res) => {
-  const hotel = await Hotel.findOne({
+  const found = await Hotel.findOne({
     _id: req.params.id,
     status: 'approved',
     isActive: true,
-  }).populate('owner', 'fullname email contact');
+  }).lean();
 
-  if (!hotel) {
+  if (!found) {
     return res.status(404).json({
       success: false,
       message: "Hotel not found",
     });
   }
 
-  // Get associated rooms
-  const rooms = await Room.find({ hotel: hotel._id });
+  // Rooms that are permanently out of service can't be booked, so they aren't listed.
+  const rooms = await Room.find({ hotel: found._id, status: { $ne: 'maintenance' } })
+    .select(PUBLIC_ROOM_EXCLUDE).sort({ price: 1, roomNumber: 1 }).lean();
 
+  const { owner, company, propertyManager, bankTransferAccount, restaurantBilling, totalRevenue, totalBookings, totalRooms, availableRooms, __v, ...hotel } = found; // eslint-disable-line no-unused-vars
   res.status(200).json({
     success: true,
     hotel: {
-      ...hotel.toObject(),
+      ...hotel,
+      // Only whether bank transfer is offered; the account itself needs a signed-in guest (see getBankTransferDetails).
+      bankTransferEnabled: bankTransferAccount?.enabled === true,
       rooms,
     },
+  });
+});
+
+// @desc    Which of a hotel's rooms can be booked for a stay
+// @route   GET /api/hotels/:id/availability?checkIn=&checkOut=
+// @access  Public (returns booleans only, no booking data)
+export const getHotelAvailability = asyncHandler(async (req, res) => {
+  const dates = parseStayDates(req.query.checkIn, req.query.checkOut);
+  if (!dates) {
+    return res.status(400).json({ success: false, message: 'Valid check-in and check-out dates are required' });
+  }
+  const hotel = await Hotel.findOne({ _id: req.params.id, status: 'approved', isActive: true }).select('_id').lean();
+  if (!hotel) return res.status(404).json({ success: false, message: 'Hotel not found' });
+
+  const rooms = await Room.find({ hotel: hotel._id, status: { $ne: 'maintenance' } }).select('_id').lean();
+  const booked = await bookedRoomIdSet(rooms.map((r) => r._id), dates.start, dates.end);
+  res.set('Cache-Control', 'no-store');
+  res.status(200).json({
+    success: true,
+    rooms: rooms.map((r) => ({ roomId: String(r._id), available: !booked.has(String(r._id)) })),
+  });
+});
+
+// @desc    Approved guest reviews for a hotel (hidden/pending/rejected/flagged are never returned)
+// @route   GET /api/hotels/:id/reviews
+// @access  Public
+export const getHotelReviews = asyncHandler(async (req, res) => {
+  const hotel = await Hotel.findOne({ _id: req.params.id, status: 'approved', isActive: true }).select('_id').lean();
+  if (!hotel) return res.status(404).json({ success: false, message: 'Hotel not found' });
+  const { page, limit, skip } = parsePaging(req.query, { defaultLimit: 5, maxLimit: 20 });
+  const filter = { hotel: hotel._id, moderationStatus: 'approved' };
+
+  const [reviews, total, distribution] = await Promise.all([
+    Review.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit)
+      .populate('guest', 'fullname').select('rating title comment createdAt guest isVerifiedGuest hotelReply').lean(),
+    Review.countDocuments(filter),
+    Review.aggregate([{ $match: filter }, { $group: { _id: '$rating', count: { $sum: 1 } } }]),
+  ]);
+  const counts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  distribution.forEach((row) => { if (counts[row._id] !== undefined) counts[row._id] = row.count; });
+
+  // Reviewer = first name + last initial only. Never expose email or ids.
+  const displayName = (fullname) => {
+    const parts = String(fullname || '').trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return 'Guest';
+    return parts.length === 1 ? parts[0] : `${parts[0]} ${parts[parts.length - 1][0]}.`;
+  };
+  res.status(200).json({
+    success: true,
+    total,
+    totalPages: Math.ceil(total / limit),
+    currentPage: page,
+    distribution: counts,
+    reviews: reviews.map((r) => ({
+      id: String(r._id),
+      name: displayName(r.guest?.fullname),
+      rating: r.rating,
+      title: r.title || '',
+      text: r.comment,
+      date: r.createdAt,
+      verified: !!r.isVerifiedGuest,
+      reply: r.hotelReply?.isPublic && r.hotelReply?.text ? r.hotelReply.text : null,
+    })),
+  });
+});
+
+// @desc    Where a guest should send a bank transfer for this hotel
+// @route   GET /api/hotels/:id/bank-transfer-details
+// @access  Private (signed-in guest completing a booking); never part of the public hotel payload
+export const getBankTransferDetails = asyncHandler(async (req, res) => {
+  const hotel = await Hotel.findOne({ _id: req.params.id, status: 'approved', isActive: true })
+    .select('name bankTransferAccount').lean();
+  if (!hotel) return res.status(404).json({ success: false, message: 'Hotel not found' });
+  const a = hotel.bankTransferAccount || {};
+  const configured = a.enabled === true && a.accountName && a.bankName && a.accountNumber;
+  res.set('Cache-Control', 'no-store');
+  if (!configured) {
+    return res.status(200).json({ success: true, enabled: false });
+  }
+  res.status(200).json({
+    success: true,
+    enabled: true,
+    account: { accountName: a.accountName, bankName: a.bankName, accountNumber: a.accountNumber, branch: a.branch || '' },
   });
 });
 
