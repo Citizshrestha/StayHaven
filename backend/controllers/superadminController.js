@@ -4,6 +4,8 @@ import { Hotel } from '../models/hotel.schema.js';
 import { User } from '../models/user.schema.js';
 import { Guest } from '../models/guest.schema.js';
 import { Review } from '../models/review.model.js';
+import { parsePaging } from '../utils/searchQuery.js';
+import { getCommissionRate, splitGross, sumPaisa, toPaisa, fromPaisa } from '../services/platformFinance.js';
 
 /**
  * Super Admin Controller
@@ -50,31 +52,26 @@ export const getDashboardMetrics = async (req, res) => {
         previousStartDate.setDate(now.getDate() - 14);
     }
 
-    // Get current period bookings
-    const currentBookings = await Booking.find({
-      createdAt: { $gte: startDate, $lte: now },
-      status: { $in: ['Confirmed', 'Checked-In', 'Checked-Out'] }
+    // Same population and formula as the Finance page: paid bookings that are
+    // confirmed / checked-in / checked-out, commission at the configured rate.
+    const revenueQuery = (from, to, toOp = '$lte') => ({
+      createdAt: { $gte: from, [toOp]: to },
+      status: { $in: ['Confirmed', 'Checked-In', 'Checked-Out'] },
+      paymentStatus: 'paid',
     });
+    const [currentBookings, previousBookings, rate] = await Promise.all([
+      Booking.find(revenueQuery(startDate, now)).select('totalAmount user').lean(),
+      Booking.find(revenueQuery(previousStartDate, startDate, '$lt')).select('totalAmount user').lean(),
+      getCommissionRate(),
+    ]);
 
-    // Get previous period bookings for comparison
-    const previousBookings = await Booking.find({
-      createdAt: { $gte: previousStartDate, $lt: startDate },
-      status: { $in: ['Confirmed', 'Checked-In', 'Checked-Out'] }
-    });
+    const currentGross = sumPaisa(currentBookings, (b) => b.totalAmount);
+    const previousGross = sumPaisa(previousBookings, (b) => b.totalAmount);
+    const currentCommission = splitGross(currentGross, rate).commission;
 
-    // Calculate total revenue (15% commission on confirmed bookings)
-    const currentRevenue = currentBookings.reduce((sum, booking) => {
-      const commission = booking.totalAmount * 0.15;
-      return sum + commission;
-    }, 0);
-
-    const previousRevenue = previousBookings.reduce((sum, booking) => {
-      const commission = booking.totalAmount * 0.15;
-      return sum + commission;
-    }, 0);
-
-    const revenueChange = previousRevenue > 0
-      ? ((currentRevenue - previousRevenue) / previousRevenue) * 100
+    // Commission is a fixed share of gross, so both change by the same %.
+    const revenueChange = previousGross > 0
+      ? ((currentGross - previousGross) / previousGross) * 100
       : 0;
 
     // Get active users count (users who logged in or made bookings in period)
@@ -104,16 +101,16 @@ export const getDashboardMetrics = async (req, res) => {
 
     const metrics = {
       revenue: {
-        value: Math.round(currentRevenue),
+        value: fromPaisa(currentGross),
         change: parseFloat(revenueChange.toFixed(1)),
         trend: revenueChange >= 0 ? 'up' : 'down',
         currency: 'NPR'
       },
       commission: {
-        value: Math.round(currentRevenue),
+        value: fromPaisa(currentCommission),
         change: parseFloat(revenueChange.toFixed(1)),
         trend: revenueChange >= 0 ? 'up' : 'down',
-        averageRate: 15,
+        averageRate: rate,
         currency: 'NPR'
       },
       activeUsers: {
@@ -150,20 +147,38 @@ export const getDashboardMetrics = async (req, res) => {
  */
 export const getRecentBookings = async (req, res) => {
   try {
-    const { limit = 10 } = req.query;
+    const { limit } = parsePaging(req.query, { defaultLimit: 10, maxLimit: 50 });
 
-    const bookings = await Booking.find()
-      .populate('hotel', 'name')
-      .populate('user', 'fullname email')
-      .populate('guestInfo')
-      .sort({ createdAt: -1 })
-      .limit(parseInt(limit))
-      .lean();
+    const [bookings, rate] = await Promise.all([
+      Booking.find()
+        .populate('hotel', 'name')
+        .populate('user', 'fullname email')
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .lean(),
+      getCommissionRate(),
+    ]);
+
+    // Payment status label/colour; a cancelled booking is shown as cancelled
+    // whatever its payment state.
+    const paymentLabel = (booking) => {
+      if (booking.status === 'Cancelled') return ['Cancelled', 'error'];
+      switch (booking.paymentStatus) {
+        case 'paid': return ['Paid', 'success'];
+        case 'unpaid':
+        case 'pending': return ['Unpaid', 'warning'];
+        case 'partial': return ['Partially paid', 'warning'];
+        case 'refunded': return ['Refunded', 'neutral'];
+        case 'failed': return ['Failed', 'error'];
+        default: return [booking.paymentStatus || 'Unknown', 'neutral'];
+      }
+    };
 
     const formattedBookings = bookings.map(booking => {
       const guestName = booking.user?.fullname || booking.guestInfo?.name || 'Guest';
       const guestEmail = booking.user?.email || booking.guestInfo?.email || 'N/A';
-      const commission = Math.round(booking.totalAmount * 0.15);
+      const commission = fromPaisa(splitGross(toPaisa(booking.totalAmount), rate).commission);
+      const [status, statusType] = paymentLabel(booking);
 
       return {
         guest: guestName,
@@ -173,8 +188,8 @@ export const getRecentBookings = async (req, res) => {
         amount: booking.totalAmount,
         commission: commission,
         currency: booking.currency || 'NPR',
-        status: booking.paymentStatus === 'paid' ? 'Paid' : booking.paymentStatus === 'unpaid' ? 'Pending' : 'Cancelled',
-        statusType: booking.paymentStatus === 'paid' ? 'success' : booking.paymentStatus === 'unpaid' ? 'warning' : 'error'
+        status,
+        statusType
       };
     });
 
@@ -199,20 +214,21 @@ export const getRecentBookings = async (req, res) => {
  */
 export const getRecentActivity = async (req, res) => {
   try {
-    const { limit = 10 } = req.query;
+    const { limit } = parsePaging(req.query, { defaultLimit: 10, maxLimit: 50 });
+    const half = Math.max(1, Math.ceil(limit / 2));
 
     // Get recent bookings
     const recentBookings = await Booking.find({ status: 'Confirmed' })
       .populate('hotel', 'name')
       .populate('user', 'fullname')
       .sort({ createdAt: -1 })
-      .limit(parseInt(limit) / 2)
+      .limit(half)
       .lean();
 
     // Get recently added hotels
     const recentHotels = await Hotel.find({ status: 'pending' })
       .sort({ createdAt: -1 })
-      .limit(parseInt(limit) / 2)
+      .limit(half)
       .lean();
 
     const activities = [];
@@ -262,7 +278,7 @@ export const getRecentActivity = async (req, res) => {
 
     res.json({
       success: true,
-      data: activities.slice(0, parseInt(limit)),
+      data: activities.slice(0, limit),
     });
   } catch (error) {
     console.error('Error fetching activity feed:', error);
@@ -315,23 +331,18 @@ export const getRevenueAnalytics = async (req, res) => {
         dataPoints = 7;
     }
 
-    // Get bookings for current period
-    const bookings = await Booking.find({
-      createdAt: { $gte: startDate, $lte: now },
-      status: { $in: ['Confirmed', 'Checked-In', 'Checked-Out'] }
-    }).lean();
+    const statusFilter = { status: { $in: ['Confirmed', 'Checked-In', 'Checked-Out'] }, paymentStatus: 'paid' };
+    const [bookings, previousBookings, rate] = await Promise.all([
+      Booking.find({ createdAt: { $gte: startDate, $lte: now }, ...statusFilter }).select('totalAmount').lean(),
+      Booking.find({ createdAt: { $gte: previousStartDate, $lt: startDate }, ...statusFilter }).select('totalAmount').lean(),
+      getCommissionRate(),
+    ]);
 
-    // Calculate net sales and commission
-    const netSales = bookings.reduce((sum, b) => sum + b.totalAmount, 0);
-    const platformFee = Math.round(netSales * 0.15);
-
-    // Get previous period for growth calculation
-    const previousBookings = await Booking.find({
-      createdAt: { $gte: previousStartDate, $lt: startDate },
-      status: { $in: ['Confirmed', 'Checked-In', 'Checked-Out'] }
-    }).lean();
-
-    const previousSales = previousBookings.reduce((sum, b) => sum + b.totalAmount, 0);
+    // Calculate net sales and commission (integer paisa, configured rate)
+    const netSalesPaisa = sumPaisa(bookings, (b) => b.totalAmount);
+    const netSales = fromPaisa(netSalesPaisa);
+    const platformFee = fromPaisa(splitGross(netSalesPaisa, rate).commission);
+    const previousSales = fromPaisa(sumPaisa(previousBookings, (b) => b.totalAmount));
     const growthRate = previousSales > 0
       ? ((netSales - previousSales) / previousSales) * 100
       : 0;
@@ -339,7 +350,7 @@ export const getRevenueAnalytics = async (req, res) => {
     res.json({
       success: true,
       data: {
-        netSales: Math.round(netSales),
+        netSales,
         growthRate: parseFloat(growthRate.toFixed(1)),
         platformFee: platformFee,
         currency: 'NPR',

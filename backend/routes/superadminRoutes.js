@@ -96,6 +96,9 @@ router.get('/bookings', async (req, res) => {
     const query = {};
 
     if (status) {
+      if (typeof status !== 'string') {
+        return res.status(400).json({ success: false, message: 'Invalid status filter' });
+      }
       query.status = status;
     }
 
@@ -124,8 +127,8 @@ router.get('/bookings', async (req, res) => {
       }
     }
 
-    if (search) {
-      const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (typeof search === 'string' && search) {
+      const escaped = search.slice(0, 100).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const regex = new RegExp(escaped, 'i');
       query.$or = [
         { bookingId: regex },
@@ -140,8 +143,13 @@ router.get('/bookings', async (req, res) => {
     const parsedLimit = Math.min(100, parseInt(limit, 10) || 20);
     const skip = (parsedPage - 1) * parsedLimit;
 
+    // Explicit projections: a bare populate('user') returned password hashes,
+    // refresh/invite tokens and reset OTPs of every guest.
     const bookings = await Booking.find(query)
-      .populate(['user', 'hotel', 'room', 'company'])
+      .populate('user', 'fullname email contact')
+      .populate('hotel', 'name location.city status')
+      .populate('room', 'roomName roomNumber type')
+      .populate('company', 'name')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parsedLimit);
@@ -156,10 +164,10 @@ router.get('/bookings', async (req, res) => {
       currentPage: parsedPage,
     });
   } catch (error) {
+    console.error('[superadmin] Failed to fetch bookings:', error?.message);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch bookings',
-      error: error.message,
     });
   }
 });

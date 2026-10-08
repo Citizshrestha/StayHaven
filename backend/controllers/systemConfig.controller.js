@@ -3,6 +3,7 @@ import { AuditLog } from "../models/auditLog.model.js";
 import { logAudit } from "../middleware/auditLogger.js";
 import { checkKhaltiConnection, getPaymentGatewayConfig } from "../services/paymentGatewayService.js";
 import { transporter, sendEmail } from "../config/nodemailer.js";
+import { parsePaging } from "../utils/searchQuery.js";
 
 const maskSensitiveFields = (settings) => {
   if (!settings) return settings;
@@ -53,9 +54,61 @@ export const getPlatformSettings = async (req, res) => {
   }
 };
 
+const DATE_FORMATS = ["DD/MM/YYYY", "MM/DD/YYYY", "YYYY-MM-DD", "DD-MM-YYYY"];
+const isValidTimeZone = (tz) => {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+};
+const isValidLocale = (locale) => {
+  try {
+    return Intl.getCanonicalLocales(locale).length === 1;
+  } catch {
+    return false;
+  }
+};
+
+// Only these general settings are editable through PUT /settings. Gateway
+// credentials, maintenance mode (its own audited endpoint), _id and updatedBy
+// in the body are ignored. Returns { updates } or { error }.
+const pickSettingsUpdates = (body = {}) => {
+  const updates = {};
+  const { currency, timezone, locale, dateFormat, globalCommissionRate } = body;
+  if (currency !== undefined) {
+    if (typeof currency !== "string" || !/^[A-Z]{3}$/.test(currency)) return { error: "Currency must be a 3-letter code (e.g. NRS)" };
+    updates.currency = currency;
+  }
+  if (timezone !== undefined) {
+    if (typeof timezone !== "string" || !isValidTimeZone(timezone)) return { error: "Unknown timezone" };
+    updates.timezone = timezone;
+  }
+  if (locale !== undefined) {
+    if (typeof locale !== "string" || !isValidLocale(locale)) return { error: "Unknown locale" };
+    updates.locale = locale;
+  }
+  if (dateFormat !== undefined) {
+    if (!DATE_FORMATS.includes(dateFormat)) return { error: `Date format must be one of ${DATE_FORMATS.join(", ")}` };
+    updates.dateFormat = dateFormat;
+  }
+  if (globalCommissionRate !== undefined) {
+    if (typeof globalCommissionRate !== "number" || !Number.isFinite(globalCommissionRate) || globalCommissionRate < 0 || globalCommissionRate > 100) {
+      return { error: "Commission rate must be a number between 0 and 100" };
+    }
+    updates.globalCommissionRate = Math.round(globalCommissionRate * 100) / 100;
+  }
+  return { updates };
+};
+
 export const updatePlatformSettings = async (req, res) => {
   try {
-    const updates = req.body;
+    const { updates, error } = pickSettingsUpdates(req.body);
+    if (error) return res.status(400).json({ success: false, message: error });
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ success: false, message: "No editable settings in the request" });
+    }
 
     const existingSettings = await PlatformSettings.findById("singleton");
     const before = existingSettings ? existingSettings.toObject() : null;
@@ -68,10 +121,10 @@ export const updatePlatformSettings = async (req, res) => {
           updatedBy: req.user._id,
         },
       },
-      { upsert: true, new: true }
+      { upsert: true, new: true, runValidators: true }
     );
 
-    await logAudit(req.user._id, "update_platform_settings", "platformSettings", "singleton", before, settings.toObject(), req);
+    await logAudit(req.user._id, "update_platform_settings", "platformSettings", null, before, settings.toObject(), req);
 
     const maskedSettings = maskSensitiveFields(settings.toObject());
 
@@ -81,10 +134,10 @@ export const updatePlatformSettings = async (req, res) => {
       data: maskedSettings,
     });
   } catch (error) {
+    console.error("[system] Failed to update platform settings:", error?.message);
     res.status(500).json({
       success: false,
       message: "Failed to update platform settings",
-      error: error.message,
     });
   }
 };
@@ -92,6 +145,17 @@ export const updatePlatformSettings = async (req, res) => {
 export const toggleMaintenanceMode = async (req, res) => {
   try {
     const { enabled, message, scheduledEnd } = req.body;
+
+    if (typeof enabled !== "boolean") {
+      return res.status(400).json({ success: false, message: "enabled must be true or false" });
+    }
+    if (message !== undefined && message !== null && (typeof message !== "string" || message.length > 500)) {
+      return res.status(400).json({ success: false, message: "Maintenance message must be at most 500 characters" });
+    }
+    const end = scheduledEnd ? new Date(scheduledEnd) : null;
+    if (end && Number.isNaN(end.getTime())) {
+      return res.status(400).json({ success: false, message: "Invalid scheduled end date" });
+    }
 
     const existingSettings = await PlatformSettings.findById("singleton");
     const before = existingSettings ? existingSettings.toObject() : null;
@@ -101,8 +165,8 @@ export const toggleMaintenanceMode = async (req, res) => {
       {
         $set: {
           maintenanceMode: enabled,
-          maintenanceMessage: message || "Under maintenance. We'll be back soon!",
-          maintenanceScheduledEnd: scheduledEnd ? new Date(scheduledEnd) : null,
+          maintenanceMessage: (typeof message === "string" && message.trim()) || "Under maintenance. We'll be back soon!",
+          maintenanceScheduledEnd: end,
           updatedBy: req.user._id,
         },
       },
@@ -113,7 +177,7 @@ export const toggleMaintenanceMode = async (req, res) => {
       req.user._id,
       enabled ? "enable_maintenance_mode" : "disable_maintenance_mode",
       "platformSettings",
-      "singleton",
+      null,
       before,
       settings.toObject(),
       req
@@ -154,7 +218,7 @@ export const testKhaltiWebhook = async (req, res) => {
       { upsert: true }
     );
 
-    await logAudit(req.user._id, "test_khalti_webhook", "platformSettings", "singleton", null, { connected: result.connected, latency }, req);
+    await logAudit(req.user._id, "test_khalti_webhook", "platformSettings", null, null, { connected: result.connected, latency }, req);
 
     res.json({
       success: result.connected,
@@ -210,7 +274,7 @@ export const testSmtp = async (req, res) => {
         `,
       });
 
-      await logAudit(req.user._id, "test_smtp", "platformSettings", "singleton", null, { sent: true }, req);
+      await logAudit(req.user._id, "test_smtp", "platformSettings", null, null, { sent: true }, req);
 
       res.json({
         success: true,
@@ -326,7 +390,7 @@ export const updateRolePermissions = async (req, res) => {
       });
     }
 
-    await logAudit(req.user._id, "update_role_permissions", "role", role, null, { role, permissions }, req);
+    await logAudit(req.user._id, "update_role_permissions", "role", null, null, { role, permissions }, req);
 
     res.json({
       success: true,
@@ -344,23 +408,37 @@ export const updateRolePermissions = async (req, res) => {
 
 export const getAuditLogs = async (req, res) => {
   try {
-    const { adminId, resource, severity, dateFrom, dateTo, page = 1, limit = 25 } = req.query;
+    const { adminId, resource, severity, dateFrom, dateTo } = req.query;
+    const { page, limit, skip } = parsePaging(req.query, { defaultLimit: 25, maxLimit: 200 });
+    const bad = (message) => res.status(400).json({ success: false, message });
 
     const query = {};
-    if (adminId) query.admin = adminId;
-    if (resource) query.resource = resource;
-    if (severity) query.severity = severity;
+    if (adminId) {
+      if (typeof adminId !== "string" || !/^[0-9a-fA-F]{24}$/.test(adminId)) return bad("Invalid admin id");
+      query.admin = adminId;
+    }
+    if (resource) {
+      if (typeof resource !== "string") return bad("Invalid resource filter");
+      query.resource = resource;
+    }
+    if (severity) {
+      if (typeof severity !== "string") return bad("Invalid severity filter");
+      query.severity = severity;
+    }
     if (dateFrom || dateTo) {
+      const from = dateFrom ? new Date(dateFrom) : null;
+      const to = dateTo ? new Date(dateTo) : null;
+      if ((from && Number.isNaN(from.getTime())) || (to && Number.isNaN(to.getTime()))) return bad("Invalid date filter");
       query.createdAt = {};
-      if (dateFrom) query.createdAt.$gte = new Date(dateFrom);
-      if (dateTo) query.createdAt.$lte = new Date(dateTo);
+      if (from) query.createdAt.$gte = from;
+      if (to) query.createdAt.$lte = to;
     }
 
     const logs = await AuditLog.find(query)
       .populate("admin", "fullname email")
       .sort({ createdAt: -1 })
-      .skip((parseInt(page) - 1) * parseInt(limit))
-      .limit(parseInt(limit))
+      .skip(skip)
+      .limit(limit)
       .lean();
 
     const total = await AuditLog.countDocuments(query);
@@ -369,8 +447,8 @@ export const getAuditLogs = async (req, res) => {
       success: true,
       data: logs,
       total,
-      page: parseInt(page),
-      limit: parseInt(limit),
+      page,
+      limit,
     });
   } catch (error) {
     res.status(500).json({
