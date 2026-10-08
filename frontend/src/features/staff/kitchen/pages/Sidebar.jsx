@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { ChefHat, Settings, LogOut, Bell, LayoutDashboard, MessageCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { staffLogout } from "../../../../core/api/services/staffAccount.service";
@@ -35,12 +35,13 @@ const Sidebar = ({
   const handleLogout = async () => {
     try {
       await staffLogout();
+    } catch {
+      // Server revoke failed (flaky wifi). Still sign out locally: the session
+      // must never stay open on a shared wall tablet.
+    } finally {
       logout();
       toast.success("Logged out successfully");
       navigate("/staff/login");
-    } catch (err) {
-      console.error("Logout error: ", err);
-      toast.error("Logout Failed! Please try again");
     }
   };
 
@@ -49,11 +50,6 @@ const Sidebar = ({
     { id: "notifications", label: "Notifications", icon: Bell, badge: notificationCount },
     { id: "messages", label: "Messages", icon: MessageCircle, badge: unreadMessageCount, action: onMessagingToggle },
   ];
-
-  // Debug: Log notification count changes
-  useEffect(() => {
-    console.log('🔔 [Kitchen Sidebar] Notification count:', notificationCount);
-  }, [notificationCount]);
 
   return (
     <>
@@ -77,9 +73,9 @@ const Sidebar = ({
             style={{ width: 48, height: 48, borderRadius: 12, objectFit: 'cover' }}
           />
           <div>
-            <h1 style={{ fontSize: "18px", fontWeight: "800", color: colors.text }}>
+            <p style={{ fontSize: "18px", fontWeight: "800", color: colors.text, margin: 0 }}>
               {staffUser?.fullname ?? 'Chief Staff'}
-            </h1>
+            </p>
             <p style={{ fontSize: "14px", color: colors.textSecondary, textTransform: "capitalize" }}>
               {staffUser?.role ? `${staffUser.role} ` : 'Chief'}
             </p>
@@ -117,12 +113,15 @@ const Sidebar = ({
           {menuItems.map((item) => (
             <button
               key={item.id}
+              type="button"
+              aria-current={activeView === item.id ? "page" : undefined}
               onClick={() => item.action ? item.action() : onViewChange?.(item.id)}
               style={{
                 display: "flex",
                 alignItems: "center",
                 gap: "12px",
                 width: "100%",
+                minHeight: "48px",
                 padding: "12px 16px",
                 borderRadius: "12px",
                 border: "none",
@@ -143,7 +142,7 @@ const Sidebar = ({
                     marginLeft: "auto",
                     backgroundColor: "#EF4444",
                     color: "white",
-                    fontSize: "11px",
+                    fontSize: "12px",
                     fontWeight: "700",
                     padding: "2px 8px",
                     borderRadius: "10px",

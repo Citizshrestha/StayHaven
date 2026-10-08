@@ -1,5 +1,6 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Flame, Moon, Sun, Volume2, WifiOff } from "lucide-react";
 import Sidebar from "./Sidebar";
 import KitchenMobileHeader from "./KitchenMobileHeader";
 import KitchenMobileNav from "./KitchenMobileNav";
@@ -14,6 +15,21 @@ import { useStaffAuth } from "../../../../core/context/StaffAuthContext";
 import MessagingPanel from "../../../../shared/components/MessagingPanel";
 import useNotificationSound from "../../../../core/hooks/useNotificationSound";
 import useSettingsAutoRefresh from "../../../../core/hooks/useSettingsAutoRefresh";
+import { syncServerClock } from "./kitchenClock";
+import "../../../../shared/styles/dashboard-tokens.css";
+import "./KitchenDashboard.css";
+
+const useIsPhoneOrTablet = () => {
+  const query = "(max-width: 1023px)";
+  const [match, setMatch] = useState(() => window.matchMedia(query).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const on = () => setMatch(mq.matches);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  return match;
+};
 
 const KitchenDashboard = () => {
   const navigate = useNavigate();
@@ -21,6 +37,8 @@ const KitchenDashboard = () => {
   const [activeFilter, setActiveFilter] = useState("all");
   const [activeView, setActiveView] = useState("dashboard");
   const [isMessagingOpen, setIsMessagingOpen] = useState(false);
+  const [online, setOnline] = useState(() => navigator.onLine);
+  const compact = useIsPhoneOrTablet();
 
   // Use centralized theme context
   const { isDark: isDarkMode, toggleTheme: toggleDarkMode } = useTheme();
@@ -41,37 +59,29 @@ const KitchenDashboard = () => {
     }
   }, [staffUser, navigate]);
 
-  const { orders, updateOrderStatus, fetchOrders, loading } = useOrderContext();
+  const { orders, updateOrderStatus, fetchOrders, loading, error } = useOrderContext();
 
   // Settings > Display > Auto-refresh: periodic reconciliation fetch on top
   // of the primary socket-driven updates (in case an event is missed).
   useSettingsAutoRefresh("kitchenSettings", fetchOrders);
 
-  // Calculate active order count for header
-  const activeOrderCount = useMemo(() => {
-    return orders.filter((o) => o.status !== "delivered").length;
+  const counts = useMemo(() => {
+    const c = { active: 0, fresh: 0, cooking: 0, ready: 0 };
+    for (const o of orders) {
+      if (o.status === "delivered" || o.status === "cancelled") continue;
+      c.active += 1;
+      if (o.status === "new" || o.status === "pending" || o.status === "confirmed") c.fresh += 1;
+      else if (o.status === "preparing") c.cooking += 1;
+      else if (o.status === "ready") c.ready += 1;
+    }
+    return c;
   }, [orders]);
 
-  // Use centralized notification context (Socket + Context API)
-  const {
-    notifications,
-    unreadCount,
-    markRead,
-    markAllRead
-  } = useNotifications();
-
-  // Debug: Log notification state changes
-  useEffect(() => {
-    console.log('🔔 [KitchenDashboard] Notification state updated:', {
-      totalNotifications: notifications.length,
-      unreadCount,
-      notifications: notifications.slice(0, 3) // Log first 3 for debugging
-    });
-  }, [notifications, unreadCount]);
-
-  // Socket.io for order refresh (notifications handled by context)
-  const { subscribe } = useSocket();
-  const { playWithVibration } = useNotificationSound();
+  // Centralized notification context (sounds and bell entries are handled
+  // there, once per order, so this screen must not play them a second time).
+  const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
+  const { subscribe, isConnected } = useSocket();
+  const { audioState, enableSound } = useNotificationSound();
 
   // Request browser notification permission once so we can alert kitchen
   // staff of new orders even when this tab isn't focused.
@@ -81,19 +91,29 @@ const KitchenDashboard = () => {
     }
   }, []);
 
-  // Apply kitchen-dark class for legacy CSS support (in addition to dark-theme from ThemeContext)
+  // First paint: show the skeleton and measure the server clock for timers.
   useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add("kitchen-dark");
-    } else {
-      document.documentElement.classList.remove("kitchen-dark");
-    }
+    fetchOrders();
+    syncServerClock();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    return () => {
-      document.documentElement.classList.remove("kitchen-dark");
-    };
+  // Legacy `kitchen-dark` class: dark CSS variables that shared components
+  // (notification panel, settings, messaging) read from the document root.
+  useEffect(() => {
+    document.documentElement.classList.toggle("kitchen-dark", isDarkMode);
+    return () => document.documentElement.classList.remove("kitchen-dark");
   }, [isDarkMode]);
 
+  // Tab title carries the number of tickets waiting, visible from other tabs.
+  useEffect(() => {
+    const previous = document.title;
+    document.title = counts.fresh > 0 ? `(${counts.fresh}) Kitchen · StayHaven` : "Kitchen · StayHaven";
+    return () => { document.title = previous; };
+  }, [counts.fresh]);
+
+  // Dashboard-level scroll lock: the page itself never scrolls, the content
+  // pane does. Restored on unmount.
   useEffect(() => {
     const prevBodyOverflow = document.body.style.overflow;
     const prevHtmlOverflow = document.documentElement.style.overflow;
@@ -105,36 +125,66 @@ const KitchenDashboard = () => {
     };
   }, []);
 
-  // Subscribe to socket events for order data refresh only
+  // Keep the screen awake while the kitchen display is open (optional API).
   useEffect(() => {
-    if (!subscribe) return;
-
-    const unsubscribeStatusUpdate = subscribe('order-status-updated', () => {
-      fetchOrders({ silent: true });
-    });
-
-    const unsubscribeNewOrder = subscribe('new-order', (data) => {
-      fetchOrders({ silent: true });
-
-      playWithVibration('newOrder');
-
-      // Browser notification so kitchen staff notice even when the tab
-      // isn't focused (e.g. they're checking another dashboard).
-      if (typeof Notification !== "undefined" && Notification.permission === "granted" && document.hidden) {
-        const orderNumber = data?.order?.orderNumber;
-        new Notification("New order received", {
-          body: orderNumber ? `Order #${orderNumber} just came in` : "A new order just came in",
-          icon: "/favicon.ico",
-          tag: "kitchen-new-order",
-        });
+    if (!("wakeLock" in navigator)) return undefined;
+    let lock = null;
+    let cancelled = false;
+    const acquire = async () => {
+      try {
+        if (document.visibilityState !== "visible" || lock) return;
+        lock = await navigator.wakeLock.request("screen");
+        lock.addEventListener("release", () => { lock = null; });
+        if (cancelled) lock.release().catch(() => {});
+      } catch {
+        // Denied (battery saver, no gesture yet): the display just sleeps normally.
       }
-    });
-
-    return () => {
-      unsubscribeStatusUpdate();
-      unsubscribeNewOrder();
     };
-  }, [subscribe, fetchOrders]);
+    acquire();
+    document.addEventListener("visibilitychange", acquire);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", acquire);
+      lock?.release().catch(() => {});
+    };
+  }, []);
+
+  // Coalesce bursts of socket events (a rush sends many) into one fetch.
+  const refreshTimer = useRef(null);
+  const scheduleRefresh = useCallback(() => {
+    clearTimeout(refreshTimer.current);
+    refreshTimer.current = setTimeout(() => fetchOrders({ silent: true }), 250);
+  }, [fetchOrders]);
+  useEffect(() => () => clearTimeout(refreshTimer.current), []);
+
+  // Orders created, moved, cancelled or edited anywhere refresh the board.
+  useEffect(() => {
+    if (!subscribe) return undefined;
+    const unsubs = ["order-status-updated", "new-order", "order-updated", "order-cancelled"].map((ev) => subscribe(ev, scheduleRefresh));
+    return () => unsubs.forEach((u) => u?.());
+  }, [subscribe, scheduleRefresh]);
+
+  // Resync after any gap: socket reconnect, network back, tab visible again.
+  const wasConnected = useRef(isConnected);
+  useEffect(() => {
+    if (isConnected && !wasConnected.current) fetchOrders({ silent: true });
+    wasConnected.current = isConnected;
+  }, [isConnected, fetchOrders]);
+  useEffect(() => {
+    const onOnline = () => { setOnline(true); fetchOrders({ silent: true }); };
+    const onOffline = () => setOnline(false);
+    const onVisible = () => { if (document.visibilityState === "visible") fetchOrders({ silent: true }); };
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [fetchOrders]);
+
+  const disconnected = !online || !isConnected;
 
   const handleViewChange = (view) => {
     setActiveView(view);
@@ -150,10 +200,8 @@ const KitchenDashboard = () => {
         const orderElement = document.querySelector(`[data-order-id="${notification.orderId}"]`);
         if (orderElement) {
           orderElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          orderElement.style.boxShadow = '0 0 0 3px #3B82F6';
-          setTimeout(() => {
-            orderElement.style.boxShadow = '';
-          }, 2000);
+          orderElement.classList.add("kd-ticket--spot");
+          setTimeout(() => orderElement.classList.remove("kd-ticket--spot"), 2000);
         }
       }, 100);
     }
@@ -176,13 +224,7 @@ const KitchenDashboard = () => {
         );
       case "settings":
         return (
-          <div style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "flex-start",
-            padding: "16px",
-            minHeight: "100%",
-          }}>
+          <div className="kd-settings">
             <StaffSettings
               onClose={() => setActiveView("dashboard")}
               variant="kitchen"
@@ -198,48 +240,17 @@ const KitchenDashboard = () => {
             onUpdateOrderStatus={updateOrderStatus}
             onRefresh={fetchOrders}
             isRefreshing={loading}
+            error={error}
             isDarkMode={isDarkMode}
           />
         );
     }
   };
 
-  // Dynamic styles based on dark mode
-  const containerStyle = {
-    height: "100vh",
-    backgroundColor: isDarkMode ? "#0F172A" : "#F8F9FB",
-    display: "flex",
-    overflow: "hidden",
-    transition: "background-color 0.3s ease",
-  };
-
-  const sidebarStyle = {
-    width: "280px",
-    backgroundColor: isDarkMode ? "#1E293B" : "var(--bg-primary, white)",
-    borderRight: `1px solid ${isDarkMode ? "#334155" : "var(--border-color, #E5E7EB)"}`,
-    flexShrink: 0,
-    height: "100%",
-    overflowY: "auto",
-  };
-
-  const mainContentStyle = {
-    flex: 1,
-    padding: "32px",
-    overflowY: "auto",
-    minHeight: 0,
-    backgroundColor: isDarkMode ? "#0F172A" : "transparent",
-  };
-
   return (
-    <div
-      style={containerStyle}
-      className={`kitchen-dashboard ${isDarkMode ? 'dark' : ''}`}
-    >
-      {/* Sidebar - Hidden on mobile */}
-      <aside
-        style={sidebarStyle}
-        className="hidden lg:block"
-      >
+    <div className={`kitchen-dashboard dashboardShell kd-shell ${isDarkMode ? 'dark' : ''}`}>
+      {/* Sidebar - hidden below 1024px */}
+      <aside className="kd-sidebar hidden lg:block">
         <Sidebar
           activeView={activeView}
           onViewChange={handleViewChange}
@@ -250,30 +261,67 @@ const KitchenDashboard = () => {
         />
       </aside>
 
-      {/* Main Content Area */}
-      <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        {/* Mobile Header */}
+      <main className="kd-main">
+        {/* Phone / portrait tablet header */}
         <header className="lg:hidden">
           <KitchenMobileHeader
             isDarkMode={isDarkMode}
             onToggleDarkMode={toggleDarkMode}
-            activeOrderCount={activeOrderCount}
+            counts={counts}
             onRefresh={fetchOrders}
             isRefreshing={loading}
+            activeView={activeView}
+            onViewChange={handleViewChange}
+            notificationCount={unreadCount}
+            onMessagingToggle={() => setIsMessagingOpen(prev => !prev)}
           />
         </header>
 
-        {/* Main Content */}
-        <div
-          style={mainContentStyle}
-          className="flex-1 overflow-y-auto p-4 lg:p-8"
-        >
+        {/* Desktop / landscape tablet header */}
+        <header className="kd-topbar hidden lg:flex">
+          <div className="kd-topbar__title">
+            <Flame size={24} aria-hidden="true" />
+            <h1>Kitchen</h1>
+            <span className="kd-topbar__sub">Live orders</span>
+          </div>
+          <dl className="kd-counters" aria-label="Tickets by status">
+            <div><dt>New</dt><dd className="kd-counters__new">{counts.fresh}</dd></div>
+            <div><dt>Cooking</dt><dd className="kd-counters__cooking">{counts.cooking}</dd></div>
+            <div><dt>Ready</dt><dd className="kd-counters__ready">{counts.ready}</dd></div>
+          </dl>
+          <button
+            type="button"
+            className="kd-iconbtn"
+            onClick={toggleDarkMode}
+            aria-pressed={isDarkMode}
+            aria-label="Dark mode"
+            title={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            {isDarkMode ? <Sun size={22} aria-hidden="true" /> : <Moon size={22} aria-hidden="true" />}
+          </button>
+        </header>
+
+        {disconnected && (
+          <div className="kd-banner kd-banner--offline" role="status" aria-live="polite">
+            <WifiOff size={20} aria-hidden="true" />
+            <span>{online ? "Live connection lost. Reconnecting… Tickets may be out of date." : "You are offline. Tickets may be out of date."}</span>
+          </div>
+        )}
+        {audioState === "suspended" && (
+          <div className="kd-banner kd-banner--sound">
+            <Volume2 size={20} aria-hidden="true" />
+            <span>Sound alerts are off until you tap once.</span>
+            <button type="button" className="kd-btn kd-btn--ghost" onClick={enableSound}>Enable sound</button>
+          </div>
+        )}
+
+        <div className="kd-scroll">
           {renderMainContent()}
         </div>
       </main>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="lg:hidden">
+      <nav className="lg:hidden" aria-label="Kitchen navigation">
         <KitchenMobileNav
           activeView={activeView}
           onViewChange={handleViewChange}
@@ -284,11 +332,11 @@ const KitchenDashboard = () => {
         />
       </nav>
 
-      {/* Floating Messenger Panel */}
+      {/* Floating Messenger Panel (the phone nav has its own Messages tab) */}
       <MessagingPanel
         isOpen={isMessagingOpen}
         onToggle={() => setIsMessagingOpen(prev => !prev)}
-        showFab={true}
+        showFab={!compact}
       />
     </div>
   );

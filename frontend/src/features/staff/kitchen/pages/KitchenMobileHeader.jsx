@@ -1,201 +1,99 @@
-import React, { useState } from "react";
-import { Menu, X, Flame, RefreshCw } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { Menu, X, Flame, RefreshCw, Sun, Moon } from "lucide-react";
 import Sidebar from "./Sidebar";
 
 const KitchenMobileHeader = ({
   isDarkMode = false,
   onToggleDarkMode,
-  activeOrderCount = 0,
+  counts = { active: 0, fresh: 0, cooking: 0, ready: 0 },
   onRefresh,
   isRefreshing = false,
+  activeView,
+  onViewChange,
+  notificationCount = 0,
+  onMessagingToggle,
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [showRefreshTooltip, setShowRefreshTooltip] = useState(false);
+  const menuButtonRef = useRef(null);
+  const drawerRef = useRef(null);
 
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
+  const closeMenu = () => {
+    setIsMenuOpen(false);
+    menuButtonRef.current?.focus();
   };
 
-  const handleRefresh = () => {
-    if (onRefresh && !isRefreshing) {
-      onRefresh();
-      setShowRefreshTooltip(true);
-      setTimeout(() => setShowRefreshTooltip(false), 2000);
-    }
-  };
-
-  // Theme colors
-  const colors = {
-    bg: isDarkMode ? "#1a1a2e" : "white",
-    border: isDarkMode ? "#334155" : "#E5E7EB",
-    text: isDarkMode ? "#F8FAFC" : "#1F2937",
-    textMuted: isDarkMode ? "#94A3B8" : "#6B7280",
-  };
+  // Drawer: Esc closes, focus moves in on open and returns to the button.
+  useEffect(() => {
+    if (!isMenuOpen) return undefined;
+    drawerRef.current?.querySelector("button")?.focus();
+    const onKey = (e) => { if (e.key === "Escape") closeMenu(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [isMenuOpen]);
 
   return (
     <>
-      <div
-        style={{
-          backgroundColor: colors.bg,
-          borderBottom: `1px solid ${colors.border}`,
-          padding: "16px",
-        }}
-      >
-        <div style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "12px",
-        }}>
-          {/* Left: Hamburger Menu */}
+      <div className="kd-mheader">
+        <div className="kd-mheader__row">
           <button
-            onClick={toggleMenu}
-            style={{
-              width: "32px",
-              height: "32px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: "transparent",
-              border: "none",
-              borderRadius: "8px",
-              cursor: "pointer",
-              flexShrink: 0,
-            }}
+            ref={menuButtonRef}
+            type="button"
+            className="kd-iconbtn"
+            onClick={() => setIsMenuOpen((open) => !open)}
+            aria-label={isMenuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={isMenuOpen}
           >
-            {isMenuOpen ? (
-              <X size={20} style={{ color: colors.text }} />
-            ) : (
-              <Menu size={20} style={{ color: colors.text }} />
-            )}
+            {isMenuOpen ? <X size={24} aria-hidden="true" /> : <Menu size={24} aria-hidden="true" />}
           </button>
 
-          {/* Center: Title & Subtitle */}
-          <div style={{
-            flex: 1,
-            textAlign: "center",
-            minWidth: 0,
-          }}>
-            <div style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "6px",
-              marginBottom: "2px",
-            }}>
-              <Flame size={18} color="#f97316" style={{ flexShrink: 0 }} />
-              <h1 style={{
-                fontSize: "18px",
-                fontWeight: "700",
-                color: colors.text,
-                margin: 0,
-                lineHeight: 1,
-              }}>
-                Kitchen
-              </h1>
-            </div>
-            <p style={{
-              fontSize: "12px",
-              color: colors.textMuted,
-              margin: 0,
-              lineHeight: 1,
-            }}>
-              Live Orders · {activeOrderCount} active
-            </p>
+          <div className="kd-mheader__title">
+            <Flame size={22} color="#f97316" aria-hidden="true" />
+            <h1>Kitchen</h1>
           </div>
 
-          {/* Right: Refresh Button */}
-          <div style={{ position: "relative" }}>
-            <button
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-              style={{
-                width: "32px",
-                height: "32px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: "transparent",
-                border: "none",
-                borderRadius: "50%",
-                cursor: isRefreshing ? "not-allowed" : "pointer",
-                flexShrink: 0,
-                opacity: isRefreshing ? 0.6 : 1,
-              }}
-            >
-              <RefreshCw
-                size={18}
-                style={{
-                  color: colors.text,
-                  animation: isRefreshing ? "spin 1s linear infinite" : "none",
-                }}
-              />
-            </button>
+          <button
+            type="button"
+            className="kd-iconbtn"
+            onClick={onToggleDarkMode}
+            aria-pressed={isDarkMode}
+            aria-label="Dark mode"
+          >
+            {isDarkMode ? <Sun size={22} aria-hidden="true" /> : <Moon size={22} aria-hidden="true" />}
+          </button>
 
-            {/* Tooltip */}
-            {showRefreshTooltip && (
-              <div style={{
-                position: "absolute",
-                top: "100%",
-                right: 0,
-                marginTop: "4px",
-                padding: "4px 8px",
-                backgroundColor: isDarkMode ? "#334155" : "#1F2937",
-                color: "white",
-                fontSize: "11px",
-                borderRadius: "6px",
-                whiteSpace: "nowrap",
-                zIndex: 10,
-                boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-              }}>
-                Updated just now
-              </div>
-            )}
-          </div>
+          <button
+            type="button"
+            className="kd-iconbtn"
+            onClick={() => onRefresh?.()}
+            disabled={isRefreshing}
+            aria-label="Refresh orders"
+            aria-busy={isRefreshing}
+          >
+            <RefreshCw size={22} className={isRefreshing ? "kd-spin" : ""} aria-hidden="true" />
+          </button>
         </div>
+
+        <ul className="kd-mheader__counts" aria-label="Tickets by status">
+          <li className="kd-count kd-count--pending"><strong>{counts.fresh}</strong> New</li>
+          <li className="kd-count kd-count--preparing"><strong>{counts.cooking}</strong> Cooking</li>
+          <li className="kd-count kd-count--ready"><strong>{counts.ready}</strong> Ready</li>
+        </ul>
       </div>
 
-      {/* Mobile Menu Overlay */}
       {isMenuOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          {/* Background Overlay */}
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              backgroundColor: "rgba(0, 0, 0, 0.5)",
-            }}
-            onClick={toggleMenu}
-          />
-
-          {/* Sidebar Drawer */}
-          <div
-            style={{
-              position: "absolute",
-              left: 0,
-              top: 0,
-              bottom: 0,
-              width: "280px",
-              backgroundColor: colors.bg,
-              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
-            }}
-          >
+        <div className="kd-drawer lg:hidden">
+          <div className="kd-drawer__backdrop" onClick={closeMenu} aria-hidden="true" />
+          <div className="kd-drawer__panel" ref={drawerRef} role="dialog" aria-modal="true" aria-label="Kitchen menu">
             <Sidebar
+              activeView={activeView}
               isDarkMode={isDarkMode}
-              onToggleDarkMode={onToggleDarkMode}
-              onViewChange={() => setIsMenuOpen(false)}
+              notificationCount={notificationCount}
+              onMessagingToggle={() => { setIsMenuOpen(false); onMessagingToggle?.(); }}
+              onViewChange={(view) => { onViewChange?.(view); setIsMenuOpen(false); }}
             />
           </div>
         </div>
       )}
-
-      {/* CSS for spin animation */}
-      <style>{`
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
     </>
   );
 };
