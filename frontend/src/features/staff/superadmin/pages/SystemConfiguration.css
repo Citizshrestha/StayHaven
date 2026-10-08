@@ -1005,6 +1005,6 @@
 
 /* QA-06 touch layout */
 @media (max-width: 1023px) {
-  .form-input, .settings-card input, .settings-card select, .settings-card textarea { font-size: 16px; min-height: 44px; }
-  .btn-primary, .btn-ghost, .file-upload-section button, .url-upload-section button { min-height: 44px; }
+  .sa-layout .form-input, .sa-layout .settings-card input, .sa-layout .settings-card select, .sa-layout .settings-card textarea { font-size: 16px; min-height: 44px; }
+  .sa-layout .btn-primary, .sa-layout .btn-ghost, .sa-layout .picture-mode-btn { min-height: 44px; }
 }
