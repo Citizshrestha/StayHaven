@@ -141,6 +141,18 @@ const BookingPaymentModal = ({ isOpen, onClose, bookingData, onPaymentSuccess, o
     return () => controller.abort();
   }, [isOpen, authenticated, bookingData?.hotelId]);
 
+  // Start on a method that can actually be used (wallets are often not configured).
+  const firstUsable = !configLoading && gatewayConfig
+    ? (gatewayConfig.esewa?.enabled ? 'esewa' : gatewayConfig.khalti?.enabled ? 'khalti' : (gatewayConfig.stripe?.enabled && getStripePromise(stripeKey)) ? 'card' : bankAccount ? 'bank' : null)
+    : null;
+  const [autoPicked, setAutoPicked] = useState(false);
+  useEffect(() => {
+    if (!isOpen) { setAutoPicked(false); return; }
+    if (autoPicked || !firstUsable) return;
+    setSelectedMethod(firstUsable);
+    setAutoPicked(true);
+  }, [isOpen, firstUsable, autoPicked]);
+
   // Reset transient state each time the dialog opens.
   useEffect(() => {
     if (isOpen) return;
@@ -318,11 +330,11 @@ const BookingPaymentModal = ({ isOpen, onClose, bookingData, onPaymentSuccess, o
         {processing ? (
           <><Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" /> Processing...</>
         ) : walletSelected ? (
-          <><ExternalLink className="w-5 h-5" aria-hidden="true" /> Pay via {selectedMethod === 'khalti' ? 'Khalti' : 'eSewa'} · {formatRs(amount)}</>
+          <><ExternalLink className="w-5 h-5 shrink-0" aria-hidden="true" /> <span>Pay {formatRs(amount)} with {selectedMethod === 'khalti' ? 'Khalti' : 'eSewa'}</span></>
         ) : selectedMethod === 'card' ? (
           <><Lock className="w-5 h-5" aria-hidden="true" /> Continue to card payment</>
         ) : (
-          <><Lock className="w-5 h-5" aria-hidden="true" /> Submit transfer · {formatRs(amount)}</>
+          <><Lock className="w-5 h-5 shrink-0" aria-hidden="true" /> <span>Submit transfer</span></>
         )}
       </button>
     </div>
@@ -338,8 +350,8 @@ const BookingPaymentModal = ({ isOpen, onClose, bookingData, onPaymentSuccess, o
       onClose={onClose}
       closeDisabled={locked}
       icon={<CreditCard className="w-5 h-5" aria-hidden="true" />}
-      title="Complete payment"
-      subtitle="Secure payment gateway"
+      title="Payment"
+      subtitle="Secure checkout"
       maxWidth="sm:max-w-2xl"
       footer={footer}
     >
