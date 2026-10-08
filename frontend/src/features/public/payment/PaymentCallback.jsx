@@ -7,7 +7,6 @@ import {
   getPaymentAttempt,
   verifyPaymentAttempt,
 } from '../../../core/api/services/publicBooking.service';
-import { usePageMeta } from '../hotels/lib/pageMeta';
 
 const MAX_POLLS = 12;
 const POLL_INTERVAL = 2500;
@@ -45,7 +44,6 @@ const confirmationState = (booking) => {
 };
 
 const PaymentCallback = () => {
-  usePageMeta({ title: "Payment status", description: "Check the status of your StayHaven payment." });
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const attemptId = searchParams.get('attempt') || '';
