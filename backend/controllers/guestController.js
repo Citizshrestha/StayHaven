@@ -16,11 +16,74 @@ import { Order, Counter } from "../models/order.schema.js";
 import { WaiterCall } from "../models/waitercall.schema.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { priceMenuLines, sendPricingError } from "../services/orderPricing.js";
-import { emitToHotel, emitToWaiters, emitToGuestSession } from "../config/socket.js";
+import { Booking } from "../models/booking.schema.js";
+import { emitToHotelStaff, emitToGuestSession } from "../config/socket.js";
+import { announceGuestOrder } from "../services/guestOrderAlerts.js";
 
 // Anonymous QR guests order smaller batches than staff.
 const QR_ORDER_LIMITS = { maxLines: 30, maxQuantity: 20 };
-import { announceGuestOrder } from "../services/guestOrderAlerts.js";
+
+const TABLE_TOKEN = /^TBL-[A-Za-z0-9]{6,64}$/;
+const optionalText = (value, max) => value == null || (typeof value === "string" && value.length <= max);
+
+// A second tap (or a guest spamming the button) within this window returns
+// the call that is already open instead of paging the waiters again.
+const CALL_DEDUPE_WINDOW_MS = 60 * 1000;
+// Serialises call creation per table + type inside this process, so two
+// simultaneous taps can't both miss the "already open" lookup.
+const callLocks = new Map();
+const withCallLock = async (key, fn) => {
+  const previous = callLocks.get(key) || Promise.resolve();
+  const run = previous.catch(() => {}).then(fn);
+  const tail = run.catch(() => {});
+  callLocks.set(key, tail);
+  try {
+    return await run;
+  } finally {
+    if (callLocks.get(key) === tail) callLocks.delete(key);
+  }
+};
+
+// Validates the shared body of call-waiter / request-bill and resolves the table.
+const resolveCallTable = async (req, res) => {
+  const { tableToken, hotelId, guestName, guestSessionId } = req.body || {};
+  if (typeof tableToken !== "string" || !TABLE_TOKEN.test(tableToken) || !mongoose.isValidObjectId(hotelId)) {
+    res.status(400).json({ success: false, message: "Table token and hotel ID are required" });
+    return null;
+  }
+  if (!optionalText(guestName, 100) || !optionalText(guestSessionId, 100)) {
+    res.status(400).json({ success: false, message: "Invalid guest details" });
+    return null;
+  }
+  const table = await HotelTable.findOne({ uniqueToken: tableToken, hotel: hotelId, isActive: true, isQrActive: true });
+  if (!table) {
+    res.status(400).json({ success: false, message: "Invalid table" });
+    return null;
+  }
+  return table;
+};
+
+// Returns the open call of this type raised at this table in the last minute, if any.
+const findRecentOpenCall = (hotelId, tableNumber, requestType) => WaiterCall.findOne({
+  hotel: hotelId,
+  tableNumber,
+  source: "guest_qr",
+  requestType,
+  status: "open",
+  createdAt: { $gte: new Date(Date.now() - CALL_DEDUPE_WINDOW_MS) },
+}).sort({ createdAt: -1 });
+
+const hasCheckedInStay = async (roomId, hotelId) =>
+  Boolean(await Booking.exists({ room: roomId, hotel: hotelId, status: "Checked-In" }));
+
+// One delivery per staff socket (waiters sit in both the hotel and the waiter room).
+const announceCall = (hotelId, call, message) => {
+  try {
+    emitToHotelStaff(hotelId, "new-waiter-call", { call: call.toObject(), message });
+  } catch {
+    // Socket emission failed — non-fatal, the call is already persisted
+  }
+};
 
 // @desc    Validate table QR token and get table info
 // @route   GET /api/guest/table/:token
@@ -127,6 +190,8 @@ export const getRoomByToken = asyncHandler(async (req, res) => {
         roomName: room.roomName,
         type: room.type,
         status: room.status,
+        // Lets the page explain up front that ordering opens at check-in.
+        canOrder: await hasCheckedInStay(room._id, hotel._id),
       },
       hotel: {
         _id: hotel._id,
@@ -171,7 +236,9 @@ export const getGuestMenu = asyncHandler(async (req, res) => {
     query.category = category;
   }
 
-  const menuItems = await MenuItem.find(query).sort({ category: 1, displayOrder: 1, name: 1 });
+  const menuItems = await MenuItem.find(query)
+    .select('-__v -createdAt -updatedAt')
+    .sort({ category: 1, displayOrder: 1, name: 1 });
 
   // Group by category
   const groupedByCategory = {};
@@ -351,6 +418,17 @@ export const createGuestOrder = asyncHandler(async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Invalid room or QR code is inactive",
+      });
+    }
+
+    // Room service is billed to and delivered for the current stay only: a
+    // vacant room, a guest who hasn't arrived yet or one who has checked out
+    // can't order through the room QR.
+    if (!(await hasCheckedInStay(room._id, hotelId))) {
+      return res.status(409).json({
+        success: false,
+        code: "NO_ACTIVE_STAY",
+        message: "Room service ordering is available once you have checked in. Please contact the front desk.",
       });
     }
 
@@ -550,56 +628,37 @@ export const getGuestOrderStatus = asyncHandler(async (req, res) => {
 // exact event the staff WaiterCallsPanel already listens to — so anonymous QR
 // guests reach the same real-time queue as room-based staff calls.
 export const callWaiter = asyncHandler(async (req, res) => {
-  const { tableToken, hotelId, reason, guestName, guestSessionId } = req.body;
-
-  if (!tableToken || !hotelId) {
-    return res.status(400).json({
-      success: false,
-      message: "Table token and hotel ID are required",
-    });
+  const { hotelId, reason, guestName, guestSessionId } = req.body || {};
+  if (!optionalText(reason, 300)) {
+    return res.status(400).json({ success: false, message: "Reason must be under 300 characters" });
   }
+  const table = await resolveCallTable(req, res);
+  if (!table) return;
 
-  const table = await HotelTable.findOne({
-    uniqueToken: tableToken,
-    hotel: hotelId,
-    isActive: true,
-    isQrActive: true,
+  const lockKey = `${hotelId}:${table.tableNumber}:assistance`;
+  const { call, duplicate } = await withCallLock(lockKey, async () => {
+    const existing = await findRecentOpenCall(hotelId, table.tableNumber, "assistance");
+    if (existing) return { call: existing, duplicate: true };
+    const created = await WaiterCall.create({
+      hotel: hotelId,
+      tableNumber: table.tableNumber,
+      source: 'guest_qr',
+      guestSessionId: guestSessionId || undefined,
+      guestName: guestName?.trim() || undefined,
+      requestType: 'assistance',
+      priority: 'medium',
+      description: reason?.trim() || 'Assistance requested',
+      status: 'open',
+    });
+    return { call: created, duplicate: false };
   });
 
-  if (!table) {
-    return res.status(400).json({
-      success: false,
-      message: "Invalid table",
-    });
-  }
+  if (!duplicate) announceCall(hotelId, call, `Assistance requested at Table ${table.tableNumber}`);
 
-  const call = await WaiterCall.create({
-    hotel: hotelId,
-    tableNumber: table.tableNumber,
-    source: 'guest_qr',
-    guestSessionId: guestSessionId || undefined,
-    guestName: guestName || undefined,
-    requestType: 'assistance',
-    priority: 'medium',
-    description: reason || 'Assistance requested',
-    status: 'open',
-  });
-
-  // Notify all waiters (and the hotel room) in real time
-  try {
-    const payload = {
-      call: call.toObject(),
-      message: `Assistance requested at Table ${table.tableNumber}`,
-    };
-    emitToWaiters(hotelId, 'new-waiter-call', payload);
-    emitToHotel(hotelId, 'new-waiter-call', payload);
-  } catch {
-    // Socket emission failed — non-fatal, the call is already persisted
-  }
-
-  res.status(201).json({
+  res.status(duplicate ? 200 : 201).json({
     success: true,
-    message: "Waiter has been notified",
+    duplicate,
+    message: duplicate ? "A waiter is already on the way" : "Waiter has been notified",
     tableNumber: table.tableNumber,
     callId: call._id,
   });
@@ -611,28 +670,9 @@ export const callWaiter = asyncHandler(async (req, res) => {
 // Persists a 'bill' WaiterCall and emits 'new-waiter-call' so the request lands
 // in the same staff queue with the count of the table's active orders.
 export const requestBill = asyncHandler(async (req, res) => {
-  const { tableToken, hotelId, guestName, guestSessionId } = req.body;
-
-  if (!tableToken || !hotelId) {
-    return res.status(400).json({
-      success: false,
-      message: "Table token and hotel ID are required",
-    });
-  }
-
-  const table = await HotelTable.findOne({
-    uniqueToken: tableToken,
-    hotel: hotelId,
-    isActive: true,
-    isQrActive: true,
-  });
-
-  if (!table) {
-    return res.status(400).json({
-      success: false,
-      message: "Invalid table",
-    });
-  }
+  const { hotelId, guestName, guestSessionId } = req.body || {};
+  const table = await resolveCallTable(req, res);
+  if (!table) return;
 
   // The bill is the table's current open tab — not every historical order
   // that ever used this table number.
@@ -643,36 +683,34 @@ export const requestBill = asyncHandler(async (req, res) => {
       message: "There is no open bill on this table yet.",
     });
   }
-  const { session: liveTab } = await getSessionWithOrders(tab._id, hotelId);
-  await markBillRequested(tab._id);
 
-  const { orderCount = 0, total = 0, balance = 0 } = liveTab.totals || {};
-  const call = await WaiterCall.create({
-    hotel: hotelId,
-    tableNumber: table.tableNumber,
-    source: 'guest_qr',
-    guestSessionId: guestSessionId || undefined,
-    guestName: guestName || undefined,
-    requestType: 'bill',
-    priority: 'medium',
-    description: `Bill requested — ${orderCount} order${orderCount === 1 ? '' : 's'}, total Rs ${total.toFixed(2)}${balance !== total ? `, due Rs ${balance.toFixed(2)}` : ''}`.slice(0, 500),
-    status: 'open',
+  const lockKey = `${hotelId}:${table.tableNumber}:bill`;
+  const { call, duplicate } = await withCallLock(lockKey, async () => {
+    const existing = await findRecentOpenCall(hotelId, table.tableNumber, "bill");
+    if (existing) return { call: existing, duplicate: true };
+    const { session: liveTab } = await getSessionWithOrders(tab._id, hotelId);
+    await markBillRequested(tab._id);
+    const { orderCount = 0, total = 0, balance = 0 } = liveTab.totals || {};
+    const created = await WaiterCall.create({
+      hotel: hotelId,
+      tableNumber: table.tableNumber,
+      source: 'guest_qr',
+      guestSessionId: guestSessionId || undefined,
+      guestName: guestName?.trim() || undefined,
+      requestType: 'bill',
+      priority: 'medium',
+      description: `Bill requested — ${orderCount} order${orderCount === 1 ? '' : 's'}, total Rs ${total.toFixed(2)}${balance !== total ? `, due Rs ${balance.toFixed(2)}` : ''}`.slice(0, 500),
+      status: 'open',
+    });
+    return { call: created, duplicate: false };
   });
 
-  try {
-    const payload = {
-      call: call.toObject(),
-      message: `Bill requested at Table ${table.tableNumber}`,
-    };
-    emitToWaiters(hotelId, 'new-waiter-call', payload);
-    emitToHotel(hotelId, 'new-waiter-call', payload);
-  } catch {
-    // Socket emission failed — non-fatal, the call is already persisted
-  }
+  if (!duplicate) announceCall(hotelId, call, `Bill requested at Table ${table.tableNumber}`);
 
-  res.status(201).json({
+  res.status(duplicate ? 200 : 201).json({
     success: true,
-    message: "Bill request has been sent to the waiter",
+    duplicate,
+    message: duplicate ? "Your bill request is already with the waiter" : "Bill request has been sent to the waiter",
     tableNumber: table.tableNumber,
     callId: call._id,
   });

@@ -428,11 +428,21 @@ const GuestRoomView = () => {
           </div>
 
           <div className="guest-actions">
-            <button type="button" className="guest-action-btn" onClick={handleViewMenu}>
+            <button
+              type="button"
+              className="guest-action-btn"
+              onClick={handleViewMenu}
+              disabled={roomData?.canOrder === false}
+              aria-describedby="room-order-hint"
+            >
               <div className="guest-action-icon primary" aria-hidden="true">{Icons.RoomService}</div>
               <div className="guest-action-content">
                 <h4>Order room service</h4>
-                <p>Food and drinks delivered to your room</p>
+                <p id="room-order-hint">
+                  {roomData?.canOrder === false
+                    ? 'Available once you have checked in. Contact the front desk for help.'
+                    : 'Food and drinks delivered to your room'}
+                </p>
               </div>
               <span className="guest-action-arrow" aria-hidden="true">{Icons.Arrow}</span>
             </button>

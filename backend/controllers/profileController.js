@@ -2,6 +2,22 @@ import { User } from '../models/user.schema.js';
 import bcrypt from 'bcryptjs';
 import { uploadToCloudinary, buildSuperadminProfileFolder } from '../middleware/upload.js';
 
+// Only fields the profile screens use. A blacklist leaked inviteToken,
+// googleId, loginAttempts and lockUntil to the account holder's browser.
+const PUBLIC_PROFILE_FIELDS = '_id fullname username email profilePicture role company companyRole contact isActive accountStatus isGoogleUser lastLoginAt createdAt updatedAt';
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+// Non-strings used to crash .trim()/.toLowerCase() into a 500, and there was
+// no format or length check at all.
+const validateProfileInput = ({ username, email, fullname }) => {
+  const isOptionalString = (v) => v === undefined || v === null || v === '' || typeof v === 'string';
+  if (![username, email, fullname].every(isOptionalString)) return 'Invalid profile details';
+  if (username && (username.trim().length < 3 || username.trim().length > 50)) return 'Username must be between 3 and 50 characters';
+  if (email && (email.length > 254 || !EMAIL_PATTERN.test(email.trim()))) return 'Please enter a valid email address';
+  if (fullname && (fullname.trim().length < 2 || fullname.trim().length > 100)) return 'Full name must be between 2 and 100 characters';
+  return null;
+};
+
 /**
  * @desc    Get current user profile
  * @route   GET /api/profile
@@ -10,7 +26,7 @@ import { uploadToCloudinary, buildSuperadminProfileFolder } from '../middleware/
 export const getProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user._id)
-      .select('-password -refreshToken -resetOtp -resetOtpExpireAt')
+      .select(PUBLIC_PROFILE_FIELDS)
       .populate('role', 'name');
 
     if (!user) {
@@ -34,8 +50,13 @@ export const getProfile = async (req, res) => {
  */
 export const updateProfile = async (req, res) => {
   try {
-    const { username, email, fullname } = req.body;
+    const { username, email, fullname } = req.body || {};
     const userId = req.user._id;
+
+    const invalid = validateProfileInput({ username, email, fullname });
+    if (invalid) {
+      return res.status(400).json({ success: false, message: invalid });
+    }
 
     // Find the user
     const user = await User.findById(userId);
@@ -74,7 +95,7 @@ export const updateProfile = async (req, res) => {
 
     // Return updated user without sensitive data
     const updatedUser = await User.findById(userId)
-      .select('-password -refreshToken -resetOtp -resetOtpExpireAt')
+      .select(PUBLIC_PROFILE_FIELDS)
       .populate('role', 'name');
 
     res.status(200).json({
@@ -112,7 +133,7 @@ export const updateProfilePicture = async (req, res) => {
       userId,
       { profilePicture },
       { new: true, runValidators: true }
-    ).select('-password -refreshToken -resetOtp -resetOtpExpireAt')
+    ).select(PUBLIC_PROFILE_FIELDS)
      .populate('role', 'name');
 
     if (!user) {
@@ -167,7 +188,7 @@ export const uploadProfilePictureFile = async (req, res) => {
       { profilePicture: result.secure_url },
       { new: true, runValidators: true }
     )
-      .select('-password -refreshToken -resetOtp -resetOtpExpireAt')
+      .select(PUBLIC_PROFILE_FIELDS)
       .populate('role', 'name');
 
     res.status(200).json({
@@ -195,10 +216,13 @@ export const changePassword = async (req, res) => {
     const { currentPassword, newPassword } = req.body;
     const userId = req.user._id;
 
-    if (!currentPassword || !newPassword) {
+    if (typeof currentPassword !== 'string' || typeof newPassword !== 'string' || !currentPassword || !newPassword) {
       return res.status(400).json({
         message: 'Current password and new password are required'
       });
+    }
+    if (newPassword.length > 72) {
+      return res.status(400).json({ message: 'Password must be at most 72 characters' });
     }
 
     // Find user with password field

@@ -278,27 +278,33 @@ export const placeOrder = asyncHandler(async (req, res) => {
     });
   }
 
-  // Resolve room context from user's active booking at this hotel
+  // Room context comes from the guest's current stay at this hotel. A
+  // Confirmed booking that hasn't checked in yet doesn't count: the room may
+  // still be occupied by someone else, so food would go to the wrong guest.
   const activeBooking = await Booking.findOne({
     user: req.user._id,
     hotel: hotelId,
     status: { $in: ["Confirmed", "Checked-In"] },
-  }).populate("room", "roomNumber _id");
+  })
+    .sort({ status: 1, checkIn: 1 }) // "Checked-In" sorts before "Confirmed"
+    .populate("room", "roomNumber _id");
 
-  let roomId = null;
-  let roomNumber = null;
-
-  if (orderType === "roomService") {
-    if (activeBooking?.room) {
-      roomId = activeBooking.room._id;
-      roomNumber = activeBooking.room.roomNumber;
-    } else {
-      return res.status(400).json({
-        success: false,
-        message: "No active booking found at this hotel for room service orders",
-      });
-    }
+  if (!activeBooking?.room) {
+    return res.status(400).json({
+      success: false,
+      message: "No active booking found at this hotel for room service orders",
+    });
   }
+  if (activeBooking.status !== "Checked-In") {
+    return res.status(409).json({
+      success: false,
+      code: "NOT_CHECKED_IN",
+      message: "Room service opens once you have checked in.",
+    });
+  }
+
+  const roomId = activeBooking.room._id;
+  const roomNumber = activeBooking.room.roomNumber;
 
   // Validate and price every line from this hotel's menu (shared rules for
   // all order paths — see services/orderPricing.js).
@@ -661,10 +667,22 @@ export const payOrder = asyncHandler(async (req, res) => {
     } else if (paymentMethod === 'bank') {
       // Validate bank transfer details
       const bankDetails = req.body.bankTransferDetails;
-      if (!bankDetails || !bankDetails.accountName || !bankDetails.accountNumber || !bankDetails.bankName || !bankDetails.transactionId) {
+      const bankFields = ["accountName", "accountNumber", "bankName", "transactionId"];
+      if (!bankDetails || bankFields.some((f) => typeof bankDetails[f] !== "string" || !bankDetails[f].trim() || bankDetails[f].length > 100)) {
         return res.status(400).json({
           success: false,
           message: "Complete bank transfer details are required",
+        });
+      }
+      // A transfer already awaiting verification must not be filed twice
+      // (double tap, or a retry after a slow response).
+      const alreadyPending = order
+        ? order.paymentStatus === "pending" && order.paymentMethod === "bank"
+        : await PaymentTransaction.exists({ invoice: targetId, method: "bank-transfer", status: "pending" });
+      if (alreadyPending) {
+        return res.status(409).json({
+          success: false,
+          message: "A bank transfer for this bill is already awaiting verification.",
         });
       }
       paymentResult = await processBankTransferPayment(paymentAmount, bankDetails);
@@ -1294,8 +1312,11 @@ export const updateProfile = asyncHandler(async (req, res) => {
     if (typeof contact !== "string" && typeof contact !== "number") {
       return res.status(400).json({ success: false, message: "Invalid phone number" });
     }
-    const cleanPhone = String(contact).replace(/\D/g, "");
-    if (cleanPhone && !/^\d{10,15}$/.test(cleanPhone)) {
+    const rawPhone = String(contact).trim();
+    const cleanPhone = rawPhone.replace(/\D/g, "");
+    // An empty value clears the number; anything else must be a real number
+    // ("abc" used to silently clear it).
+    if (rawPhone && (!/^[+\d\s()-]+$/.test(rawPhone) || !/^\d{10,15}$/.test(cleanPhone))) {
       return res.status(400).json({
         success: false,
         message: "Phone number must contain 10 to 15 digits",

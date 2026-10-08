@@ -336,7 +336,7 @@ const RoomServiceView = () => {
               placeholder="Search dishes"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full min-h-[44px] pl-10 pr-10 rounded-(--g-radius-sm) border border-(--g-border) bg-(--g-surface) text-(--g-text) g-body placeholder:text-(--g-text-subtle) focus:border-(--g-primary) outline-none"
+              className="w-full min-h-[44px] pl-10 pr-10 rounded-(--g-radius-sm) border border-(--g-border) bg-(--g-surface) text-(--g-text) text-base leading-[22px] placeholder:text-(--g-text-subtle) focus:border-(--g-primary) outline-none"
             />
             {searchQuery && (
               <button

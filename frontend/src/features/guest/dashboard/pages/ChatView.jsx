@@ -687,14 +687,14 @@ const ChatView = () => {
               placeholder={`Message ${meta.label}…`}
               enterKeyHint="send"
               style={{ resize: 'none' }}
-              className="flex-1 min-w-0 bg-transparent py-2 max-h-[132px] g-body text-(--g-text) placeholder:text-(--g-text-subtle) outline-none"
+              className="flex-1 min-w-0 bg-transparent py-2 max-h-[132px] text-base leading-[22px] text-(--g-text) placeholder:text-(--g-text-subtle) outline-none"
             />
             <button
               type="submit"
               disabled={!input.trim()}
               aria-label="Send message"
               className={cn(
-                'shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-[opacity,background-color] duration-150',
+                'shrink-0 w-11 h-11 rounded-full flex items-center justify-center transition-[opacity,background-color] duration-150',
                 input.trim() ? cn(meta.fill, 'hover:opacity-90') : 'bg-(--g-border-strong) text-(--g-surface) cursor-not-allowed'
               )}
             >

@@ -199,6 +199,12 @@ html:has(.guestPortal) { overscroll-behavior-y: contain; }
 
 /* Text inputs. Scoped under .guestPortal so stray global `input {}` rules
    elsewhere in the app can't restyle them. */
+/* AboutPage.css ships an unscoped `section { padding: 60px 0 }` for phones
+   (REQ-guest-3). Unlayered CSS beats Tailwind's layered utilities, so it
+   wiped the p-* padding of every guest card. revert-layer hands control
+   back to the utilities. */
+.guestPortal section { padding: revert-layer; }
+
 .guestPortal .g-input {
   width: 100%;
   min-height: 44px;
@@ -208,7 +214,8 @@ html:has(.guestPortal) { overscroll-behavior-y: contain; }
   background: var(--g-surface-sunken);
   color: var(--g-text);
   font: inherit;
-  font-size: 15px;
+  /* 16px: iOS Safari zooms the page when a smaller input gets focus. */
+  font-size: 16px;
   line-height: 22px;
   transition: border-color 150ms ease-out, box-shadow 150ms ease-out, background-color 150ms ease-out;
 }
