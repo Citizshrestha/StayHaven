@@ -291,7 +291,7 @@
 
 .guest-category-tab {
   padding: 9px 16px;
-  min-height: 40px;
+  min-height: 44px;
   background: var(--g-surface-sunken);
   border: 1px solid transparent;
   border-radius: var(--g-radius-pill);
@@ -317,7 +317,7 @@
 }
 
 .guest-category-count {
-  font-size: 0.78em;
+  font-size: 12px;
   opacity: 0.85;
   margin-left: 2px;
 }
@@ -404,7 +404,7 @@
   z-index: 2;
   background: var(--g-danger-fill);
   color: #fff;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -531,7 +531,7 @@
   color: var(--g-on-primary);
   border: none;
   padding: 0 18px;
-  min-height: 40px;
+  min-height: 44px;
   border-radius: var(--g-radius-sm);
   font-weight: 700;
   font-size: 13px;
@@ -562,8 +562,8 @@
 }
 
 .guest-qty-btn {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border: 1px solid var(--g-border);
   border-radius: 8px;
   background: var(--g-surface);
@@ -766,7 +766,7 @@
   background: var(--g-surface);
   border: 1px solid var(--g-border-strong);
   border-radius: var(--g-radius-sm);
-  font-size: 15px;
+  font-size: 16px; /* below 16px iOS zooms on focus */
   font-family: inherit;
   color: var(--g-text);
   transition: border-color 150ms var(--g-ease), box-shadow 150ms var(--g-ease);
@@ -791,9 +791,9 @@
 
 .guest-item-note-input {
   margin: 4px 0 10px;
-  font-size: 13px;
+  font-size: 16px;
   padding: 9px 12px;
-  min-height: 40px;
+  min-height: 44px;
 }
 
 /* Summary + submit ------------------------------------------------------ */

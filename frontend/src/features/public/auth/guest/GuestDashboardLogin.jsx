@@ -5,13 +5,14 @@
  */
 
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { login } from '../../../../core/api/services/auth.service';
 import { toast } from 'react-toastify';
 import { Hotel, Lock, Mail, Eye, EyeOff, ArrowRight, Shield, Clock, Star } from 'lucide-react';
 
 const GuestDashboardLogin = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [formData, setFormData] = useState({
     email: '',
@@ -45,7 +46,11 @@ const GuestDashboardLogin = () => {
         // Check if user has guest role
         if (response.role === 'guest') {
           toast.success('Welcome to your dashboard!');
-          navigate('/guest-dashboard');
+          // Return to the guest page that sent the user here (only same-app
+          // guest-dashboard paths, never an arbitrary URL).
+          const from = location.state?.from;
+          const target = typeof from === 'string' && from.startsWith('/guest-dashboard') ? from : '/guest-dashboard';
+          navigate(target, { replace: true });
         } else {
           // Not a guest - redirect to appropriate dashboard
           toast.info(`Redirecting to ${response.role} dashboard...`);
@@ -61,7 +66,6 @@ const GuestDashboardLogin = () => {
         }
       }
     } catch (error) {
-      console.error('Login error:', error);
       const errorMessage = error.response?.data?.message || 'Login failed. Please check your credentials.';
       toast.error(errorMessage);
     } finally {
@@ -141,18 +145,23 @@ const GuestDashboardLogin = () => {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Email Field */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="guest-login-email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Email Address
               </label>
               <div className="relative">
                 <Mail className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 z-10" />
                 <input
+                  id="guest-login-email"
                   type="email"
                   name="email"
+                  autoComplete="username"
+                  inputMode="email"
+                  autoCapitalize="none"
+                  spellCheck={false}
                   value={formData.email}
                   onChange={handleInputChange}
                   placeholder="Enter your email"
-                  className="w-full pl-12 pr-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 text-sm md:text-base leading-6"
+                  className="w-full pl-12 pr-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 text-base leading-6"
                   required
                 />
               </div>
@@ -160,24 +169,28 @@ const GuestDashboardLogin = () => {
 
             {/* Password Field */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="guest-login-password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Password
               </label>
               <div className="relative">
                 <Lock className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 z-10" />
                 <input
+                  id="guest-login-password"
                   type={showPassword ? "text" : "password"}
                   name="password"
+                  autoComplete="current-password"
                   value={formData.password}
                   onChange={handleInputChange}
                   placeholder="Enter your password"
-                  className="w-full pl-12 pr-14 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 text-sm md:text-base leading-6"
+                  className="w-full pl-12 pr-14 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 text-base leading-6"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-pressed={showPassword}
+                  className="absolute right-1 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
@@ -189,7 +202,7 @@ const GuestDashboardLogin = () => {
               <button
                 type="button"
                 onClick={() => navigate('/forgot-password')}
-                className="text-sm text-teal-600 hover:text-teal-700 font-medium transition-colors"
+                className="min-h-[44px] px-1 text-sm text-teal-600 hover:text-teal-700 font-medium transition-colors"
               >
                 Forgot Password?
               </button>
@@ -230,7 +243,7 @@ const GuestDashboardLogin = () => {
             <button
               type="button"
               onClick={() => navigate('/')}
-              className="text-teal-600 hover:text-teal-700 font-medium transition-colors inline-flex items-center gap-2"
+              className="min-h-[44px] text-teal-600 hover:text-teal-700 font-medium transition-colors inline-flex items-center gap-2"
             >
               Browse Hotels & Book Now
               <ArrowRight className="w-4 h-4" />

@@ -359,7 +359,8 @@ const GuestTableView = () => {
       });
       if (response.success) {
         setWaiterCallState('sent');
-        toast.success('Waiter has been notified! They will be with you shortly.');
+        if (response.duplicate) toast.info(response.message || 'A waiter is already on the way.');
+        else toast.success('Waiter has been notified! They will be with you shortly.');
       }
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Failed to call waiter. Please try again.');
@@ -380,7 +381,8 @@ const GuestTableView = () => {
       });
       if (response.success) {
         setBillRequestState('sent');
-        toast.success('Bill request sent! A waiter will bring your bill shortly.');
+        if (response.duplicate) toast.info(response.message || 'Your bill request is already with the waiter.');
+        else toast.success('Bill request sent! A waiter will bring your bill shortly.');
         loadTab();
       }
     } catch (err) {

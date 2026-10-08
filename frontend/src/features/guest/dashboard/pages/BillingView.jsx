@@ -36,7 +36,10 @@ import Sheet from '../components/ui/Sheet';
 import PullIndicator from '../components/ui/PullIndicator';
 import { Skeleton, SkeletonCard } from '../components/ui/Skeleton';
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+// loadStripe(undefined) throws on import, which broke every page that loaded
+// this chunk when no publishable key is configured.
+const STRIPE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+const stripePromise = typeof STRIPE_KEY === 'string' && STRIPE_KEY ? loadStripe(STRIPE_KEY) : null;
 
 const FILTERS = ['all', 'pending', 'partial', 'overdue', 'paid'];
 const FILTER_LABELS = { all: 'All', pending: 'Pending', partial: 'Partial', overdue: 'Overdue', paid: 'Paid' };
@@ -682,9 +685,15 @@ const InvoicePaymentModal = ({ invoice, onClose, onSuccess }) => {
             <Button variant="ghost" icon={ArrowLeft} className="-ml-2" onClick={() => setCardClientSecret(null)}>
               Change payment method
             </Button>
-            <Elements options={{ clientSecret: cardClientSecret }} stripe={stripePromise}>
-              <CardCheckoutForm amount={amount} targetId={invoice._id} onSuccess={handleCardConfirmed} />
-            </Elements>
+            {stripePromise ? (
+              <Elements options={{ clientSecret: cardClientSecret }} stripe={stripePromise}>
+                <CardCheckoutForm amount={amount} targetId={invoice._id} onSuccess={handleCardConfirmed} />
+              </Elements>
+            ) : (
+              <StatusBanner tone="warning" icon={AlertTriangle} title="Card payments are unavailable" role="alert">
+                Card checkout isn’t configured right now. Please choose another payment method or pay at the front desk.
+              </StatusBanner>
+            )}
           </div>
         )}
 

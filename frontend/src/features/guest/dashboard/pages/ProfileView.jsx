@@ -68,7 +68,7 @@ const IdentityCard = ({ profile }) => {
           <Link
             to={`${SETTINGS}#photo`}
             aria-label="Change profile photo in Settings"
-            className="absolute bottom-0 right-0 w-9 h-9 rounded-full flex items-center justify-center bg-(--g-surface) text-(--g-text) border border-(--g-border) shadow-(--g-shadow-md) hover:text-(--g-primary-text)"
+            className="absolute -bottom-1 -right-1 w-11 h-11 rounded-full flex items-center justify-center bg-(--g-surface) text-(--g-text) border border-(--g-border) shadow-(--g-shadow-md) hover:text-(--g-primary-text)"
           >
             <Camera className="w-4 h-4" aria-hidden="true" />
           </Link>
