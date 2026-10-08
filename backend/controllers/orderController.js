@@ -1255,7 +1255,8 @@ export const sendBillToCustomer = asyncHandler(async (req, res) => {
   try {
     // Generate bill data from the hotel's restaurant billing settings (the
     // same rates the dining tab uses), not a hard-coded 13% VAT.
-    const charges = chargesFromHotel(order.hotel);
+    const tab = order.session ? await DiningSession.findById(order.session).select("charges").lean() : null;
+    const charges = tab?.charges || chargesFromHotel(order.hotel);
     const { subtotal, tax, serviceCharge, total: grandTotal } = computeTotals({
       orders: [{ items: order.items, status: "delivered" }],
       charges,

@@ -51,7 +51,8 @@ const companySchema = new mongoose.Schema({
       required: true,
       lowercase: true,
       trim: true,
-      match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email'],
+      // Permissive: the old (\.\w{2,3})+$ rejected valid TLDs like .info, .travel, .hotel.
+      match: [/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/, 'Please enter a valid email'],
     },
     website: {
       type: String,

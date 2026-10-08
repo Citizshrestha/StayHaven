@@ -1,3 +1,5 @@
+// Call diagnostics (peer ids, ICE state) are dev-only console output.
+const debugLog = import.meta.env?.DEV ? console.log.bind(console) : () => {};
 /**
  * WebRTC Voice Call Manager
  * 
@@ -138,16 +140,16 @@ class WebRTCCallManager {
         try {
             // Try aggressive constraints first
             this.localStream = await navigator.mediaDevices.getUserMedia(aggressiveConstraints);
-            console.log('🎤 Mic stream acquired with AGGRESSIVE echo cancellation');
-            console.log('🎤 Track settings:', this.localStream.getAudioTracks()[0]?.getSettings());
+            debugLog('🎤 Mic stream acquired with AGGRESSIVE echo cancellation');
+            debugLog('🎤 Track settings:', this.localStream.getAudioTracks()[0]?.getSettings());
             return this.localStream;
         } catch (err) {
             console.warn('⚠️ Aggressive constraints failed, trying fallback:', err.message);
             try {
                 // Fallback to standard constraints
                 this.localStream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
-                console.log('🎤 Mic stream acquired with standard echo cancellation');
-                console.log('🎤 Track settings:', this.localStream.getAudioTracks()[0]?.getSettings());
+                debugLog('🎤 Mic stream acquired with standard echo cancellation');
+                debugLog('🎤 Track settings:', this.localStream.getAudioTracks()[0]?.getSettings());
                 return this.localStream;
             } catch (fallbackErr) {
                 console.error('❌ Failed to get microphone access:', fallbackErr);
@@ -191,7 +193,7 @@ class WebRTCCallManager {
         // when created outside a user-gesture context (ontrack fires async).
         // A MediaStream-backed <audio> element plays without that restriction.
         this.peerConnection.ontrack = (event) => {
-            console.log('🔊 Remote audio track received');
+            debugLog('🔊 Remote audio track received');
             this.remoteStream = event.streams[0];
 
             // Create or reuse a DOM audio element for reliable cross-browser playback
@@ -217,9 +219,9 @@ class WebRTCCallManager {
 
         this.peerConnection.oniceconnectionstatechange = () => {
             const state = this.peerConnection?.iceConnectionState;
-            console.log('🧊 ICE state:', state);
+            debugLog('🧊 ICE state:', state);
             if (state === 'connected' || state === 'completed') {
-                console.log('✅ WebRTC audio connected!');
+                debugLog('✅ WebRTC audio connected!');
             } else if (state === 'failed') {
                 console.error('❌ WebRTC ICE connection failed');
             }
@@ -236,7 +238,7 @@ class WebRTCCallManager {
     async startCall({ callId, peerId }) {
         // Skip if already started for this exact call
         if (this.callId === callId && this.peerConnection && this.peerConnection.signalingState !== 'closed') {
-            console.log('📞 startCall skipped — already in progress for', callId);
+            debugLog('📞 startCall skipped — already in progress for', callId);
             return;
         }
 
@@ -264,7 +266,7 @@ class WebRTCCallManager {
             hotelId: this.hotelId,
         });
 
-        console.log('📞 WebRTC offer sent to', this.peerId);
+        debugLog('📞 WebRTC offer sent to', this.peerId);
     }
 
     /**
@@ -274,7 +276,7 @@ class WebRTCCallManager {
     async handleOffer({ callId, offer, fromUserId }) {
         // Skip if already handling this exact call
         if (this.callId === callId && this.peerConnection && this.peerConnection.signalingState !== 'closed') {
-            console.log('📞 handleOffer skipped — already handling', callId);
+            debugLog('📞 handleOffer skipped — already handling', callId);
             return;
         }
 
@@ -308,7 +310,7 @@ class WebRTCCallManager {
             hotelId: this.hotelId,
         });
 
-        console.log('📞 WebRTC answer sent to', this.peerId);
+        debugLog('📞 WebRTC answer sent to', this.peerId);
     }
 
     /**
@@ -324,7 +326,7 @@ class WebRTCCallManager {
         }
         this._pendingCandidates = [];
 
-        console.log('📞 WebRTC answer applied');
+        debugLog('📞 WebRTC answer applied');
     }
 
     /**
@@ -366,7 +368,7 @@ class WebRTCCallManager {
             this.localStream.getAudioTracks().forEach(track => {
                 track.enabled = !muted;
                 trackCount++;
-                console.log(`🎤 [Mute] Stream track ${track.id}: enabled=${track.enabled}`);
+                debugLog(`🎤 [Mute] Stream track ${track.id}: enabled=${track.enabled}`);
             });
         }
 
@@ -376,12 +378,12 @@ class WebRTCCallManager {
                 if (sender.track && sender.track.kind === 'audio') {
                     sender.track.enabled = !muted;
                     senderCount++;
-                    console.log(`🎤 [Mute] Sender track ${sender.track.id}: enabled=${sender.track.enabled}`);
+                    debugLog(`🎤 [Mute] Sender track ${sender.track.id}: enabled=${sender.track.enabled}`);
                 }
             });
         }
 
-        console.log(`🎤 setMuted(${muted}): toggled ${trackCount} stream tracks, ${senderCount} sender tracks`);
+        debugLog(`🎤 setMuted(${muted}): toggled ${trackCount} stream tracks, ${senderCount} sender tracks`);
     }
 
     /**
@@ -393,7 +395,7 @@ class WebRTCCallManager {
         if (this.remoteAudio) {
             // Higher volume when speaker is ON for better clarity
             this.remoteAudio.volume = enabled ? 1.0 : 0.4;
-            console.log(`🔊 Speaker ${enabled ? 'ON' : 'OFF'}: volume=${this.remoteAudio.volume}`);
+            debugLog(`🔊 Speaker ${enabled ? 'ON' : 'OFF'}: volume=${this.remoteAudio.volume}`);
         }
         // AudioContext gain path (legacy — kept for safety)
         if (this._remoteGain) {

@@ -33,6 +33,12 @@ export const errorHandler = (err, req, res, next) => {
     });
   }
 
+  // Upload errors (multer): client mistakes, never 500.
+  if (err.name === 'MulterError') {
+    const message = err.code === 'LIMIT_FILE_SIZE' ? 'File is too large (max 5 MB).' : 'Invalid file upload.';
+    error = new AppError(message, err.code === 'LIMIT_FILE_SIZE' ? 413 : 400);
+  }
+
   // Mongoose bad ObjectId
   if (err.name === 'CastError') {
     const message = process.env.NODE_ENV === 'production'

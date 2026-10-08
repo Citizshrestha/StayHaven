@@ -209,7 +209,6 @@ const App = () => {
     const initializeCsrf = async () => {
       try {
         await fetchCsrfToken();
-        console.log('✅ CSRF token initialized');
       } catch (error) {
         console.error('❌ Failed to initialize CSRF token:', error);
       }
@@ -432,8 +431,8 @@ const App = () => {
           style={{
             // Above every modal/dialog layer (ConfirmDialog overlay is 9999).
             zIndex: 10050,
-            // Clear dashboard top bars; on phones sit just under the status bar.
-            top: isNarrowViewport ? 'calc(8px + env(safe-area-inset-top))' : '80px',
+            // Clear dashboard top bars (~64px on phones, ~72px on desktop).
+            top: isNarrowViewport ? 'calc(64px + env(safe-area-inset-top))' : '80px',
             ...(isNarrowViewport ? { width: 'calc(100vw - 32px)', left: '50%', transform: 'translateX(-50%)' } : {}),
           }}
           toastStyle={{

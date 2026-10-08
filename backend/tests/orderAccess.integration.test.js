@@ -98,5 +98,16 @@ test('orders core: tenancy, transitions and input hardening', { timeout: 600000 
     assert.ok(!html.includes('<img src=x'));
     assert.ok(!html.includes('<script>x'));
     assert.ok(html.includes('VAT (10%)'));
+
+    // REQ-reception-1: the first guest of a second company must not collide on guestId.
+    const { Guest } = await import('../models/guest.schema.js');
+    await Guest.init();
+    const g1 = await Guest.create({ hotel: a1._id, company: companyA, fullName: 'Guest A' });
+    const g2 = await Guest.create({ hotel: b1._id, company: companyB, fullName: 'Guest B' });
+    assert.notEqual(g1.guestId, g2.guestId);
+    // REQ-reception-2: 4+ letter TLDs are valid company emails.
+    const { Company } = await import('../models/company.schema.js');
+    const company = new Company({ contact: { email: 'company1@qa.test', phone: '1' } });
+    assert.equal(company.validateSync()?.errors?.['contact.email'], undefined);
   });
 });

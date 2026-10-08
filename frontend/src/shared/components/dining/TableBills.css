@@ -119,3 +119,7 @@
 .tb-modal-body { padding: 16px; }
 
 @media (prefers-reduced-motion: reduce) { .tb * { transition: none !important; animation: none !important; } }
+
+/* QA rules F: 44px touch targets; 16px search text so iOS doesn't zoom on focus */
+.tb-chip { min-height: 44px; }
+#tb-search { font-size: 16px; }

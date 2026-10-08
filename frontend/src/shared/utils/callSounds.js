@@ -1,3 +1,4 @@
+const debugLog = import.meta.env?.DEV ? console.log.bind(console) : () => {};
 /**
  * Call Sound Effects — Web Audio API (OscillatorNode)
  *
@@ -117,7 +118,7 @@ export function startDialTone() {
         }
 
         dialState = { oscs: [osc1, osc2], gain };
-        console.log('[CallSounds] Dial tone started');
+        debugLog('[CallSounds] Dial tone started');
     } catch (e) {
         console.error('[CallSounds] Dial tone error:', e);
     }
@@ -158,7 +159,7 @@ export function startRingTone() {
         }
 
         ringState = { oscs: [osc1, osc2], gain };
-        console.log('[CallSounds] Ring tone started');
+        debugLog('[CallSounds] Ring tone started');
     } catch (e) {
         console.error('[CallSounds] Ring tone error:', e);
     }
@@ -192,7 +193,7 @@ export function playConnectedSound() {
 
         osc.start(now);
         osc.stop(now + 0.40);
-        console.log('[CallSounds] Connected chime');
+        debugLog('[CallSounds] Connected chime');
     } catch { /* */ }
 }
 
@@ -219,7 +220,7 @@ export function playEndedSound() {
 
         osc.start(now);
         osc.stop(now + 0.50);
-        console.log('[CallSounds] Ended tone');
+        debugLog('[CallSounds] Ended tone');
     } catch { /* */ }
 }
 

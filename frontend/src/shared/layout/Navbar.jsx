@@ -434,7 +434,7 @@ const Navbar = () => {
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsMobileMenuOpen(true)}
-            className="lg:hidden p-2 transition-colors text-gray-900"
+            className="lg:hidden min-w-[44px] min-h-[44px] flex items-center justify-center p-2 transition-colors text-gray-900"
             aria-label="Open menu"
           >
             <Menu className="w-6 h-6" />
@@ -470,7 +470,7 @@ const Navbar = () => {
               </a>
               <button
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="p-2 text-gray-500 hover:text-gray-900 transition-colors rounded-full hover:bg-gray-100"
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center p-2 text-gray-500 hover:text-gray-900 transition-colors rounded-full hover:bg-gray-100"
                 aria-label="Close menu"
               >
                 <X className="w-6 h-6" />

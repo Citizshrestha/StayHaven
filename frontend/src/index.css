@@ -238,3 +238,8 @@ section.Toastify {
     transform: rotate(360deg);
   }
 }
+/* Toasts sit above every modal layer (ConfirmDialog overlay is 9999). react-toastify
+   v11 puts z-index on the outer <section class="Toastify">, which is the stacking
+   context that counts, so raise it there. */
+:root { --toastify-z-index: 10050; }
+.Toastify { z-index: 10050; }
