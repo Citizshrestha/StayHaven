@@ -4,6 +4,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Tag, Calendar, Clock, AlertCircle, Inbox } from "lucide-react";
 import { useContent } from "../../../../core/hooks/useContent";
 import { getOffers } from "../../../../core/api/services/content.service";
+import { usePageMeta } from '../../hotels/lib/pageMeta';
 import "./OffersPage.css";
 
 gsap.registerPlugin(ScrollTrigger);
@@ -79,6 +80,7 @@ const SkeletonCard = () => (
 );
 
 const OffersPage = () => {
+  usePageMeta({ title: "Offers", description: "Current StayHaven hotel offers and deals." });
   const [selectedCategory, setSelectedCategory] = useState("all");
   const heroRef = useRef(null);
   const headerRef = useRef(null);

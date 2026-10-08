@@ -1,6 +1,7 @@
 import { Booking } from "../models/booking.schema.js";
 import { Room } from "../models/room.schema.js";
 import { Hotel } from "../models/hotel.schema.js";
+import "../models/company.schema.js"; // registers the model used by populate('company')
 import { Guest } from "../models/guest.schema.js";
 import { User } from "../models/user.schema.js";
 import { Role } from "../models/role.schema.js";
@@ -230,7 +231,7 @@ export const createNewBooking = asyncHandler(async (req, res) => {
   res.status(201).json({
     success: true,
     message: 'Booking created successfully',
-    booking: await booking.populate(['user', 'hotel', 'room']),
+    booking: await booking.populate([{ path: 'user', select: 'fullname email contact' }, 'hotel', 'room']),
     confirmationCode: booking.confirmationCode
   });
 });
@@ -386,7 +387,7 @@ export const checkInWalkInGuest = asyncHandler(async (req, res) => {
   res.status(201).json({
     success: true,
     message: 'Walk-in guest checked in successfully',
-    booking: await booking.populate(['user', 'hotel', 'room'])
+    booking: await booking.populate([{ path: 'user', select: 'fullname email contact' }, 'hotel', 'room'])
   });
 });
 
@@ -464,7 +465,7 @@ export const expressCheckOut = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     message: 'Guest checked out successfully',
-    booking: await booking.populate(['user', 'hotel', 'room']),
+    booking: await booking.populate([{ path: 'user', select: 'fullname email contact' }, 'hotel', 'room']),
     totalAmount: booking.totalAmount,
     paymentStatus: booking.paymentStatus
   });
@@ -584,7 +585,7 @@ export const changeGuestRoom = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     message: 'Room changed successfully',
-    booking: await booking.populate(['user', 'hotel', 'room']),
+    booking: await booking.populate([{ path: 'user', select: 'fullname email contact' }, 'hotel', 'room']),
     roomChange: {
       oldRoom: oldRoom.roomNumber,
       newRoom: newRoom.roomNumber,
@@ -603,28 +604,25 @@ export const changeGuestRoom = asyncHandler(async (req, res) => {
 // 5. GET BOOKING DETAILS (helper)
 // ============================================
 export const getBookingById = asyncHandler(async (req, res) => {
-  // Get user's hotel context for multi-tenancy validation
-  const role = getUserRole(req);
-  const assignedHotelIds = getAssignedHotelIds(req);
-  const userCompany = req.user?.company?._id?.toString?.() || req.user?.company?.toString?.() || req.user?.company;
-
-  // Build hotel filter based on user role
-  let hotelFilter = {};
-  if (role === 'receptionist' && assignedHotelIds.length > 0) {
-    hotelFilter = { hotel: { $in: assignedHotelIds } };
-  } else if (userCompany) {
-    const userHotels = await Hotel.find({ company: userCompany }).select('_id');
-    hotelFilter = { hotel: { $in: userHotels.map(h => h._id) } };
-  }
-
-  // Find booking with hotel scope - prevents cross-hotel access
-  const booking = await Booking.findOne({ _id: req.params.id, ...hotelFilter })
-    .populate(['user', 'hotel', 'room', 'company']);
-
+  // Authorize against the raw document first: the booking's own guest may read
+  // it; anyone else must be staff of the booking's hotel (assertHotelAccess).
+  const booking = await Booking.findById(req.params.id);
   if (!booking) {
     throw Object.assign(new Error('Booking not found or access denied'), { status: 404 });
   }
-  await assertHotelAccess(req, booking.hotel._id);
+  const isGuestOwner = booking.user && booking.user.toString() === req.user._id.toString();
+  if (!isGuestOwner) {
+    await assertHotelAccess(req, booking.hotel);
+  }
+
+  // Never populate the whole User document: it carries the password hash,
+  // refresh-token hash, reset OTP and invite token.
+  await booking.populate([
+    { path: 'user', select: 'fullname email contact' },
+    { path: 'hotel', select: 'name location contact images' },
+    { path: 'room', select: 'roomName roomNumber type price floor' },
+    { path: 'company', select: 'name' },
+  ]);
 
   res.status(200).json({
     success: true,
@@ -656,7 +654,7 @@ export const getHotelBookings = asyncHandler(async (req, res) => {
   const skip = (parsedPage - 1) * parsedLimit;
 
   const bookings = await Booking.find(query)
-    .populate(['user', 'room'])
+    .populate([{ path: 'user', select: 'fullname email contact' }, 'room'])
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(parsedLimit);
@@ -1260,7 +1258,7 @@ export const batchCreateBookings = asyncHandler(async (req, res) => {
     // Populate after commit (populate does not work reliably inside transactions)
     const populated = await Booking.find({
       _id: { $in: createdBookings.map((b) => b._id) },
-    }).populate(['user', 'hotel', 'room']);
+    }).populate([{ path: 'user', select: 'fullname email contact' }, 'hotel', 'room']);
 
     res.status(201).json({
       success: true,

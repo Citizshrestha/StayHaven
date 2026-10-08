@@ -2,9 +2,11 @@ import React from "react";
 import { useContent } from "../../../../core/hooks/useContent";
 import { getAboutContent } from "../../../../core/api/services/content.service";
 import LeadershipTestimonials from "../../../../shared/components/LeadershipTestimonials";
+import { usePageMeta } from '../../hotels/lib/pageMeta';
 import "./AboutPage.css";
 
 const AboutPage = () => {
+  usePageMeta({ title: "About us", description: "Learn about StayHaven, the hotel booking and hotel operations platform built for Nepal." });
   const { data: aboutDataArray } = useContent('about', getAboutContent);
   const about = aboutDataArray?.[0] || null;
 

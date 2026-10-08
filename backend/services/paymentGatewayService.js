@@ -528,6 +528,22 @@ export async function createStripePaymentIntent({ amount, currency = "npr", meta
 }
 
 /**
+ * Best-effort cancel of an intent that has been superseded (the guest restarted checkout).
+ * Resolves false instead of throwing: an intent that already succeeded cannot be cancelled, and
+ * the caller must never fail a new checkout because an old one could not be cancelled.
+ */
+export async function cancelStripePaymentIntent(paymentIntentId) {
+  try {
+    const stripe = getStripe();
+    stripeReference(paymentIntentId);
+    await stripe.paymentIntents.cancel(paymentIntentId);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Verify a Stripe Payment Intent server-side.
  *
  * `expected` binds the intent to the stored order before any caller can treat

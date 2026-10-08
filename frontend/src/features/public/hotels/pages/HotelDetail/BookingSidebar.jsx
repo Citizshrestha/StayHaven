@@ -1,485 +1,358 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Users, ShieldCheck, Check, ChevronDown, Lock } from 'lucide-react';
-import BookingPaymentModal from '../../components/BookingPaymentModal';
+import { Calendar, Users, ShieldCheck, Lock, Minus, Plus, Receipt } from 'lucide-react';
 import { toast } from 'react-toastify';
+import PropTypes from 'prop-types';
+import BookingPaymentModal from '../../components/BookingPaymentModal';
+import Sheet from '../../lib/Sheet';
+import { cancellationNote, formatRs, nightsBetween, quoteStay, toLocalISODate, TAX_RATE } from '../../lib/money';
 
-const BookingSidebar = ({ pricePerNight, nights: initialNights, taxesAndFees: initialTaxesAndFees, guests, freeCancellationDate, hotelName, hotelAddress, hotelImage, hotelId, roomId }) => {
+const MAX_STAY_NIGHTS = 365;
+const dateInputClass = 'w-full min-h-[44px] text-base font-semibold text-[#263238] outline-none bg-transparent cursor-pointer';
+
+const Stepper = ({ label, hint, value, min, max, onChange }) => (
+  <div className="flex items-center justify-between gap-3">
+    <div className="min-w-0">
+      <p className="text-sm font-semibold text-[#263238]">{label}</p>
+      {hint && <p className="text-xs text-[#546E7A]">{hint}</p>}
+    </div>
+    <div className="flex items-center gap-1" role="group" aria-label={`${label} count`}>
+      <button
+        type="button"
+        onClick={() => onChange(Math.max(min, value - 1))}
+        disabled={value <= min}
+        aria-label={`Fewer ${label.toLowerCase()}`}
+        className="h-11 w-11 inline-flex items-center justify-center rounded-full border border-[rgba(0,191,166,0.4)] text-[#00A896] disabled:opacity-40"
+      >
+        <Minus className="w-4 h-4" />
+      </button>
+      <span className="w-8 text-center text-base font-bold tabular-nums text-[#263238]" aria-live="polite">{value}</span>
+      <button
+        type="button"
+        onClick={() => onChange(Math.min(max, value + 1))}
+        disabled={value >= max}
+        aria-label={`More ${label.toLowerCase()}`}
+        className="h-11 w-11 inline-flex items-center justify-center rounded-full border border-[rgba(0,191,166,0.4)] text-[#00A896] disabled:opacity-40"
+      >
+        <Plus className="w-4 h-4" />
+      </button>
+    </div>
+  </div>
+);
+
+Stepper.propTypes = {
+  label: PropTypes.string.isRequired,
+  hint: PropTypes.string,
+  value: PropTypes.number.isRequired,
+  min: PropTypes.number.isRequired,
+  max: PropTypes.number.isRequired,
+  onChange: PropTypes.func.isRequired,
+};
+
+/** A booking the guest started before being sent to sign in; restored once, for this hotel only. */
+const takePendingBooking = (hotelId) => {
+  try {
+    const raw = sessionStorage.getItem('pendingBooking');
+    if (!raw) return null;
+    const pending = JSON.parse(raw);
+    if (!pending || String(pending.hotelId) !== String(hotelId)) return null;
+    return pending; // removed in an effect, so a StrictMode double-init cannot lose it
+  } catch {
+    return null;
+  }
+};
+
+const clearPendingBooking = () => {
+  try {
+    sessionStorage.removeItem('pendingBooking');
+  } catch {
+    return null;
+  }
+};
+
+const BookingSidebar = ({
+  pricePerNight, hotelName, hotelAddress, hotelImage, hotelId, roomId, roomName,
+  maxGuests = 2, soldOut = false, onDatesChange,
+}) => {
   const navigate = useNavigate();
-  const [checkIn, setCheckIn] = useState('');
-  const [checkOut, setCheckOut] = useState('');
-  const [selectedGuests, setSelectedGuests] = useState(guests);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [guestInfo, setGuestInfo] = useState({
-    name: '',
-    email: '',
-    phone: '',
-  });
+  const [pending] = useState(() => takePendingBooking(hotelId));
+  useEffect(() => { if (pending) clearPendingBooking(); }, [pending]);
+  const today = toLocalISODate();
+  const [checkIn, setCheckIn] = useState(pending?.checkIn && pending.checkIn >= today ? pending.checkIn : '');
+  const [checkOut, setCheckOut] = useState(pending?.checkIn && pending.checkIn >= today ? pending.checkOut || '' : '');
+  const [adults, setAdults] = useState(Number.isInteger(pending?.guests?.adults) ? pending.guests.adults : 2);
+  const [children, setChildren] = useState(Number.isInteger(pending?.guests?.children) ? pending.guests.children : 0);
   const [showGuestForm, setShowGuestForm] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [guestInfo, setGuestInfo] = useState({ name: '', email: '', phone: '' });
 
-  // Calculate nights, subtotal, taxes, and total in real-time based on selected dates
-  const { nights, subtotal, taxesAndFees, total } = useMemo(() => {
-    if (!checkIn || !checkOut) {
-      // Use initial values if dates not selected
-      const initialSubtotal = pricePerNight * initialNights;
-      return {
-        nights: initialNights,
-        subtotal: initialSubtotal,
-        taxesAndFees: initialTaxesAndFees,
-        total: initialSubtotal + initialTaxesAndFees
-      };
+  const capacity = Math.max(1, Number(maxGuests) || 2);
+  // Keep the party inside the room's capacity when the guest switches rooms.
+  useEffect(() => {
+    if (adults + children > capacity) {
+      const nextAdults = Math.min(adults, capacity);
+      setAdults(nextAdults);
+      setChildren(Math.max(0, Math.min(children, capacity - nextAdults)));
     }
+  }, [capacity, adults, children]);
 
-    const checkInDate = new Date(checkIn);
-    const checkOutDate = new Date(checkOut);
+  const nights = nightsBetween(checkIn, checkOut);
+  const datesValid = nights > 0 && nights <= MAX_STAY_NIGHTS;
+  const quote = useMemo(() => quoteStay(pricePerNight, datesValid ? nights : 0), [pricePerNight, nights, datesValid]);
 
-    // Calculate nights
-    const calculatedNights = Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
+  useEffect(() => {
+    onDatesChange?.(datesValid ? { checkIn, checkOut } : null);
+  }, [datesValid, checkIn, checkOut, onDatesChange]);
 
-    // Ensure at least 1 night
-    const validNights = calculatedNights > 0 ? calculatedNights : 1;
-
-    // Calculate costs
-    const calculatedSubtotal = pricePerNight * validNights;
-    const calculatedTaxes = Math.round(calculatedSubtotal * 0.12); // 12% tax
-    const calculatedTotal = calculatedSubtotal + calculatedTaxes;
-
-    return {
-      nights: validNights,
-      subtotal: calculatedSubtotal,
-      taxesAndFees: calculatedTaxes,
-      total: calculatedTotal
-    };
-  }, [checkIn, checkOut, pricePerNight, initialNights, initialTaxesAndFees]);
-
-  // Handle booking button click - check authentication first
   const handleBookNowClick = () => {
-    // Check if user is authenticated
-    const token = localStorage.getItem('accessToken');
-    if (!token) {
-      // Store booking data and redirect to login
-      sessionStorage.setItem('pendingBooking', JSON.stringify({
-        hotelId,
-        roomId,
-        checkIn,
-        checkOut,
-        guests: selectedGuests,
-        hotelName,
-        hotelAddress,
-        hotelImage,
-        totalAmount: total,
-        returnUrl: window.location.pathname
-      }));
-
-      toast.warning('Please login to continue with booking', {
-        position: 'top-center',
-        autoClose: 2000,
-      });
-
-      setTimeout(() => {
-        navigate('/login', {
-          state: {
-            from: window.location.pathname,
-            message: 'Please login to complete your booking'
-          }
-        });
-      }, 500);
-      return;
-    }
-
-    // Validate dates
     if (!checkIn || !checkOut) {
       toast.error('Please select check-in and check-out dates');
       return;
     }
-
-    const checkInDate = new Date(checkIn);
-    const checkOutDate = new Date(checkOut);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    if (checkInDate < today) {
+    if (checkIn < today) {
       toast.error('Check-in date cannot be in the past');
       return;
     }
-
-    if (checkOutDate <= checkInDate) {
+    if (nights <= 0) {
       toast.error('Check-out date must be after check-in date');
       return;
     }
+    if (nights > MAX_STAY_NIGHTS) {
+      toast.error(`Stays are limited to ${MAX_STAY_NIGHTS} nights`);
+      return;
+    }
+    if (soldOut) {
+      toast.error('This room is not available for those dates. Try other dates or another room.');
+      return;
+    }
 
+    if (!localStorage.getItem('accessToken')) {
+      // Keep what was chosen and bring the guest back to this hotel after signing in.
+      sessionStorage.setItem('pendingBooking', JSON.stringify({
+        hotelId, roomId, checkIn, checkOut, guests: { adults, children },
+        hotelName, hotelAddress, hotelImage, totalAmount: quote.total,
+        returnUrl: window.location.pathname,
+      }));
+      toast.info('Please sign in to continue with your booking', { position: 'top-center', autoClose: 2000 });
+      navigate('/login', { state: { from: window.location.pathname, message: 'Please login to complete your booking' } });
+      return;
+    }
     setShowGuestForm(true);
   };
 
-  // Handle guest form submission - show payment modal
   const handleGuestFormSubmit = (e) => {
     e.preventDefault();
-
-    // Validate guest info
-    if (!guestInfo.name || guestInfo.name.trim().length < 2) {
+    const name = guestInfo.name.trim();
+    if (name.length < 2) {
       toast.error('Please enter your full name');
       return;
     }
-
-    if (!guestInfo.phone || guestInfo.phone.replace(/\D/g, '').length < 10) {
-      toast.error('Please enter a valid phone number');
+    if (guestInfo.phone.replace(/\D/g, '').length < 10) {
+      toast.error('Please enter a valid phone number (at least 10 digits)');
       return;
     }
-
     if (guestInfo.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestInfo.email)) {
       toast.error('Please enter a valid email address');
       return;
     }
-
     setShowGuestForm(false);
     setShowPaymentModal(true);
   };
 
-  // Handle payment success
-  const handlePaymentSuccess = async (paymentData) => {
-    try {
-      // Navigate to confirmation page with booking details
-      navigate('/booking-confirmed', {
-        state: {
-          bookingId: paymentData.booking?._id || paymentData._id,
-          paymentStatus: paymentData.booking?.paymentStatus,
-          bookingReference: paymentData.booking?.bookingId || paymentData.booking?.confirmationCode,
-          hotelName,
-          hotelAddress,
-          hotelImage,
-          checkIn: new Date(checkIn).toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }),
-          checkOut: new Date(checkOut).toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }),
-          guests: selectedGuests,
-          roomType: paymentData.booking?.roomType || 'Room',
-          totalPaid: paymentData.booking?.paidAmount ?? (paymentData.booking?.paymentStatus === 'paid' ? total : 0),
-          paymentMethod: paymentData.transaction?.method || 'Card',
-        },
-      });
-    } catch (error) {
-      console.error('Navigation error:', error);
-      toast.error('Booking confirmed but navigation failed. Please check your bookings.');
-    }
+  const handlePaymentSuccess = (paymentData) => {
+    const booking = paymentData?.booking || paymentData || {};
+    navigate('/booking-confirmed', {
+      state: {
+        bookingId: booking._id,
+        paymentStatus: booking.paymentStatus,
+        bookingReference: booking.confirmationCode || booking.bookingId,
+        hotelName, hotelAddress, hotelImage,
+        checkIn, checkOut, nights,
+        guests: { adults, children },
+        roomType: booking.roomType || roomName || 'Room',
+        totalAmount: booking.totalAmount ?? quote.total,
+        totalPaid: booking.paidAmount ?? (booking.paymentStatus === 'paid' ? booking.totalAmount ?? quote.total : 0),
+        paymentMethod: paymentData?.transaction?.method || booking.paymentMethod || 'card',
+      },
+    });
   };
 
-  // Handle payment error
-  const handlePaymentError = (error) => {
-    console.error('Payment error:', error);
-    toast.error('Payment could not be confirmed. Check your booking before paying again.');
+  const handlePaymentError = () => {
+    toast.error('Payment could not be confirmed. Check your bookings before paying again.');
   };
+
+  const guestsLabel = `${adults} adult${adults > 1 ? 's' : ''}${children ? `, ${children} child${children > 1 ? 'ren' : ''}` : ''}`;
 
   return (
     <>
-      <div style={{ position: 'sticky', top: '100px', width: '100%', maxWidth: '430px', zIndex: 40 }}>
-        <div
-          className="transition-all duration-300 hover:-translate-y-[3px]"
-          style={{
-            borderRadius: '20px',
-            padding: '28px',
-            background: '#ffffff',
-            border: '1px solid rgba(0,191,166,0.2)',
-            boxShadow: '0 20px 60px rgba(0,191,166,0.2)',
-          }}
-        >
-          <div style={{ marginBottom: '22px' }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-              <span style={{ fontSize: '2rem', fontWeight: '800', color: '#263238', lineHeight: '1' }}>
-                NPR {pricePerNight}
-              </span>
-              <span style={{ fontSize: '1rem', fontWeight: '500', color: '#546E7A' }}>/night</span>
+      <div className="w-full lg:max-w-[430px] lg:sticky lg:top-[100px] z-40">
+        <div className="rounded-[20px] p-5 sm:p-7 bg-white border border-[rgba(0,191,166,0.2)] shadow-[0_20px_60px_rgba(0,191,166,0.2)]">
+          <div className="mb-5">
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-extrabold text-[#263238] leading-none tabular-nums">{formatRs(pricePerNight)}</span>
+              <span className="text-base font-medium text-[#546E7A]">/ night</span>
             </div>
-            <p className="text-sm text-[#00BFA6] font-semibold mt-1">Taxes included</p>
+            {roomName && <p className="text-sm text-[#546E7A] mt-1 truncate">{roomName}</p>}
+            <p className="text-sm text-[#00A896] font-semibold mt-1">+ {Math.round(TAX_RATE * 100)}% taxes &amp; fees at checkout</p>
           </div>
 
-          <hr style={{ borderTop: '1px solid rgba(0,191,166,0.15)', marginBottom: '18px' }} />
+          <hr className="border-[rgba(0,191,166,0.15)] mb-4" />
 
-          <div style={{ marginBottom: '20px' }}>
-            <style>{`
-              /* Ensure date picker calendar icon is always visible - Enhanced visibility */
-              input[type="date"]::-webkit-calendar-picker-indicator {
-                cursor: pointer;
-                opacity: 1 !important;
-                display: block !important;
-                width: 30px;
-                height: 30px;
-                border-radius: 6px;
-                margin-left: 4px;
-                margin-right: 2px;
-                /* Transparent background with black icon */
-                background-color: transparent;
-                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23000000' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2' ry='2'%3E%3C/rect%3E%3Cline x1='16' y1='2' x2='16' y2='6'%3E%3C/line%3E%3Cline x1='8' y1='2' x2='8' y2='6'%3E%3C/line%3E%3Cline x1='3' y1='10' x2='21' y2='10'%3E%3C/line%3E%3C/svg%3E");
-                background-repeat: no-repeat;
-                background-position: center;
-                background-size: 18px 18px;
-                border: none;
-                flex-shrink: 0;
-                position: relative;
-                z-index: 10;
-                transition: all 0.2s ease;
-              }
-              
-              input[type="date"]::-webkit-calendar-picker-indicator:hover {
-                background-color: rgba(0, 191, 166, 0.15);
-                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%2300BFA6' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2' ry='2'%3E%3C/rect%3E%3Cline x1='16' y1='2' x2='16' y2='6'%3E%3C/line%3E%3Cline x1='8' y1='2' x2='8' y2='6'%3E%3C/line%3E%3Cline x1='3' y1='10' x2='21' y2='10'%3E%3C/line%3E%3C/svg%3E");
-                transform: scale(1.05);
-              }
-
-              input[type="date"]::-webkit-calendar-picker-indicator:active {
-                transform: scale(0.98);
-                background-color: rgba(0, 191, 166, 0.25);
-              }
-
-              /* Firefox */
-              input[type="date"]::-moz-calendar-picker-indicator {
-                cursor: pointer;
-                opacity: 1 !important;
-                display: block !important;
-                width: 30px;
-                height: 30px;
-                background-color: transparent;
-                border: none;
-                border-radius: 6px;
-              }
-
-              /* Ensure the input has enough space for the icon */
-              input[type="date"] {
-                padding-right: 8px !important;
-                padding-left: 8px !important;
-                min-height: 40px;
-                display: flex;
-                align-items: center;
-              }
-
-              /* Prevent overflow from hiding the icon */
-              input[type="date"]::-webkit-datetime-edit {
-                flex: 1;
-                min-width: 0;
-                padding-right: 6px;
-              }
-
-              /* Mobile specific - make icon even more prominent */
-              @media (max-width: 640px) {
-                input[type="date"]::-webkit-calendar-picker-indicator {
-                  width: 24px !important;
-                  height: 24px !important;
-                  margin-left: 0px !important;
-                  margin-right: 0px !important;
-                  background-size: 16px 16px !important;
-                  background-color: transparent !important;
-                  border-radius: 4px !important;
-                }
-                
-                input[type="date"] {
-                  min-height: 44px !important;
-                  padding-right: 6px !important;
-                  padding-left: 6px !important;
-                }
-
-                input[type="date"]::-webkit-datetime-edit {
-                  font-size: 13px;
-                  padding-right: 4px !important;
-                  flex: 1;
-                  max-width: calc(100% - 30px);
-                }
-
-                input[type="date"]::-webkit-datetime-edit-fields-wrapper {
-                  padding-right: 2px;
-                }
-              }
-            `}</style>
-            <div className="flex bg-white rounded-t-[12px] border-[1.5px] border-[rgba(0,191,166,0.3)] focus-within:border-[#00BFA6] focus-within:ring-2 focus-within:ring-[#00BFA6]/20 transition-all duration-300">
-              <div className="flex-1 p-3 border-r border-[rgba(0,191,166,0.2)] min-w-0">
-                <label className="flex items-center gap-1.5 text-[11px] font-bold text-[#546E7A] uppercase tracking-wider mb-1.5">
-                  <Calendar className="w-3.5 h-3.5 text-[#00BFA6]" /> Check-In
+          <div className="mb-5">
+            <div className="flex bg-white rounded-t-[12px] border-[1.5px] border-[rgba(0,191,166,0.3)] focus-within:border-[#00BFA6] focus-within:ring-2 focus-within:ring-[#00BFA6]/20 transition-all">
+              <div className="flex-1 px-3 pt-2 pb-1 border-r border-[rgba(0,191,166,0.2)] min-w-0">
+                <label htmlFor="bk-checkin" className="flex items-center gap-1.5 text-[11px] font-bold text-[#546E7A] uppercase tracking-wider">
+                  <Calendar className="w-3.5 h-3.5 text-[#00BFA6]" aria-hidden="true" /> Check-in
                 </label>
                 <input
+                  id="bk-checkin"
                   type="date"
                   value={checkIn}
-                  onChange={(e) => {
-                    const parts = e.target.value.split('-');
-                    if (parts[0] && parts[0].length > 4) parts[0] = parts[0].slice(0, 4);
-                    setCheckIn(parts.join('-'));
-                  }}
-                  min={new Date().toISOString().split('T')[0]}
+                  min={today}
                   max="2099-12-31"
-                  className="w-full text-sm font-semibold text-[#263238] outline-none bg-transparent cursor-pointer"
-                  placeholder="mm/dd/yyyy"
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setCheckIn(value);
+                    if (checkOut && value && checkOut <= value) setCheckOut('');
+                  }}
+                  className={dateInputClass}
                 />
               </div>
-              <div className="flex-1 p-3 min-w-0">
-                <label className="flex items-center gap-1.5 text-[11px] font-bold text-[#546E7A] uppercase tracking-wider mb-1.5">
-                  <Calendar className="w-3.5 h-3.5 text-[#00BFA6]" /> Check-Out
+              <div className="flex-1 px-3 pt-2 pb-1 min-w-0">
+                <label htmlFor="bk-checkout" className="flex items-center gap-1.5 text-[11px] font-bold text-[#546E7A] uppercase tracking-wider">
+                  <Calendar className="w-3.5 h-3.5 text-[#00BFA6]" aria-hidden="true" /> Check-out
                 </label>
                 <input
+                  id="bk-checkout"
                   type="date"
                   value={checkOut}
-                  onChange={(e) => {
-                    const parts = e.target.value.split('-');
-                    if (parts[0] && parts[0].length > 4) parts[0] = parts[0].slice(0, 4);
-                    setCheckOut(parts.join('-'));
-                  }}
-                  min={checkIn || new Date().toISOString().split('T')[0]}
+                  min={checkIn || today}
                   max="2099-12-31"
-                  className="w-full text-sm font-semibold text-[#263238] outline-none bg-transparent cursor-pointer"
-                  placeholder="mm/dd/yyyy"
+                  onChange={(e) => setCheckOut(e.target.value)}
+                  className={dateInputClass}
                 />
               </div>
             </div>
 
-            <div className="bg-white rounded-b-[12px] border-[1.5px] border-t-0 border-[rgba(0,191,166,0.3)] overflow-hidden focus-within:border-[#00BFA6] focus-within:ring-2 focus-within:ring-[#00BFA6]/20 transition-all duration-300 p-3">
-              <label className="flex items-center gap-1.5 text-[11px] font-bold text-[#546E7A] uppercase tracking-wider mb-1">
-                <Users className="w-3.5 h-3.5 text-[#00BFA6]" /> Guests
-              </label>
-              <div className="flex items-center gap-2">
-                <select
-                  value={selectedGuests}
-                  onChange={(e) => setSelectedGuests(e.target.value)}
-                  className="w-full text-sm font-semibold text-[#263238] outline-none bg-transparent cursor-pointer appearance-none"
-                >
-                  <option>1 Adult</option>
-                  <option>2 Adults</option>
-                  <option>2 Adults, 1 Child</option>
-                  <option>3 Adults</option>
-                </select>
-                <ChevronDown className="w-4 h-4 text-[#00A896]" />
-              </div>
+            <div className="rounded-b-[12px] border-[1.5px] border-t-0 border-[rgba(0,191,166,0.3)] p-3 space-y-1">
+              <p className="flex items-center gap-1.5 text-[11px] font-bold text-[#546E7A] uppercase tracking-wider">
+                <Users className="w-3.5 h-3.5 text-[#00BFA6]" aria-hidden="true" /> Guests
+                <span className="normal-case font-medium tracking-normal">(up to {capacity})</span>
+              </p>
+              <Stepper label="Adults" hint="Age 13+" value={adults} min={1} max={Math.max(1, capacity - children)} onChange={setAdults} />
+              <Stepper label="Children" hint="Under 13" value={children} min={0} max={Math.max(0, capacity - adults)} onChange={setChildren} />
             </div>
           </div>
 
-          <div style={{ marginBottom: '24px' }}>
-            <p className="text-xs font-bold text-[#546E7A] uppercase tracking-wider mb-3">Price Summary</p>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-              <span style={{ fontSize: '14.5px', color: '#546E7A', textDecoration: 'underline', textDecorationStyle: 'dotted' }}>
-                NPR {pricePerNight} × {nights} nights
-              </span>
-              <span style={{ fontSize: '15px', fontWeight: '600', color: '#263238' }}>
-                NPR {subtotal}
-              </span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <span style={{ fontSize: '14.5px', color: '#546E7A', textDecoration: 'underline', textDecorationStyle: 'dotted' }}>
-                Taxes & fees
-              </span>
-              <span style={{ fontSize: '15px', fontWeight: '600', color: '#263238' }}>
-                NPR {taxesAndFees}
-              </span>
-            </div>
-
-            <hr style={{ borderTop: '1px solid rgba(0,191,166,0.15)', marginBottom: '16px' }} />
-
-            {/* Total */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '1.1rem', fontWeight: '700', color: '#263238' }}>Total</span>
-              <span style={{ fontSize: '1.45rem', fontWeight: '800', color: '#263238' }}>
-                NPR {total}
-              </span>
-            </div>
+          <div className="mb-5" aria-live="polite">
+            <p className="text-xs font-bold text-[#546E7A] uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <Receipt className="w-3.5 h-3.5" aria-hidden="true" /> Price summary
+            </p>
+            {datesValid ? (
+              <>
+                <div className="flex justify-between gap-3 mb-2.5 text-[15px]">
+                  <span className="text-[#546E7A]">{formatRs(pricePerNight)} &times; {nights} night{nights > 1 ? 's' : ''}</span>
+                  <span className="font-semibold text-[#263238] tabular-nums">{formatRs(quote.subtotal)}</span>
+                </div>
+                <div className="flex justify-between gap-3 mb-4 text-[15px]">
+                  <span className="text-[#546E7A]">Taxes &amp; fees ({Math.round(TAX_RATE * 100)}%)</span>
+                  <span className="font-semibold text-[#263238] tabular-nums">{formatRs(quote.taxes)}</span>
+                </div>
+                <hr className="border-[rgba(0,191,166,0.15)] mb-4" />
+                <div className="flex justify-between items-center gap-3">
+                  <span className="text-lg font-bold text-[#263238]">Total</span>
+                  <span className="text-2xl font-extrabold text-[#263238] tabular-nums">{formatRs(quote.total)}</span>
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-[#546E7A]">
+                {checkIn && checkOut && nights > MAX_STAY_NIGHTS
+                  ? `Stays are limited to ${MAX_STAY_NIGHTS} nights.`
+                  : 'Choose your check-in and check-out dates to see the total.'}
+              </p>
+            )}
           </div>
+
+          {soldOut && (
+            <p role="alert" className="mb-3 rounded-xl bg-red-50 border border-red-200 px-3 py-2 text-sm font-semibold text-red-700">
+              This room is not available for those dates. Try different dates or another room.
+            </p>
+          )}
 
           <button
+            type="button"
             onClick={handleBookNowClick}
-            className="w-full text-white font-bold text-[1.1rem] py-4 rounded-[14px] shadow-lg shadow-[#00BFA6]/30 hover:-translate-y-1 hover:shadow-[#00BFA6]/40 transition-all duration-300"
-            style={{
-              background: 'linear-gradient(135deg, #00BFA6, #00E5CC)',
-              boxShadow: '0 8px 24px rgba(0,191,166,0.35)',
-            }}
+            disabled={soldOut}
+            className="w-full min-h-[48px] text-white font-bold text-lg py-3 rounded-[14px] shadow-lg shadow-[#00BFA6]/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ background: 'linear-gradient(135deg, #00BFA6, #00E5CC)' }}
           >
-            Book Now →
+            {datesValid ? `Book now \u00b7 ${formatRs(quote.total)}` : 'Check availability'}
           </button>
+          <p className="mt-2 text-center text-xs text-[#546E7A]">You will confirm your details and pay on the next steps.</p>
 
-          <div className="mt-5 space-y-2 text-center">
+          <div className="mt-4 space-y-2 text-center">
             <div className="flex items-center justify-center gap-2 text-[#00A896]">
-              <ShieldCheck className="w-4 h-4" />
-              <span className="text-[13px] font-semibold">Free cancellation until {freeCancellationDate}</span>
+              <ShieldCheck className="w-4 h-4 shrink-0" aria-hidden="true" />
+              <span className="text-[13px] font-semibold">{cancellationNote(datesValid ? checkIn : '')}</span>
             </div>
             <div className="flex items-center justify-center gap-2 text-[#00A896]">
-              <Check className="w-4 h-4" />
-              <span className="text-[13px] font-semibold">No booking fees</span>
-            </div>
-            <div className="flex items-center justify-center gap-2 text-[#00A896]">
-              <Lock className="w-4 h-4" />
+              <Lock className="w-4 h-4 shrink-0" aria-hidden="true" />
               <span className="text-[13px] font-semibold">Secure checkout</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Guest Information Form Modal - Rendered outside sticky container */}
-      {showGuestForm && (
-        <div
-          className="fixed inset-0 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn"
-          style={{ zIndex: 9999 }}
-          onClick={() => setShowGuestForm(false)} // Close when clicking backdrop
-        >
-          <div
-            className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-slideUp"
-            onClick={(e) => e.stopPropagation()} // Prevent close when clicking inside
-          >
-            <h3 className="text-2xl font-bold text-[#263238] mb-4">Guest Information</h3>
-            <p className="text-sm text-[#546E7A] mb-6">Please provide your details to continue with the booking</p>
-
-            <form onSubmit={handleGuestFormSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-[#263238] mb-2">
-                  Full Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={guestInfo.name}
-                  onChange={(e) => setGuestInfo({ ...guestInfo, name: e.target.value })}
-                  placeholder="John Doe"
-                  className="w-full px-4 py-3 border-2 border-[rgba(0,191,166,0.3)] rounded-xl focus:border-[#00BFA6] focus:ring-2 focus:ring-[#00BFA6]/20 outline-none transition-all"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-[#263238] mb-2">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  value={guestInfo.email}
-                  onChange={(e) => setGuestInfo({ ...guestInfo, email: e.target.value })}
-                  placeholder="john@example.com"
-                  className="w-full px-4 py-3 border-2 border-[rgba(0,191,166,0.3)] rounded-xl focus:border-[#00BFA6] focus:ring-2 focus:ring-[#00BFA6]/20 outline-none transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-[#263238] mb-2">
-                  Phone Number <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="tel"
-                  value={guestInfo.phone}
-                  onChange={(e) => setGuestInfo({ ...guestInfo, phone: e.target.value })}
-                  placeholder="+977 9800000000"
-                  className="w-full px-4 py-3 border-2 border-[rgba(0,191,166,0.3)] rounded-xl focus:border-[#00BFA6] focus:ring-2 focus:ring-[#00BFA6]/20 outline-none transition-all"
-                  required
-                />
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowGuestForm(false)}
-                  className="flex-1 px-6 py-3 border-2 border-[#00BFA6] text-[#00BFA6] font-semibold rounded-xl hover:bg-[#00BFA6]/10 transition-all"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-[#00BFA6] to-[#00E5CC] text-white font-semibold rounded-xl hover:shadow-lg transition-all"
-                >
-                  Continue to Payment
-                </button>
-              </div>
-            </form>
+      <Sheet
+        open={showGuestForm}
+        onClose={() => setShowGuestForm(false)}
+        title="Guest information"
+        subtitle={`${nights} night${nights > 1 ? 's' : ''} \u00b7 ${guestsLabel}`}
+        maxWidth="sm:max-w-md"
+        footer={(
+          <div className="flex gap-3">
+            <button type="button" onClick={() => setShowGuestForm(false)} className="flex-1 min-h-[48px] px-4 border-2 border-[#00BFA6] text-[#00A896] font-semibold rounded-xl hover:bg-[#00BFA6]/10">
+              Cancel
+            </button>
+            <button type="submit" form="guest-info-form" className="flex-1 min-h-[48px] px-4 bg-gradient-to-r from-[#00BFA6] to-[#00E5CC] text-white font-semibold rounded-xl hover:shadow-lg">
+              Continue to payment
+            </button>
           </div>
-        </div>
-      )}
+        )}
+      >
+        <p className="text-sm text-[#546E7A] mb-4">Please provide your details to continue with the booking.</p>
+        <form id="guest-info-form" onSubmit={handleGuestFormSubmit} className="space-y-4" noValidate>
+          <div>
+            <label htmlFor="gi-name" className="block text-sm font-semibold text-[#263238] mb-1.5">Full name <span className="text-red-500" aria-hidden="true">*</span></label>
+            <input
+              id="gi-name" type="text" autoComplete="name" required maxLength={100}
+              value={guestInfo.name} onChange={(e) => setGuestInfo({ ...guestInfo, name: e.target.value })}
+              placeholder="John Doe"
+              className="w-full min-h-[48px] px-4 text-base border-2 border-[rgba(0,191,166,0.3)] rounded-xl focus:border-[#00BFA6] focus:ring-2 focus:ring-[#00BFA6]/20 outline-none"
+            />
+          </div>
+          <div>
+            <label htmlFor="gi-email" className="block text-sm font-semibold text-[#263238] mb-1.5">Email address</label>
+            <input
+              id="gi-email" type="email" inputMode="email" autoComplete="email" maxLength={100}
+              value={guestInfo.email} onChange={(e) => setGuestInfo({ ...guestInfo, email: e.target.value })}
+              placeholder="john@example.com"
+              className="w-full min-h-[48px] px-4 text-base border-2 border-[rgba(0,191,166,0.3)] rounded-xl focus:border-[#00BFA6] focus:ring-2 focus:ring-[#00BFA6]/20 outline-none"
+            />
+            <p className="text-xs text-[#546E7A] mt-1">Leave empty to use your account email for the confirmation.</p>
+          </div>
+          <div>
+            <label htmlFor="gi-phone" className="block text-sm font-semibold text-[#263238] mb-1.5">Phone number <span className="text-red-500" aria-hidden="true">*</span></label>
+            <input
+              id="gi-phone" type="tel" inputMode="tel" autoComplete="tel" required maxLength={20}
+              value={guestInfo.phone} onChange={(e) => setGuestInfo({ ...guestInfo, phone: e.target.value })}
+              placeholder="+977 9800000000"
+              className="w-full min-h-[48px] px-4 text-base border-2 border-[rgba(0,191,166,0.3)] rounded-xl focus:border-[#00BFA6] focus:ring-2 focus:ring-[#00BFA6]/20 outline-none"
+            />
+          </div>
+        </form>
+      </Sheet>
 
-      {/* Payment Modal */}
       <BookingPaymentModal
         isOpen={showPaymentModal}
         onClose={() => setShowPaymentModal(false)}
@@ -488,14 +361,13 @@ const BookingSidebar = ({ pricePerNight, nights: initialNights, taxesAndFees: in
           roomId,
           checkIn,
           checkOut,
-          guests: {
-            adults: parseInt(selectedGuests.split(' ')[0]) || 2,
-            children: 0,
-          },
-          guestName: guestInfo.name,
-          guestEmail: guestInfo.email,
-          guestPhone: guestInfo.phone,
-          totalAmount: total,
+          nights,
+          guests: { adults, children },
+          guestName: guestInfo.name.trim(),
+          guestEmail: guestInfo.email.trim(),
+          guestPhone: guestInfo.phone.trim(),
+          // Preview only: the server prices the stay from its own rates and dates and ignores this.
+          totalAmount: quote.total,
           hotelName,
         }}
         onPaymentSuccess={handlePaymentSuccess}
@@ -503,6 +375,19 @@ const BookingSidebar = ({ pricePerNight, nights: initialNights, taxesAndFees: in
       />
     </>
   );
+};
+
+BookingSidebar.propTypes = {
+  pricePerNight: PropTypes.number.isRequired,
+  hotelName: PropTypes.string,
+  hotelAddress: PropTypes.string,
+  hotelImage: PropTypes.string,
+  hotelId: PropTypes.string,
+  roomId: PropTypes.string,
+  roomName: PropTypes.string,
+  maxGuests: PropTypes.number,
+  soldOut: PropTypes.bool,
+  onDatesChange: PropTypes.func,
 };
 
 export default BookingSidebar;

@@ -10,6 +10,7 @@ import {
   verifyStripePayment,
 } from "../services/paymentGatewayService.js";
 import { createLogger } from "../utils/logger.js";
+import { findReservationConflict } from "../services/bookingAvailability.js";
 
 const logger = createLogger('WebhookController');
 
@@ -110,8 +111,21 @@ async function finalizeStripeBookingPayment(paymentIntentId, { expectedUserId } 
 
   const session = await mongoose.startSession();
   let claimed = null;
+  let roomTaken = false;
   try {
     await session.withTransaction(async () => {
+      roomTaken = false;
+      // The payment hold on this booking may have lapsed (card holds last 1 hour) while the
+      // guest was on Stripe's page, and someone else may now hold the same room. Never
+      // confirm a second booking on top of a live one: that would be a double booking
+      // paid for by two guests. Flag it for a refund decision instead.
+      if (booking.room?._id) {
+        const clash = await findReservationConflict({
+          room: booking.room._id, checkIn: booking.checkIn, checkOut: booking.checkOut,
+          exclude: booking._id, session,
+        });
+        if (clash) { roomTaken = true; return; }
+      }
       // Atomic claim. The client-triggered verify endpoint and the Stripe
       // webhook race here as a matter of course (both fire for every card
       // payment), and the read-then-save this replaced let both pass the
@@ -172,10 +186,13 @@ async function finalizeStripeBookingPayment(paymentIntentId, { expectedUserId } 
         );
       }
 
-      const taxRate = 0.13;
-      const subtotal = booking.totalAmount;
-      const tax = Math.round(subtotal * taxRate);
-      const total = subtotal + tax;
+      // booking.totalAmount is ALREADY the amount the guest was quoted and charged (nights x rate
+      // + the 12% fee). The invoice used to add a further 13% on top, so every card-paid booking
+      // showed an outstanding balance the guest never owed.
+      const quote = booking.priceBreakdown?.totalPaisa != null ? booking.priceBreakdown : null;
+      const subtotal = quote ? quote.subtotalPaisa / 100 : booking.totalAmount;
+      const tax = quote ? quote.taxPaisa / 100 : 0;
+      const total = booking.totalAmount;
 
       await Invoice.findOneAndUpdate(
         { booking: booking._id },
@@ -193,7 +210,7 @@ async function finalizeStripeBookingPayment(paymentIntentId, { expectedUserId } 
             checkIn: booking.checkIn,
             checkOut: booking.checkOut,
             nights: booking.durationNights,
-            charges: { room: subtotal, extras: 0, tax, total },
+            charges: { room: subtotal, extras: 0, taxRate: quote?.taxRate ?? 0, tax, total },
             paid: verification.amount,
             balance: Math.max(0, total - verification.amount),
             status: verification.amount >= total ? "paid" : "partial",
@@ -218,6 +235,13 @@ async function finalizeStripeBookingPayment(paymentIntentId, { expectedUserId } 
     session.endSession();
   }
 
+  if (roomTaken) {
+    logger.error("Stripe payment settled but the room was taken by another reservation; refund required", {
+      bookingId: booking._id, paymentIntentId,
+    });
+    return { ok: false, reason: "room_unavailable_after_payment" };
+  }
+
   // The transaction ran, but another finalizer (the racing webhook/verify
   // call) won the atomic claim first. That finalizer already performed (or
   // is performing) every side effect below; this call must not double them.
@@ -230,29 +254,32 @@ async function finalizeStripeBookingPayment(paymentIntentId, { expectedUserId } 
   booking.paidAmount = claimed.paidAmount;
   booking.paidAt = claimed.paidAt;
 
-  // Best-effort side effects, outside the transaction
-  try {
-    const guestEmail = booking.user?.email || booking.guestInfo?.email;
-    if (guestEmail) {
-      await sendEmail({
+  // Best-effort side effects, outside the transaction. The email is NOT awaited: the guest's
+  // browser is waiting on this response, and an unreachable SMTP server used to hold the
+  // payment confirmation for about two minutes (measured) before it could answer.
+  const guestEmail = booking.user?.email || booking.guestInfo?.email;
+  if (guestEmail) {
+    const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    Promise.resolve()
+      .then(() => sendEmail({
         from: process.env.SENDER_EMAIL || "noreply@stayhaven.com",
         to: guestEmail,
         subject: `Booking Confirmed - ${booking.bookingId}`,
         html: `
           <h2>Booking Confirmed!</h2>
-          <p>Dear ${booking.user?.fullname || booking.guestInfo?.name},</p>
+          <p>Dear ${esc(booking.user?.fullname || booking.guestInfo?.name)},</p>
           <p>Your payment has been successfully processed and your booking is confirmed.</p>
-          <p><strong>Booking Reference:</strong> ${booking.confirmationCode || booking.bookingId}</p>
-          <p><strong>Hotel:</strong> ${booking.hotel.name}</p>
-          <p><strong>Check-in:</strong> ${new Date(booking.checkIn).toLocaleDateString()}</p>
-          <p><strong>Check-out:</strong> ${new Date(booking.checkOut).toLocaleDateString()}</p>
-          <p><strong>Amount Paid:</strong> NPR ${verification.amount}</p>
+          <p><strong>Booking Reference:</strong> ${esc(booking.confirmationCode || booking.bookingId)}</p>
+          <p><strong>Hotel:</strong> ${esc(booking.hotel.name)}</p>
+          <p><strong>Check-in:</strong> ${esc(new Date(booking.checkIn).toLocaleDateString())}</p>
+          <p><strong>Check-out:</strong> ${esc(new Date(booking.checkOut).toLocaleDateString())}</p>
+          <p><strong>Amount Paid:</strong> NPR ${esc(verification.amount)}</p>
           <p>Thank you for choosing StayHaven!</p>
         `,
+      }))
+      .catch((emailError) => {
+        logger.error("Failed to send confirmation email", { error: emailError?.message, bookingId: booking._id });
       });
-    }
-  } catch (emailError) {
-    logger.error("Failed to send confirmation email", { error: emailError.message, bookingId: booking._id });
   }
 
   emitToHotel(booking.hotel._id.toString(), "booking-confirmed", {
@@ -294,10 +321,16 @@ export const verifyStripeCardPayment = async (req, res) => {
         ownership_mismatch: 403,
         amount_mismatch: 400,
         payment_not_completed: 400,
+        room_unavailable_after_payment: 409,
+        booking_not_claimable: 409,
+      };
+      const messages = {
+        room_unavailable_after_payment: "Your payment went through but the room was taken before it could be confirmed. Please contact support for a refund.",
+        booking_not_claimable: "This booking can no longer accept a payment. Please contact support if you were charged.",
       };
       return res.status(statusByReason[result.reason] || 400).json({
         success: false,
-        message: "Payment could not be verified.",
+        message: messages[result.reason] || "Payment could not be verified.",
         reason: result.reason,
       });
     }

@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 
 
 import axiosClient from '../../../../core/api/client';
+import { usePageMeta } from '../../hotels/lib/pageMeta';
 
 const Feedback = () => {
+  usePageMeta({ title: "Feedback", description: "Share your feedback with the StayHaven team." });
   const [formData, setFormData] = useState({
     fullName: '',
     phoneNo: '',

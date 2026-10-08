@@ -4,6 +4,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Check, X, Crown, Sparkles, AlertCircle, Inbox } from "lucide-react";
 import { useContent } from "../../../../core/hooks/useContent";
 import { getMemberships } from "../../../../core/api/services/content.service";
+import { usePageMeta } from '../../hotels/lib/pageMeta';
 import "./MembershipPage.css";
 
 gsap.registerPlugin(ScrollTrigger);
@@ -25,6 +26,7 @@ const SkeletonCard = () => (
 );
 
 const MembershipPage = () => {
+  usePageMeta({ title: "Memberships", description: "StayHaven membership plans and benefits." });
   const [selectedMembership, setSelectedMembership] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({

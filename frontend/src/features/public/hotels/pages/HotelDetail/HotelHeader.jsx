@@ -1,7 +1,8 @@
 import { Star, StarHalf, Heart, MapPin, Share, Award } from 'lucide-react';
 import { formatReviewCount } from './utils';
+import { formatRs } from '../../lib/money';
 
-const HotelHeader = ({ name, location, rating, reviewCount, highlights = [], badges = [], pricePerNight, onBookNow, isFavorite, onToggleFavorite }) => {
+const HotelHeader = ({ name, location, rating, reviewCount, highlights = [], badges = [], pricePerNight, onBookNow, isFavorite, onToggleFavorite, onShare }) => {
 
   // Render star rating
   const renderStars = () => {
@@ -32,7 +33,9 @@ const HotelHeader = ({ name, location, rating, reviewCount, highlights = [], bad
       <div className="absolute top-4 right-4 flex items-center gap-2 md:hidden">
         <button
           onClick={onToggleFavorite}
-          className="group flex flex-col items-center justify-center p-2 rounded-xl border border-[#00BFA6]/15 hover:bg-[#F0FDFB] hover:border-[#00BFA6] transition-all duration-300 bg-white"
+          type="button"
+          className="group flex flex-col items-center justify-center min-h-[44px] min-w-[44px] p-2 rounded-xl border border-[#00BFA6]/15 hover:bg-[#F0FDFB] hover:border-[#00BFA6] transition-all duration-300 bg-white"
+          aria-pressed={isFavorite}
           aria-label={isFavorite ? 'Remove from saved hotels' : 'Save hotel'}
         >
           <Heart
@@ -42,7 +45,9 @@ const HotelHeader = ({ name, location, rating, reviewCount, highlights = [], bad
           <span className="text-[9px] font-bold text-[#546E7A]">Save</span>
         </button>
         <button
-          className="group flex flex-col items-center justify-center p-2 rounded-xl border border-transparent hover:border-[#00BFA6]/15 hover:bg-[#F8FAFB] transition-all duration-300 bg-white"
+          type="button"
+          onClick={onShare}
+          className="group flex flex-col items-center justify-center min-h-[44px] min-w-[44px] p-2 rounded-xl border border-transparent hover:border-[#00BFA6]/15 hover:bg-[#F8FAFB] transition-all duration-300 bg-white"
           aria-label="Share"
         >
           <Share className="w-5 h-5 text-[#546E7A]" />
@@ -52,9 +57,9 @@ const HotelHeader = ({ name, location, rating, reviewCount, highlights = [], bad
 
       <div className="flex flex-col md:flex-row items-start md:items-start justify-between mb-4 gap-4">
         <div className="pr-24 md:pr-0 w-full md:w-auto">
-          <h2 className="text-2xl md:text-4xl font-extrabold text-[#263238] tracking-tight mb-2">
+          <h1 className="text-2xl md:text-4xl font-extrabold text-[#263238] tracking-tight mb-2">
             {name}
-          </h2>
+          </h1>
 
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 mb-2">
              <div className="flex items-center gap-1.5 text-[#546E7A]">
@@ -67,8 +72,8 @@ const HotelHeader = ({ name, location, rating, reviewCount, highlights = [], bad
                 <div className="flex items-center gap-0.5">
                   {renderStars()}
                 </div>
-                <span className="font-bold text-[#263238]">{rating}</span>
-                <span className="text-[#00BFA6] text-xs font-semibold cursor-pointer hover:underline">
+                <span className="font-bold text-[#263238]">{Number(rating).toFixed(1)}</span>
+                <span className="text-[#00A896] text-xs font-semibold">
                   {formatReviewCount(reviewCount)}
                 </span>
              </div>
@@ -91,6 +96,8 @@ const HotelHeader = ({ name, location, rating, reviewCount, highlights = [], bad
             <span className="text-[10px] font-bold text-[#546E7A] group-hover:text-[#00BFA6]">Save</span>
           </button>
           <button
+            type="button"
+            onClick={onShare}
             className="group flex flex-col items-center justify-center p-2.5 rounded-xl border border-transparent hover:border-[#00BFA6]/15 hover:bg-[#F8FAFB] transition-all duration-300"
             aria-label="Share"
           >
@@ -106,12 +113,13 @@ const HotelHeader = ({ name, location, rating, reviewCount, highlights = [], bad
       {pricePerNight && (
         <div className="md:hidden flex items-center justify-between mb-4 p-4 bg-[#F8FAFB] rounded-xl border border-[#00BFA6]/10">
           <div>
-            <p className="text-xs text-[#546E7A] font-medium mb-1">Starting from</p>
-            <p className="text-2xl font-bold text-[#263238]">NPR {pricePerNight}<span className="text-sm font-normal text-[#546E7A]">/night</span></p>
+            <p className="text-xs text-[#546E7A] font-medium mb-1">From</p>
+            <p className="text-2xl font-bold text-[#263238] tabular-nums">{formatRs(pricePerNight)}<span className="text-sm font-normal text-[#546E7A]"> / night</span></p>
           </div>
           <button
+            type="button"
             onClick={onBookNow}
-            className="px-6 py-3 bg-gradient-to-r from-[#00BFA6] to-[#00E5CC] text-white font-bold rounded-xl hover:shadow-lg transition-all duration-300"
+            className="min-h-[48px] px-6 py-3 bg-gradient-to-r from-[#00BFA6] to-[#00E5CC] text-white font-bold rounded-xl hover:shadow-lg transition-all duration-300"
           >
             Book Now →
           </button>

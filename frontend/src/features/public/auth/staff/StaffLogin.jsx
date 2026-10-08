@@ -3,10 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { staffLogin } from "../../../../core/api/services/staff.service";
 import { useStaffAuth } from "../../../../core/context/StaffAuthContext";
 import { toast } from "react-toastify";
+import { usePageMeta } from "../../hotels/lib/pageMeta";
 
 const StaffLogin = () => {
   const navigate = useNavigate();
   const { login } = useStaffAuth();
+  usePageMeta({ title: "Staff sign in", description: "StayHaven staff portal sign in for hotel teams." });
 
   const [formData, setFormData] = useState({
     email: "",
@@ -16,9 +18,11 @@ const StaffLogin = () => {
 
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
+    if (error) setError("");
     setFormData((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
@@ -29,7 +33,7 @@ const StaffLogin = () => {
     e.preventDefault();
 
     if (!formData.email || !formData.password) {
-      toast.error("Please fill in all fields");
+      setError("Please enter your work email and password.");
       return;
     }
 
@@ -43,16 +47,21 @@ const StaffLogin = () => {
         login(response.user);
 
         // Redirect based on role
-        if (response.redirectPath) {
+        // Only follow same-site paths from the server ("/x"), never "//host" or full URLs.
+        if (typeof response.redirectPath === "string" && /^\/(?!\/)/.test(response.redirectPath)) {
           navigate(response.redirectPath);
         } else {
           navigate("/");
         }
       }
     } catch (error) {
-      console.error("Staff login error:", error);
-      toast.error(
-        error.response?.data?.message || "Login failed. Please check your credentials."
+      const status = error.response?.status;
+      // Show the server's own message (wrong password, account locked for 30 minutes, too many attempts).
+      setError(
+        error.response?.data?.message ||
+          (status === 429 ? "Too many attempts. Please wait a few minutes and try again."
+            : !error.response ? "Cannot reach the server. Check your connection and try again."
+              : "Login failed. Please check your credentials.")
       );
     } finally {
       setLoading(false);
@@ -75,8 +84,8 @@ const StaffLogin = () => {
 
   return (
     <div
-      className="w-full flex flex-col lg:flex-row fixed inset-0"
-      style={{ height: "100vh", overflow: "hidden" }}
+      className="w-full flex flex-col lg:flex-row fixed inset-0 overflow-y-auto lg:overflow-hidden"
+      style={{ height: "100dvh" }}
     >
       {/* Left Panel - Branding (Hidden on mobile) */}
       <div
@@ -239,8 +248,8 @@ const StaffLogin = () => {
 
       {/* Right Panel - Login Form */}
       <div
-        className="flex-1 lg:w-1/2 bg-[#F8F9FB] flex items-center justify-center"
-        style={{ padding: "24px", height: "100%", overflow: "hidden" }}
+        className="flex-1 lg:w-1/2 bg-[#F8F9FB] flex items-center justify-center relative"
+        style={{ padding: "16px", minHeight: "100%" }}
       >
         {/* Mobile Background (visible only on mobile) */}
         <div
@@ -260,8 +269,8 @@ const StaffLogin = () => {
 
         {/* Form Card */}
         <div
-          className="w-full bg-white lg:bg-transparent rounded-2xl lg:rounded-none shadow-xl lg:shadow-none"
-          style={{ maxWidth: "400px", padding: "32px" }}
+          className="w-full bg-white lg:bg-transparent rounded-2xl lg:rounded-none shadow-xl lg:shadow-none p-5 sm:p-8 my-auto"
+          style={{ maxWidth: "400px" }}
         >
           {/* Header */}
           <div className="text-center" style={{ marginBottom: "32px" }}>
@@ -305,10 +314,16 @@ const StaffLogin = () => {
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} noValidate>
+            {error && (
+              <div role="alert" className="rounded-xl border border-red-200 bg-red-50 text-red-700 text-sm font-medium" style={{ padding: "12px 16px", marginBottom: "20px" }}>
+                {error}
+              </div>
+            )}
             {/* Email Field */}
             <div style={{ marginBottom: "20px" }}>
               <label
+                htmlFor="staff-email"
                 className="block text-gray-700 font-semibold"
                 style={{ fontSize: "14px", marginBottom: "8px" }}
               >
@@ -334,13 +349,18 @@ const StaffLogin = () => {
                   </svg>
                 </div>
                 <input
+                  id="staff-email"
                   type="email"
                   name="email"
+                  autoComplete="username"
+                  inputMode="email"
+                  autoCapitalize="none"
+                  spellCheck={false}
                   value={formData.email}
                   onChange={handleInputChange}
                   placeholder="Enter your work email"
                   className="w-full bg-gray-50 text-gray-800 placeholder-gray-400 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-all duration-200 border border-gray-200 hover:border-gray-300"
-                  style={{ height: "48px", paddingLeft: "48px", paddingRight: "16px", fontSize: "14px" }}
+                  style={{ height: "48px", paddingLeft: "48px", paddingRight: "16px", fontSize: "16px" }}
                   required
                 />
               </div>
@@ -349,6 +369,7 @@ const StaffLogin = () => {
             {/* Password Field */}
             <div style={{ marginBottom: "20px" }}>
               <label
+                htmlFor="staff-password"
                 className="block text-gray-700 font-semibold"
                 style={{ fontSize: "14px", marginBottom: "8px" }}
               >
@@ -374,20 +395,24 @@ const StaffLogin = () => {
                   </svg>
                 </div>
                 <input
+                  id="staff-password"
                   type={showPassword ? "text" : "password"}
                   name="password"
+                  autoComplete="current-password"
                   value={formData.password}
                   onChange={handleInputChange}
                   placeholder="Enter your password"
                   className="w-full bg-gray-50 text-gray-800 placeholder-gray-400 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-all duration-200 border border-gray-200 hover:border-gray-300"
-                  style={{ height: "48px", paddingLeft: "48px", paddingRight: "48px", fontSize: "14px" }}
+                  style={{ height: "48px", paddingLeft: "48px", paddingRight: "48px", fontSize: "16px" }}
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
-                  style={{ right: "16px" }}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-pressed={showPassword}
+                  className="absolute top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors duration-200 flex items-center justify-center"
+                  style={{ right: "2px", width: "44px", height: "44px" }}
                 >
                   {showPassword ? (
                     <svg
@@ -433,22 +458,22 @@ const StaffLogin = () => {
               className="flex items-center justify-between"
               style={{ marginBottom: "24px" }}
             >
-              <label className="flex items-center gap-2 text-gray-600 cursor-pointer" style={{ fontSize: "14px" }}>
+              <label className="flex items-center gap-2 text-gray-600 cursor-pointer" style={{ fontSize: "14px", minHeight: "44px" }}>
                 <input
                   type="checkbox"
                   name="rememberDevice"
                   checked={formData.rememberDevice}
                   onChange={handleInputChange}
                   className="rounded border-gray-300 text-teal-500 focus:ring-teal-500 focus:ring-2"
-                  style={{ width: "16px", height: "16px" }}
+                  style={{ width: "20px", height: "20px" }}
                 />
                 Remember this device
               </label>
               <button
                 onClick={handleForgotPasswordClick}
                 type="button"
-                className="text-teal-500 font-medium hover:text-teal-600 hover:underline transition-colors duration-200"
-                style={{ fontSize: "14px" }}
+                className="text-teal-600 font-medium hover:text-teal-700 hover:underline transition-colors duration-200"
+                style={{ fontSize: "14px", minHeight: "44px", padding: "0 4px" }}
               >
                 Forgot password?
               </button>
@@ -495,22 +520,17 @@ const StaffLogin = () => {
           {/* Footer */}
           <div className="text-center" style={{ marginTop: "32px" }}>
             <p className="text-gray-500" style={{ fontSize: "14px" }}>
-              Don't have staff credentials?{" "}
-              <button
-                type="button"
-                className="text-teal-500 font-semibold hover:text-teal-600 hover:underline transition-colors duration-200"
-              >
-                Contact your administrator
-              </button>
+              Don't have staff credentials? Ask your hotel administrator to invite you.
             </p>
             <p className="text-gray-400" style={{ fontSize: "12px", marginTop: "8px" }}>
-              For guest bookings, visit{" "}
+              Looking to book a stay?{" "}
               <button
                 type="button"
                 onClick={handleGuestBookings}
-                className="text-teal-500 hover:underline"
+                className="text-teal-600 hover:underline"
+                style={{ minHeight: "44px", padding: "0 4px" }}
               >
-                stayhaven.com
+                Go to the guest site
               </button>
             </p>
           </div>
