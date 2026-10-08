@@ -262,7 +262,6 @@
   --kd-warn-bg: #fffbeb;
   --kd-note-bg: #fef3c7;
   --kd-note-fg: #78350f;
-  --bottom-nav-height: 0px;
   height: 100vh;
   height: 100dvh;
   display: flex;
@@ -280,9 +279,7 @@
   --kd-bg: #0b0f14;
   --kd-card: #141a22;
 }
-@media (max-width: 1023px) {
-  .kitchen-dashboard { --bottom-nav-height: calc(64px + env(safe-area-inset-bottom, 0px)); }
-}
+html.kd-has-bottom-nav { --bottom-nav-height: calc(64px + env(safe-area-inset-bottom, 0px)); }
 .kitchen-dashboard .kd-sidebar {
   width: 280px; flex-shrink: 0; height: 100%; overflow-y: auto;
   background: var(--kd-card); border-right: 1px solid var(--kd-border);
@@ -295,6 +292,8 @@
 @media (min-width: 1024px) { .kitchen-dashboard .kd-scroll { padding: 24px 32px 96px; } }
 .kitchen-dashboard .kd-settings { display: flex; justify-content: center; align-items: flex-start; min-height: 100%; }
 .kitchen-dashboard.dark .kd-sidebar { background: var(--kd-card) !important; }
+/* The shared sound-unlock prompt is fixed bottom-left; keep Settings and Log Out clear of it. */
+.kitchen-dashboard .kd-sidebar > div { padding-bottom: 80px !important; }
 
 /* Top bar (desktop / landscape tablet) */
 .kitchen-dashboard .kd-topbar {

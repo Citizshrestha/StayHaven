@@ -256,7 +256,7 @@ const DashboardContent = ({
         </div>
       ) : activeFilter === "all" && noActive ? (
         renderEmpty()
-      ) : boardActive ? (
+      ) : boardActive && !(q && alerts.length === 0 && COLUMNS.every((col) => byColumn(col).filter(matches).length === 0)) ? (
         <div className="kd-board">
           {COLUMNS.map((col) => {
             const list = byColumn(col).filter(matches);

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Flame, Moon, Sun, Volume2, WifiOff } from "lucide-react";
+import { Flame, Moon, Sun, WifiOff } from "lucide-react";
 import Sidebar from "./Sidebar";
 import KitchenMobileHeader from "./KitchenMobileHeader";
 import KitchenMobileNav from "./KitchenMobileNav";
@@ -13,7 +13,6 @@ import { useNotifications } from "../../../../core/context/useNotifications";
 import { useTheme } from "../../../../core/hooks/useTheme";
 import { useStaffAuth } from "../../../../core/context/StaffAuthContext";
 import MessagingPanel from "../../../../shared/components/MessagingPanel";
-import useNotificationSound from "../../../../core/hooks/useNotificationSound";
 import useSettingsAutoRefresh from "../../../../core/hooks/useSettingsAutoRefresh";
 import { syncServerClock } from "./kitchenClock";
 import "../../../../shared/styles/dashboard-tokens.css";
@@ -81,7 +80,6 @@ const KitchenDashboard = () => {
   // there, once per order, so this screen must not play them a second time).
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
   const { subscribe, isConnected } = useSocket();
-  const { audioState, enableSound } = useNotificationSound();
 
   // Request browser notification permission once so we can alert kitchen
   // staff of new orders even when this tab isn't focused.
@@ -104,6 +102,13 @@ const KitchenDashboard = () => {
     document.documentElement.classList.toggle("kitchen-dark", isDarkMode);
     return () => document.documentElement.classList.remove("kitchen-dark");
   }, [isDarkMode]);
+
+  // The shared sound-unlock prompt and toasts live outside this component, so
+  // the phone nav height is published on <html> for them to clear.
+  useEffect(() => {
+    document.documentElement.classList.toggle("kd-has-bottom-nav", compact);
+    return () => document.documentElement.classList.remove("kd-has-bottom-nav");
+  }, [compact]);
 
   // Tab title carries the number of tickets waiting, visible from other tabs.
   useEffect(() => {
@@ -307,13 +312,7 @@ const KitchenDashboard = () => {
             <span>{online ? "Live connection lost. Reconnecting… Tickets may be out of date." : "You are offline. Tickets may be out of date."}</span>
           </div>
         )}
-        {audioState === "suspended" && (
-          <div className="kd-banner kd-banner--sound">
-            <Volume2 size={20} aria-hidden="true" />
-            <span>Sound alerts are off until you tap once.</span>
-            <button type="button" className="kd-btn kd-btn--ghost" onClick={enableSound}>Enable sound</button>
-          </div>
-        )}
+
 
         <div className="kd-scroll">
           {renderMainContent()}

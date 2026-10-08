@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { getSocketUrl } from "../../../../core/utils/apiConfig";
+import { getSocketUrl } from "../../../../core/utils/apiConfig.js";
 
 // Kitchen timers must be right even when the tablet's clock is wrong, so the
 // offset between the server clock and this device is measured once from the
