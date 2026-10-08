@@ -3,6 +3,7 @@ import SuperAdminLayout from './SuperAdminLayout';
 import MaintenanceMessageModal from '../components/MaintenanceMessageModal';
 import { useStaffAuth } from '../../../../core/context/StaffAuthContext';
 import { toast } from 'react-toastify';
+import { apiError } from '../utils/apiError';
 import {
   getProfile,
   updateProfile,
@@ -102,8 +103,8 @@ const SystemConfiguration = () => {
     try {
       const result = await getPlatformSettings();
       setSettings(result.data);
-    } catch  {
-      toast.error('Failed to load settings');
+    } catch (error) {
+      toast.error(apiError(error, 'Failed to load settings'));
     } finally {
       setLoading(false);
     }
@@ -114,8 +115,8 @@ const SystemConfiguration = () => {
     try {
       const result = await getIntegrationStatus();
       setIntegrations(result.data);
-    } catch  {
-      toast.error('Failed to load integration status');
+    } catch (error) {
+      toast.error(apiError(error, 'Failed to load integration status'));
     } finally {
       setLoading(false);
     }
@@ -144,7 +145,7 @@ const SystemConfiguration = () => {
       syncStaffContext(userData);
       toast.success('Profile updated successfully');
     } catch (error) {
-      toast.error(error?.response?.data?.message || 'Failed to update profile');
+      toast.error(apiError(error, 'Failed to update profile'));
     } finally {
       setSavingProfile(false);
     }
@@ -175,7 +176,7 @@ const SystemConfiguration = () => {
       applyProfilePictureUpdate(result.data);
       toast.success('Profile picture updated successfully');
     } catch (error) {
-      toast.error(error?.response?.data?.message || 'Failed to update profile picture');
+      toast.error(apiError(error, 'Failed to update profile picture'));
     } finally {
       setSavingPicture(false);
     }
@@ -217,7 +218,7 @@ const SystemConfiguration = () => {
       if (fileInputRef.current) fileInputRef.current.value = '';
       toast.success('Profile picture updated successfully');
     } catch (error) {
-      toast.error(error?.response?.data?.message || 'Failed to upload profile picture');
+      toast.error(apiError(error, 'Failed to upload profile picture'));
     } finally {
       setSavingPicture(false);
     }
@@ -257,7 +258,7 @@ const SystemConfiguration = () => {
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
       setShowPasswordFields(false);
     } catch (error) {
-      toast.error(error?.response?.data?.message || 'Failed to change password');
+      toast.error(apiError(error, 'Failed to change password'));
     } finally {
       setChangingPassword(false);
     }
@@ -268,8 +269,8 @@ const SystemConfiguration = () => {
       await updatePlatformSettings(updates);
       toast.success('Settings updated successfully');
       loadSettings();
-    } catch  {
-      toast.error('Failed to update settings');
+    } catch (error) {
+      toast.error(apiError(error, 'Failed to update settings'));
     }
   };
 
@@ -286,8 +287,8 @@ const SystemConfiguration = () => {
       await toggleMaintenanceMode({ enabled: false, message: settings.maintenanceMessage });
       toast.success('Maintenance mode disabled');
       loadSettings();
-    } catch  {
-      toast.error('Failed to toggle maintenance mode');
+    } catch (error) {
+      toast.error(apiError(error, 'Failed to toggle maintenance mode'));
     } finally {
       setTogglingMaintenance(false);
     }
@@ -300,8 +301,8 @@ const SystemConfiguration = () => {
       toast.success('Maintenance mode enabled');
       setShowMaintenanceModal(false);
       loadSettings();
-    } catch  {
-      toast.error('Failed to toggle maintenance mode');
+    } catch (error) {
+      toast.error(apiError(error, 'Failed to toggle maintenance mode'));
     } finally {
       setTogglingMaintenance(false);
     }
@@ -316,8 +317,8 @@ const SystemConfiguration = () => {
         toast.error('Khalti connection failed');
       }
       loadIntegrations();
-    } catch  {
-      toast.error('Failed to test Khalti connection');
+    } catch (error) {
+      toast.error(apiError(error, 'Failed to test Khalti connection'));
     }
   };
 
@@ -329,8 +330,8 @@ const SystemConfiguration = () => {
       } else {
         toast.error('SMTP test failed');
       }
-    } catch  {
-      toast.error('Failed to test SMTP');
+    } catch (error) {
+      toast.error(apiError(error, 'Failed to test SMTP'));
     }
   };
 

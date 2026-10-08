@@ -743,8 +743,55 @@
   top: 0;
   left: 0;
   height: 100vh;
+  height: 100dvh;
   z-index: 50;
-  width: 16rem;
+  width: min(16rem, 85vw);
+  box-shadow: 0 16px 48px rgba(15, 23, 42, 0.35);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.sa-sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.sa-sidebar-close {
+  display: none;
+  margin-left: auto;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--sa-text-secondary-light);
+  cursor: pointer;
+}
+
+.sa-layout.dark .sa-sidebar-close {
+  color: var(--sa-text-secondary-dark);
+}
+
+.sa-sidebar.mobile-open .sa-sidebar-close {
+  display: inline-flex;
+}
+
+.sa-mobile-menu-btn,
+.sa-icon-button,
+.sa-sidebar-close,
+.sa-nav-item {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sa-mobile-menu-btn:focus-visible,
+.sa-icon-button:focus-visible,
+.sa-sidebar-close:focus-visible,
+.sa-nav-item:focus-visible {
+  outline: 2px solid var(--sa-primary);
+  outline-offset: 2px;
 }
 
 /* ==================== */
@@ -770,11 +817,52 @@
   .sa-main-content {
     margin-left: 0;
   }
+
+  /* Touch layouts: 44px targets, 16px inputs (no iOS zoom on focus). */
+  .sa-mobile-menu-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    border-radius: 8px;
+  }
+
+  .sa-icon-button {
+    width: 44px;
+    height: 44px;
+  }
+
+  .sa-nav-item {
+    min-height: 44px;
+  }
+
+  .sa-search-input {
+    font-size: 16px;
+  }
+
+  .sa-top-header {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+  }
+
+  .sa-header-left {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .sa-header-left h2 {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
 
 @media (max-width: 768px) {
   .sa-top-header {
-    padding: 1rem;
+    padding: 0.5rem 1rem;
   }
 
   .sa-header-right {
@@ -788,23 +876,25 @@
 
 @media (max-width: 480px) {
   .sa-top-header {
-    padding: 0.75rem;
-    flex-wrap: wrap;
-    gap: 0.5rem;
+    padding: 0.25rem 0.5rem 0.25rem 0.25rem;
+    gap: 0.25rem;
+  }
+
+  .sa-header-left {
+    gap: 0.25rem;
   }
 
   .sa-header-left h2 {
     font-size: 1rem;
   }
 
-  .sa-icon-button {
-    width: 2rem;
-    height: 2rem;
+  .sa-header-right {
+    gap: 0;
   }
 
+  /* The avatar is decorative here (the drawer shows the profile). */
   .sa-user-avatar {
-    width: 2rem;
-    height: 2rem;
+    display: none;
   }
 
   .sa-stat-card {

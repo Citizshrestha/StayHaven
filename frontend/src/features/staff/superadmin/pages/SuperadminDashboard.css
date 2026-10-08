@@ -869,3 +869,11 @@
     left: 0.25rem;
   }
 }
+
+/* QA-06 touch layout */
+@media (max-width: 1023px) {
+  .sad-filter-btn { min-height: 44px; min-width: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sa-layout *, .sa-layout *::before, .sa-layout *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}

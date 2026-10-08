@@ -35,6 +35,8 @@ const SuperAdminLayout = ({ children, pageTitle }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const notifRef = useRef(null);
+  const sidebarRef = useRef(null);
+  const menuButtonRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
   const { staffUser, logout: staffLogout } = useStaffAuth();
@@ -108,6 +110,50 @@ const SuperAdminLayout = ({ children, pageTitle }) => {
     window.scrollTo(0, 0);
   }, [location.pathname]);
 
+  // Phone/tablet drawer: Esc and backdrop close it, Tab stays inside, the
+  // page behind doesn't scroll, and focus returns to the menu button.
+  useEffect(() => {
+    if (!sidebarOpen) return undefined;
+    const drawer = sidebarRef.current;
+    const opener = menuButtonRef.current;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const focusables = () => Array.from(drawer?.querySelectorAll('button:not([disabled]), a[href]') || []);
+    focusables()[0]?.focus();
+    const onKey = (e) => {
+      if (e.key === 'Escape') { setSidebarOpen(false); return; }
+      if (e.key !== 'Tab') return;
+      const items = focusables();
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = previousOverflow;
+      opener?.focus();
+    };
+  }, [sidebarOpen]);
+
+  // A drawer left open while rotating/resizing to desktop must not lock scroll.
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const onChange = (e) => { if (e.matches) setSidebarOpen(false); };
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+
+  // Esc closes the notification panel too.
+  useEffect(() => {
+    if (!notifOpen) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') setNotifOpen(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [notifOpen]);
+
   // Close the notification panel on any click outside it.
   useEffect(() => {
     if (!notifOpen) return;
@@ -132,8 +178,17 @@ const SuperAdminLayout = ({ children, pageTitle }) => {
   return (
     <div className={`sa-layout ${darkMode ? 'dark' : 'light'}`}>
       <div className="sa-layout-wrapper">
+        {sidebarOpen && (
+          <div className="sa-sidebar-backdrop" onClick={() => setSidebarOpen(false)} aria-hidden="true" />
+        )}
         {/* Sidebar */}
-        <aside className={`sa-sidebar ${sidebarOpen ? 'mobile-open' : ''}`}>
+        <aside
+          id="sa-sidebar"
+          ref={sidebarRef}
+          className={`sa-sidebar ${sidebarOpen ? 'mobile-open' : ''}`}
+          aria-label="Super admin navigation"
+          {...(sidebarOpen ? { role: 'dialog', 'aria-modal': 'true' } : {})}
+        >
           <div className="sa-sidebar-header">
             <div className="sa-logo-icon">
               <img src="/logo.png" alt="StayHaven Logo" className="sa-logo-image" />
@@ -142,6 +197,14 @@ const SuperAdminLayout = ({ children, pageTitle }) => {
               <h1><span>Stay</span><strong>Haven</strong></h1>
               <p>Super Admin</p>
             </div>
+            <button
+              type="button"
+              className="sa-sidebar-close"
+              onClick={() => setSidebarOpen(false)}
+              aria-label="Close navigation"
+            >
+              <span className="material-symbols-outlined" aria-hidden="true">close</span>
+            </button>
           </div>
 
           <div className="sa-sidebar-content">
@@ -151,6 +214,7 @@ const SuperAdminLayout = ({ children, pageTitle }) => {
                   key={item.id}
                   className={`sa-nav-item ${activeNav === item.id ? 'active' : ''}`}
                   onClick={() => handleNavigation(item)}
+                  aria-current={activeNav === item.id ? 'page' : undefined}
                 >
                   <span className={`material-symbols-outlined ${activeNav === item.id ? 'fill' : ''}`}>
                     {item.icon}
@@ -199,12 +263,17 @@ const SuperAdminLayout = ({ children, pageTitle }) => {
           <header className="sa-top-header">
             <div className="sa-header-left">
               <button
+                ref={menuButtonRef}
+                type="button"
                 className="sa-mobile-menu-btn"
                 onClick={() => setSidebarOpen(!sidebarOpen)}
+                aria-label="Open navigation"
+                aria-expanded={sidebarOpen}
+                aria-controls="sa-sidebar"
               >
-                <span className="material-symbols-outlined">menu</span>
+                <span className="material-symbols-outlined" aria-hidden="true">menu</span>
               </button>
-              <h2>{pageTitle}</h2>
+              <h2 title={pageTitle}>{pageTitle}</h2>
             </div>
 
             <div className="sa-header-right">

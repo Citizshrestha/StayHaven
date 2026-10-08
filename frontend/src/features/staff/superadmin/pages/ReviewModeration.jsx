@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import SuperAdminLayout from './SuperAdminLayout';
 import { toast } from 'react-toastify';
+import { apiError } from '../utils/apiError';
 import {
   getPendingReviews,
   moderateReview,
@@ -8,9 +9,14 @@ import {
   seedReviewData,
   toggleFeaturedReview,
 } from '../../../../core/api/services/reviewModeration.service';
+import ReasonModal from '../components/ReasonModal';
 import './ReviewModeration.css';
 
+const PAST_TENSE = { approve: 'approved', reject: 'rejected', flag: 'flagged' };
+
 const ReviewModeration = () => {
+  const [rejectTarget, setRejectTarget] = useState(null); // { id, hide }
+  const [moderatingId, setModeratingId] = useState(null);
   const [activeTab, setActiveTab] = useState('queue');
   const [loading, setLoading] = useState(false);
   const [reviews, setReviews] = useState([]);
@@ -28,8 +34,8 @@ const ReviewModeration = () => {
     try {
       const result = await getPendingReviews({ status: filterStatus, page: 1, limit: 20 });
       setReviews(result.data);
-    } catch  {
-      toast.error('Failed to load reviews');
+    } catch (error) {
+      toast.error(apiError(error, 'Failed to load reviews'));
     } finally {
       setLoading(false);
     }
@@ -40,8 +46,8 @@ const ReviewModeration = () => {
     try {
       const result = await getModerationMetrics();
       setMetrics(result.data);
-    } catch  {
-      toast.error('Failed to load metrics');
+    } catch (error) {
+      toast.error(apiError(error, 'Failed to load metrics'));
     } finally {
       setLoading(false);
     }
@@ -54,21 +60,33 @@ const ReviewModeration = () => {
       toast.success('Review demo data seeded');
       if (activeTab === 'queue') loadReviews();
       else loadMetrics();
-    } catch {
-      toast.error('Failed to seed reviews. Run superadmin-data seed first.');
+    } catch (error) {
+      toast.error(apiError(error, 'Failed to seed reviews. Run superadmin-data seed first.'));
     } finally {
       setSeeding(false);
     }
   };
 
   const handleModerate = async (reviewId, action, reason = '') => {
+    if (moderatingId) return false; // one moderation at a time (no double submit)
+    setModeratingId(reviewId);
     try {
       await moderateReview(reviewId, { action, reason });
-      toast.success(`Review ${action}ed successfully`);
+      toast.success(`Review ${PAST_TENSE[action] || action} successfully`);
       loadReviews();
-    } catch  {
-      toast.error(`Failed to ${action} review`);
+      return true;
+    } catch (error) {
+      toast.error(apiError(error, `Failed to ${action} review`));
+      return false;
+    } finally {
+      setModeratingId(null);
     }
+  };
+
+  const confirmReject = async (reason) => {
+    if (!rejectTarget) return;
+    const ok = await handleModerate(rejectTarget.id, 'reject', reason);
+    if (ok) setRejectTarget(null);
   };
 
   const handleToggleFeatured = async (reviewId, currentStatus) => {
@@ -76,8 +94,8 @@ const ReviewModeration = () => {
       await toggleFeaturedReview(reviewId, { isFeatured: !currentStatus });
       toast.success(`Review ${!currentStatus ? 'featured' : 'unfeatured'} successfully`);
       loadReviews();
-    } catch  {
-      toast.error('Failed to toggle featured status');
+    } catch (error) {
+      toast.error(apiError(error, 'Failed to toggle featured status'));
     }
   };
 
@@ -177,32 +195,45 @@ const ReviewModeration = () => {
                           </div>
                         )}
 
-                        {review.moderationStatus === 'pending' && (
+                        {review.moderationStatus === 'flagged' && review.flags?.length > 0 && (
+                          <div className="auto-flags">
+                            {review.flags.slice(-3).map((flag, index) => (
+                              <span key={index} className="flag-pill">⚑ {flag.reason}</span>
+                            ))}
+                          </div>
+                        )}
+
+                        {['pending', 'flagged'].includes(review.moderationStatus) && (
                           <div className="review-actions">
                             <button
+                              type="button"
                               className="btn-approve"
+                              disabled={moderatingId === review._id}
                               onClick={() => handleModerate(review._id, 'approve')}
                             >
-                              <span className="material-symbols-outlined">check_circle</span>
+                              <span className="material-symbols-outlined" aria-hidden="true">check_circle</span>
                               Approve
                             </button>
                             <button
+                              type="button"
                               className="btn-reject"
-                              onClick={() => {
-                                const reason = prompt('Enter rejection reason:');
-                                if (reason) handleModerate(review._id, 'reject', reason);
-                              }}
+                              disabled={moderatingId === review._id}
+                              onClick={() => setRejectTarget({ id: review._id, hide: false })}
                             >
-                              <span className="material-symbols-outlined">cancel</span>
+                              <span className="material-symbols-outlined" aria-hidden="true">cancel</span>
                               Reject
                             </button>
-                            <button
-                              className="btn-flag"
-                              onClick={() => handleModerate(review._id, 'flag')}
-                            >
-                              <span className="material-symbols-outlined">flag</span>
-                              Flag
-                            </button>
+                            {review.moderationStatus === 'pending' && (
+                              <button
+                                type="button"
+                                className="btn-flag"
+                                disabled={moderatingId === review._id}
+                                onClick={() => handleModerate(review._id, 'flag')}
+                              >
+                                <span className="material-symbols-outlined" aria-hidden="true">flag</span>
+                                Flag
+                              </button>
+                            )}
                           </div>
                         )}
 
@@ -217,16 +248,29 @@ const ReviewModeration = () => {
                               </span>
                             )}
                             {review.moderationStatus === 'approved' && (
-                              <button
-                                className={`btn-featured ${review.isFeatured ? 'featured-active' : ''}`}
-                                onClick={() => handleToggleFeatured(review._id, review.isFeatured)}
-                                title={review.isFeatured ? 'Remove from homepage' : 'Feature on homepage'}
-                              >
-                                <span className="material-symbols-outlined">
-                                  {review.isFeatured ? 'star' : 'star_outline'}
-                                </span>
-                                {review.isFeatured ? 'Featured' : 'Feature'}
-                              </button>
+                              <>
+                                <button
+                                  type="button"
+                                  className={`btn-featured ${review.isFeatured ? 'featured-active' : ''}`}
+                                  onClick={() => handleToggleFeatured(review._id, review.isFeatured)}
+                                  aria-pressed={!!review.isFeatured}
+                                  title={review.isFeatured ? 'Remove from homepage' : 'Feature on homepage'}
+                                >
+                                  <span className="material-symbols-outlined" aria-hidden="true">
+                                    {review.isFeatured ? 'star' : 'star_outline'}
+                                  </span>
+                                  {review.isFeatured ? 'Featured' : 'Feature'}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn-reject"
+                                  disabled={moderatingId === review._id}
+                                  onClick={() => setRejectTarget({ id: review._id, hide: true })}
+                                >
+                                  <span className="material-symbols-outlined" aria-hidden="true">visibility_off</span>
+                                  Hide
+                                </button>
+                              </>
                             )}
                           </div>
                         )}
@@ -284,6 +328,17 @@ const ReviewModeration = () => {
           </>
         )}
       </div>
+      <ReasonModal
+        isOpen={!!rejectTarget}
+        title={rejectTarget?.hide ? 'Hide this review?' : 'Reject this review?'}
+        description="The review is removed from the public site and from homepage testimonials. The reason is kept with the review and shown in moderation metrics."
+        label="Reason"
+        confirmText={rejectTarget?.hide ? 'Hide review' : 'Reject review'}
+        busy={!!moderatingId}
+        darkMode={(() => { try { return JSON.parse(localStorage.getItem('superadmin-dark-mode')) === true; } catch { return false; } })()}
+        onCancel={() => setRejectTarget(null)}
+        onConfirm={confirmReject}
+      />
     </SuperAdminLayout>
   );
 };

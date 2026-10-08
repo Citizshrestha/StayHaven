@@ -564,6 +564,21 @@
 .btn-small.btn-success { background: #10b981; color: #fff; }
 .btn-small.btn-danger { background: #ef4444; color: #fff; }
 .btn-small:hover { opacity: 0.9; }
+.btn-small:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn-small:focus-visible, .tab-btn:focus-visible, .btn-primary:focus-visible, .btn-secondary:focus-visible {
+  outline: 2px solid #00bfa6;
+  outline-offset: 2px;
+}
+
+/* Money/counts: right-aligned tabular numerals on desktop (rules G). */
+.fin-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.status-under_review { background: #fef3c7; color: #d97706; }
+.status-chargeback { background: #fee2e2; color: #dc2626; }
 
 .reports-actions {
   display: flex;
@@ -589,6 +604,117 @@
   .finance-header-actions {
     width: 100%;
     justify-content: space-between;
+  }
+
+  .tab-navigation {
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tab-btn {
+    flex: 0 0 auto;
+    min-height: 44px;
+  }
+
+  /* Tables become label/value cards on phones: key fields first, nothing clipped. */
+  .fin-table-wrap {
+    overflow-x: visible;
+    margin: 0;
+  }
+
+  .fin-table,
+  .fin-table tbody,
+  .fin-table tr,
+  .fin-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .fin-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .fin-table tr {
+    border: 1px solid #e8edf2;
+    border-radius: 12px;
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.75rem;
+    box-sizing: border-box;
+  }
+
+  .fin-table tbody tr:hover {
+    background: transparent;
+  }
+
+  .fin-table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 0.875rem;
+    text-align: right;
+    box-sizing: border-box;
+    overflow-wrap: anywhere;
+  }
+
+  .fin-table td:last-child {
+    border-bottom: none;
+  }
+
+  .fin-table td::before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .fin-table td.fin-hotel-name {
+    font-size: 1rem;
+  }
+
+  .fin-actions {
+    white-space: normal;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .fin-table td.fin-actions::before {
+    content: none;
+  }
+
+  .fin-actions .btn-small {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0 1rem;
+    font-size: 0.875rem;
+    margin: 0 0 0 0.5rem;
+  }
+
+  .fin-actions:empty {
+    display: none;
+  }
+
+  .sa-layout.dark .fin-table tr {
+    border-color: var(--sa-border-dark);
+  }
+
+  .sa-layout.dark .fin-table td {
+    border-bottom-color: var(--sa-border-dark);
+  }
+
+  .sa-layout.dark .fin-table td::before {
+    color: var(--sa-text-secondary-dark);
   }
 }
 
@@ -837,4 +963,10 @@
 
 .sa-layout.dark .btn-secondary:hover {
   background: rgba(255, 255, 255, 0.1);
+}
+
+/* QA-06 touch layout */
+@media (max-width: 1023px) {
+  .date-range-picker select { font-size: 16px; min-height: 44px; }
+  .btn-primary, .btn-secondary, .btn-seed { min-height: 44px; }
 }

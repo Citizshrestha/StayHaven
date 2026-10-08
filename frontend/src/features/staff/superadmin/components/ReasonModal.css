@@ -1,0 +1,177 @@
+/* Reason dialog — rules G: 16px radius sheet, 8px inputs/buttons, 44px touch buttons. */
+.sa-reason-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.5);
+  --rm-card: #ffffff;
+  --rm-text: #0f172a;
+  --rm-muted: #475569;
+  --rm-border: #cbd5e1;
+  --rm-input: #ffffff;
+}
+
+.sa-reason-backdrop.dark {
+  --rm-card: #1e293b;
+  --rm-text: #f8fafc;
+  --rm-muted: #cbd5e1;
+  --rm-border: #475569;
+  --rm-input: #0f172a;
+}
+
+.sa-reason-sheet {
+  width: 100%;
+  max-width: 480px;
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  background: var(--rm-card);
+  color: var(--rm-text);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.35);
+}
+
+.sa-reason-title {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.sa-reason-desc {
+  margin: 0 0 16px;
+  font-size: 14px;
+  color: var(--rm-muted);
+}
+
+.sa-reason-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.sa-reason-input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 96px;
+  padding: 12px;
+  font: inherit;
+  font-size: 16px;
+  color: var(--rm-text);
+  background: var(--rm-input);
+  border: 1px solid var(--rm-border);
+  border-radius: 8px;
+  resize: vertical;
+}
+
+.sa-reason-input:focus-visible {
+  outline: 2px solid #00bfa6;
+  outline-offset: 1px;
+}
+
+.sa-reason-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--rm-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.sa-reason-error {
+  color: #dc2626;
+}
+
+.sa-reason-backdrop.dark .sa-reason-error {
+  color: #fca5a5;
+}
+
+.sa-reason-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.sa-reason-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.sa-reason-btn:focus-visible {
+  outline: 2px solid #00bfa6;
+  outline-offset: 2px;
+}
+
+.sa-reason-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.sa-reason-btn.secondary {
+  background: transparent;
+  color: var(--rm-text);
+  border-color: var(--rm-border);
+}
+
+.sa-reason-btn.danger {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+.sa-reason-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: sa-reason-spin 0.8s linear infinite;
+}
+
+@keyframes sa-reason-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sa-reason-spinner { animation: none; }
+}
+
+@media (max-width: 480px) {
+  .sa-reason-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .sa-reason-sheet {
+    max-width: none;
+    border-radius: 16px 16px 0 0;
+    padding: 20px 16px calc(16px + env(safe-area-inset-bottom));
+  }
+
+  .sa-reason-actions {
+    position: sticky;
+    bottom: 0;
+    background: var(--rm-card);
+    padding-top: 8px;
+  }
+
+  .sa-reason-btn {
+    flex: 1;
+    min-height: 44px;
+  }
+}

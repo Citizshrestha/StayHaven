@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 
 const DeleteConfirmModal = ({
@@ -11,7 +11,33 @@ const DeleteConfirmModal = ({
   confirmText = 'Delete',
   cancelText = 'Cancel',
   isDeleting = false,
+  confirmIcon = 'delete',
+  busyText = 'Deleting...',
+  warningText = 'This action is permanent and cannot be undone. Please make sure you want to proceed.',
 }) => {
+  const cancelRef = useRef(null);
+  const busyRef = useRef(isDeleting);
+  busyRef.current = isDeleting;
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+
+  // Focus starts on Cancel (the safe choice), Esc cancels, the page behind
+  // doesn't scroll, and focus goes back to the button that opened it.
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const opener = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    cancelRef.current?.focus();
+    const onKey = (e) => { if (e.key === 'Escape' && !busyRef.current) closeRef.current(); };
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = previousOverflow;
+      opener?.focus?.();
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleBackdropClick = (e) => {
@@ -22,14 +48,15 @@ const DeleteConfirmModal = ({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fadeIn"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm animate-fadeIn"
       onClick={handleBackdropClick}
-      role="dialog"
+      role="alertdialog"
       aria-modal="true"
       aria-labelledby="delete-modal-title"
+      aria-describedby="delete-modal-desc"
     >
       <div
-        className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl animate-scaleIn"
+        className="relative w-full sm:max-w-md max-h-[calc(100dvh-32px)] overflow-y-auto bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl animate-scaleIn"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header with Warning Icon */}
@@ -61,7 +88,7 @@ const DeleteConfirmModal = ({
             </div>
           )}
 
-          <p className="text-gray-700 text-center leading-relaxed">
+          <p id="delete-modal-desc" className="text-gray-700 text-center leading-relaxed">
             {message}
           </p>
 
@@ -70,14 +97,15 @@ const DeleteConfirmModal = ({
               info
             </span>
             <p className="text-sm text-amber-900">
-              This action is permanent and cannot be undone. Please make sure you want to proceed.
+              {warningText}
             </p>
           </div>
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-3 px-6 pb-6">
+        <div className="sticky bottom-0 bg-white flex flex-col-reverse sm:flex-row items-stretch sm:items-center gap-3 px-6 pt-2 pb-6">
           <button
+            ref={cancelRef}
             type="button"
             onClick={onClose}
             disabled={isDeleting}
@@ -94,11 +122,11 @@ const DeleteConfirmModal = ({
             {isDeleting ? (
               <>
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                <span>Deleting...</span>
+                <span>{busyText}</span>
               </>
             ) : (
               <>
-                <span className="material-symbols-outlined text-xl">delete</span>
+                <span className="material-symbols-outlined text-xl" aria-hidden="true">{confirmIcon}</span>
                 <span>{confirmText}</span>
               </>
             )}
