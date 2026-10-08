@@ -5,6 +5,7 @@ import { Star, Hotel, Filter, MapPin, Calendar, Thermometer, Bed, ChevronLeft, C
 import { useNavigate } from "react-router-dom";
 import { useContent } from "../../../../core/hooks/useContent";
 import { getDestinations as getDestinationsApi } from "../../../../core/api/services/content.service";
+import { usePageMeta } from '../../hotels/lib/pageMeta';
 import "./Destination.css";
 
 gsap.registerPlugin(ScrollTrigger);
@@ -54,6 +55,7 @@ const FALLBACK_DESTINATIONS = [
 ];
 
 const Destination = () => {
+  usePageMeta({ title: "Destinations", description: "Explore popular destinations across Nepal and find the right hotel for your trip." });
   const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
   const [selectedDestination, setSelectedDestination] = useState(null);

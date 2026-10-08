@@ -13,6 +13,7 @@ import {
   BarChart3, MessageSquare, BadgePercent
 } from 'lucide-react';
 import { useContent } from '../../../../core/hooks/useContent';
+import { usePageMeta } from '../../hotels/lib/pageMeta';
 import {
   getHeroBanners,
   getSiteSettings,
@@ -54,13 +55,13 @@ const HERO_BG_URL =
   'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1920&q=80';
 
 const heroFieldShell =
-  'hero-field-shell flex h-11 w-full min-w-0 items-center gap-2 rounded-lg border border-[rgba(0,0,0,0.08)] bg-white px-3 pr-2 sm:h-9 sm:gap-1.5 sm:rounded-md sm:px-2 sm:pr-1 lg:h-8';
+  'hero-field-shell flex h-12 w-full min-w-0 items-center gap-2 rounded-lg border border-[rgba(0,0,0,0.08)] bg-white px-3 pr-2 sm:h-9 sm:gap-1.5 sm:rounded-md sm:px-2 sm:pr-1 lg:h-8';
 
 const heroInputClass =
-  'hero-panel-input !m-0 !h-full !min-h-0 !w-full min-w-0 !flex-1 !rounded-none !border-0 !bg-transparent !px-0 !py-0 !text-[15px] sm:!text-[13px] !leading-tight !font-medium !text-[#64748b] !shadow-none !ring-0 !outline-none placeholder:!text-[#94a3b8] focus-visible:!border-0 focus-visible:!ring-0 focus-visible:!ring-offset-0';
+  'hero-panel-input !m-0 !h-full !min-h-0 !w-full min-w-0 !flex-1 !rounded-none !border-0 !bg-transparent !px-0 !py-0 !text-base sm:!text-[13px] !leading-tight !font-medium !text-[#64748b] !shadow-none !ring-0 !outline-none placeholder:!text-[#94a3b8] focus-visible:!border-0 focus-visible:!ring-0 focus-visible:!ring-offset-0';
 
 const heroSelectClass =
-  'hero-panel-select !m-0 h-full min-h-0 w-full min-w-0 flex-1 cursor-pointer appearance-none border-0 bg-transparent py-0 text-[15px] sm:text-[13px] font-medium leading-tight text-[#64748b] outline-none ring-0 focus:ring-0';
+  'hero-panel-select !m-0 h-full min-h-0 w-full min-w-0 flex-1 cursor-pointer appearance-none border-0 bg-transparent py-0 text-base sm:text-[13px] font-medium leading-tight text-[#64748b] outline-none ring-0 focus:ring-0';
 
 const toISODate = (date) => date.toISOString().split('T')[0];
 
@@ -154,6 +155,7 @@ const HeroSearch = ({ ripples, onSearchRipple }) => {
 
 const Home = () => {
   const navigate = useNavigate();
+  usePageMeta({ title: 'Book hotels across Nepal', description: 'Find and book hotels, resorts and stays across Nepal with secure payment and instant confirmation on StayHaven.' });
   const heroRef = useRef(null);
   const headlineRef = useRef(null);
   const subheadlineRef = useRef(null);
@@ -400,8 +402,8 @@ const Home = () => {
               <span>{hero?.eyebrowText || "NEPAL'S #1 HOTEL BOOKING PLATFORM"}</span>
             </div>
             <div className="mb-[14px] flex flex-col items-center gap-0 sm:mb-[18px]">
-              <Motion.span
-                className="block text-white"
+              <Motion.h1
+                className="block text-white m-0"
                 style={{
                   fontSize: 'clamp(1.85rem, 8vw, 72px)',
                   fontWeight: 800,
@@ -413,7 +415,7 @@ const Home = () => {
                 transition={{ duration: 0.32, ease: 'easeOut' }}
               >
                 {hero?.title || 'Book smarter.'}
-              </Motion.span>
+              </Motion.h1>
             </div>
           </div>
 

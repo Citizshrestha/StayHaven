@@ -1,65 +1,116 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-
-import { Heart, MapPin, Star, ChevronDown } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Heart, MapPin, Star, SlidersHorizontal, X } from 'lucide-react';
+import { toast } from 'react-toastify';
 import { getAllHotels } from '../../../../core/api/services/hotel.service';
+import { getWishlist, toggleWishlist } from '../../../../core/api/services/user.service';
+import Sheet from '../lib/Sheet';
+import { formatRs } from '../lib/money';
+import { usePageMeta } from '../lib/pageMeta';
+
+const PRICE_MAX = 100000;
+const PAGE_SIZE = 6;
+const AMENITIES = [
+  { id: 'wifi', label: 'Free Wi-Fi' },
+  { id: 'pool', label: 'Swimming Pool' },
+  { id: 'parking', label: 'Parking' },
+  { id: 'gym', label: 'Gym' },
+];
+const SORTS = [
+  { value: '-rating', label: 'Top rated' },
+  { value: 'priceRange.min', label: 'Price: low to high' },
+  { value: '-priceRange.min', label: 'Price: high to low' },
+  { value: '-createdAt', label: 'Newest' },
+];
+
+const FiltersPanel = ({ city, onCity, rating, onRating, price, onPrice, amenities, onAmenity, idPrefix }) => (
+  <div className="space-y-6">
+    <div>
+      <label htmlFor={`${idPrefix}-city`} className="block text-sm font-semibold text-gray-700 mb-2">City</label>
+      <input
+        id={`${idPrefix}-city`} type="text" value={city} maxLength={60} autoComplete="off" placeholder="Any city"
+        onChange={(e) => onCity(e.target.value)}
+        className="w-full min-h-[44px] px-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-teal-500"
+      />
+    </div>
+    <div>
+      <p className="block text-sm font-semibold text-gray-700 mb-2" id={`${idPrefix}-rating`}>Minimum rating</p>
+      <div className="flex gap-2" role="group" aria-labelledby={`${idPrefix}-rating`}>
+        {[1, 2, 3, 4, 5].map((r) => {
+          const active = rating !== null && r <= rating;
+          return (
+            <button
+              key={r} type="button" onClick={() => onRating(rating === r ? null : r)}
+              aria-pressed={rating === r} aria-label={`${r} star${r > 1 ? 's' : ''} and up`}
+              className={`h-11 w-11 inline-flex items-center justify-center rounded-lg border-2 ${active ? 'border-amber-300 bg-amber-50 text-amber-400' : 'border-gray-300 bg-white text-gray-300'}`}
+            >
+              <Star className="w-5 h-5" fill="currentColor" aria-hidden="true" />
+            </button>
+          );
+        })}
+      </div>
+    </div>
+    <div>
+      <label htmlFor={`${idPrefix}-price`} className="block text-sm font-semibold text-gray-700 mb-2">
+        Max price per night: <span className="tabular-nums">{price >= PRICE_MAX ? 'Any' : formatRs(price)}</span>
+      </label>
+      <input
+        id={`${idPrefix}-price`} type="range" min="500" max={PRICE_MAX} step="500" value={price}
+        onChange={(e) => onPrice(Number(e.target.value))}
+        className="w-full h-11 accent-teal-500"
+      />
+    </div>
+    <fieldset>
+      <legend className="block text-sm font-semibold text-gray-700 mb-2">Amenities</legend>
+      <div className="space-y-1">
+        {AMENITIES.map((item) => (
+          <label key={item.id} htmlFor={`${idPrefix}-${item.id}`} className="flex items-center gap-3 min-h-[44px] text-sm text-gray-700 cursor-pointer">
+            <input id={`${idPrefix}-${item.id}`} type="checkbox" checked={!!amenities[item.id]} onChange={() => onAmenity(item.id)} className="h-5 w-5 accent-teal-500" />
+            {item.label}
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  </div>
+);
 
 const FilteredHotels = () => {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const hotelSearch = searchParams.get('search')?.trim() || '';
+  const destination = searchParams.get('destination')?.trim() || '';
   const checkIn = searchParams.get('checkIn') || '';
   const checkOut = searchParams.get('checkOut') || '';
-  const [selectedRating, setSelectedRating] = useState(null);
-  const [priceRange, setPriceRange] = useState(45000);
-  const [selectedCity, setSelectedCity] = useState('Kathmandu');
+  const [city, setCity] = useState(destination);
+  const [rating, setRating] = useState(null);
+  const [price, setPrice] = useState(PRICE_MAX);
+  const [amenities, setAmenities] = useState({});
   const [sortBy, setSortBy] = useState('-rating');
-  const [amenities, setAmenities] = useState({
-    wifi: false,
-    pool: false,
-    parking: false,
-    gym: false,
-  });
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 6;
+  const [page, setPage] = useState(1);
   const [hotels, setHotels] = useState([]);
   const [totalPages, setTotalPages] = useState(1);
-  const [isLoading, setIsLoading] = useState(false);
+  const [total, setTotal] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [reload, setReload] = useState(0);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [saved, setSaved] = useState([]);
 
-  const amenitiesList = [
-    { id: 'wifi', label: 'Free Wi-Fi' },
-    { id: 'pool', label: 'Swimming Pool' },
-    { id: 'parking', label: 'Parking' },
-    { id: 'gym', label: 'Gym' },
-  ];
+  usePageMeta({
+    title: hotelSearch ? `Hotels matching "${hotelSearch}"` : city ? `Hotels in ${city}` : 'Browse hotels',
+    description: `Compare and book hotels${city ? ` in ${city}` : ' across Nepal'} on StayHaven.`,
+  });
 
-  const handleAmenityChange = (id) => {
-    setAmenities((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
+  useEffect(() => { window.scrollTo(0, 0); }, []);
+  // A new destination from the landing search / destination picker replaces the city filter.
+  useEffect(() => { setCity(destination); setPage(1); }, [destination, hotelSearch]);
 
-  const selectedAmenityIds = useMemo(
-    () => Object.entries(amenities).filter(([, v]) => v).map(([k]) => k),
-    [amenities]
-  );
-
-  // Scroll to top on mount
   useEffect(() => {
-    window.scrollTo(0, 0);
+    if (!localStorage.getItem('accessToken')) return;
+    getWishlist().then(({ wishlist }) => setSaved((wishlist || []).map(String))).catch(() => setSaved([]));
   }, []);
 
-  // Handle URL parameters from Destination Modal
-  useEffect(() => {
-    const destination = searchParams.get('destination');
-
-    if (destination) {
-      setSelectedCity(destination);
-    } else if (hotelSearch) {
-      setSelectedCity('');
-    }
-    setCurrentPage(1);
-    // `type` and `province` query params are not used by the current filters.
-  }, [searchParams, hotelSearch]);
+  const selectedAmenityIds = useMemo(() => Object.entries(amenities).filter(([, v]) => v).map(([k]) => k), [amenities]);
+  const filtersActive = !!(city || rating || price < PRICE_MAX || selectedAmenityIds.length);
 
   useEffect(() => {
     let cancelled = false;
@@ -67,362 +118,174 @@ const FilteredHotels = () => {
       setIsLoading(true);
       setError(null);
       try {
-        const filters = {
-          limit: itemsPerPage,
-          page: currentPage,
-          sort: sortBy,
-          maxPrice: priceRange,
-        };
+        const filters = { limit: PAGE_SIZE, page, sort: sortBy };
+        if (price < PRICE_MAX) filters.maxPrice = price;
         if (hotelSearch) filters.search = hotelSearch;
-        if (selectedCity) filters.destination = selectedCity;
-        if (checkIn && checkOut) {
-          filters.checkIn = checkIn;
-          filters.checkOut = checkOut;
-        }
-        if (selectedRating) {
-          filters.minRating = selectedRating;
-          filters.maxRating = selectedRating + 1;
-        }
+        if (city.trim()) filters.destination = city.trim();
+        if (checkIn && checkOut) { filters.checkIn = checkIn; filters.checkOut = checkOut; }
+        if (rating) filters.minRating = rating;
         if (selectedAmenityIds.length) filters.amenities = selectedAmenityIds.join(',');
-
         const data = await getAllHotels(filters);
         if (cancelled) return;
-
         setHotels(data?.hotels || []);
-        setTotalPages(data?.totalPages || 1);
+        setTotalPages(Math.max(1, data?.totalPages || 1));
+        setTotal(data?.total ?? (data?.hotels || []).length);
       } catch (e) {
         if (cancelled) return;
         setError(e?.message || 'Failed to load hotels');
-        setHotels([]);
-        setTotalPages(1);
+        setHotels([]); setTotalPages(1); setTotal(0);
       } finally {
         if (!cancelled) setIsLoading(false);
       }
     };
+    // Debounce typing in the city box / dragging the slider.
+    const t = setTimeout(load, 250);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [hotelSearch, checkIn, checkOut, city, rating, price, selectedAmenityIds, page, sortBy, reload]);
 
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [hotelSearch, checkIn, checkOut, selectedCity, selectedRating, priceRange, selectedAmenityIds, currentPage, sortBy]);
+  const clearFilters = useCallback(() => { setCity(''); setRating(null); setPrice(PRICE_MAX); setAmenities({}); setPage(1); }, []);
+  const change = (setter) => (value) => { setter(value); setPage(1); };
+  const toggleAmenity = (id) => { setAmenities((prev) => ({ ...prev, [id]: !prev[id] })); setPage(1); };
+
+  const toggleSaved = async (id) => {
+    if (!localStorage.getItem('accessToken')) { toast.info('Please sign in to save hotels'); return; }
+    try {
+      const { wishlist, message } = await toggleWishlist(id);
+      setSaved((wishlist || []).map(String));
+      window.dispatchEvent(new Event('wishlistUpdated'));
+      toast.success(message);
+    } catch (e) { toast.error(e?.message || 'Could not update saved hotels'); }
+  };
+
+  const panelProps = { city, onCity: change(setCity), rating, onRating: change(setRating), price, onPrice: change(setPrice), amenities, onAmenity: toggleAmenity };
 
   return (
-    <div style={{ backgroundColor: '#F9FAFB', minHeight: '100vh' }}>
-
-      <main style={{ maxWidth: '1400px', margin: '0 auto', padding: '32px 16px' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', marginTop: '80px' }}>
-          <div className="lg:flex lg:gap-8">
-            {/* Left Sidebar - Filters */}
-            <aside style={{ width: '100%', maxWidth: '280px', flexShrink: 0 }} className="hidden lg:block">
-              <div style={{ position: 'sticky', top: '96px', backgroundColor: '#ffffff', borderRadius: '12px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#111827', marginBottom: '24px' }}>Filters</h2>
-
-                {/* City Filter */}
-                <div style={{ marginBottom: '20px' }}>
-                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#374151', marginBottom: '8px' }}>City</label>
-                  <div style={{ position: 'relative' }}>
-                    <input
-                      type="text"
-                      value={selectedCity}
-                      onChange={(e) => {
-                        setSelectedCity(e.target.value);
-                        setCurrentPage(1);
-                      }}
-                      placeholder="Search city..."
-                      style={{ width: '100%', padding: '10px 12px', paddingLeft: '36px', border: '1px solid #D1D5DB', borderRadius: '8px', backgroundColor: '#ffffff', color: '#374151', fontSize: '0.875rem', outline: 'none' }}
-                      onFocus={(e) => e.target.style.borderColor = '#14B8A6'}
-                      onBlur={(e) => e.target.style.borderColor = '#D1D5DB'}
-                    />
-                    <svg style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', width: '16px', height: '16px', color: '#6B7280', pointerEvents: 'none' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                  </div>
-                </div>
-
-                {/* Rating Filter - Minimum Rating */}
-                <div style={{ marginBottom: '20px' }}>
-                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#374151', marginBottom: '8px' }}>Rating</label>
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    {[1, 2, 3, 4, 5].map((rating) => {
-                      const isActive = selectedRating !== null && rating <= selectedRating;
-                      return (
-                        <button
-                          key={rating}
-                          onClick={() => {
-                            const next = selectedRating === rating ? null : rating;
-                            setSelectedRating(next);
-                            setCurrentPage(1);
-                          }}
-                          style={{
-                            padding: '6px',
-                            border: isActive ? '2px solid #FCD34D' : '2px solid #D1D5DB',
-                            borderRadius: '6px',
-                            backgroundColor: isActive ? '#FEF3C7' : '#ffffff',
-                            color: isActive ? '#FCD34D' : '#D1D5DB',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s'
-                          }}
-                        >
-                          <Star style={{ width: '16px', height: '16px' }} fill="currentColor" />
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Price Range Filter */}
-                <div style={{ marginBottom: '20px' }}>
-                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#374151', marginBottom: '8px' }}>Price Range</label>
-                  <div style={{ position: 'relative', marginBottom: '8px' }}>
-                    <div style={{ width: '100%', height: '6px', backgroundColor: '#E5E7EB', borderRadius: '3px', position: 'relative' }}>
-                      <div style={{ position: 'absolute', left: '0', width: `${(priceRange / 45000) * 100}%`, height: '100%', backgroundColor: '#14B8A6', borderRadius: '3px' }}></div>
-                    </div>
-                    <input
-                      type="range"
-                      min="900"
-                      max="45000"
-                      value={priceRange}
-                      onChange={(e) => setPriceRange(e.target.value)}
-                      style={{ position: 'absolute', top: '0', left: '0', width: '100%', height: '6px', opacity: '0', cursor: 'pointer' }}
-                    />
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#6B7280' }}>
-                    <span>NPR 900</span>
-                    <span>NPR {Number(priceRange).toLocaleString()}</span>
-                  </div>
-                </div>
-
-                {/* Amenities Filter */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#374151', marginBottom: '12px' }}>Amenities</label>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {amenitiesList.map((item) => (
-                      <div key={item.id} style={{ display: 'flex', alignItems: 'center' }}>
-                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '16px', height: '16px' }}>
-                          <input
-                            type="checkbox"
-                            id={item.id}
-                            checked={amenities[item.id]}
-                            onChange={() => handleAmenityChange(item.id)}
-                            style={{
-                              width: '16px',
-                              height: '16px',
-                              margin: 0,
-                              padding: 0,
-                              boxSizing: 'border-box',
-                              borderRadius: '4px',
-                              border: '2px solid #D1D5DB',
-                              cursor: 'pointer',
-                              appearance: 'none',
-                              WebkitAppearance: 'none',
-                              MozAppearance: 'none',
-                              backgroundColor: amenities[item.id] ? '#14B8A6' : '#ffffff',
-                              borderColor: amenities[item.id] ? '#14B8A6' : '#D1D5DB',
-                              outline: 'none'
-                            }}
-                          />
-                          {amenities[item.id] && (
-                            <svg
-                              style={{ position: 'absolute', width: '12px', height: '12px', color: '#ffffff', pointerEvents: 'none' }}
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" />
-                            </svg>
-                          )}
-                        </div>
-                        <label htmlFor={item.id} style={{ marginLeft: '10px', fontSize: '0.875rem', color: '#374151', cursor: 'pointer' }}>
-                          {item.label}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+    <div className="bg-gray-50 min-h-screen">
+      <main className="max-w-[1400px] mx-auto px-4 py-8">
+        <div className="mt-20 lg:flex lg:gap-8">
+          <aside className="hidden lg:block w-full max-w-[280px] shrink-0">
+            <div className="sticky top-24 bg-white rounded-xl p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900">Filters</h2>
+                {filtersActive && <button type="button" onClick={clearFilters} className="min-h-[44px] text-sm font-semibold text-teal-700 underline">Clear</button>}
               </div>
-            </aside>
+              <FiltersPanel {...panelProps} idPrefix="side" />
+            </div>
+          </aside>
 
-            {/* Main Content */}
-            <section style={{ flex: '1' }}>
-              {/* Header with Title and Sort */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
-                <div>
-                  <h1 style={{ fontSize: '1.875rem', fontWeight: '700', color: '#111827', fontFamily: 'Nunito, sans-serif' }}>
-                    {hotelSearch ? `Hotels matching "${hotelSearch}"` : `Hotels in ${selectedCity || 'all destinations'}`}
-                  </h1>
-                  {checkIn && checkOut && (
-                    <p style={{ marginTop: '6px', color: '#4B5563', fontSize: '0.875rem' }}>
-                      Available from {checkIn} to {checkOut}
-                    </p>
-                  )}
-                </div>
-                <div style={{ position: 'relative', width: '200px' }}>
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                    style={{ width: '100%', padding: '10px 12px', paddingRight: '36px', border: '1px solid #D1D5DB', borderRadius: '8px', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', backgroundColor: '#ffffff', backgroundImage: 'none', color: '#374151', fontSize: '0.875rem', outline: 'none', cursor: 'pointer' }}
-                  >
-                    <option value="priceRange.min">Sort by Price (Low to High)</option>
-                    <option value="-priceRange.min">Sort by Price (High to Low)</option>
-                    <option value="-rating">Sort by Rating</option>
-                    <option value="-createdAt">Sort by Newest</option>
-                  </select>
-                  <div style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', gap: '4px', pointerEvents: 'none' }}>
-                    <ChevronDown style={{ width: '16px', height: '16px', color: '#6B7280' }} />
-                  </div>
-                </div>
+          <section className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
+              <div className="min-w-0">
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 break-words" style={{ fontFamily: 'Nunito, sans-serif' }}>
+                  {hotelSearch ? `Hotels matching "${hotelSearch}"` : city ? `Hotels in ${city}` : 'Browse hotels'}
+                </h1>
+                <p className="mt-1 text-sm text-gray-600" aria-live="polite">
+                  {!isLoading && !error ? `${total} hotel${total === 1 ? '' : 's'} found` : '\u00a0'}
+                  {checkIn && checkOut ? ` \u00b7 available ${checkIn} to ${checkOut}` : ''}
+                </p>
               </div>
-
-              {/* Hotel Grid */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '24px', marginBottom: '32px' }}>
-                {isLoading && (
-                  <div style={{ gridColumn: '1 / -1', padding: '18px', color: '#6B7280' }}>
-                    Loading hotels…
-                  </div>
-                )}
-                {!isLoading && error && (
-                  <div style={{ gridColumn: '1 / -1', padding: '18px', color: '#B91C1C' }}>
-                    {error}
-                  </div>
-                )}
-                {!isLoading && !error && hotels.map((hotel) => {
-                  const heroImage = hotel?.images?.[0] || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1200&q=80';
-                  const id = hotel?._id || hotel?.id;
-                  const locationText = hotel?.location?.address || hotel?.location?.city || '-';
-                  const price = hotel?.priceRange?.min ?? hotel?.pricePerNight ?? 0;
-
-                  return (<div
-                    key={id}
-                    style={{
-                      backgroundColor: '#ffffff',
-                      borderRadius: '16px',
-                      overflow: 'hidden',
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                      border: '1px solid #F3F4F6',
-                      transition: 'box-shadow 0.3s'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 10px 25px rgba(0,0,0,0.15)'}
-                    onMouseLeave={(e) => e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)'}
-                  >
-                    {/* Image Container */}
-                    <div style={{ position: 'relative', height: '200px', overflow: 'hidden', backgroundColor: '#E5E7EB' }}>
-                      <img
-                        src={heroImage}
-                        alt={hotel.name}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s' }}
-                        onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
-                        onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
-                      />
-                      {/* Heart Icon */}
-                      <button style={{ position: 'absolute', top: '12px', right: '12px', backgroundColor: '#ffffff', borderRadius: '50%', padding: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', border: 'none', cursor: 'pointer', transition: 'background-color 0.2s' }}>
-                        <Heart style={{ width: '20px', height: '20px', color: '#D1D5DB' }} />
-                      </button>
-                    </div>
-
-                    {/* Content */}
-                    <div style={{ padding: '20px' }}>
-                      {/* Title and Rating */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '8px' }}>
-                        <h3 style={{ fontSize: '1.125rem', fontWeight: '700', color: '#111827', lineHeight: '1.3', flex: '1', fontFamily: 'Nunito, sans-serif' }}>{hotel.name}</h3>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '8px', flexShrink: 0 }}>
-                          <Star style={{ width: '16px', height: '16px', color: '#FCD34D', fill: '#FCD34D' }} />
-                          <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#111827' }}>{hotel.rating}</span>
-                        </div>
-                      </div>
-
-                      {/* Location */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#6B7280', fontSize: '0.875rem', marginBottom: '16px' }}>
-                        <MapPin style={{ width: '14px', height: '14px', flexShrink: 0 }} />
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{locationText || '-'}</span>
-                      </div>
-
-                      {/* Price and Button */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-                          <span style={{ fontSize: '1.5rem', fontWeight: '700', color: '#111827' }}>Nrs {price}</span>
-                          <span style={{ fontSize: '0.875rem', color: '#6B7280' }}>/night</span>
-                        </div>
-                        <button
-                          onClick={() => navigate(`/hotels/${id}`)}
-                          style={{
-                            padding: '10px 20px',
-                            backgroundColor: '#14B8A6',
-                            color: '#ffffff',
-                            borderRadius: '8px',
-                            fontSize: '0.875rem',
-                            fontWeight: '600',
-                            border: 'none',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s',
-                            whiteSpace: 'nowrap'
-                          }}
-                          onMouseEnter={(e) => e.target.style.backgroundColor = '#0D9488'}
-                          onMouseLeave={(e) => e.target.style.backgroundColor = '#14B8A6'}
-                        >
-                          View Details
-                        </button>
-                      </div>
-                    </div>
-                  </div>);
-                })}
-                {!isLoading && !error && hotels.length === 0 && (
-                  <div style={{ gridColumn: '1 / -1', padding: '18px', color: '#6B7280' }}>
-                    No hotels found for these filters. Try another hotel name, turning off amenities filters, or switching city.
-                  </div>
-                )}
-              </div>
-
-              {/* Pagination */}
-              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  disabled={currentPage <= 1}
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  style={{ padding: '10px 16px', border: '1px solid #D1D5DB', borderRadius: '8px', color: '#374151', backgroundColor: '#ffffff', cursor: currentPage <= 1 ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontWeight: '500', transition: 'background-color 0.2s', opacity: currentPage <= 1 ? 0.6 : 1 }}
-                  onMouseEnter={(e) => e.target.style.backgroundColor = '#F9FAFB'}
-                  onMouseLeave={(e) => e.target.style.backgroundColor = '#ffffff'}
-                >
-                  Previous
+              <div className="flex w-full sm:w-auto items-center gap-2">
+                <button type="button" onClick={() => setFiltersOpen(true)} className="lg:hidden min-h-[44px] inline-flex items-center gap-2 px-4 rounded-lg border border-gray-300 bg-white text-sm font-semibold text-gray-700">
+                  <SlidersHorizontal className="w-4 h-4" aria-hidden="true" /> Filters{filtersActive ? ' \u2022' : ''}
                 </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                  .slice(0, 10)
-                  .map((p) => (
+                <label className="sr-only" htmlFor="sort-by">Sort hotels</label>
+                <select id="sort-by" value={sortBy} onChange={(e) => { setSortBy(e.target.value); setPage(1); }} className="flex-1 sm:flex-none sm:w-56 min-h-[44px] px-3 border border-gray-300 rounded-lg bg-white text-base text-gray-700">
+                  {SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {filtersActive && (
+              <div className="lg:hidden flex flex-wrap gap-2 mb-4" aria-label="Active filters">
+                {city && <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-teal-50 text-teal-800 text-sm">{city}</span>}
+                {rating && <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-teal-50 text-teal-800 text-sm">{rating}+ stars</span>}
+                {price < PRICE_MAX && <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-teal-50 text-teal-800 text-sm">up to {formatRs(price)}</span>}
+                {selectedAmenityIds.map((id) => <span key={id} className="px-3 py-1.5 rounded-full bg-teal-50 text-teal-800 text-sm">{AMENITIES.find((a) => a.id === id)?.label}</span>)}
+                <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 min-h-[36px] px-3 text-sm font-semibold text-teal-700 underline"><X className="w-3.5 h-3.5" aria-hidden="true" /> Clear all</button>
+              </div>
+            )}
+
+            <div className="grid gap-6 grid-cols-1 min-[640px]:grid-cols-2 xl:grid-cols-3 mb-8">
+              {isLoading && Array.from({ length: 3 }, (_, i) => (
+                <div key={i} className="rounded-2xl bg-white border border-gray-100 overflow-hidden" role="status" aria-label="Loading hotels">
+                  <div className="h-[200px] bg-gray-200 animate-pulse" />
+                  <div className="p-5 space-y-3"><div className="h-5 w-3/4 bg-gray-200 animate-pulse rounded" /><div className="h-4 w-1/2 bg-gray-200 animate-pulse rounded" /><div className="h-8 w-full bg-gray-200 animate-pulse rounded" /></div>
+                </div>
+              ))}
+
+              {!isLoading && error && (
+                <div role="alert" className="col-span-full rounded-xl bg-white p-6 text-center">
+                  <p className="text-red-700 mb-3">{error}</p>
+                  <button type="button" onClick={() => setReload((n) => n + 1)} className="min-h-[44px] px-5 rounded-lg border-2 border-teal-500 text-teal-700 font-semibold">Try again</button>
+                </div>
+              )}
+
+              {!isLoading && !error && hotels.length === 0 && (
+                <div className="col-span-full rounded-xl bg-white p-8 text-center">
+                  <p className="text-lg font-semibold text-gray-900 mb-1">No hotels match these filters</p>
+                  <p className="text-gray-600 mb-4">Try another city, a lower rating, or fewer amenities.</p>
+                  <button type="button" onClick={() => { clearFilters(); }} className="min-h-[44px] px-5 rounded-lg bg-teal-500 text-white font-semibold">Clear filters</button>
+                </div>
+              )}
+
+              {!isLoading && !error && hotels.map((hotel) => {
+                const id = String(hotel._id || hotel.id);
+                const image = hotel.images?.[0] || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1200&q=80';
+                const place = [hotel.location?.address, hotel.location?.city].filter(Boolean).join(', ') || '-';
+                const isSaved = saved.includes(id);
+                const query = checkIn && checkOut ? `?checkIn=${encodeURIComponent(checkIn)}&checkOut=${encodeURIComponent(checkOut)}` : '';
+                return (
+                  <article key={id} className="relative bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-lg transition-shadow">
+                    <div className="relative aspect-[16/10] bg-gray-200 overflow-hidden">
+                      <img src={image} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                    </div>
+                    <div className="p-5">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <h2 className="text-lg font-bold text-gray-900 leading-snug break-words min-w-0" style={{ fontFamily: 'Nunito, sans-serif' }}>
+                          {/* The whole card is the tap target: the link's ::after covers it. */}
+                          <Link to={`/hotels/${id}${query}`} className="after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-teal-500 focus-visible:after:rounded-2xl">{hotel.name}</Link>
+                        </h2>
+                        <span className="flex items-center gap-1 shrink-0 text-sm font-semibold text-gray-900"><Star className="w-4 h-4 text-amber-300 fill-amber-300" aria-hidden="true" />{Number(hotel.rating || 0).toFixed(1)}</span>
+                      </div>
+                      <p className="flex items-center gap-1.5 text-sm text-gray-600 mb-4"><MapPin className="w-3.5 h-3.5 shrink-0" aria-hidden="true" /><span className="truncate">{place}</span></p>
+                      <p className="text-gray-900"><span className="text-2xl font-bold tabular-nums">{formatRs(hotel.priceRange?.min ?? 0)}</span> <span className="text-sm text-gray-600">/ night</span></p>
+                    </div>
                     <button
-                      key={`page-${p}`}
-                      type="button"
-                      onClick={() => setCurrentPage(p)}
-                      style={{
-                        padding: '10px 16px',
-                        borderRadius: '8px',
-                        fontSize: '0.875rem',
-                        fontWeight: '500',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        backgroundColor: currentPage === p ? '#14B8A6' : '#ffffff',
-                        color: currentPage === p ? '#ffffff' : '#374151',
-                        border: currentPage === p ? 'none' : '1px solid #D1D5DB'
-                      }}
-                      onMouseEnter={(e) => { if (currentPage !== p) e.target.style.backgroundColor = '#F9FAFB' }}
-                      onMouseLeave={(e) => { if (currentPage !== p) e.target.style.backgroundColor = '#ffffff' }}
+                      type="button" onClick={() => toggleSaved(id)} aria-pressed={isSaved} aria-label={isSaved ? `Remove ${hotel.name} from saved hotels` : `Save ${hotel.name}`}
+                      className="absolute top-2 right-2 z-10 h-11 w-11 inline-flex items-center justify-center rounded-full bg-white shadow-md"
                     >
-                      {p}
+                      <Heart className={`w-5 h-5 ${isSaved ? 'fill-red-500 text-red-500' : 'text-gray-400'}`} aria-hidden="true" />
                     </button>
-                  ))}
-                <button
-                  type="button"
-                  disabled={currentPage >= totalPages}
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  style={{ padding: '10px 16px', border: '1px solid #D1D5DB', borderRadius: '8px', color: '#374151', backgroundColor: '#ffffff', cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontWeight: '500', transition: 'background-color 0.2s', opacity: currentPage >= totalPages ? 0.6 : 1 }}
-                  onMouseEnter={(e) => e.target.style.backgroundColor = '#F9FAFB'}
-                  onMouseLeave={(e) => e.target.style.backgroundColor = '#ffffff'}
-                >
-                  Next
-                </button>
-              </div>
-            </section>
-          </div>
+                  </article>
+                );
+              })}
+            </div>
+
+            {!isLoading && !error && totalPages > 1 && (
+              <nav className="flex justify-center items-center gap-2 flex-wrap" aria-label="Pagination">
+                <button type="button" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} className="min-h-[44px] px-4 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-700 disabled:opacity-50">Previous</button>
+                <span className="px-2 text-sm text-gray-700 sm:hidden" aria-live="polite">Page {page} of {totalPages}</span>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).slice(0, 10).map((p) => (
+                  <button key={p} type="button" aria-current={page === p ? 'page' : undefined} onClick={() => setPage(p)} className={`hidden sm:inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-sm font-medium ${page === p ? 'bg-teal-500 text-white' : 'bg-white text-gray-700 border border-gray-300'}`}>{p}</button>
+                ))}
+                <button type="button" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))} className="min-h-[44px] px-4 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-700 disabled:opacity-50">Next</button>
+              </nav>
+            )}
+          </section>
         </div>
       </main>
+
+      <Sheet
+        open={filtersOpen} onClose={() => setFiltersOpen(false)} title="Filters" maxWidth="sm:max-w-md"
+        footer={(
+          <div className="flex gap-3">
+            <button type="button" onClick={clearFilters} className="flex-1 min-h-[48px] rounded-lg border border-gray-300 font-semibold text-gray-700">Clear</button>
+            <button type="button" onClick={() => setFiltersOpen(false)} className="flex-1 min-h-[48px] rounded-lg bg-teal-500 text-white font-semibold">Show {total} hotel{total === 1 ? '' : 's'}</button>
+          </div>
+        )}
+      >
+        <FiltersPanel {...panelProps} idPrefix="sheet" />
+      </Sheet>
     </div>
   );
 };

@@ -1,56 +1,85 @@
-import { useLocation, useNavigate } from 'react-router-dom';
-import { CheckCircle, Download, Calendar, Users, Home, MapPin, CreditCard, Copy, Check } from 'lucide-react';
-import { useState } from 'react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { CheckCircle, Clock, Download, Calendar, Users, Home, MapPin, CreditCard, Copy, Check } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import axiosClient from '../../../../core/api/client';
+import { getBookingDetails } from '../../../../core/api/services/publicBooking.service';
+import { formatRs } from '../lib/money';
+import { usePageMeta } from '../lib/pageMeta';
+
+const fmtDate = (value) => {
+  if (!value) return '';
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+};
+const fmtGuests = (g) => {
+  if (!g) return '';
+  if (typeof g === 'string') return g;
+  const parts = [`${g.adults || 1} adult${(g.adults || 1) > 1 ? 's' : ''}`];
+  if (g.children) parts.push(`${g.children} child${g.children > 1 ? 'ren' : ''}`);
+  return parts.join(', ');
+};
 
 const BookingConfirmed = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const bookingData = location.state || {};
+  const [searchParams] = useSearchParams();
+  const stateData = location.state || {};
+  const bookingId = stateData.bookingId || searchParams.get('booking') || '';
   const [copied, setCopied] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState(false);
+  const [server, setServer] = useState(null); // what the server says about this booking (source of truth)
+  const [loadState, setLoadState] = useState(bookingId ? 'loading' : 'idle');
 
-  const {
-    bookingId, // MongoDB _id for API calls
-    bookingReference = '',
-    hotelName = 'The Grand Coastal Hotel',
-    hotelAddress = '123 Ocean Drive, Sunnyville',
-    hotelImage = 'https://plus.unsplash.com/premium_photo-1687960116497-0dc41e1808a2?q=80&w=1171&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-    checkIn = 'Fri, 16 Aug 2024',
-    checkOut = 'Mon, 19 Aug 2024',
-    guests = '2 Adults',
-    roomType = 'Deluxe Queen Room',
-    totalPaid = 450.00,
-    paymentMethod = 'eSewa'
-  } = bookingData;
+  // The page used to trust router state alone (lost on reload) and filled gaps with demo text.
+  useEffect(() => {
+    if (!bookingId) return undefined;
+    const controller = new AbortController();
+    getBookingDetails(bookingId, { signal: controller.signal })
+      .then((data) => { if (!controller.signal.aborted) { setServer(data); setLoadState('ready'); } })
+      .catch(() => { if (!controller.signal.aborted) setLoadState('error'); });
+    return () => controller.abort();
+  }, [bookingId]);
 
-  // Clean booking reference - remove query params and MongoDB ObjectId patterns
-  const cleanReference = bookingReference.split('?')[0];
-
-  // Format the reference for display
+  const confirmed = server ? ['Confirmed', 'Checked-In', 'Checked-Out'].includes(server.status) && server.paymentStatus === 'paid'
+    : stateData.paymentStatus === 'paid';
+  const bookingReference = server?.confirmationCode || server?.bookingId || stateData.bookingReference || '';
+  const hotelName = server?.hotelName || stateData.hotelName || 'Your hotel';
+  const hotelAddress = server?.hotelAddress || stateData.hotelAddress || '';
+  const hotelImage = server?.hotelImage || stateData.hotelImage || '';
+  const checkIn = fmtDate(server?.checkIn || stateData.checkIn);
+  const checkOut = fmtDate(server?.checkOut || stateData.checkOut);
+  const guests = fmtGuests(server?.guests || stateData.guests);
+  const roomType = server?.roomType || stateData.roomType || 'Room';
+  const totalAmount = Number(server?.totalAmount ?? stateData.totalAmount ?? 0);
+  const totalPaid = Number(server?.paidAmount ?? stateData.totalPaid ?? 0);
+  const paymentMethod = server?.paymentMethod || stateData.paymentMethod || '';
+  const cleanReference = String(bookingReference).split('?')[0];
   const displayReference = cleanReference;
+
+  usePageMeta({ title: confirmed ? 'Booking confirmed' : 'Booking received' });
 
   if (!bookingId) return (
     <div className="p-8 text-center">
       <h1 className="text-xl font-semibold">Booking confirmation unavailable</h1>
       <p>Open your bookings to view the saved booking details.</p>
-      <button onClick={() => navigate('/guest-dashboard/bookings')} className="mt-4 underline">View my bookings</button>
+      <button type="button" onClick={() => navigate('/guest-dashboard/bookings')} className="mt-4 min-h-[48px] px-6 rounded-xl bg-teal-600 text-white font-semibold">View my bookings</button>
     </div>
   );
 
   const handleCopyReference = () => {
-    navigator.clipboard.writeText(cleanReference);
+    navigator.clipboard?.writeText(cleanReference).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   const handleDownloadInvoice = async () => {
     if (!bookingId) {
-      alert('Booking ID not available. Please try again later.');
       return;
     }
 
     setDownloading(true);
+    setDownloadError(false);
     try {
       const response = await axiosClient.get(
         `/api/v1/public/bookings/${encodeURIComponent(bookingId)}/confirmation-pdf`,
@@ -71,7 +100,7 @@ const BookingConfirmed = () => {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error downloading confirmation:', error);
-      alert('Failed to download confirmation. Please try again later.');
+      setDownloadError(true);
     } finally {
       setDownloading(false);
     }
@@ -105,7 +134,7 @@ const BookingConfirmed = () => {
             <div className="relative">
               <div className="absolute inset-0 bg-teal-500 rounded-full blur-xl opacity-30 animate-pulse" />
               <div className="relative w-20 h-20 rounded-full bg-gradient-to-br from-teal-500 to-emerald-500 flex items-center justify-center shadow-xl ring-4 ring-white">
-                <CheckCircle className="w-11 h-11 text-white" strokeWidth={2.5} />
+                {confirmed ? <CheckCircle className="w-11 h-11 text-white" strokeWidth={2.5} /> : <Clock className="w-11 h-11 text-white" strokeWidth={2.5} />}
               </div>
             </div>
           </div>
@@ -113,11 +142,13 @@ const BookingConfirmed = () => {
           {/* Heading */}
           <div className="text-center mb-8 animate-fade-in-up">
             <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
-              Booking Confirmed! 🎉
+              {confirmed ? 'Booking confirmed' : 'Booking received'}
             </h1>
             <p className="text-gray-600 text-base sm:text-lg">
-              A confirmation email has been sent to your inbox
+              {confirmed ? 'A confirmation email is on its way to your inbox' : 'Your booking is not confirmed until your payment is verified. We will email you once it is.'}
             </p>
+            {loadState === 'loading' && <p role="status" className="mt-2 text-sm text-gray-500">Checking the latest status…</p>}
+            {loadState === 'error' && <p role="status" className="mt-2 text-sm text-amber-700">We could not load the latest status. Check My bookings for the current state.</p>}
           </div>
 
           {/* Main Card */}
@@ -137,8 +168,9 @@ const BookingConfirmed = () => {
                       </p>
                       <button
                         onClick={handleCopyReference}
-                        className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"
-                        title="Copy reference"
+                        type="button"
+                        aria-label="Copy booking reference"
+                        className="h-11 w-11 inline-flex items-center justify-center hover:bg-white/20 rounded-lg transition-colors"
                       >
                         {copied ? (
                           <Check className="w-4 h-4 text-white" />
@@ -250,10 +282,10 @@ const BookingConfirmed = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs sm:text-sm text-gray-600 mb-1 font-medium">
-                      Total Amount Paid
+                      {confirmed ? 'Amount paid' : 'Amount due'}
                     </p>
                     <p className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-teal-600 to-emerald-600 bg-clip-text text-transparent">
-                      NPR {totalPaid.toFixed(2)}
+                      {formatRs(confirmed ? totalPaid : totalAmount)}
                     </p>
                   </div>
                   <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-teal-500 to-emerald-500 flex items-center justify-center shadow-lg">
@@ -289,6 +321,7 @@ const BookingConfirmed = () => {
                   <span>{downloading ? 'Downloading...' : 'Download Confirmation'}</span>
                 </button>
               </div>
+              {downloadError && <p role="alert" className="mt-3 text-sm text-red-700">The confirmation could not be downloaded. Please try again from My bookings.</p>}
             </div>
           </div>
 

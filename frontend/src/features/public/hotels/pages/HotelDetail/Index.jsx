@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Check, Home, MapPin, Star, ThumbsUp, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useParams, useNavigate } from 'react-router-dom';
+import { Check, ExternalLink, Home, MapPin, Star, X, Clock, ShieldCheck, PawPrint } from 'lucide-react';
 import { toast } from 'react-toastify';
-
 import HotelImageGallery from './HotelImageGallery';
 import HotelHeader from './HotelHeader';
 import TabNavigation from './TabNavigation';
@@ -10,6 +9,9 @@ import BookingSidebar from './BookingSidebar';
 import AmenityCard from './AmenityCard';
 import { getHotelById } from '../../../../../core/api/services/hotel.service';
 import { getWishlist, toggleWishlist } from '../../../../../core/api/services/user.service';
+import { fetchHotelReviews, fetchRoomAvailability } from '../../lib/publicHotelApi';
+import { formatRs } from '../../lib/money';
+import { usePageMeta } from '../../lib/pageMeta';
 
 const AMENITY_LABELS = {
   wifi: 'Free Wi-Fi',
@@ -20,6 +22,13 @@ const AMENITY_LABELS = {
   spa: 'Spa',
   'room-service': 'Room Service',
   'pet-friendly': 'Pet Friendly',
+};
+
+const REVIEWS_PAGE = 5;
+
+const formatReviewDate = (value) => {
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 };
 
 const HotelDetail = () => {
@@ -33,57 +42,83 @@ const HotelDetail = () => {
   const [isFavorite, setIsFavorite] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [visibleReviewsCount, setVisibleReviewsCount] = useState(3);
+  const [notFound, setNotFound] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [dates, setDates] = useState(null);
+  const [availability, setAvailability] = useState(null); // { [roomId]: boolean } for the chosen dates
+  const [reviews, setReviews] = useState({ items: [], total: 0, distribution: null, page: 0, loading: true, error: false });
 
   const sectionOrder = useMemo(() => ['overview', 'rooms', 'amenities', 'reviews', 'location'], []);
 
-  useEffect(() => {
-    const sections = sectionOrder
-      .map((id) => document.getElementById(`section-${id}`))
-      .filter(Boolean);
-    if (!sections.length) return;
+  usePageMeta({
+    title: hotel ? `${hotel.name}, ${hotel.location?.city || 'Nepal'}` : notFound ? 'Hotel not found' : 'Hotel',
+    description: hotel?.description,
+    image: hotel?.images?.[0],
+  });
 
+  useEffect(() => {
+    const sections = sectionOrder.map((s) => document.getElementById(`section-${s}`)).filter(Boolean);
+    if (!sections.length) return undefined;
     const observer = new IntersectionObserver(
       (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
-        if (visible[0]) {
-          setActiveTab(visible[0].target.id.replace('section-', ''));
-        }
+        const visible = entries.filter((e) => e.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+        if (visible[0]) setActiveTab(visible[0].target.id.replace('section-', ''));
       },
-      {
-        rootMargin: '-35% 0px -50% 0px',
-        threshold: [0.2, 0.4, 0.6],
-      }
+      { rootMargin: '-35% 0px -50% 0px', threshold: [0.2, 0.4, 0.6] },
     );
-
     sections.forEach((s) => observer.observe(s));
     return () => observer.disconnect();
-  }, [sectionOrder]);
+  }, [sectionOrder, hotel]);
 
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
       setIsLoading(true);
       setError(null);
+      setNotFound(false);
       try {
         const data = await getHotelById(id);
         if (cancelled) return;
         setHotel(data?.hotel || null);
+        if (!data?.hotel) setNotFound(true);
       } catch (e) {
         if (cancelled) return;
-        setError(e?.message || 'Failed to load hotel details');
+        const message = e?.message || 'Failed to load hotel details';
         setHotel(null);
+        if (/not found/i.test(message)) setNotFound(true);
+        else setError(message);
       } finally {
         if (!cancelled) setIsLoading(false);
       }
     };
     if (id) load();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
+  }, [id, reloadKey]);
+
+  // Real, approved reviews (and the real star distribution) instead of placeholder bars.
+  const loadReviews = useCallback(async (page, replace) => {
+    setReviews((prev) => ({ ...prev, loading: true, error: false }));
+    try {
+      const data = await fetchHotelReviews(id, { page, limit: REVIEWS_PAGE });
+      setReviews((prev) => ({
+        items: replace ? data.reviews : [...prev.items, ...data.reviews],
+        total: data.total, distribution: data.distribution, page, loading: false, error: false,
+      }));
+    } catch {
+      setReviews((prev) => ({ ...prev, loading: false, error: true }));
+    }
   }, [id]);
+  useEffect(() => { if (id && hotel) loadReviews(1, true); }, [id, hotel, loadReviews]);
+
+  // Availability for the chosen dates, per room.
+  useEffect(() => {
+    if (!dates || !id) { setAvailability(null); return undefined; }
+    const controller = new AbortController();
+    fetchRoomAvailability(id, dates, { signal: controller.signal })
+      .then((rows) => { if (!controller.signal.aborted) setAvailability(Object.fromEntries(rows.map((r) => [r.roomId, r.available]))); })
+      .catch(() => { if (!controller.signal.aborted) setAvailability(null); });
+    return () => controller.abort();
+  }, [id, dates]);
 
   useEffect(() => {
     const loadFavorite = async () => {
@@ -101,114 +136,143 @@ const HotelDetail = () => {
   const handleToggleFavorite = async () => {
     if (!localStorage.getItem('accessToken')) {
       toast.info('Please sign in to save hotels');
-      navigate('/login');
+      navigate('/login', { state: { from: window.location.pathname } });
       return;
     }
-
     try {
       const { wishlist, message } = await toggleWishlist(id);
       setIsFavorite((wishlist || []).includes(String(id)));
       window.dispatchEvent(new Event('wishlistUpdated'));
       toast.success(message);
-    } catch (error) {
-      toast.error(error?.message || 'Could not update saved hotels');
+    } catch (e) {
+      toast.error(e?.message || 'Could not update saved hotels');
     }
   };
 
-  // Scroll to top when component mounts or hotel ID changes
+  const handleShare = useCallback(async () => {
+    try {
+      if (navigator.share) await navigator.share({ title: document.title, url: window.location.href });
+      else {
+        await navigator.clipboard.writeText(window.location.href);
+        toast.success('Hotel link copied');
+      }
+    } catch (e) {
+      if (e?.name !== 'AbortError') toast.info('Copy the address from your browser to share this hotel.');
+    }
+  }, []);
+
+  useEffect(() => { window.scrollTo({ top: 0, behavior: 'smooth' }); }, [id]);
+
+  // Phone booking sheet: lock the page behind it and let Esc close it.
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [id]);
+    if (!mobileBookingOpen) return undefined;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e) => { if (e.key === 'Escape') setMobileBookingOpen(false); };
+    document.addEventListener('keydown', onKey);
+    return () => { document.body.style.overflow = previous; document.removeEventListener('keydown', onKey); };
+  }, [mobileBookingOpen]);
 
-  // The room actually being booked — defaults to the first room until the
-  // guest picks one in "Choose your room" below. Every price shown to the
-  // guest (sidebar summary, total, and what's sent to the payment gateway)
-  // must come from THIS room, not from the hotel's overall price range —
-  // those two used to be unrelated values (hotel.priceRange.min vs
-  // hotel.rooms[0].price), which could show one total on this page and a
-  // different, higher one on the actual eSewa/Khalti payment screen.
+  const rooms = useMemo(() => hotel?.rooms || [], [hotel]);
+  const roomKey = (room) => String(room._id || room.id);
+  const isSoldOut = (room) => availability?.[roomKey(room)] === false;
+
+  // The room actually being booked. Every price the guest sees comes from THIS room.
   const selectedRoom = useMemo(() => {
-    const rooms = hotel?.rooms || [];
     if (!rooms.length) return null;
-    return rooms.find((r) => (r._id || r.id) === selectedRoomId) || rooms[0];
-  }, [hotel?.rooms, selectedRoomId]);
+    const picked = rooms.find((r) => roomKey(r) === selectedRoomId);
+    if (picked) return picked;
+    return rooms.find((r) => availability?.[roomKey(r)] !== false) || rooms[0];
+  }, [rooms, selectedRoomId, availability]);
 
-  const booking = useMemo(() => {
-    const pricePerNight = selectedRoom?.price ?? hotel?.priceRange?.min ?? 0;
-    const nights = 3;
-    const taxesAndFees = Math.round(pricePerNight * nights * 0.12);
-    return {
-      pricePerNight,
-      nights,
-      taxesAndFees,
-      guests: '2 Adults, 1 Child',
-      freeCancellationDate: 'Apr 4, 2026',
-    };
-  }, [selectedRoom, hotel?.priceRange?.min]);
+  const pricePerNight = selectedRoom?.price ?? hotel?.priceRange?.min ?? 0;
+  const reviewAverage = Number(hotel?.rating ?? 0).toFixed(1);
+  const mapsHref = hotel
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+      hotel.location?.coordinates?.latitude != null && hotel.location?.coordinates?.longitude != null
+        ? `${hotel.location.coordinates.latitude},${hotel.location.coordinates.longitude}`
+        : [hotel.name, hotel.location?.address, hotel.location?.city].filter(Boolean).join(', '),
+    )}`
+    : '#';
+  const distribution = reviews.distribution;
+  const totalForBars = distribution ? Object.values(distribution).reduce((a, b) => a + b, 0) : 0;
 
-  const reviewAverage = (hotel?.rating ?? 0).toFixed(1);
-
-  const handleLoadMoreReviews = () => {
-    setVisibleReviewsCount((prev) => prev + 3);
-  };
-
-  const visibleReviews = (hotel?.reviews || []).slice(0, visibleReviewsCount);
-  const hasMoreReviews = (hotel?.reviews || []).length > visibleReviewsCount;
-  const remainingReviewsCount = (hotel?.reviews || []).length - visibleReviewsCount;
+  const sidebar = hotel && selectedRoom && (
+    <BookingSidebar
+      key={hotel._id}
+      pricePerNight={Number(pricePerNight) || 0}
+      hotelName={hotel.name}
+      hotelAddress={[hotel.location?.address, hotel.location?.city].filter(Boolean).join(', ')}
+      hotelImage={hotel.images?.[0]}
+      hotelId={hotel._id}
+      roomId={roomKey(selectedRoom)}
+      roomName={selectedRoom.roomName || selectedRoom.title}
+      maxGuests={selectedRoom.maxGuests || 2}
+      soldOut={isSoldOut(selectedRoom)}
+      onDatesChange={setDates}
+    />
+  );
 
   return (
-    <div className="min-h-screen pt-24 pb-24 md:pb-12" style={{ background: '#F8FAFB' }}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-5 animate-[fadeIn_0.5s_ease]">
-          <nav className="mb-4" aria-label="Breadcrumb">
-            <ol className="flex items-center gap-2 text-sm">
-              <li className="inline-flex items-center gap-1 text-[#546E7A]">
-                <Home className="w-4 h-4" />
-                <a href="/" className="hover:text-[#00BFA6] transition-colors">Home</a>
-              </li>
-              <li className="text-[rgba(0,191,166,0.45)]">›</li>
-              <li>
-                <a href="/destinations" className="text-[#546E7A] hover:text-[#00BFA6] transition-colors">Destinations</a>
-              </li>
-              <li className="text-[rgba(0,191,166,0.45)]">›</li>
-              <li className="text-[#00BFA6] font-semibold truncate max-w-42.5 sm:max-w-full" aria-current="page">
-                {hotel?.name || 'Hotel'}
-              </li>
-            </ol>
-          </nav>
+    <div className="min-h-screen pt-24 pb-28 lg:pb-12" style={{ background: '#F8FAFB' }}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-5">
+        <nav className="mb-4" aria-label="Breadcrumb">
+          <ol className="flex items-center gap-2 text-sm">
+            <li className="inline-flex items-center gap-1 text-[#546E7A]">
+              <Home className="w-4 h-4" aria-hidden="true" />
+              <Link to="/" className="hover:text-[#00BFA6] transition-colors">Home</Link>
+            </li>
+            <li className="text-[rgba(0,191,166,0.45)]" aria-hidden="true">&rsaquo;</li>
+            <li><Link to="/hotels" className="text-[#546E7A] hover:text-[#00BFA6] transition-colors">Hotels</Link></li>
+            <li className="text-[rgba(0,191,166,0.45)]" aria-hidden="true">&rsaquo;</li>
+            <li className="text-[#00A896] font-semibold truncate max-w-[10.5rem] sm:max-w-full" aria-current="page">{hotel?.name || 'Hotel'}</li>
+          </ol>
+        </nav>
       </div>
 
       <main className="w-full">
         {isLoading && (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 text-[#546E7A]">
-            Loading hotel details…
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4" role="status" aria-label="Loading hotel details">
+            <div className="h-[260px] sm:h-[400px] rounded-2xl bg-gray-200 animate-pulse" />
+            <div className="h-24 rounded-2xl bg-gray-200 animate-pulse" />
+            <div className="h-48 rounded-2xl bg-gray-200 animate-pulse" />
           </div>
         )}
+
+        {!isLoading && notFound && (
+          <div className="max-w-xl mx-auto px-4 py-16 text-center">
+            <h1 className="text-2xl font-bold text-[#263238] mb-2">We couldn&apos;t find that hotel</h1>
+            <p className="text-[#546E7A] mb-6">It may have been removed or is not available for booking right now.</p>
+            <Link to="/hotels" className="inline-flex items-center justify-center min-h-[48px] px-6 rounded-xl bg-gradient-to-r from-[#00BFA6] to-[#00E5CC] text-white font-bold">Browse hotels</Link>
+          </div>
+        )}
+
         {!isLoading && error && (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 text-red-700">
-            {error}
+          <div role="alert" className="max-w-xl mx-auto px-4 py-16 text-center">
+            <h1 className="text-xl font-bold text-[#263238] mb-2">Something went wrong</h1>
+            <p className="text-red-700 mb-6">{error}</p>
+            <button type="button" onClick={() => setReloadKey((k) => k + 1)} className="inline-flex items-center justify-center min-h-[48px] px-6 rounded-xl border-2 border-[#00BFA6] text-[#00A896] font-bold">Try again</button>
           </div>
         )}
+
         {!isLoading && !error && hotel && (
           <>
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 animate-[fadeIn_0.6s_ease]">
-              <HotelImageGallery images={hotel.images} isFavorite={isFavorite} onToggleFavorite={handleToggleFavorite} />
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <HotelImageGallery images={hotel.images} hotelName={hotel.name} isFavorite={isFavorite} onToggleFavorite={handleToggleFavorite} onShare={handleShare} />
             </div>
-
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-7 animate-[fadeInUp_0.7s_ease]">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-7">
               <HotelHeader
                 name={hotel.name}
                 location={hotel?.location?.address || hotel?.location?.city || '-'}
-                rating={hotel.rating}
-                reviewCount={hotel.reviewCount}
+                rating={Number(hotel.rating) || 0}
+                reviewCount={hotel.reviewCount || 0}
                 highlights={(hotel.amenities || []).slice(0, 3).map((k) => AMENITY_LABELS[k] || k)}
-                badges={[
-                  hotel.featured ? 'Featured' : null,
-                  hotel.starRating ? `${hotel.starRating}-Star` : null,
-                ].filter(Boolean)}
-                pricePerNight={booking.pricePerNight}
+                badges={[hotel.featured ? 'Featured' : null, hotel.starRating ? `${hotel.starRating}-Star` : null].filter(Boolean)}
+                pricePerNight={pricePerNight}
                 onBookNow={() => setMobileBookingOpen(true)}
                 isFavorite={isFavorite}
                 onToggleFavorite={handleToggleFavorite}
+                onShare={handleShare}
               />
             </div>
 
@@ -218,333 +282,250 @@ const HotelDetail = () => {
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
               <div className="flex flex-col lg:flex-row gap-8">
-                <div className="w-full lg:w-[66%] space-y-10">
-                  {/* Overview Section - Premium Mobile Design */}
-                  <section
-                    id="section-overview"
-                    className="rounded-3xl bg-gradient-to-br from-white to-[#F0FDFB] p-6 sm:p-8 md:p-10 border-2 border-[#00BFA6]/20 shadow-[0_8px_32px_rgba(0,191,166,0.12)] animate-[fadeInUp_0.7s_ease] relative overflow-hidden"
-                  >
-                    {/* Decorative Element */}
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#00BFA6]/10 to-transparent rounded-bl-full"></div>
-
+                <div className="w-full lg:w-[66%] space-y-10 min-w-0">
+                  <section id="section-overview" className="rounded-3xl bg-gradient-to-br from-white to-[#F0FDFB] p-5 sm:p-8 md:p-10 border-2 border-[#00BFA6]/20 shadow-[0_8px_32px_rgba(0,191,166,0.12)] relative overflow-hidden scroll-mt-32">
                     <div className="flex items-center gap-3 mb-5 relative z-10">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#00BFA6] to-[#00E5CC] flex items-center justify-center shadow-lg">
-                        <Home className="w-5 h-5 text-white" />
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#00BFA6] to-[#00E5CC] flex items-center justify-center shadow-lg"><Home className="w-5 h-5 text-white" aria-hidden="true" /></div>
+                      <h2 className="text-2xl md:text-3xl font-extrabold text-[#263238]">Overview</h2>
+                    </div>
+                    <p className="text-base md:text-lg leading-relaxed text-[#546E7A] relative z-10 whitespace-pre-line break-words">{hotel.description}</p>
+
+                    <dl className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3 relative z-10">
+                      {[
+                        { icon: Clock, label: 'Check-in', value: hotel.policies?.checkIn },
+                        { icon: Clock, label: 'Check-out', value: hotel.policies?.checkOut },
+                        { icon: ShieldCheck, label: 'Cancellation', value: 'Free up to 48h before check-in; 50% refund 24-48h before; none inside 24h' },
+                        { icon: PawPrint, label: 'Pets', value: hotel.policies?.petPolicy },
+                      ].filter((row) => row.value).map((row) => (
+                        <div key={row.label} className="flex items-start gap-3 p-3 bg-white/80 rounded-2xl border border-[#00BFA6]/20">
+                          <span className="w-8 h-8 rounded-lg bg-[#00BFA6]/10 flex items-center justify-center shrink-0"><row.icon className="w-4 h-4 text-[#00BFA6]" aria-hidden="true" /></span>
+                          <div className="min-w-0">
+                            <dt className="text-xs font-bold uppercase tracking-wider text-[#546E7A]">{row.label}</dt>
+                            <dd className="text-sm font-semibold text-[#263238] break-words">{row.value}</dd>
+                          </div>
+                        </div>
+                      ))}
+                    </dl>
+                  </section>
+
+                  <section id="section-rooms" className="space-y-5 scroll-mt-32">
+                    <h2 className="text-2xl font-bold text-[#263238]">Choose your room</h2>
+                    {dates && <p className="text-sm text-[#546E7A]">Availability shown for {dates.checkIn} to {dates.checkOut}.</p>}
+                    {rooms.length === 0 && <p className="text-[#546E7A]">This hotel has no rooms open for online booking right now.</p>}
+                    {rooms.map((room) => {
+                      const key = roomKey(room);
+                      const isSelected = roomKey(selectedRoom || {}) === key && !!selectedRoom;
+                      const soldOut = isSoldOut(room);
+                      return (
+                        <article
+                          key={key}
+                          className={`rounded-2xl border bg-white overflow-hidden transition-shadow ${soldOut ? 'opacity-75' : ''}`}
+                          style={{ borderColor: isSelected ? '#00BFA6' : 'rgba(0,191,166,0.15)', boxShadow: isSelected ? '0 8px 32px rgba(0,191,166,0.15)' : '0 4px 16px rgba(0,0,0,0.06)' }}
+                        >
+                          <div className="grid grid-cols-1 md:grid-cols-[45%_55%]">
+                            <div className="relative overflow-hidden aspect-[16/10] md:aspect-auto md:min-h-[240px] bg-gray-100">
+                              <img
+                                src={room.images?.[0] || hotel.images?.[0]}
+                                alt={`${room.roomName || room.title || 'Room'} at ${hotel.name}`}
+                                loading="lazy" decoding="async"
+                                className="w-full h-full object-cover"
+                              />
+                              <span className="absolute left-3 top-3 px-3 py-1 text-xs font-bold text-white rounded-full bg-gradient-to-r from-[#00BFA6] to-[#00E5CC] capitalize">{String(room.type || 'Room')}</span>
+                              {soldOut && <span className="absolute right-3 top-3 px-3 py-1 text-xs font-bold text-white rounded-full bg-red-600">Not available for your dates</span>}
+                            </div>
+                            <div className="p-4 sm:p-6 flex flex-col">
+                              <h3 className="text-xl font-bold text-[#263238]">{room.roomName || room.title || 'Room'}</h3>
+                              <p className="text-sm text-[#546E7A] mt-1">{room.bedType ? `${room.bedType} bed` : 'Bed'} &bull; sleeps up to {room.maxGuests || 2}</p>
+                              {room.description && <p className="text-sm text-[#546E7A] mt-2 line-clamp-3 break-words">{room.description}</p>}
+                              {(room.amenities || []).length > 0 && (
+                                <ul className="mt-3 flex flex-wrap gap-2">
+                                  {room.amenities.slice(0, 4).map((feature) => <li key={feature} className="px-2.5 py-1 rounded-full bg-[#00BFA6]/10 text-xs font-semibold text-[#00A896]">{feature}</li>)}
+                                </ul>
+                              )}
+                              <div className="mt-auto pt-4 flex items-center justify-between gap-3">
+                                <div>
+                                  <p className="text-xl font-bold text-[#263238] tabular-nums">{formatRs(room.price)}</p>
+                                  <p className="text-xs text-[#546E7A]">per night, before taxes &amp; fees</p>
+                                </div>
+                                <button
+                                  type="button"
+                                  disabled={soldOut}
+                                  aria-pressed={isSelected}
+                                  onClick={() => { setSelectedRoomId(key); if (window.matchMedia('(max-width: 1023px)').matches) setMobileBookingOpen(true); }}
+                                  className={`min-h-[44px] px-5 rounded-xl text-sm font-bold transition disabled:opacity-50 disabled:cursor-not-allowed ${isSelected ? 'bg-[#00BFA6] text-white' : 'border-2 border-[#00BFA6] text-[#00A896] hover:bg-[#00BFA6]/10'}`}
+                                >
+                                  {soldOut ? 'Unavailable' : isSelected ? (<span className="inline-flex items-center gap-1.5"><Check className="w-4 h-4" aria-hidden="true" /> Selected &middot; Reserve</span>) : 'Select & reserve'}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </section>
+
+                  <section id="section-amenities" className="rounded-2xl sm:rounded-3xl bg-gradient-to-br from-white to-[#F0FDFB] p-5 sm:p-8 md:p-10 border-2 border-[#00BFA6]/20 shadow-[0_8px_32px_rgba(0,191,166,0.12)] scroll-mt-32">
+                    <div className="flex items-center gap-3 mb-5">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#00BFA6] to-[#00E5CC] flex items-center justify-center shadow-lg shrink-0"><Star className="w-5 h-5 text-white fill-white" aria-hidden="true" /></div>
+                      <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-[#263238]">Amenities</h2>
+                    </div>
+                    {(hotel.amenities || []).length ? (
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                        {hotel.amenities.map((key) => <AmenityCard key={key} icon={key} label={AMENITY_LABELS[key] || key} />)}
                       </div>
-                      <h3 className="text-2xl md:text-3xl font-extrabold text-[#263238]">Overview</h3>
+                    ) : <p className="text-[#546E7A]">This hotel has not listed its amenities yet.</p>}
+                  </section>
+
+                  <section id="section-reviews" className="space-y-6 scroll-mt-32">
+                    <div className="rounded-3xl bg-gradient-to-br from-white to-[#FFF9E6] p-5 sm:p-8 border-2 border-[#FFB84D]/30 shadow-[0_8px_32px_rgba(255,184,77,0.15)]">
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FFB84D] to-[#FFA726] flex items-center justify-center shadow-lg shrink-0"><Star className="w-5 h-5 text-white fill-white" aria-hidden="true" /></div>
+                        <h2 className="text-2xl md:text-3xl font-extrabold text-[#263238]">Guest reviews</h2>
+                      </div>
+                      {reviews.total > 0 && distribution ? (
+                        <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-6">
+                          <div className="text-center md:text-left">
+                            <div className="inline-flex items-baseline gap-2 mb-2">
+                              <p className="text-5xl md:text-6xl font-extrabold text-[#263238] tabular-nums">{reviewAverage}</p>
+                              <span className="text-3xl text-[#FFB84D]" aria-hidden="true">&#9733;</span>
+                            </div>
+                            <p className="font-bold text-[#263238] text-lg">{reviews.total.toLocaleString()} review{reviews.total === 1 ? '' : 's'}</p>
+                          </div>
+                          <div className="space-y-3">
+                            {[5, 4, 3, 2, 1].map((stars) => {
+                              const count = distribution[stars] || 0;
+                              const percent = totalForBars ? Math.round((count / totalForBars) * 100) : 0;
+                              return (
+                                <div key={stars} className="grid grid-cols-[44px_1fr_44px] items-center gap-3">
+                                  <span className="font-bold text-[#263238] text-sm">{stars} &#9733;</span>
+                                  <div className="h-3 rounded-full bg-[#F5F5F5] overflow-hidden" role="img" aria-label={`${percent}% of reviews are ${stars} stars`}>
+                                    <div className="h-full rounded-full bg-gradient-to-r from-[#FFB84D] to-[#FFA726]" style={{ width: `${percent}%` }} />
+                                  </div>
+                                  <span className="text-[#546E7A] font-semibold text-sm text-right tabular-nums">{percent}%</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ) : reviews.loading ? (
+                        <div className="h-24 rounded-xl bg-gray-100 animate-pulse" role="status" aria-label="Loading reviews" />
+                      ) : reviews.error ? (
+                        <p className="text-[#546E7A]">Reviews could not be loaded. <button type="button" className="underline font-semibold min-h-[44px]" onClick={() => loadReviews(1, true)}>Retry</button></p>
+                      ) : (
+                        <p className="text-[#546E7A]">No guest reviews yet. Reviews appear here after guests complete a stay.</p>
+                      )}
                     </div>
 
-                    <p className="text-base md:text-lg leading-relaxed text-[#546E7A] relative z-10">
-                      {hotel.description}
-                    </p>
-
-                    {/* Highlight Box */}
-                    <div className="mt-6 p-4 bg-white/80 backdrop-blur-sm rounded-2xl border border-[#00BFA6]/20 relative z-10">
-                      <div className="flex items-start gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-[#00BFA6]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <Check className="w-4 h-4 text-[#00BFA6]" />
-                        </div>
-                        <div>
-                          <p className="font-semibold text-[#263238] mb-1">Why choose this property?</p>
-                          <p className="text-sm text-[#546E7A] leading-relaxed">
-                            Highly rated for cleanliness, location, and exceptional service. Perfect for both leisure and business travelers.
-                          </p>
-                        </div>
-                      </div>
+                    <div className="space-y-4">
+                      {reviews.items.map((review) => {
+                        const expanded = !!expandedReviews[review.id];
+                        const long = review.text.length > 180;
+                        const visibleText = expanded || !long ? review.text : `${review.text.slice(0, 180)}…`;
+                        return (
+                          <article key={review.id} className="rounded-2xl bg-white p-4 sm:p-6 border-2 border-[#00BFA6]/10 shadow-[0_4px_20px_rgba(0,0,0,0.06)]">
+                            <div className="flex items-start justify-between gap-3 mb-3">
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="h-11 w-11 shrink-0 rounded-full bg-gradient-to-br from-[#00BFA6] to-[#00E5CC] text-white flex items-center justify-center font-bold" aria-hidden="true">
+                                  {review.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="font-bold text-[#263238] truncate">{review.name}</p>
+                                  <p className="text-xs text-[#546E7A]">{formatReviewDate(review.date)}{review.verified ? ' \u2022 Verified stay' : ''}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1 bg-[#FFF9E6] px-2.5 py-1 rounded-lg shrink-0">
+                                <span className="font-bold text-[#263238] text-sm">{review.rating}</span>
+                                <Star className="w-4 h-4 text-[#FFB84D] fill-[#FFB84D]" aria-label="stars" />
+                              </div>
+                            </div>
+                            {review.title && <h3 className="font-semibold text-[#263238] mb-1 break-words">{review.title}</h3>}
+                            <p className="text-sm md:text-base leading-relaxed text-[#546E7A] whitespace-pre-line break-words">{visibleText}</p>
+                            {long && (
+                              <button type="button" aria-expanded={expanded} className="text-sm font-bold text-[#00A896] mt-1 min-h-[44px]" onClick={() => setExpandedReviews((prev) => ({ ...prev, [review.id]: !expanded }))}>
+                                {expanded ? 'Read less' : 'Read more'}
+                              </button>
+                            )}
+                            {review.reply && (
+                              <div className="mt-3 rounded-xl bg-[#F0FDFB] border border-[#00BFA6]/20 p-3">
+                                <p className="text-xs font-bold uppercase tracking-wider text-[#00A896] mb-1">Reply from the hotel</p>
+                                <p className="text-sm text-[#546E7A] break-words">{review.reply}</p>
+                              </div>
+                            )}
+                          </article>
+                        );
+                      })}
+                      {reviews.items.length < reviews.total && (
+                        <button type="button" disabled={reviews.loading} onClick={() => loadReviews(reviews.page + 1, false)} className="w-full min-h-[48px] rounded-xl border border-[#00BFA6] text-[#00A896] font-semibold hover:bg-[#00BFA6]/10 transition disabled:opacity-50">
+                          {reviews.loading ? 'Loading…' : `Load more reviews (${reviews.total - reviews.items.length} remaining)`}
+                        </button>
+                      )}
                     </div>
                   </section>
 
-              <section id="section-rooms" className="space-y-5 animate-[fadeInUp_0.8s_ease]">
-                <h3 className="text-2xl font-bold text-[#263238]">Choose your room</h3>
-                {(hotel.rooms || []).map((room) => {
-                  const roomId = room._id || room.id;
-                  const isSelected = (selectedRoom?._id || selectedRoom?.id) === roomId;
-                  return (
-                    <article
-                      key={roomId}
-                      role="button"
-                      tabIndex={0}
-                      aria-pressed={isSelected}
-                      onClick={() => setSelectedRoomId(roomId)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          setSelectedRoomId(roomId);
-                        }
-                      }}
-                      className="group rounded-2xl border bg-white overflow-hidden transition-all duration-300 hover:-translate-y-1 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00BFA6]"
-                      style={{
-                        borderColor: isSelected ? '#00BFA6' : 'rgba(0,191,166,0.15)',
-                        boxShadow: isSelected
-                          ? '0 8px 32px rgba(0,191,166,0.15)'
-                          : '0 4px 16px rgba(0,0,0,0.06)',
-                      }}
-                    >
-                      <div className="grid grid-cols-1 md:grid-cols-[55%_45%]">
-                        <div className="relative overflow-hidden min-h-65">
-                          <img
-                            src={room.images?.[0] || 'https://images.unsplash.com/photo-1598928636135-d146006ff4be?w=1200&q=80'}
-                            alt={room.title}
-                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                          />
-                          <span className="absolute left-4 top-4 px-3 py-1 text-xs font-bold text-white rounded-full bg-linear-to-r from-[#00BFA6] to-[#00E5CC]">
-                            {String(room.type || 'Room')}
-                          </span>
-                        </div>
-                        <div className="p-5 md:p-6 flex flex-col">
-                          <h4 className="text-xl font-bold text-[#263238]">{room.roomName || room.title || 'Room'}</h4>
-                          <p className="text-sm text-[#546E7A] mt-1">
-                            {room.bedType ? `${room.bedType} Bed` : 'Bed'} • {room.maxGuests ? `${room.maxGuests} guests` : 'Guests'}
-                          </p>
-                          <div className="h-px bg-[rgba(0,191,166,0.15)] my-4" />
-                          <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm text-[#546E7A]">
-                            <span className="capitalize">{String(room.type || 'standard')}</span>
-                            {(room.amenities || []).slice(0, 3).map((feature) => <span key={feature}>{feature}</span>)}
-                          </div>
-                          <div className="h-px bg-[rgba(0,191,166,0.15)] my-4" />
-                          <div className="flex items-center justify-between gap-3">
-                            <p className="text-lg font-bold text-[#263238]">NPR {room.price}/night</p>
-                            {isSelected ? (
-                              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-white bg-[#00BFA6]">
-                                <Check className="w-3.5 h-3.5" /> Selected
-                              </span>
-                            ) : (
-                              <span className="px-3 py-1.5 rounded-full text-xs font-semibold text-[#00A896] border border-[#00BFA6]/40">
-                                Select room
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </article>
-                  );
-                })}
-              </section>
-
-              {/* Amenities Section - Premium Mobile Design */}
-              <section id="section-amenities" className="rounded-2xl sm:rounded-3xl bg-gradient-to-br from-white to-[#F0FDFB] p-5 sm:p-6 md:p-8 lg:p-10 border-2 border-[#00BFA6]/20 shadow-[0_8px_32px_rgba(0,191,166,0.12)] animate-[fadeInUp_0.9s_ease] relative overflow-hidden">
-                {/* Decorative Element */}
-                <div className="absolute bottom-0 left-0 w-32 h-32 sm:w-40 sm:h-40 bg-gradient-to-tr from-[#00BFA6]/10 to-transparent rounded-tr-full"></div>
-
-                <div className="flex items-center gap-2.5 sm:gap-3 mb-5 sm:mb-6 relative z-10">
-                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-br from-[#00BFA6] to-[#00E5CC] flex items-center justify-center shadow-lg flex-shrink-0">
-                    <Star className="w-4 h-4 sm:w-5 sm:h-5 text-white fill-white" />
-                  </div>
-                  <h3 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-[#263238]">Amenities</h3>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 relative z-10">
-                  {(hotel.amenities || []).map((amenityKey) => (
-                    <AmenityCard key={amenityKey} icon={amenityKey} label={AMENITY_LABELS[amenityKey] || amenityKey} />
-                  ))}
-                </div>
-
-                {/* Premium Badge */}
-                <div className="mt-5 sm:mt-6 p-3 sm:p-4 bg-gradient-to-r from-[#00BFA6]/10 to-[#00E5CC]/10 rounded-xl sm:rounded-2xl border border-[#00BFA6]/20 relative z-10">
-                  <p className="text-xs sm:text-sm font-semibold text-[#00A896] text-center flex items-center justify-center gap-1.5">
-                    <span className="text-base sm:text-lg">✨</span>
-                    <span>All amenities included in your stay</span>
-                  </p>
-                </div>
-              </section>
-
-              {/* Reviews Section - Premium Mobile Design */}
-              <section id="section-reviews" className="space-y-6 animate-[fadeInUp_1s_ease]">
-                {/* Rating Summary Card */}
-                <div className="rounded-3xl bg-gradient-to-br from-white to-[#FFF9E6] p-6 sm:p-8 border-2 border-[#FFB84D]/30 shadow-[0_8px_32px_rgba(255,184,77,0.15)] relative overflow-hidden">
-                  {/* Decorative Element */}
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-[#FFB84D]/20 to-transparent rounded-bl-full"></div>
-
-                  <div className="flex items-center gap-3 mb-6 relative z-10">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FFB84D] to-[#FFA726] flex items-center justify-center shadow-lg">
-                      <Star className="w-5 h-5 text-white fill-white" />
+                  <section id="section-location" className="rounded-3xl bg-gradient-to-br from-white to-[#F0FDFB] p-5 sm:p-8 md:p-10 border-2 border-[#00BFA6]/20 shadow-[0_8px_32px_rgba(0,191,166,0.12)] scroll-mt-32">
+                    <div className="flex items-center gap-3 mb-5">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#00BFA6] to-[#00E5CC] flex items-center justify-center shadow-lg shrink-0"><MapPin className="w-5 h-5 text-white" aria-hidden="true" /></div>
+                      <h2 className="text-2xl md:text-3xl font-extrabold text-[#263238]">Location</h2>
                     </div>
-                    <h3 className="text-2xl md:text-3xl font-extrabold text-[#263238]">Guest Reviews</h3>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-6 relative z-10">
-                    {/* Rating Score */}
-                    <div className="text-center md:text-left">
-                      <div className="inline-flex items-baseline gap-2 mb-2">
-                        <p className="text-5xl md:text-6xl font-extrabold text-[#263238]">{reviewAverage}</p>
-                        <span className="text-3xl text-[#FFB84D]">★</span>
-                      </div>
-                      <p className="font-bold text-[#263238] text-lg">{(hotel.reviewCount || 0).toLocaleString()} reviews</p>
-                      <div className="inline-block mt-2 px-4 py-1.5 bg-gradient-to-r from-[#00BFA6] to-[#00E5CC] text-white text-sm font-bold rounded-full">
-                        {hotel.rating >= 4.6 ? 'Excellent' : hotel.rating >= 4.0 ? 'Very Good' : 'Good'}
-                      </div>
-                    </div>
-
-                    {/* Rating Bars */}
-                    <div className="space-y-3">
-                      {[
-                        { stars: 5, percent: 60 },
-                        { stars: 4, percent: 25 },
-                        { stars: 3, percent: 10 },
-                        { stars: 2, percent: 3 },
-                        { stars: 1, percent: 2 },
-                      ].map((row) => (
-                        <div key={row.stars} className="grid grid-cols-[50px_1fr_50px] items-center gap-3">
-                          <span className="font-bold text-[#263238] text-sm">{row.stars} ★</span>
-                          <div className="h-3 rounded-full bg-[#F5F5F5] overflow-hidden shadow-inner">
-                            <div
-                              className="h-full rounded-full bg-gradient-to-r from-[#FFB84D] to-[#FFA726] transition-all duration-500"
-                              style={{ width: `${row.percent}%` }}
-                            />
-                          </div>
-                          <span className="text-[#546E7A] font-semibold text-sm text-right">{row.percent}%</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Individual Reviews */}
-                <div className="space-y-4">
-                  {visibleReviews.map((review) => {
-                    const expanded = expandedReviews[review.id];
-                    const visibleText = expanded ? review.text : `${review.text.slice(0, 150)}${review.text.length > 150 ? '...' : ''}`;
-                    return (
-                      <article key={review.id} className="rounded-2xl bg-white p-5 sm:p-6 border-2 border-[#00BFA6]/10 shadow-[0_4px_20px_rgba(0,0,0,0.08)] hover:shadow-[0_8px_32px_rgba(0,191,166,0.15)] transition-all duration-300">
-                        <div className="flex items-start justify-between gap-3 mb-4">
-                          <div className="flex items-center gap-3">
-                            <div className="h-12 w-12 rounded-full bg-gradient-to-br from-[#00BFA6] to-[#00E5CC] text-white flex items-center justify-center font-bold text-lg shadow-lg">
-                              {review.name.split(' ').map((n) => n[0]).join('').slice(0, 2)}
-                            </div>
-                            <div>
-                              <p className="font-bold text-[#263238]">{review.name}</p>
-                              <p className="text-xs text-[#546E7A] flex items-center gap-1.5">
-                                <MapPin className="w-3 h-3" />
-                                {review.country} • {review.date}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1 bg-[#FFF9E6] px-2.5 py-1 rounded-lg">
-                            <span className="font-bold text-[#263238] text-sm">{review.rating}</span>
-                            <Star className="w-4 h-4 text-[#FFB84D] fill-[#FFB84D]" />
-                          </div>
-                        </div>
-
-                        <p className="text-sm md:text-base leading-relaxed text-[#546E7A]">{visibleText}</p>
-
-                        {review.text.length > 150 && (
-                          <button
-                            type="button"
-                            className="text-sm font-bold text-[#00BFA6] mt-2 hover:text-[#00A896] transition-colors"
-                            onClick={() => setExpandedReviews((prev) => ({ ...prev, [review.id]: !expanded }))}
-                          >
-                            {expanded ? '← Read less' : 'Read more →'}
-                          </button>
-                        )}
-
-                        <div className="flex items-center gap-3 mt-4 pt-4 border-t border-[#00BFA6]/10">
-                          <button className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#00A896] hover:text-[#00BFA6] transition-colors">
-                            <ThumbsUp className="w-3.5 h-3.5" /> Helpful
-                          </button>
-                        </div>
-                      </article>
-                    );
-                  })}
-                  {hasMoreReviews && (
-                    <button
-                      onClick={handleLoadMoreReviews}
-                      className="w-full py-3 rounded-xl border border-[#00BFA6] text-[#00A896] font-semibold hover:bg-[#00BFA6]/10 transition"
-                    >
-                      Load more reviews ({remainingReviewsCount} remaining)
-                    </button>
-                  )}
-                </div>
-              </section>
-
-              {/* Location Section - Premium Mobile Design */}
-              <section id="section-location" className="rounded-3xl bg-gradient-to-br from-white to-[#F0FDFB] p-6 sm:p-8 md:p-10 border-2 border-[#00BFA6]/20 shadow-[0_8px_32px_rgba(0,191,166,0.12)] animate-[fadeInUp_1.1s_ease] relative overflow-hidden">
-                {/* Decorative Element */}
-                <div className="absolute top-0 left-0 w-40 h-40 bg-gradient-to-br from-[#00BFA6]/10 to-transparent rounded-br-full"></div>
-
-                <div className="flex items-center gap-3 mb-6 relative z-10">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#00BFA6] to-[#00E5CC] flex items-center justify-center shadow-lg">
-                    <MapPin className="w-5 h-5 text-white" />
-                  </div>
-                  <h3 className="text-2xl md:text-3xl font-extrabold text-[#263238]">Location</h3>
-                </div>
-
-                <div className="rounded-2xl overflow-hidden relative h-64 md:h-80 shadow-xl mb-5 relative z-10">
-                  <img src={hotel.images?.[0]} alt={`${hotel.name} location`} className="w-full h-full object-cover" />
-                  <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/40 to-transparent" />
-                  <div className="absolute left-4 top-4 px-4 py-2.5 rounded-xl bg-white/90 backdrop-blur-md text-sm font-bold text-[#263238] inline-flex items-center gap-2 shadow-lg">
-                    <MapPin className="w-4 h-4 text-[#00BFA6]" /> {hotel.name}
-                  </div>
-                </div>
-
-                {/* Address Card */}
-                <div className="p-5 bg-white/80 backdrop-blur-sm rounded-2xl border-2 border-[#00BFA6]/20 relative z-10">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-[#00BFA6]/10 flex items-center justify-center flex-shrink-0">
-                      <MapPin className="w-5 h-5 text-[#00BFA6]" />
-                    </div>
-                    <div className="flex-1">
+                    <div className="p-4 sm:p-5 bg-white/80 rounded-2xl border-2 border-[#00BFA6]/20">
                       <p className="font-bold text-[#263238] mb-1">Address</p>
-                      <p className="text-sm md:text-base text-[#546E7A] leading-relaxed">
-                        {hotel.location?.address}, {hotel.location?.city}
-                      </p>
+                      <p className="text-sm md:text-base text-[#546E7A] leading-relaxed break-words">{[hotel.location?.address, hotel.location?.city, hotel.location?.country].filter(Boolean).join(', ')}</p>
+                      <a href={mapsHref} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex items-center justify-center gap-2 min-h-[48px] px-5 rounded-xl border-2 border-[#00BFA6] text-[#00A896] font-bold hover:bg-[#00BFA6]/10">
+                        <ExternalLink className="w-4 h-4" aria-hidden="true" /> Open in Google Maps
+                      </a>
                     </div>
-                  </div>
-                </div>
-              </section>
+                  </section>
                 </div>
 
-                <div className="hidden lg:flex w-full lg:w-[34%] justify-end animate-[slideInRight_0.8s_ease]">
-                  <BookingSidebar
-                    pricePerNight={booking.pricePerNight}
-                    nights={booking.nights}
-                    taxesAndFees={booking.taxesAndFees}
-                    guests={booking.guests}
-                    freeCancellationDate={booking.freeCancellationDate}
-                    hotelName={hotel.name}
-                    hotelAddress={[hotel?.location?.address, hotel?.location?.city].filter(Boolean).join(', ')}
-                    hotelImage={hotel.images?.[0]}
-                    hotelId={hotel._id}
-                    roomId={selectedRoom?._id || selectedRoom?.id}
-                  />
+                {/* One BookingSidebar instance: the sticky card on desktop, a bottom sheet on phones/tablets. */}
+                <div className="w-full lg:w-[34%] lg:flex lg:justify-end">
+                  <div
+                    className={mobileBookingOpen ? 'fixed inset-0 z-[130] flex items-end bg-black/45 lg:static lg:z-auto lg:block lg:bg-transparent lg:w-full' : 'hidden lg:block lg:w-full'}
+                    onMouseDown={(e) => { if (e.target === e.currentTarget) setMobileBookingOpen(false); }}
+                  >
+                    <div
+                      role={mobileBookingOpen ? 'dialog' : undefined}
+                      aria-modal={mobileBookingOpen ? 'true' : undefined}
+                      aria-label={mobileBookingOpen ? 'Book this room' : undefined}
+                      className="w-full max-h-[calc(100vh-16px)] max-h-[calc(100dvh-16px)] overflow-y-auto overscroll-contain rounded-t-3xl bg-[#F8FAFB] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:max-h-none lg:overflow-visible lg:rounded-none lg:bg-transparent lg:p-0 lg:h-full"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setMobileBookingOpen(false)}
+                        className="lg:hidden ml-auto mb-2 h-11 w-11 rounded-full bg-white border border-gray-200 flex items-center justify-center"
+                        aria-label="Close booking panel"
+                      >
+                        <X className="w-5 h-5 text-gray-700" />
+                      </button>
+                      {sidebar}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
+
+            {/* Sticky reserve bar for phones/tablets */}
+            {!mobileBookingOpen && selectedRoom && (
+              <div className="lg:hidden fixed bottom-0 inset-x-0 z-[90] bg-white/95 backdrop-blur border-t border-[rgba(0,191,166,0.25)] shadow-[0_-8px_24px_rgba(0,0,0,0.08)] px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+                <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-xs text-[#546E7A] truncate">{selectedRoom.roomName || selectedRoom.title || 'Room'}</p>
+                    <p className="text-lg font-extrabold text-[#263238] tabular-nums">{formatRs(pricePerNight)}<span className="text-sm font-medium text-[#546E7A]"> / night</span></p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setMobileBookingOpen(true)}
+                    className="min-h-[48px] px-6 rounded-xl text-white font-bold shadow-lg shadow-[#00BFA6]/30 whitespace-nowrap"
+                    style={{ background: 'linear-gradient(135deg, #00BFA6, #00E5CC)' }}
+                  >
+                    {isSoldOut(selectedRoom) ? 'Change dates' : 'Reserve'}
+                  </button>
+                </div>
+              </div>
+            )}
           </>
         )}
       </main>
-
-      {mobileBookingOpen && hotel && (
-        <div className="lg:hidden fixed inset-0 z-130 bg-black/45 flex items-end">
-          <div className="w-full max-h-[86vh] overflow-y-auto rounded-t-3xl bg-white p-4">
-            <button
-              type="button"
-              onClick={() => setMobileBookingOpen(false)}
-              className="ml-auto h-9 w-9 rounded-full bg-gray-100 flex items-center justify-center"
-              aria-label="Close booking panel"
-            >
-              <X className="w-5 h-5 text-gray-700" />
-            </button>
-            <BookingSidebar
-              pricePerNight={booking.pricePerNight}
-              nights={booking.nights}
-              taxesAndFees={booking.taxesAndFees}
-              guests={booking.guests}
-              freeCancellationDate={booking.freeCancellationDate}
-              hotelName={hotel.name}
-              hotelAddress={[hotel?.location?.address, hotel?.location?.city].filter(Boolean).join(', ')}
-              hotelImage={hotel.images?.[0]}
-              hotelId={hotel._id}
-              roomId={selectedRoom?._id || selectedRoom?.id}
-            />
-          </div>
-        </div>
-      )}
-
-      <style>{`
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes fadeInUp { from { opacity: 0; transform: translateY(18px);} to { opacity:1; transform: translateY(0);} }
-        @keyframes slideInRight { from { opacity:0; transform: translateX(20px);} to { opacity:1; transform: translateX(0);} }
-      `}</style>
     </div>
   );
 };

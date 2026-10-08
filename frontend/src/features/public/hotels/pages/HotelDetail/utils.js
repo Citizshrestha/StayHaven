@@ -5,5 +5,5 @@ export const formatPriceToNPR = (usdPrice) => {
 };
 
 export const formatReviewCount = (count) => {
-  return `(${count.toLocaleString()} reviews)`;
+  return `(${Number(count || 0).toLocaleString()} reviews)`;
 };

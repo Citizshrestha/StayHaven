@@ -23,6 +23,8 @@ const TabNavigation = ({ activeTab, onTabChange }) => {
           return (
           <button
             key={tab.id}
+            type="button"
+            aria-current={isActive ? 'true' : undefined}
             onClick={() => handleTabClick(tab.id)}
             className={`whitespace-nowrap px-4 md:px-6 py-4 text-sm font-semibold transition-all duration-300 border-b-[3px] ${
               isActive

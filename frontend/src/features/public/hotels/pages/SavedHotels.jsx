@@ -5,8 +5,10 @@ import { getWishlist, toggleWishlist as toggleWishlistApi } from '../../../../co
 import { getAllHotels } from '../../../../core/api/services/hotel.service';
 import { allProperties } from '../../../../core/utils/allProperties';
 import { toast } from 'react-toastify';
+import { usePageMeta } from '../lib/pageMeta';
 
 const SavedHotels = () => {
+  usePageMeta({ title: "Saved hotels", description: "Hotels you saved on StayHaven." });
   const navigate = useNavigate();
   const [savedHotels, setSavedHotels] = useState([]);
   const [isLoading, setIsLoading] = useState(true);

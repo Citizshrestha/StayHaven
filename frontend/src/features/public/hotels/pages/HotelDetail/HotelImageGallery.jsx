@@ -2,11 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Download, Heart, Share2, X } from 'lucide-react';
 import { toast } from 'react-toastify';
 
-const CATEGORY_LABELS = ['Pool', 'Room', 'Dining', 'Exterior', 'Spa'];
-
 const mod = (n, m) => ((n % m) + m) % m;
 
-const HotelImageGallery = ({ images = [], isFavorite = false, onToggleFavorite }) => {
+const HotelImageGallery = ({ images = [], hotelName = 'Hotel', isFavorite = false, onToggleFavorite, onShare }) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState(null);
 
@@ -14,6 +12,7 @@ const HotelImageGallery = ({ images = [], isFavorite = false, onToggleFavorite }
   const dragLastX = useRef(0);
   const dragStartAt = useRef(0);
   const isDragging = useRef(false);
+  const didSwipe = useRef(false);
   const dialogRef = useRef(null);
   const isOpen = lightboxIndex !== null;
 
@@ -43,6 +42,7 @@ const HotelImageGallery = ({ images = [], isFavorite = false, onToggleFavorite }
   }, [isOpen]);
 
   const shareHotel = async () => {
+    if (onShare) { onShare(); return; }
     try {
       if (navigator.share) await navigator.share({ title: document.title, url: window.location.href });
       else {
@@ -57,8 +57,8 @@ const HotelImageGallery = ({ images = [], isFavorite = false, onToggleFavorite }
   const labeledImages = useMemo(() => {
     const validImages = Array.isArray(images) ? images.filter((src) => typeof src === 'string' && src.trim()) : [];
     const safeImages = validImages.length ? validImages : ['/images/hotel-1.jpg'];
-    return safeImages.map((src, idx) => ({ src, label: CATEGORY_LABELS[idx % CATEGORY_LABELS.length] }));
-  }, [images]);
+    return safeImages.map((src, idx) => ({ src, label: `${hotelName} photo ${idx + 1} of ${safeImages.length}` }));
+  }, [images, hotelName]);
 
   const goToPrev = useCallback(() => setActiveIndex((prev) => mod(prev - 1, labeledImages.length)), [labeledImages.length]);
   const goToNext = useCallback(() => setActiveIndex((prev) => mod(prev + 1, labeledImages.length)), [labeledImages.length]);
@@ -77,6 +77,7 @@ const HotelImageGallery = ({ images = [], isFavorite = false, onToggleFavorite }
     dragLastX.current = event.clientX ?? 0;
     dragStartAt.current = Date.now();
     isDragging.current = true;
+    didSwipe.current = false;
   };
 
   const onPointerMove = (event) => {
@@ -92,6 +93,7 @@ const HotelImageGallery = ({ images = [], isFavorite = false, onToggleFavorite }
     const velocity = Math.abs(deltaX / elapsed);
     const shouldMove = Math.abs(deltaX) > 55 || velocity > 0.55;
     if (!shouldMove) return;
+    didSwipe.current = true; // a swipe must not also count as a tap that opens the lightbox
     if (lightboxIndex !== null) {
       if (deltaX < 0) goLightboxNext();
       if (deltaX > 0) goLightboxPrev();
@@ -121,7 +123,7 @@ const HotelImageGallery = ({ images = [], isFavorite = false, onToggleFavorite }
     <>
       <div className="w-full rounded-[20px] overflow-hidden relative border border-[rgba(0,191,166,0.15)] shadow-[0_4px_16px_rgba(0,0,0,0.06)] bg-white p-3 md:p-5">
         <div
-          className="relative grid grid-cols-[54px_1fr_54px] md:grid-cols-[86px_1fr_86px] gap-2 md:gap-4 items-center"
+          className="relative grid grid-cols-1 sm:grid-cols-[54px_1fr_54px] md:grid-cols-[86px_1fr_86px] gap-2 md:gap-4 items-center"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
@@ -132,35 +134,36 @@ const HotelImageGallery = ({ images = [], isFavorite = false, onToggleFavorite }
             type="button"
             aria-label="Previous image"
             onClick={goToPrev}
-            className="h-11 w-11 md:h-14 md:w-14 rounded-full border border-[rgba(0,191,166,0.22)] bg-white/90 flex items-center justify-center hover:bg-[#00BFA6] hover:text-white transition z-10"
+            className="hidden sm:flex h-11 w-11 md:h-14 md:w-14 rounded-full border border-[rgba(0,191,166,0.22)] bg-white/90 items-center justify-center hover:bg-[#00BFA6] hover:text-white transition z-10"
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
 
-          <div className="relative h-[260px] sm:h-[340px] md:h-[430px] flex items-center justify-center overflow-hidden rounded-2xl">
-            <div className="absolute left-0 md:left-4 top-1/2 -translate-y-1/2 w-[24%] h-[72%] rounded-xl overflow-hidden opacity-70 scale-[0.85] blur-[3px]">
-              <img src={prevImage.src} alt={prevImage.label} className="w-full h-full object-cover" />
+          <div className="relative h-[240px] min-[400px]:h-[280px] sm:h-[340px] md:h-[430px] flex items-center justify-center overflow-hidden rounded-2xl">
+            <div className="hidden sm:block absolute left-0 md:left-4 top-1/2 -translate-y-1/2 w-[24%] h-[72%] rounded-xl overflow-hidden opacity-70 scale-[0.85] blur-[3px]">
+              <img src={prevImage.src} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
               <span className="absolute left-2 bottom-2 px-2 py-1 rounded-full text-[10px] font-semibold text-white bg-white/20 backdrop-blur-[10px] border border-white/40">
-                {prevImage.label}
+                {mod(activeIndex - 1, labeledImages.length) + 1}/{labeledImages.length}
               </span>
             </div>
 
             <button
               type="button"
-              onClick={() => openLightbox(activeIndex)}
-              className="gallery-image relative z-10 w-[56%] sm:w-[62%] h-[82%] rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,191,166,0.22)] transition-transform duration-500"
+              onClick={() => { if (!didSwipe.current) openLightbox(activeIndex); }}
+              aria-label={`Open photo ${activeIndex + 1} of ${labeledImages.length} full screen`}
+              className="gallery-image relative z-10 w-full sm:w-[62%] h-full sm:h-[82%] rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,191,166,0.22)] transition-transform duration-500"
               style={{ transform: 'perspective(1100px) rotateY(0deg) scale(1)' }}
             >
-              <img src={currentImage.src} alt={currentImage.label} className="w-full h-full object-cover" />
+              <img src={currentImage.src} alt={currentImage.label} fetchPriority="high" decoding="async" draggable={false} className="w-full h-full object-cover" />
               <span className="absolute left-3 bottom-3 px-3 py-1.5 rounded-full text-xs font-semibold text-white bg-white/20 backdrop-blur-[10px] border border-white/45">
-                {currentImage.label}
+                {mod(activeIndex, labeledImages.length) + 1}/{labeledImages.length}
               </span>
             </button>
 
-            <div className="absolute right-0 md:right-4 top-1/2 -translate-y-1/2 w-[24%] h-[72%] rounded-xl overflow-hidden opacity-70 scale-[0.85] blur-[3px]">
-              <img src={nextImage.src} alt={nextImage.label} className="w-full h-full object-cover" />
+            <div className="hidden sm:block absolute right-0 md:right-4 top-1/2 -translate-y-1/2 w-[24%] h-[72%] rounded-xl overflow-hidden opacity-70 scale-[0.85] blur-[3px]">
+              <img src={nextImage.src} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
               <span className="absolute left-2 bottom-2 px-2 py-1 rounded-full text-[10px] font-semibold text-white bg-white/20 backdrop-blur-[10px] border border-white/40">
-                {nextImage.label}
+                {mod(activeIndex + 1, labeledImages.length) + 1}/{labeledImages.length}
               </span>
             </div>
           </div>
@@ -169,7 +172,7 @@ const HotelImageGallery = ({ images = [], isFavorite = false, onToggleFavorite }
             type="button"
             aria-label="Next image"
             onClick={goToNext}
-            className="h-11 w-11 md:h-14 md:w-14 rounded-full border border-[rgba(0,191,166,0.22)] bg-white/90 flex items-center justify-center hover:bg-[#00BFA6] hover:text-white transition z-10"
+            className="hidden sm:flex h-11 w-11 md:h-14 md:w-14 rounded-full border border-[rgba(0,191,166,0.22)] bg-white/90 items-center justify-center hover:bg-[#00BFA6] hover:text-white transition z-10"
           >
             <ChevronRight className="h-5 w-5" />
           </button>
@@ -197,23 +200,24 @@ const HotelImageGallery = ({ images = [], isFavorite = false, onToggleFavorite }
           </div>
         </div>
 
-        <div className="mt-4 flex items-center justify-center gap-2">
+        <div className="mt-2 flex items-center justify-center gap-0 flex-wrap max-w-full">
           {labeledImages.map((_, idx) => (
             <button
               key={`dot-${idx}`}
               type="button"
               onClick={() => setActiveIndex(idx)}
               aria-label={`Go to image ${idx + 1}`}
-              className={`h-2.5 rounded-full transition-all duration-300 ${
-                idx === activeIndex ? 'w-6 bg-[#00BFA6]' : 'w-2.5 bg-[#B0BEC5]'
-              }`}
-            />
+              aria-current={idx === activeIndex ? 'true' : undefined}
+              className="h-11 min-w-[24px] px-1 flex items-center justify-center"
+            >
+              <span className={`block h-2.5 rounded-full transition-all duration-300 ${idx === activeIndex ? 'w-6 bg-[#00BFA6]' : 'w-2.5 bg-[#B0BEC5]'}`} />
+            </button>
           ))}
         </div>
 
-        <p className="text-center text-xs sm:text-sm mt-3 font-medium text-[#546E7A]">──── drag to explore ────</p>
+        <p className="text-center text-xs sm:text-sm mt-1 mb-10 sm:mb-0 font-medium text-[#546E7A]">Swipe or drag to explore</p>
 
-        <button type="button" onClick={() => openLightbox(activeIndex)} className="view-all-btn absolute bottom-4 right-4">
+        <button type="button" onClick={() => openLightbox(activeIndex)} className="view-all-btn absolute bottom-3 right-3 sm:bottom-4 sm:right-4 min-h-[44px] !px-4 !py-2 !text-sm">
           View all {labeledImages.length} photos
         </button>
       </div>
