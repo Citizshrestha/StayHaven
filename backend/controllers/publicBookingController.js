@@ -1,8 +1,13 @@
 import mongoose from "mongoose";
 import crypto from "crypto";
-import jsPDF from "jspdf";
-import "jspdf-autotable";
+import { jsPDF } from "jspdf";
+import { applyPlugin } from "jspdf-autotable";
 import QRCode from "qrcode";
+
+// jspdf-autotable v5 no longer patches jsPDF on import; doc.autoTable() only
+// exists once the plugin is applied explicitly (the old side-effect import left
+// the confirmation PDF endpoint throwing "jsPDF is not a constructor").
+applyPlugin(jsPDF);
 import { Booking } from "../models/booking.schema.js";
 import { Room } from "../models/room.schema.js";
 import { Hotel } from "../models/hotel.schema.js";
@@ -17,6 +22,7 @@ import { bookingQuote } from "../utils/paymentMoney.js";
 const logger = createLogger('PublicBookingController');
 import {
   createStripePaymentIntent,
+  cancelStripePaymentIntent,
 } from "../services/paymentGatewayService.js";
 
 // Helper function to generate unique booking ID
@@ -181,6 +187,22 @@ export const createBookingWithPayment = asyncHandler(async (req, res) => {
     if (!Number.isInteger(adults) || adults < 1 || adults > 10 || !Number.isInteger(children) || children < 0 || children > 8 || adults + children > room.maxGuests) {
       throw Object.assign(new Error('Invalid guest count or room capacity exceeded'), { status: 400 });
     }
+    // A guest who backs out of the card step ("Change payment method") or reloads and tries
+    // again must not be blocked by their OWN unpaid card hold on the same room. Only unpaid card
+    // checkouts of this guest are released (they carry a Stripe intent and no payment method yet);
+    // a submitted bank transfer or a wallet checkout may already have money in flight and is never touched.
+    const releasedIntents = [];
+    const ownHolds = await Booking.find({
+      user: authenticatedUser._id, room: roomId, status: "Pending", paymentStatus: "unpaid",
+      paymentMethod: { $in: [null, ""] }, paymentReference: /^pi_/,
+      checkIn: { $lt: new Date(checkOut) }, checkOut: { $gt: new Date(checkIn) },
+      paymentHoldExpiresAt: { $gt: new Date() },
+    }).session(session);
+    for (const hold of ownHolds) {
+      hold.paymentHoldExpiresAt = new Date();
+      await hold.save({ session });
+      releasedIntents.push(hold.paymentReference);
+    }
     // Check room availability within the same transaction as the inventory lock.
     const isAvailable = await checkRoomAvailability(roomId, checkIn, checkOut, session);
     if (!isAvailable) {
@@ -222,7 +244,10 @@ export const createBookingWithPayment = asyncHandler(async (req, res) => {
       },
       totalAmount,
       priceBreakdown,
-      ...(paymentMethod === "card" ? { paymentHoldExpiresAt: new Date(Date.now() + 60 * 60 * 1000) } : {}),
+      // Every unpaid online booking holds its room only for a limited time. Card checkouts get
+      // 1 hour; manual bank transfers get 48 hours to be verified. Without an expiry a single
+      // account could keep a room off the market forever with an unverified transfer.
+      paymentHoldExpiresAt: new Date(Date.now() + (paymentMethod === "card" ? 60 : 48 * 60) * 60 * 1000),
       currency: "NPR",
       status: "Pending", // Will be updated to Confirmed after payment
       paymentStatus: "unpaid",
@@ -252,6 +277,9 @@ export const createBookingWithPayment = asyncHandler(async (req, res) => {
         paymentResult = await createStripePaymentIntent({
           amount: totalAmount,
           currency: "npr",
+          // Cards only: the checkout confirms in-page (3-D Secure opens in Stripe's overlay), so
+          // redirect-based methods that would leave the page can never be offered.
+          cardOnly: true,
           metadata: {
             bookingId: booking._id.toString(),
             bookingRef: booking.bookingId,
@@ -263,6 +291,8 @@ export const createBookingWithPayment = asyncHandler(async (req, res) => {
         await booking.save({ session });
 
         await session.commitTransaction();
+        // Superseded checkouts can no longer be paid. Best effort, never blocks the new one.
+        releasedIntents.forEach((id) => { cancelStripePaymentIntent(id); });
 
         return res.status(200).json({
           success: true,
@@ -360,13 +390,22 @@ export const createBookingWithPayment = asyncHandler(async (req, res) => {
         });
       }
     } catch (paymentError) {
-      console.error("Payment processing error:", paymentError);
-      console.error("Payment error stack:", paymentError.stack);
+      logger.error("Payment processing error", { message: paymentError?.message, code: paymentError?.code });
       // Only abort if transaction is still active
       if (session.inTransaction()) {
         await session.abortTransaction();
       }
-      throw Object.assign(new Error(`Payment failed: ${paymentError.message}`), { status: 400 });
+      // A bank-transfer reference is unique per transfer; reusing a receipt for a second booking is refused.
+      if (paymentError?.code === 11000) {
+        throw Object.assign(new Error("This bank transfer reference has already been used. Enter the reference from your own transfer receipt."), { status: 409 });
+      }
+      // Validation errors raised on purpose carry their own status and a user-safe message.
+      if (Number.isInteger(paymentError?.status) && paymentError.status >= 400 && paymentError.status < 500) throw paymentError;
+      if (/not configured/i.test(paymentError?.message || "")) {
+        throw Object.assign(new Error("Card payments are currently unavailable. Please choose another payment method."), { status: 503 });
+      }
+      // Anything else (gateway SDK, driver) can contain provider details; never echo it to the browser.
+      throw Object.assign(new Error("Payment could not be started. Please try again or choose another payment method."), { status: 502 });
     }
   } catch (error) {
     console.error("Booking creation error:", error);
@@ -436,7 +475,7 @@ export const generateBookingConfirmationPDF = asyncHandler(async (req, res) => {
 
   // Find booking by MongoDB _id
   const booking = await Booking.findById(bookingId)
-    .populate('hotel', 'name location phone email images')
+    .populate('hotel', 'name location contact images')
     .populate('room', 'roomName title price')
     .lean();
 
@@ -444,9 +483,10 @@ export const generateBookingConfirmationPDF = asyncHandler(async (req, res) => {
     throw Object.assign(new Error("Booking not found"), { status: 404 });
   }
 
-  // Generate QR code for booking verification
-  const bookingUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/booking/${booking._id}`;
-  const qrCodeDataUrl = await QRCode.toDataURL(bookingUrl, {
+  // QR for front-desk check-in: it carries only the booking reference. (It used to
+  // encode a /booking/:id URL that no frontend route serves.)
+  const isConfirmed = ['Confirmed', 'Checked-In', 'Checked-Out'].includes(booking.status);
+  const qrCodeDataUrl = await QRCode.toDataURL(String(booking.confirmationCode || booking.bookingId), {
     width: 200,
     margin: 1,
     color: {
@@ -461,18 +501,20 @@ export const generateBookingConfirmationPDF = asyncHandler(async (req, res) => {
   // Colors
   const primaryColor = [13, 148, 136]; // teal-600
   const secondaryColor = [100, 116, 139]; // slate-600
-  const successColor = [16, 185, 129]; // green-500
 
   // Header with hotel name
   doc.setFillColor(...primaryColor);
   doc.rect(0, 0, 210, 50, 'F');
 
-  // Add hotel logo if available
-  if (booking.hotel?.images?.[0]) {
+  // Hotel images are remote URLs, which jsPDF cannot fetch (in Node it would try to read the
+  // string as a LOCAL FILE PATH, which is exactly what must never happen with owner-supplied
+  // text), so only an inline data: image is drawn.
+  const logo = /^data:image\/(png|jpe?g);base64,/i.test(booking.hotel?.images?.[0] || '') ? booking.hotel.images[0] : null;
+  if (logo) {
     try {
-      doc.addImage(booking.hotel.images[0], 'JPEG', 15, 10, 25, 25);
+      doc.addImage(logo, /png/i.test(logo.slice(0, 20)) ? 'PNG' : 'JPEG', 15, 10, 25, 25);
     } catch (err) {
-      console.error('Failed to add hotel logo to PDF:', err);
+      logger.warn('Failed to add hotel logo to PDF', { message: err?.message });
     }
   }
 
@@ -480,38 +522,36 @@ export const generateBookingConfirmationPDF = asyncHandler(async (req, res) => {
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(22);
   doc.setFont(undefined, 'bold');
-  doc.text(booking.hotel?.name || 'StayHaven', booking.hotel?.images?.[0] ? 45 : 20, 20);
+  doc.text(booking.hotel?.name || 'StayHaven', logo ? 45 : 20, 20);
 
   doc.setFontSize(9);
   doc.setFont(undefined, 'normal');
-  doc.text(booking.hotel?.location?.address || '', booking.hotel?.images?.[0] ? 45 : 20, 28);
-  doc.text(`Phone: ${booking.hotel?.phone || 'N/A'} | Email: ${booking.hotel?.email || 'N/A'}`, booking.hotel?.images?.[0] ? 45 : 20, 34);
+  doc.text(booking.hotel?.location?.address || '', logo ? 45 : 20, 28);
+  doc.text(`Phone: ${booking.hotel?.contact?.phone || 'N/A'} | Email: ${booking.hotel?.contact?.email || 'N/A'}`, logo ? 45 : 20, 34);
 
   // Add QR code (top right)
   doc.addImage(qrCodeDataUrl, 'PNG', 165, 10, 30, 30);
   doc.setFontSize(7);
   doc.setTextColor(255, 255, 255);
-  doc.text('Scan to view', 180, 43, { align: 'center' });
-
-  // Confirmation badge
-  doc.setFillColor(...successColor);
-  doc.roundedRect(150, 10, 12, 12, 2, 2, 'F');
-  doc.setFontSize(8);
-  doc.setFont(undefined, 'bold');
-  doc.text('✓', 154, 18);
+  doc.text('Show at check-in', 180, 43, { align: 'center' });
 
   // Reset text color
   doc.setTextColor(0, 0, 0);
 
-  // Booking confirmation section
+  // Booking confirmation section: wording follows the real booking status.
   doc.setFontSize(18);
   doc.setFont(undefined, 'bold');
-  doc.text('Booking Confirmation', 20, 65);
+  doc.text(isConfirmed ? 'Booking Confirmation' : 'Booking Summary', 20, 65);
 
   doc.setFontSize(11);
   doc.setFont(undefined, 'normal');
   doc.setTextColor(...secondaryColor);
-  doc.text('Thank you for choosing us! Your booking has been confirmed.', 20, 73);
+  doc.text(
+    isConfirmed
+      ? 'Thank you for choosing us! Your booking has been confirmed.'
+      : `This booking is ${String(booking.status).toLowerCase()} and is not confirmed until payment is verified.`,
+    20, 73,
+  );
 
   // Confirmation details box with background
   doc.setDrawColor(...primaryColor);
@@ -597,14 +637,18 @@ export const generateBookingConfirmationPDF = asyncHandler(async (req, res) => {
   doc.setFont(undefined, 'bold');
   doc.text('Payment Summary', 20, doc.lastAutoTable.finalY + 15);
 
-  const subtotal = booking.totalAmount / 1.12; // Assuming 12% tax
-  const tax = booking.totalAmount - subtotal;
+  // Use the quote stored at booking time (nights x rate + 12% fee) instead of
+  // re-deriving it, and report what was actually paid (not the full total).
+  const quote = booking.priceBreakdown?.totalPaisa != null ? booking.priceBreakdown : null;
+  const subtotal = quote ? quote.subtotalPaisa / 100 : booking.totalAmount / 1.12;
+  const tax = quote ? quote.taxPaisa / 100 : booking.totalAmount - subtotal;
+  const paid = booking.paymentStatus === 'paid' ? (booking.paidAmount ?? booking.totalAmount) : (booking.paidAmount || 0);
 
   const paymentData = [
     ['Room Charges', `NPR ${subtotal.toFixed(2)}`],
-    ['Taxes & Fees (12%)', `NPR ${tax.toFixed(2)}`],
+    [`Taxes & Fees (${quote?.taxRate ?? 12}%)`, `NPR ${tax.toFixed(2)}`],
     ['Total Amount', `NPR ${booking.totalAmount.toFixed(2)}`],
-    ['Amount Paid', `NPR ${(booking.paidAmount || booking.totalAmount).toFixed(2)}`],
+    ['Amount Paid', `NPR ${paid.toFixed(2)}`],
     ['Payment Method', booking.paymentMethod || 'N/A'],
   ];
 
@@ -670,12 +714,12 @@ export const generateBookingConfirmationPDF = asyncHandler(async (req, res) => {
   doc.setFontSize(10);
   doc.setFont(undefined, 'bold');
   doc.setTextColor(0, 0, 0);
-  doc.text('Scan to View Booking Online', 20, yPos + 8);
+  doc.text('Quick check-in', 20, yPos + 8);
 
   doc.setFontSize(8);
   doc.setFont(undefined, 'normal');
   doc.setTextColor(...secondaryColor);
-  doc.text('Use your phone camera to scan the QR code at the top of this document', 20, yPos + 13);
+  doc.text('Show the QR code at the top of this document (it contains your booking reference) at reception', 20, yPos + 13);
 
   // Footer
   doc.setDrawColor(...primaryColor);
