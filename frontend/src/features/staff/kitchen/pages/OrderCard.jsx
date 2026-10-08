@@ -1,656 +1,246 @@
-import { useState, useEffect, useMemo } from "react";
-import { X, ChevronRight, Clock, User, Check, CheckCircle2, Eye } from "lucide-react";
-import ItemCarousel from "../../../../shared/components/ItemCarousel";
-import useRelativeTime from "../../../../core/hooks/useRelativeTime";
+import { memo, useEffect, useRef, useState } from "react";
+import { toast } from "react-toastify";
+import { AlertTriangle, Ban, Bell, CheckCircle2, ChefHat, Eye, Loader2, UtensilsCrossed, X } from "lucide-react";
 import OrderDetailsModal from "../../waiter/pages/order/OrderDetailsModal";
+import { formatElapsed, nowMs, overdueLevel, useTick } from "./kitchenClock";
 
-const OrderCard = ({ order, onUpdateOrderStatus, isDarkMode = false }) => {
-  const [showStatusModal, setShowStatusModal] = useState(false);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const placedAtRelativeTime = useRelativeTime(order?.placedAt, true);
+// Status vocabulary follows the shared contract (rules G): pending = amber,
+// confirmed = blue, preparing = purple, ready = green, served = teal,
+// cancelled = red. Colour is always paired with a label and an icon.
+const STATUS_META = {
+  new: { key: "pending", label: "New", Icon: Bell },
+  pending: { key: "pending", label: "New", Icon: Bell },
+  confirmed: { key: "confirmed", label: "Accepted", Icon: CheckCircle2 },
+  preparing: { key: "preparing", label: "Cooking", Icon: ChefHat },
+  ready: { key: "ready", label: "Ready", Icon: CheckCircle2 },
+  delivered: { key: "delivered", label: "Served", Icon: UtensilsCrossed },
+  cancelled: { key: "cancelled", label: "Cancelled", Icon: Ban },
+};
 
-  useEffect(() => {
-    const checkScreenSize = () => setIsMobile(window.innerWidth < 768);
-    checkScreenSize();
-    window.addEventListener('resize', checkScreenSize);
-    return () => window.removeEventListener('resize', checkScreenSize);
-  }, []);
+const TYPE_LABEL = { dineIn: "Dine-in", takeaway: "Takeaway", roomService: "Room service" };
+const ALLERGY_PATTERN = /allerg|\bnuts?\b|peanut|gluten|dairy|lactose|shellfish|celiac|coeliac/i;
 
-  // Dark mode colors
-  const colors = {
-    card: isDarkMode ? "#1E293B" : "white",
-    cardBorder: isDarkMode ? "#334155" : "#E5E7EB",
-    text: isDarkMode ? "#F8FAFC" : "#111827",
-    textSecondary: isDarkMode ? "#94A3B8" : "#6B7280",
-    notesBg: isDarkMode ? "#422006" : "#FFFBEB",
-    notesBorder: isDarkMode ? "#F59E0B" : "#F59E0B",
-    notesText: isDarkMode ? "#FCD34D" : "#B45309",
-    notesContent: isDarkMode ? "#FDE68A" : "#78350F",
-    completedBg: isDarkMode ? "rgba(5, 150, 105, 0.1)" : "#ECFDF5",
-    completedBorder: isDarkMode ? "rgba(5, 150, 105, 0.3)" : "#A7F3D0",
-    completedText: isDarkMode ? "#6EE7B7" : "#059669",
+const toTime = (value) => {
+  const t = value ? Date.parse(value) : NaN;
+  return Number.isNaN(t) ? null : t;
+};
+
+const formatClock = (ms) =>
+  ms == null ? "" : new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+// Live mm:ss. Its own 1s subscription, so the ticket around it does not
+// re-render every second.
+const Elapsed = ({ since, className = "" }) => {
+  useTick(1000);
+  if (since == null) return null;
+  return <span className={`kd-elapsed ${className}`}>{formatElapsed(nowMs() - since)}</span>;
+};
+
+const OrderCard = ({ order, onUpdateOrderStatus, onResync, onDismiss, isDarkMode = false, isFresh = false }) => {
+  const [busy, setBusy] = useState(false);
+  const [armed, setArmed] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
+  const armTimer = useRef(null);
+  useTick(30000); // refresh overdue colouring every 30s
+
+  useEffect(() => () => clearTimeout(armTimer.current), []);
+
+  const status = order?.status === "pending" ? "new" : order?.status;
+  const meta = STATUS_META[status] || { key: "pending", label: status || "Unknown", Icon: Bell };
+  const isCancelled = status === "cancelled";
+  const isDone = status === "delivered";
+  const placedAt = toTime(order?.placedAt || order?.createdAt);
+  const statusSince = toTime(order?.startedPreparingAt) ?? toTime(order?.updatedAt) ?? placedAt;
+  const ageSource = status === "preparing" || status === "ready" ? statusSince : placedAt;
+  const level = isCancelled || isDone || ageSource == null ? "ok" : overdueLevel(status, nowMs() - ageSource);
+  const isUrgent = (order?.priority || "").toLowerCase() === "high";
+
+  const items = Array.isArray(order?.items) ? order.items : [];
+  const where = order?.table || (order?.orderType ? TYPE_LABEL[order.orderType] : "Order");
+  const orderNo = order?.orderNumber || order?.id?.slice?.(-5)?.toUpperCase() || order?.id;
+  const lineNotes = items.filter((i) => i.notes);
+  const hasAllergy = [order?.notes, ...lineNotes.map((i) => i.notes)].some((n) => n && ALLERGY_PATTERN.test(n));
+
+  const primary =
+    status === "new" || status === "confirmed"
+      ? { next: "preparing", label: "Start cooking", busyLabel: "Starting…", Icon: ChefHat, confirm: false }
+      : status === "preparing"
+        ? { next: "ready", label: "Mark ready", busyLabel: "Marking ready…", Icon: CheckCircle2, confirm: true }
+        : null;
+
+  const disarm = () => {
+    clearTimeout(armTimer.current);
+    setArmed(false);
   };
 
-  const isHighPriority = (order?.priority || "").toLowerCase() === "high";
-
-  const getCompletionDate = (o) => {
-    const raw = o?.deliveredAt || o?.servedAt || o?.updatedAt;
-    if (!raw) return null;
-    const d = raw instanceof Date ? raw : new Date(raw);
-    return Number.isNaN(d.getTime()) ? null : d;
-  };
-
-  const formatCompletionTime = (o) => {
-    const d = getCompletionDate(o);
-    if (!d) return "";
-
-    const now = new Date();
-    const diffMs = now - d;
-    const diffMins = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    // Less than 1 minute
-    if (diffMins < 1) return "Just now";
-
-    // Less than 1 hour - show minutes
-    if (diffMins < 60) return `${diffMins} min${diffMins > 1 ? 's' : ''} ago`;
-
-    // Less than 24 hours - show hours
-    if (diffHours < 24) {
-      const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-      return `Today at ${time}`;
-    }
-
-    // Yesterday
-    if (diffDays === 1) {
-      const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-      return `Yesterday at ${time}`;
-    }
-
-    // Within a week - show day name
-    if (diffDays < 7) {
-      const dayName = d.toLocaleDateString('en-US', { weekday: 'long' });
-      const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-      return `${dayName} at ${time}`;
-    }
-
-    // More than a week - show full date
-    const day = d.getDate();
-    const month = d.toLocaleString('en-US', { month: 'short' });
-    const year = d.getFullYear();
-    const currentYear = now.getFullYear();
-    const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    
-    // Only show year if it's different from current year
-    if (year !== currentYear) {
-      return `${day} ${month}, ${year} at ${time}`;
-    }
-    return `${day} ${month} at ${time}`;
-  };
-
-  const handleUpdateStatus = () => {
-    if (order?.status === "delivered") return;
-    setShowStatusModal(true);
-  };
-
-  const confirmUpdate = () => {
-    const nextStatus = order.status === "new" ? "preparing" : "ready";
-    setShowStatusModal(false);
-    onUpdateOrderStatus(order.id, nextStatus);
-  };
-
-  const getStatusDuration = (order) => {
-    const now = new Date();
-
-    // Helper function to format duration nicely
-    const formatDuration = (diffMins) => {
-      if (diffMins < 1) return "Just now";
-      if (diffMins < 60) return `${diffMins}m`;
-      const hours = Math.floor(diffMins / 60);
-      const mins = diffMins % 60;
-      if (hours < 24) {
-        return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
-      }
-      const days = Math.floor(hours / 24);
-      const remHours = hours % 24;
-      return remHours > 0 ? `${days}d ${remHours}h` : `${days}d`;
-    };
-
-    // For "preparing" status, show how long it's been preparing
-    if (order.status === "preparing" && order.startedPreparingAt) {
-      const startTime = new Date(order.startedPreparingAt);
-      const diffMins = Math.floor((now - startTime) / 60000);
-      const duration = formatDuration(diffMins);
-      return duration === "Just now" ? `Preparing - Just now` : `Preparing for ${duration}`;
-    }
-
-    // For "ready" status, show how long it's been ready
-    else if (order.status === "ready" && order.readyAt) {
-      const readyTime = new Date(order.readyAt);
-      const diffMins = Math.floor((now - readyTime) / 60000);
-      const duration = formatDuration(diffMins);
-      return duration === "Just now" ? `Ready - Just now` : `Ready for ${duration}`;
-    }
-
-    // For "delivered" status, show completion time
-    else if (order.status === "delivered") {
-      const t = formatCompletionTime(order);
-      return t ? `Served at ${t}` : "Completed";
-    }
-
-    // For "new" or other status, use relative time
-    return placedAtRelativeTime;
-  };
-
-  // Helper to get items display text (supports both old string and new array format)
-  const getItemsDisplay = () => {
-    if (Array.isArray(order.items)) {
-      return order.items.map(item => `${item.quantity}× ${item.name}`).join(", ");
-    }
-    return order.itemsText || order.items || "";
-  };
-
-  // Get total item count
-  const getTotalItemCount = () => {
-    if (Array.isArray(order.items)) {
-      return order.items.reduce((sum, item) => sum + item.quantity, 0);
-    }
-    return 0;
-  };
-
-  const getStatusStyles = (status) => {
-    // Status colors adjusted for dark mode
-    switch (status) {
-      case "new":
-      case "pending":
-        return {
-          backgroundColor: isDarkMode ? "rgba(37, 99, 235, 0.2)" : "#DBEAFE",
-          color: isDarkMode ? "#60A5FA" : "#2563EB",
-          label: "New Order"
-        };
-      case "preparing":
-        return {
-          backgroundColor: isDarkMode ? "rgba(217, 119, 6, 0.2)" : "#FEF3C7",
-          color: isDarkMode ? "#FBBF24" : "#D97706",
-          label: "Preparing"
-        };
-      case "ready":
-        return {
-          backgroundColor: isDarkMode ? "rgba(5, 150, 105, 0.2)" : "#D1FAE5",
-          color: isDarkMode ? "#34D399" : "#059669",
-          label: "Ready"
-        };
-      case "delivered":
-        return {
-          backgroundColor: isDarkMode ? "rgba(5, 150, 105, 0.15)" : "#D1FAE5",
-          color: isDarkMode ? "#6EE7B7" : "#059669",
-          label: "Delivered",
-          showCheck: true,
-        };
-      default:
-        return {
-          backgroundColor: isDarkMode ? "#334155" : "#F3F4F6",
-          color: isDarkMode ? "#94A3B8" : "#4B5563",
-          label: status
-        };
+  const run = async () => {
+    if (!primary || busy) return;
+    disarm();
+    setBusy(true);
+    try {
+      await onUpdateOrderStatus(order.id, primary.next);
+    } catch (err) {
+      // 409/400 mean someone else (another chef, a waiter, the guest) already
+      // moved or cancelled the ticket: show the server's message and resync.
+      toast.error(err?.message || "Could not update the order", { toastId: `kd-err-${order.id}` });
+      onResync?.();
+    } finally {
+      setBusy(false);
     }
   };
 
-  const statusStyle = getStatusStyles(order.status);
-
-  // Flag orders sitting in "new"/"pending" for over 5 minutes so kitchen
-  // staff can spot ones at risk of being missed during a rush.
-  const isStalePending = useMemo(() => {
-    if (order.status !== "new" && order.status !== "pending") return false;
-    const placedAt = order?.placedAt || order?.createdAt;
-    if (!placedAt) return false;
-    const diffMins = (Date.now() - new Date(placedAt).getTime()) / 60000;
-    return diffMins > 5;
-  }, [order.status, order.placedAt, order.createdAt, placedAtRelativeTime]);
-
-  // Flag orders stuck in "preparing" for over 20 minutes — likely forgotten
-  // or blocked, needs kitchen attention.
-  const isStalePreparing = useMemo(() => {
-    if (order.status !== "preparing") return false;
-    const since = order?.startedPreparingAt || order?.updatedAt || order?.placedAt || order?.createdAt;
-    if (!since) return false;
-    const diffMins = (Date.now() - new Date(since).getTime()) / 60000;
-    return diffMins > 20;
-  }, [order.status, order.startedPreparingAt, order.updatedAt, order.placedAt, order.createdAt, placedAtRelativeTime]);
-
-  const staleBg = isStalePreparing
-    ? (isDarkMode ? "rgba(220, 38, 38, 0.08)" : "#FEF2F2")
-    : isStalePending
-      ? (isDarkMode ? "rgba(217, 119, 6, 0.08)" : "#FFFBEB")
-      : colors.card;
-  const staleBorder = isStalePreparing
-    ? "1px solid #DC2626"
-    : isStalePending
-      ? "1px solid #F59E0B"
-      : `1px solid ${colors.cardBorder}`;
-
-  const cardStyle = {
-    backgroundColor: staleBg,
-    borderRadius: isMobile ? "16px" : "24px",
-    padding: isMobile ? "16px" : "24px",
-    display: "flex",
-    flexDirection: isMobile ? "column" : "row",
-    gap: isMobile ? "16px" : "24px",
-    boxShadow: isDarkMode
-      ? "0 4px 6px -1px rgba(0, 0, 0, 0.3)"
-      : "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-    border: staleBorder,
-    transition: "all 0.2s ease",
+  const onPrimary = () => {
+    if (!primary) return;
+    if (primary.confirm && !armed) {
+      // "Ready" cannot be undone (the server refuses backward moves), so the
+      // first tap arms the button and a second tap within 4s confirms.
+      setArmed(true);
+      armTimer.current = setTimeout(() => setArmed(false), 4000);
+      return;
+    }
+    run();
   };
 
-  const badgeStyle = {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: "4px",
-    padding: "4px 12px",
-    borderRadius: "8px",
-    fontSize: "12px",
-    fontWeight: "700",
-    backgroundColor: statusStyle.backgroundColor,
-    color: statusStyle.color,
-  };
-
-  const primaryButtonStyle = {
-    padding: "12px 32px",
-    backgroundColor: "#10B981",
-    color: "white",
-    borderRadius: "9999px",
-    fontWeight: "700",
-    fontSize: "14px",
-    border: "none",
-    cursor: "pointer",
-  };
+  const classes = [
+    "kd-ticket",
+    `kd-ticket--${meta.key}`,
+    level !== "ok" ? `kd-ticket--${level}` : "",
+    isUrgent ? "kd-ticket--urgent" : "",
+    isFresh ? "kd-ticket--fresh" : "",
+    isCancelled ? "kd-ticket--cancelled" : "",
+  ].filter(Boolean).join(" ");
 
   return (
-    <div style={cardStyle} data-order-id={order._id}>
-      <div style={{ flex: 1 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
-          <span style={badgeStyle}>
-            {statusStyle.showCheck && <Check size={14} />}
-            {statusStyle.label}
-          </span>
-          {/* Item count badge */}
-          {Array.isArray(order.items) && order.items.length > 1 && (
-            <span style={{
-              padding: "4px 10px",
-              borderRadius: "8px",
-              fontSize: "11px",
-              fontWeight: "700",
-              backgroundColor: isDarkMode ? "rgba(124, 58, 237, 0.2)" : "#EDE9FE",
-              color: isDarkMode ? "#A78BFA" : "#7C3AED",
-            }}>
-              🍽️ {getTotalItemCount()} items
-            </span>
-          )}
-          {isHighPriority ? (
-            <span
-              style={{
-                padding: "4px 12px",
-                borderRadius: "8px",
-                fontSize: "11px",
-                fontWeight: "700",
-                backgroundColor: isDarkMode ? "rgba(220, 38, 38, 0.2)" : "#FEE2E2",
-                color: isDarkMode ? "#F87171" : "#DC2626",
-              }}
-            >
-              Urgent
-            </span>
-          ) : null}
-          <span style={{ color: colors.textSecondary, fontSize: "14px", fontWeight: "500" }}>
-            {order.table} • {getStatusDuration(order)}
+    <article className={classes} data-order-id={order._id} data-status={status} aria-label={`Order ${orderNo}, ${meta.label}, ${where}`}>
+      {isCancelled && (
+        <div className="kd-cancel-banner" role="alert">
+          <Ban size={22} aria-hidden="true" />
+          <div>
+            <strong>CANCELLED — STOP COOKING</strong>
+            {order.cancellationReason ? <span>Reason: {order.cancellationReason}</span> : null}
+          </div>
+        </div>
+      )}
+
+      <header className="kd-ticket__head">
+        <div className="kd-ticket__no">
+          <span className="kd-ticket__hash">#{orderNo}</span>
+          <span className={`kd-badge kd-badge--${meta.key}`}>
+            <meta.Icon size={16} aria-hidden="true" />
+            {meta.label}
           </span>
         </div>
+        <div className="kd-ticket__time">
+          {isDone ? (
+            <span className="kd-elapsed">Served {formatClock(toTime(order?.deliveredAt) ?? toTime(order?.updatedAt))}</span>
+          ) : isCancelled ? (
+            <span className="kd-elapsed">Cancelled {formatClock(toTime(order?.cancelledAt) ?? toTime(order?.updatedAt))}</span>
+          ) : (
+            <>
+              <Elapsed since={ageSource} className={`kd-elapsed--${level}`} />
+              <span className="kd-ticket__since">
+                {status === "preparing" ? "cooking" : status === "ready" ? "waiting for pickup" : `placed ${formatClock(placedAt)}`}
+              </span>
+            </>
+          )}
+        </div>
+      </header>
 
-        <h3 style={{ fontSize: isMobile ? "20px" : "24px", fontWeight: "800", color: colors.text, marginBottom: "8px" }}>
-          Order #{order.orderNumber || order.id?.slice?.(-5)?.toUpperCase() || order.id}
-        </h3>
-
-        {order.customerName && (
-          <div style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "10px",
-            marginBottom: "12px",
-          }}>
-            <User size={20} style={{ color: "#0284C7", flexShrink: 0 }} />
-            <span style={{ fontSize: "16px", fontWeight: "800", letterSpacing: "0.01em", color: "#0284C7" }}>
-              {order.customerName}
-            </span>
-          </div>
+      <div className="kd-ticket__where">
+        <span className="kd-where">{where}</span>
+        {TYPE_LABEL[order?.orderType] && TYPE_LABEL[order.orderType] !== where ? <span className="kd-type">{TYPE_LABEL[order.orderType]}</span> : null}
+        {isUrgent && (
+          <span className="kd-badge kd-badge--urgent">
+            <AlertTriangle size={16} aria-hidden="true" /> Urgent
+          </span>
         )}
-
-        <p style={{ color: colors.textSecondary, fontSize: "14px", lineHeight: "1.5", marginBottom: "24px" }}>
-          {getItemsDisplay()}
-        </p>
-
-        {/* Show special notes if any items have notes */}
-        {Array.isArray(order.items) && order.items.some(item => item.notes) && (
-          <div style={{
-            marginBottom: "16px",
-            padding: "10px 14px",
-            backgroundColor: colors.notesBg,
-            borderRadius: "10px",
-            borderLeft: `3px solid ${colors.notesBorder}`,
-            maxWidth: "360px",
-          }}>
-            <div style={{
-              fontSize: "11px",
-              fontWeight: "700",
-              color: colors.notesText,
-              marginBottom: "6px",
-              textTransform: "uppercase",
-              letterSpacing: "0.5px",
-            }}>
-              📝 Special Instructions
-            </div>
-            {order.items.filter(item => item.notes).map(item => (
-              <div key={item.id} style={{
-                fontSize: "12px",
-                color: colors.notesContent,
-                marginBottom: "3px",
-                lineHeight: "1.4",
-              }}>
-                <span style={{ fontWeight: "600" }}>{item.name}:</span>{" "}
-                <span style={{ color: isDarkMode ? "#FCD34D" : "#92400E" }}>{item.notes}</span>
-              </div>
-            ))}
-          </div>
+        {level === "late" && (
+          <span className="kd-badge kd-badge--late">
+            <AlertTriangle size={16} aria-hidden="true" /> Overdue
+          </span>
         )}
-
-        {order.status === "delivered" ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-            {/* Image Section - Moved to top for completed orders */}
-            <div style={{ width: "100%", marginTop: "8px" }}>
-              {Array.isArray(order.items) && order.items.length > 0 ? (
-                <ItemCarousel items={order.items} width="100%" height={isMobile ? 180 : 200} />
-              ) : order.image ? (
-                <img
-                  src={order.image}
-                  alt="Food"
-                  style={{
-                    width: "100%",
-                    height: isMobile ? "180px" : "200px",
-                    objectFit: "cover",
-                    borderRadius: "14px",
-                  }}
-                />
-              ) : null}
-            </div>
-
-            {/* Completion Status */}
-            <div
-              style={{
-                padding: "14px 18px",
-                backgroundColor: colors.completedBg,
-                borderRadius: "12px",
-                border: `1px solid ${colors.completedBorder}`,
-              }}
-            >
-              <div style={{ 
-                fontSize: "15px", 
-                fontWeight: "800", 
-                color: colors.completedText, 
-                marginBottom: "4px",
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-              }}>
-                <CheckCircle2 size={16} />
-                Order Completed
-              </div>
-              <div style={{ 
-                fontSize: "13px", 
-                fontWeight: "600", 
-                color: colors.textSecondary,
-              }}>
-                {formatCompletionTime(order)}
-              </div>
-            </div>
-
-            {/* View Details Button */}
-            <button
-              onClick={() => setShowDetailsModal(true)}
-              style={{
-                width: "100%",
-                padding: "12px 24px",
-                backgroundColor: isDarkMode ? "#059669" : "#10b981",
-                color: "#ffffff",
-                borderRadius: "12px",
-                fontWeight: "700",
-                fontSize: "14px",
-                border: "none",
-                cursor: "pointer",
-                transition: "all 0.2s ease",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "8px",
-                boxShadow: isDarkMode 
-                  ? "0 4px 6px -1px rgba(5, 150, 105, 0.3)" 
-                  : "0 4px 6px -1px rgba(16, 185, 129, 0.3)",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = isDarkMode ? "#047857" : "#059669";
-                e.currentTarget.style.transform = "translateY(-2px)";
-                e.currentTarget.style.boxShadow = isDarkMode 
-                  ? "0 10px 15px -3px rgba(5, 150, 105, 0.4)" 
-                  : "0 10px 15px -3px rgba(16, 185, 129, 0.4)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = isDarkMode ? "#059669" : "#10b981";
-                e.currentTarget.style.transform = "translateY(0)";
-                e.currentTarget.style.boxShadow = isDarkMode 
-                  ? "0 4px 6px -1px rgba(5, 150, 105, 0.3)" 
-                  : "0 4px 6px -1px rgba(16, 185, 129, 0.3)";
-              }}
-            >
-              <Eye size={16} />
-              View Details
-            </button>
-          </div>
-        ) : order.status !== "ready" ? (
-          <button onClick={handleUpdateStatus} style={primaryButtonStyle}>
-            {order.status === "new" ? "Accept & Start Cooking" : "Mark as Ready"}
-          </button>
-        ) : (
-          <div style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "8px",
-            padding: "10px 20px",
-            backgroundColor: isDarkMode ? "rgba(5, 150, 105, 0.15)" : "#D1FAE5",
-            borderRadius: "9999px",
-            border: `1px solid ${isDarkMode ? "rgba(5, 150, 105, 0.3)" : "#A7F3D0"}`,
-          }}>
-            <span style={{ fontSize: "14px", fontWeight: "700", color: isDarkMode ? "#6EE7B7" : "#059669" }}>
-              ✓ Ready for Pickup
-            </span>
-            <span style={{
-              fontSize: "12px",
-              color: isDarkMode ? "#94A3B8" : "#6B7280",
-              padding: "2px 8px",
-              backgroundColor: isDarkMode ? "#334155" : "white",
-              borderRadius: "9999px",
-            }}>
-              Awaiting waiter
-            </span>
-          </div>
-        )}
+        {level === "warn" && <span className="kd-badge kd-badge--warn">Running late</span>}
       </div>
 
-      {/* Right side - Image Carousel (only for non-completed orders) */}
-      {order.status !== "delivered" && (
-        <div style={{ width: "280px", flexShrink: 0 }}>
-          {Array.isArray(order.items) && order.items.length > 0 ? (
-            <ItemCarousel items={order.items} width={280} height={200} />
-          ) : order.image ? (
-            <img
-              src={order.image}
-              alt="Food"
-              style={{
-                width: "100%",
-                height: "200px",
-                objectFit: "cover",
-                borderRadius: "16px",
-              }}
-            />
-          ) : null}
+      {order?.customerName ? <p className="kd-guest">{order.customerName}</p> : null}
+
+      <ul className="kd-items">
+        {items.map((item, idx) => (
+          <li key={item.id || idx} className="kd-item">
+            <span className="kd-qty">{item.quantity}×</span>
+            <span className="kd-item__body">
+              <span className="kd-item__name">{item.name}</span>
+              {item.notes ? <span className="kd-item__note">{item.notes}</span> : null}
+            </span>
+          </li>
+        ))}
+      </ul>
+
+      {(order?.notes || hasAllergy) && (
+        <div className="kd-note" role="note">
+          {hasAllergy && (
+            <span className="kd-badge kd-badge--allergy">
+              <AlertTriangle size={16} aria-hidden="true" /> Allergy / dietary
+            </span>
+          )}
+          {order?.notes ? <p>{order.notes}</p> : null}
         </div>
       )}
 
-      {showStatusModal && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-          }}
-          onClick={() => setShowStatusModal(false)}
-        >
-          <div
-            style={{
-              backgroundColor: "white",
-              borderRadius: "24px",
-              maxWidth: "500px",
-              width: "90%",
-              padding: "24px",
-              position: "relative",
-            }}
-            onClick={(e) => e.stopPropagation()}
+      {primary && (
+        <div className="kd-actions">
+          <button
+            type="button"
+            className={`kd-btn kd-btn--${primary.confirm ? "ready" : "start"} ${armed ? "kd-btn--armed" : ""}`}
+            onClick={onPrimary}
+            disabled={busy}
+            aria-busy={busy}
           >
-            <button
-              onClick={() => setShowStatusModal(false)}
-              style={{
-                position: "absolute",
-                top: "24px",
-                right: "24px",
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                color: "#6B7280",
-              }}
-            >
-              <X size={24} />
+            {busy ? <Loader2 size={22} className="kd-spin" aria-hidden="true" /> : <primary.Icon size={22} aria-hidden="true" />}
+            {busy ? primary.busyLabel : armed ? `Tap again to confirm #${orderNo} is ready` : primary.label}
+          </button>
+          {armed && (
+            <button type="button" className="kd-btn kd-btn--ghost" onClick={disarm}>
+              <X size={20} aria-hidden="true" /> Cancel
             </button>
-
-            <h2 style={{ fontSize: "24px", fontWeight: "800", marginBottom: "8px", color: "#111827" }}>
-              Update Order Status
-            </h2>
-            <p style={{ color: "#6B7280", marginBottom: "32px", fontSize: "14px" }}>
-              Order #{order.orderNumber || order.id?.slice?.(-5)?.toUpperCase() || order.id}
-            </p>
-
-            <div style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "16px",
-              marginBottom: "32px",
-              padding: "24px",
-              backgroundColor: "#F9FAFB",
-              borderRadius: "16px",
-            }}>
-              <div style={{ textAlign: "center" }}>
-                <div style={{
-                  padding: "8px 16px",
-                  borderRadius: "8px",
-                  fontSize: "14px",
-                  fontWeight: "700",
-                  backgroundColor: statusStyle.backgroundColor,
-                  color: statusStyle.color,
-                  marginBottom: "8px",
-                }}>
-                  {statusStyle.label}
-                </div>
-                <div style={{ fontSize: "12px", color: "#6B7280", fontWeight: "500" }}>
-                  Current
-                </div>
-              </div>
-
-              <ChevronRight size={24} style={{ color: "#9CA3AF" }} />
-
-              <div style={{ textAlign: "center" }}>
-                <div style={{
-                  padding: "8px 16px",
-                  borderRadius: "8px",
-                  fontSize: "14px",
-                  fontWeight: "700",
-                  backgroundColor: order.status === "new" ? "#FEF3C7" : "#D1FAE5",
-                  color: order.status === "new" ? "#D97706" : "#059669",
-                  marginBottom: "8px",
-                }}>
-                  {order.status === "new" ? "Cooking" : "Ready"}
-                </div>
-                <div style={{ fontSize: "12px", color: "#6B7280", fontWeight: "500" }}>
-                  Next
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: "flex", gap: "12px" }}>
-              <button
-                onClick={() => setShowStatusModal(false)}
-                style={{
-                  flex: 1,
-                  padding: "12px",
-                  border: "1px solid #E5E7EB",
-                  borderRadius: "12px",
-                  backgroundColor: "white",
-                  color: "#374151",
-                  fontWeight: "700",
-                  fontSize: "14px",
-                  cursor: "pointer",
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmUpdate}
-                style={{
-                  flex: 1,
-                  padding: "12px",
-                  border: "none",
-                  borderRadius: "12px",
-                  backgroundColor: "#10B981",
-                  color: "white",
-                  fontWeight: "700",
-                  fontSize: "14px",
-                  cursor: "pointer",
-                }}
-              >
-                Confirm
-              </button>
-            </div>
-          </div>
+          )}
         </div>
       )}
 
-      {showDetailsModal && (
+      {status === "ready" && (
+        <div className="kd-awaiting" role="status">
+          <CheckCircle2 size={20} aria-hidden="true" /> Ready for pickup · awaiting waiter
+        </div>
+      )}
+
+      {isCancelled && onDismiss && (
+        <div className="kd-actions">
+          <button type="button" className="kd-btn kd-btn--danger" onClick={() => onDismiss(order.id)}>
+            <X size={22} aria-hidden="true" /> Got it, dismiss
+          </button>
+        </div>
+      )}
+
+      {isDone && (
+        <div className="kd-actions">
+          <button type="button" className="kd-btn kd-btn--ghost" onClick={() => setShowDetails(true)}>
+            <Eye size={20} aria-hidden="true" /> View details
+          </button>
+        </div>
+      )}
+
+      {showDetails && (
         <OrderDetailsModal
           order={order}
-          onClose={() => setShowDetailsModal(false)}
+          onClose={() => setShowDetails(false)}
           isDarkMode={isDarkMode}
           onMarkReady={() => {}}
           onPrintBill={() => {}}
           onSendBill={() => {}}
         />
       )}
-    </div>
+    </article>
   );
 };
 
-export default OrderCard;
+export default memo(OrderCard);
