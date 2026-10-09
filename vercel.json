@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run build",
+  "buildCommand": "ALLOW_TEST_PAYMENT_KEYS_IN_PROD_BUILD=true npm run build",
   "outputDirectory": "dist",
   "installCommand": "npm ci",
   "framework": "vite",
