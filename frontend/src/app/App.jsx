@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { lazy, Suspense, useEffect, useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -28,15 +28,15 @@ import ProtectedGuestRoute from "../core/routes/ProtectedGuestRoute";
 // ============================================
 // FEATURES - Guest Dashboard
 // ============================================
-import GuestDashboardLayout from "../features/guest/dashboard/layout/GuestDashboardLayout";
-import DashboardView from "../features/guest/dashboard/pages/DashboardView";
-import RoomServiceView from "../features/guest/dashboard/pages/RoomServiceView";
-import BookingsView from "../features/guest/dashboard/pages/BookingsView";
-import BillingView from "../features/guest/dashboard/pages/BillingView";
-import ProfileView from "../features/guest/dashboard/pages/ProfileView";
-import RequestsView from "../features/guest/dashboard/pages/RequestsView";
-import ChatView from "../features/guest/dashboard/pages/ChatView";
-import SettingsView from "../features/guest/dashboard/pages/SettingsView";
+const GuestDashboardLayout = lazy(() => import("../features/guest/dashboard/layout/GuestDashboardLayout"));
+const DashboardView = lazy(() => import("../features/guest/dashboard/pages/DashboardView"));
+const RoomServiceView = lazy(() => import("../features/guest/dashboard/pages/RoomServiceView"));
+const BookingsView = lazy(() => import("../features/guest/dashboard/pages/BookingsView"));
+const BillingView = lazy(() => import("../features/guest/dashboard/pages/BillingView"));
+const ProfileView = lazy(() => import("../features/guest/dashboard/pages/ProfileView"));
+const RequestsView = lazy(() => import("../features/guest/dashboard/pages/RequestsView"));
+const ChatView = lazy(() => import("../features/guest/dashboard/pages/ChatView"));
+const SettingsView = lazy(() => import("../features/guest/dashboard/pages/SettingsView"));
 import NotFound from "../shared/pages/NotFound";
 import MaintenanceGate from "../shared/components/MaintenanceGate";
 
@@ -49,72 +49,72 @@ import Navbar from "../shared/layout/Navbar";
 // ============================================
 // FEATURES - Public Auth (Guest)
 // ============================================
-import AuthPage from "../features/public/auth/guest/AuthPage";
-import ForgotPassword from "../features/public/auth/guest/ForgotPassword";
-import ResetPassword from "../features/public/auth/guest/ResetPassword";
-import GuestDashboardLogin from "../features/public/auth/guest/GuestDashboardLogin";
+const AuthPage = lazy(() => import("../features/public/auth/guest/AuthPage"));
+const ForgotPassword = lazy(() => import("../features/public/auth/guest/ForgotPassword"));
+const ResetPassword = lazy(() => import("../features/public/auth/guest/ResetPassword"));
+const GuestDashboardLogin = lazy(() => import("../features/public/auth/guest/GuestDashboardLogin"));
 
 // ============================================
 // FEATURES - Public Auth (Staff)
 // ============================================
-import StaffLogin from "../features/public/auth/staff/StaffLogin";
-import StaffForgotPassword from "../features/public/auth/staff/StaffForgotPassword";
-import StaffResetPassword from "../features/public/auth/staff/StaffResetPassword";
+const StaffLogin = lazy(() => import("../features/public/auth/staff/StaffLogin"));
+const StaffForgotPassword = lazy(() => import("../features/public/auth/staff/StaffForgotPassword"));
+const StaffResetPassword = lazy(() => import("../features/public/auth/staff/StaffResetPassword"));
 
 // ============================================
 // FEATURES - Public Landing Pages
 // ============================================
-import Home from "../features/public/landing/pages/HomePage";
-import AboutPage from "../features/public/landing/pages/AboutPage";
-import Destination from "../features/public/landing/pages/Destination";
-import OffersPage from "../features/public/landing/pages/OffersPage";
-import MembershipPage from "../features/public/landing/pages/MembershipPage";
-import ContactUs from "../features/public/landing/pages/Contactus";
-import Feedback from "../features/public/landing/pages/Feedback";
+const Home = lazy(() => import("../features/public/landing/pages/HomePage"));
+const AboutPage = lazy(() => import("../features/public/landing/pages/AboutPage"));
+const Destination = lazy(() => import("../features/public/landing/pages/Destination"));
+const OffersPage = lazy(() => import("../features/public/landing/pages/OffersPage"));
+const MembershipPage = lazy(() => import("../features/public/landing/pages/MembershipPage"));
+const ContactUs = lazy(() => import("../features/public/landing/pages/Contactus"));
+const Feedback = lazy(() => import("../features/public/landing/pages/Feedback"));
 
 // ============================================
 // FEATURES - Public Hotels & Booking
 // ============================================
-import HotelDetailPage from "../features/public/hotels/pages/HotelDetail/Index";
-import FilteredHotels from "../features/public/hotels/pages/FilteredHotels";
-import SavedHotels from "../features/public/hotels/pages/SavedHotels";
-import BookingConfirmed from "../features/public/hotels/pages/BookingConfirmed";
-import PaymentCallback from "../features/public/payment/PaymentCallback";
+const HotelDetailPage = lazy(() => import("../features/public/hotels/pages/HotelDetail/Index"));
+const FilteredHotels = lazy(() => import("../features/public/hotels/pages/FilteredHotels"));
+const SavedHotels = lazy(() => import("../features/public/hotels/pages/SavedHotels"));
+const BookingConfirmed = lazy(() => import("../features/public/hotels/pages/BookingConfirmed"));
+const PaymentCallback = lazy(() => import("../features/public/payment/PaymentCallback"));
 
 // ============================================
 // FEATURES - Staff Dashboards (Waiter)
 // ============================================
-import WaiterDashboard from "../features/staff/waiter/pages/WaiterDashboard";
+const WaiterDashboard = lazy(() => import("../features/staff/waiter/pages/WaiterDashboard"));
 
 // ============================================
 // FEATURES - Staff Dashboards (Kitchen)
 // ============================================
-import KitchenDashboard from "../features/staff/kitchen/pages/KitchenDashboard";
+const KitchenDashboard = lazy(() => import("../features/staff/kitchen/pages/KitchenDashboard"));
 
 // ============================================
 // FEATURES - Staff Dashboards (Reception)
 // ============================================
-import ReceptionDashboard from "../features/staff/reception/pages/ReceptionDashboard";
+const ReceptionDashboard = lazy(() => import("../features/staff/reception/pages/ReceptionDashboard"));
 
 // ============================================
 // FEATURES - Staff Dashboards (Super Admin)
 // ============================================
-import ContentManagement from "../features/staff/superadmin/pages/ContentManagement";
-import Finance from "../features/staff/superadmin/pages/Finance";
-import ReviewModeration from "../features/staff/superadmin/pages/ReviewModeration";
-import SystemConfiguration from "../features/staff/superadmin/pages/SystemConfiguration";
+const ContentManagement = lazy(() => import("../features/staff/superadmin/pages/ContentManagement"));
+const Finance = lazy(() => import("../features/staff/superadmin/pages/Finance"));
+const ReviewModeration = lazy(() => import("../features/staff/superadmin/pages/ReviewModeration"));
+const SystemConfiguration = lazy(() => import("../features/staff/superadmin/pages/SystemConfiguration"));
 
 // ============================================
 // FEATURES - Staff Dashboards (Super Admin) - Legacy Routes
 // ============================================
-import SuperadminDashboard from "../features/staff/superadmin/pages/SuperadminDashboard";
-import UserManagement from "../features/staff/superadmin/pages/UserManagement";
-import HotelManagement from "../features/staff/superadmin/pages/HotelManagement";
+const SuperadminDashboard = lazy(() => import("../features/staff/superadmin/pages/SuperadminDashboard"));
+const UserManagement = lazy(() => import("../features/staff/superadmin/pages/UserManagement"));
+const HotelManagement = lazy(() => import("../features/staff/superadmin/pages/HotelManagement"));
 
 // ============================================
 // FEATURES - Staff Dashboards (Hotel Admin)
 // ============================================
-import HoteladminDashboard from "../features/staff/hotel-admin/pages/HoteladminDashboard";
+const HoteladminDashboard = lazy(() => import("../features/staff/hotel-admin/pages/HoteladminDashboard"));
 // The former standalone hotel-admin pages (Rooms/Restaurant/Table QR/Room QR)
 // now live only as sections inside the unified HoteladminDashboard shell.
 // Their old top-level routes redirect into the dashboard hash sections below.
@@ -122,8 +122,8 @@ import HoteladminDashboard from "../features/staff/hotel-admin/pages/HoteladminD
 // ============================================
 // FEATURES - Guest QR Access
 // ============================================
-import GuestTableView from "../features/guest/qr-access/GuestTableView";
-import GuestRoomView from "../features/guest/qr-access/GuestRoomView";
+const GuestTableView = lazy(() => import("../features/guest/qr-access/GuestTableView"));
+const GuestRoomView = lazy(() => import("../features/guest/qr-access/GuestRoomView"));
 
 // ============================================
 // Layout Wrapper Component
@@ -202,6 +202,18 @@ const RouteErrorBoundary = ({ children }) => {
   return <ErrorBoundary resetKey={pathname}>{children}</ErrorBoundary>;
 };
 
+// Every page is its own chunk (REQ-public-3): login, checkout and each
+// dashboard no longer download the landing animations or the other dashboards.
+// A failed chunk load is caught by RouteErrorBoundary.
+const RouteFallback = () => (
+  <div role="status" aria-live="polite" className="flex min-h-[60vh] w-full items-center justify-center">
+    <span className="h-10 w-10 animate-spin rounded-full border-4 border-teal-500/30 border-t-teal-500" aria-hidden="true" />
+    <span className="sr-only">Loading…</span>
+  </div>
+);
+// Nested guest-dashboard pages get their own boundary so the layout stays visible.
+const withSuspense = (element) => <Suspense fallback={<RouteFallback />}>{element}</Suspense>;
+
 const App = () => {
   const isNarrowViewport = useIsNarrowViewport();
   // Fetch CSRF token on app initialization
@@ -230,6 +242,7 @@ const App = () => {
                     <MaintenanceGate>
                     <Layout>
                       <RouteErrorBoundary>
+                      <Suspense fallback={<RouteFallback />}>
                       <Routes>
                       {/* ================================ */}
                       {/* PUBLIC ROUTES - No Auth Required */}
@@ -391,14 +404,14 @@ const App = () => {
                           </ProtectedGuestRoute>
                         }
                       >
-                        <Route index element={<DashboardView />} />
-                        <Route path="chat" element={<ChatView />} />
-                        <Route path="room-service" element={<RoomServiceView />} />
-                        <Route path="bookings" element={<BookingsView />} />
-                        <Route path="billing" element={<BillingView />} />
-                        <Route path="requests" element={<RequestsView />} />
-                        <Route path="profile" element={<ProfileView />} />
-                        <Route path="settings" element={<SettingsView />} />
+                        <Route index element={withSuspense(<DashboardView />)} />
+                        <Route path="chat" element={withSuspense(<ChatView />)} />
+                        <Route path="room-service" element={withSuspense(<RoomServiceView />)} />
+                        <Route path="bookings" element={withSuspense(<BookingsView />)} />
+                        <Route path="billing" element={withSuspense(<BillingView />)} />
+                        <Route path="requests" element={withSuspense(<RequestsView />)} />
+                        <Route path="profile" element={withSuspense(<ProfileView />)} />
+                        <Route path="settings" element={withSuspense(<SettingsView />)} />
                         <Route path="*" element={<Navigate to="/guest-dashboard" replace />} />
                       </Route>
 
@@ -407,6 +420,7 @@ const App = () => {
                       {/* ================================ */}
                       <Route path="*" element={<NotFound />} />
                     </Routes>
+                      </Suspense>
                       </RouteErrorBoundary>
                   </Layout>
                   </MaintenanceGate>

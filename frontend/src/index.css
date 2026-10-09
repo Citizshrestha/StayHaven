@@ -228,6 +228,14 @@ section.Toastify {
   opacity: 1;
 }
 
+/* The close icon is ~14x16; extend the hit area to 44x44 without moving it
+   (the button is already position:absolute in react-toastify). */
+.Toastify__close-button::before {
+  content: '';
+  position: absolute;
+  inset: -14px;
+}
+
 /* Spin animation for refresh button */
 @keyframes spin {
   from {

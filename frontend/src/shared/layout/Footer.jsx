@@ -116,7 +116,7 @@ const Footer = () => {
                   <label htmlFor="footer-newsletter-email" className="sr-only">
                     Email address
                   </label>
-                  <div className="flex min-h-[48px] min-w-0 flex-1 items-center gap-3 rounded-xl bg-gray-50 px-4 py-2 transition-all focus-within:bg-white focus-within:shadow-lg sm:min-w-[240px] md:w-80 md:flex-none">
+                  <div className="flex min-h-[48px] min-w-0 flex-1 items-center gap-3 rounded-xl bg-gray-50 px-4 py-0.5 transition-all focus-within:bg-white focus-within:shadow-lg sm:min-w-[240px] md:w-80 md:flex-none">
                     <Mail
                       className="size-5 shrink-0 text-gray-400"
                       strokeWidth={2}
@@ -130,7 +130,7 @@ const Footer = () => {
                       placeholder="Enter your email address"
                       required
                       autoComplete="email"
-                      className="min-w-0 flex-1 bg-transparent py-0.5 text-base text-gray-900 placeholder:text-gray-400 focus:outline-none"
+                      className="min-h-[44px] min-w-0 flex-1 bg-transparent text-base text-gray-900 placeholder:text-gray-400 focus:outline-none"
                     />
                   </div>
                   <button
@@ -213,13 +213,13 @@ const Footer = () => {
                 <div className="w-1 h-5 bg-gradient-to-b from-teal-400 to-emerald-400 rounded-full"></div>
                 Quick Links
               </h4>
-              <ul className="space-y-2.5">
+              <ul>
                 {quickLinks.map((link) => (
                   <li key={link.label}>
                     <button
                       type="button"
                       onClick={() => navigate(link.path)}
-                      className="w-full text-left text-sm text-gray-400 hover:text-teal-400 hover:translate-x-0.5 transition-all flex items-center gap-2 group"
+                      className="w-full min-h-[44px] text-left text-sm text-gray-400 hover:text-teal-400 hover:translate-x-0.5 transition-all flex items-center gap-2 group"
                     >
                       <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                       {link.label}
@@ -235,13 +235,13 @@ const Footer = () => {
                 <div className="w-1 h-5 bg-gradient-to-b from-teal-400 to-emerald-400 rounded-full"></div>
                 Explore
               </h4>
-              <ul className="space-y-2.5">
+              <ul>
                 {exploreLinks.map((link) => (
                   <li key={link.label}>
                     <button
                       type="button"
                       onClick={() => navigate(link.path)}
-                      className="w-full text-left text-sm text-gray-400 hover:text-teal-400 hover:translate-x-0.5 transition-all flex items-center gap-2 group"
+                      className="w-full min-h-[44px] text-left text-sm text-gray-400 hover:text-teal-400 hover:translate-x-0.5 transition-all flex items-center gap-2 group"
                     >
                       <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                       {link.label}
@@ -263,7 +263,7 @@ const Footer = () => {
                     <button
                       type="button"
                       onClick={() => navigate(link.path)}
-                      className="w-full text-left text-sm text-gray-400 hover:text-teal-400 hover:translate-x-0.5 transition-all flex items-center gap-2 group"
+                      className="w-full min-h-[44px] text-left text-sm text-gray-400 hover:text-teal-400 hover:translate-x-0.5 transition-all flex items-center gap-2 group"
                     >
                       <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                       {link.label}

@@ -4,9 +4,10 @@
  */
 
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 
 const ProtectedGuestRoute = ({ children }) => {
+  const location = useLocation();
   // Get auth data from localStorage
   const token = localStorage.getItem('accessToken');
   const role = localStorage.getItem('role');
@@ -14,7 +15,8 @@ const ProtectedGuestRoute = ({ children }) => {
 
   // Check if user is authenticated
   if (!token || !userId) {
-    return <Navigate to="/guest/login" replace />;
+    // Remember the deep link; GuestDashboardLogin only honours /guest-dashboard* (REQ-guest-2).
+    return <Navigate to="/guest/login" replace state={{ from: location.pathname + location.search }} />;
   }
 
   // Check if user has guest role

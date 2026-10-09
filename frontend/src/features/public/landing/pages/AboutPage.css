@@ -7,8 +7,10 @@
   /* Space for navbar */
 }
 
-/* Container */
-.container {
+/* Container. Element/.container rules in this file are scoped with
+   :where(.about-page) (zero added specificity) so they no longer leak into
+   every other page and dashboard (REQ-guest-3). */
+:where(.about-page) .container {
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 40px;
@@ -747,11 +749,11 @@
 
 /* Responsive Design */
 @media (max-width: 992px) {
-  .container {
+  :where(.about-page) .container {
     padding: 0 30px;
   }
 
-  h2 {
+  :where(.about-page) h2 {
     font-size: 2.5rem;
   }
 
@@ -822,7 +824,7 @@
     margin-top: 70px;
   }
 
-  .container {
+  :where(.about-page) .container {
     padding: 0 20px;
   }
 
@@ -850,7 +852,7 @@
     font-size: 0.85rem;
   }
 
-  h2 {
+  :where(.about-page) h2 {
     font-size: 2.2rem;
   }
 
@@ -888,7 +890,7 @@
     max-width: 350px;
   }
 
-  section {
+  :where(.about-page) section {
     padding: 70px 0;
   }
 
@@ -957,7 +959,7 @@
     font-size: 0.8rem;
   }
 
-  h2 {
+  :where(.about-page) h2 {
     font-size: 1.9rem;
   }
 
@@ -982,7 +984,7 @@
     padding: 35px 25px;
   }
 
-  section {
+  :where(.about-page) section {
     padding: 60px 0;
   }
 }
