@@ -91,7 +91,10 @@ export const createApiClient = ({ authScope, ...options } = {}) => {
       if ([401, 403].includes(refreshError.response?.status) && storage.getItem(key) === previousToken) {
         clearSession(scope);
         if (!original.preservePaymentReturn && !window.location.pathname.includes('/login')) {
-          window.location.href = scope === 'staff' ? '/staff/login' : '/login';
+          // A guest whose session ends inside the guest portal goes back to the
+          // portal login, not the public one (REQ-guest-5).
+          window.location.href = scope === 'staff' ? '/staff/login'
+            : window.location.pathname.startsWith('/guest-dashboard') ? '/guest/login' : '/login';
         }
       }
       return Promise.reject(original.preservePaymentReturn ? error : refreshError);

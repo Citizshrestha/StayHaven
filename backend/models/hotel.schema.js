@@ -141,6 +141,9 @@ const hotelSchema = new mongoose.Schema({
     enum: ['pending', 'approved', 'rejected', 'suspended'],
     default: 'pending',
   },
+  // Why the platform last changed `status` (e.g. the rejection reason).
+  statusReason: { type: String, maxlength: 500, trim: true },
+  statusChangedAt: { type: Date },
   isActive: {
     type: Boolean,
     default: true,

@@ -19,8 +19,10 @@ const auditLogSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    // Mixed: most resources are documents (ObjectId), but some audited
+    // resources are keyed by a string ("singleton" settings, a role name).
     resourceId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.Mixed,
     },
     before: {
       type: mongoose.Schema.Types.Mixed,

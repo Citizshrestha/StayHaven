@@ -300,7 +300,7 @@ const Navbar = () => {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={handleSearchKeyDown}
-                className="pl-4 pr-12 py-2.5 w-56 rounded-full border border-gray-200 bg-white text-gray-700 placeholder-gray-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 text-sm font-medium shadow-sm focus:outline-none focus:w-64 focus:shadow-md transition-all duration-300"
+                className="pl-4 pr-12 py-2.5 w-56 rounded-full border border-gray-200 bg-white text-gray-700 placeholder-gray-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 text-base lg:text-sm font-medium shadow-sm focus:outline-none focus:w-64 focus:shadow-md transition-all duration-300"
               />
               <button
                 onClick={handleSearch}
@@ -493,7 +493,7 @@ const Navbar = () => {
                         setIsMobileMenuOpen(false);
                       }
                     }}
-                    className="w-full pl-4 pr-12 py-3.5 rounded-xl border border-gray-200 bg-gray-50 text-gray-800 text-sm focus:outline-none focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-500/20 transition-all"
+                    className="w-full pl-4 pr-12 py-3.5 rounded-xl border border-gray-200 bg-gray-50 text-gray-800 text-base focus:outline-none focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-500/20 transition-all"
                   />
                   <button
                     onClick={() => {

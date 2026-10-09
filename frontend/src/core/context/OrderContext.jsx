@@ -10,6 +10,8 @@ import { getActiveProperty, getOrders, createOrder, updateOrder as updateOrderAp
 // account is fully provisioned server-side. This re-derives the active
 // property from the authoritative /staff/me profile and re-caches it,
 // self-healing without forcing a logout/login.
+const ACTIVE_ORDER_STATUSES = "pending,confirmed,preparing,ready";
+
 const resolveActiveProperty = async () => {
   const cached = getActiveProperty();
   if (cached?._id) return cached;
@@ -59,12 +61,20 @@ export const OrderProvider = ({ children }) => {
       }
       setError(null);
 
-      // Single consolidated fetch — the backend treats status/orderType "all"
-      // as no filter, so one request returns every active order. This replaces
-      // the previous 12 parallel calls (P2-4). Real-time updates are delivered
-      // via sockets; this fetch is just the initial load + slow safety-net poll.
-      const response = await getOrders(activeProperty._id, "all", "all");
-      const allOrders = response?.orders || [];
+      // Two fetches: every still-active ticket, plus the newest 100 orders of
+      // any status (history). With one capped "all" list, a ticket that had
+      // been preparing for hours dropped off once 100 newer orders existed
+      // (REQ-kitchen-3). Real-time updates are delivered via sockets; this
+      // fetch is just the initial load + slow safety-net poll.
+      const [activeResponse, recentResponse] = await Promise.all([
+        getOrders({ hotelId: activeProperty._id, status: ACTIVE_ORDER_STATUSES, limit: 200 }),
+        getOrders(activeProperty._id, "all", "all"),
+      ]);
+      const byId = new Map();
+      for (const order of [...(activeResponse?.orders || []), ...(recentResponse?.orders || [])]) {
+        byId.set(String(order._id), order);
+      }
+      const allOrders = [...byId.values()];
 
       // transform backendOrders to match frontend format
       const transformedOrders = allOrders.map((order) => ({
@@ -88,6 +98,12 @@ export const OrderProvider = ({ children }) => {
         createdAt: order.createdAt,
         updatedAt: order.updatedAt,
         deliveredAt: order.deliveredAt,
+        // Read-only fields the kitchen ticket renders (REQ-kitchen-2/4).
+        notes: order.notes,
+        cancelledAt: order.cancelledAt,
+        cancellationReason: order.cancellationReason,
+        startedPreparingAt: order.startedPreparingAt,
+        readyAt: order.readyAt,
         totalPrice: order.totalPrice,
         priority: order.priority,
         orderType: order.orderType,

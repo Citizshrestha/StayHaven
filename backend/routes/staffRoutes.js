@@ -195,29 +195,31 @@ router.post(
   cancelOrder
 );
 
-// Update order details - waiter, chief, manager, receptionist can update
+// Order lines, payment and bills are front-of-house work: the kitchen (chief)
+// only advances status (REQ-kitchen-1).
+// Update order details - waiter, manager, receptionist can update
 router.put(
   "/orders/:orderId",
   protect,
-  authorize("waiter", "chief", "manager", "receptionist"),
+  authorize("waiter", "manager", "receptionist"),
   writeOperationLimiter,
   updateOrder
 );
 
-// Confirm payment - waiter, chief, receptionist, manager can confirm
+// Confirm payment - waiter, receptionist, manager can confirm
 router.post(
   "/orders/:orderId/confirm-payment",
   protect,
-  authorize("waiter", "chief", "receptionist", "manager"),
+  authorize("waiter", "receptionist", "manager"),
   writeOperationLimiter,
   confirmPayment
 );
 
-// Send bill to customer - waiter, chief, receptionist, manager can send
+// Send bill to customer - waiter, receptionist, manager can send
 router.post(
   "/orders/:orderId/send-bill",
   protect,
-  authorize("waiter", "chief", "receptionist", "manager"),
+  authorize("waiter", "receptionist", "manager"),
   writeOperationLimiter,
   sendBillToCustomer
 );
@@ -226,7 +228,7 @@ router.post(
 router.post(
   "/orders/:orderId/retry-bill",
   protect,
-  authorize("waiter", "chief", "receptionist", "manager"),
+  authorize("waiter", "receptionist", "manager"),
   writeOperationLimiter,
   retryBillSending
 );

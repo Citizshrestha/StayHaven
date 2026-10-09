@@ -81,23 +81,23 @@ export const bookingValidation = {
       .isInt({ min: 0, max: 8 })
       .withMessage("Children must be between 0 and 8"),
     body("guestName")
-      .optional()
+      .optional({ values: "falsy" }) // "" = not provided (REQ-public-1)
       .trim()
       .isLength({ min: 2, max: 100 })
       .withMessage("Guest name must be 2-100 characters"),
     body("guestEmail")
-      .optional()
+      .optional({ values: "falsy" }) // "" = not provided (REQ-public-1)
       .trim()
       .isEmail()
       .withMessage("Invalid email format")
       .normalizeEmail(),
     body("guestPhone")
-      .optional()
+      .optional({ values: "falsy" }) // "" = not provided (REQ-public-1)
       .trim()
       .matches(/^[+]?[\d\s-]{8,20}$/)
       .withMessage("Invalid phone number format"),
     body("specialRequests")
-      .optional()
+      .optional({ values: "falsy" }) // "" = not provided (REQ-public-1)
       .trim()
       .isLength({ max: 500 })
       .withMessage("Special requests cannot exceed 500 characters"),

@@ -43,15 +43,17 @@ router.delete('/:id', protect, authorize('owner', 'admin'), writeOperationLimite
 router.get('/:id/statistics', protect, authorize('owner', 'admin'), getHotelStatistics);
 
 // Admin only routes
-router.patch('/:id/status', protect, authorize('admin'), writeOperationLimiter, updateHotelStatus);
-router.patch('/:id/approve', protect, authorize('admin'), writeOperationLimiter, (req, res, next) => {
+// Platform moderation is superadmin-only: `admin` is a company-level role and
+// must not approve, reject or feature another company's hotel (REQ-superadmin-1).
+router.patch('/:id/status', protect, authorize('superadmin'), writeOperationLimiter, updateHotelStatus);
+router.patch('/:id/approve', protect, authorize('superadmin'), writeOperationLimiter, (req, res, next) => {
   req.body.status = 'approved';
   return updateHotelStatus(req, res, next);
 });
-router.patch('/:id/reject', protect, authorize('admin'), writeOperationLimiter, (req, res, next) => {
+router.patch('/:id/reject', protect, authorize('superadmin'), writeOperationLimiter, (req, res, next) => {
   req.body.status = 'rejected';
   return updateHotelStatus(req, res, next);
 });
-router.patch('/:id/featured', protect, authorize('admin'), writeOperationLimiter, toggleFeatured);
+router.patch('/:id/featured', protect, authorize('superadmin'), writeOperationLimiter, toggleFeatured);
 
 export default router;
