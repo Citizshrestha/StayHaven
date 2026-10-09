@@ -7,6 +7,11 @@ export const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
   port: parseInt(process.env.SMTP_PORT) || 587,
   secure: process.env.SMTP_SECURE === 'true',
+  // Fail fast on an unreachable/mis-set SMTP host instead of blocking the
+  // caller for ~2 minutes (nodemailer's defaults) (REQ-public-6).
+  connectionTimeout: 10000,
+  greetingTimeout: 10000,
+  socketTimeout: 15000,
   // ponytail: self-signed cert issue in dev environments, remove in production
   tls: process.env.NODE_ENV === 'production' ? {} : { rejectUnauthorized: false },
   auth: {
@@ -19,7 +24,8 @@ export const transporter = nodemailer.createTransport({
 export const sendEmail = async (mailOptions) => {
   try {
     const info = await transporter.sendMail(mailOptions);
-    console.log(`✅ Email sent to ${mailOptions.to}:`, info.messageId);
+    // No recipient address in the log (PII).
+    console.log('✅ Email sent:', info.messageId);
     return { success: true, message: "Email sent successfully", info };
   } catch (error) {
     console.error("❌ Email error:", {

@@ -16,7 +16,9 @@
     "test:wallet": "node --test --test-concurrency=1 tests/walletPayments.integration.test.js",
     "test:banktransfer": "node --test --test-concurrency=1 tests/bankTransfer.integration.test.js",
     "test:card": "node --test --test-concurrency=1 tests/cardPayment.integration.test.js",
-    "test:staff": "node --test --test-concurrency=1 tests/staffManagement.integration.test.js"
+    "test:staff": "node --test --test-concurrency=1 tests/staffManagement.integration.test.js",
+    "test:superadmin": "node --test --test-concurrency=1 tests/superadmin.integration.test.js",
+    "test:platform": "node --test --test-concurrency=1 tests/platformAuth.integration.test.js tests/orderAccess.integration.test.js tests/routePolicy.test.js tests/finalPass.integration.test.js tests/uploadErrors.test.js"
   },
   "keywords": [
     "hotel",

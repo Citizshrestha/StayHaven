@@ -10,6 +10,8 @@ import { sendEmail } from "../config/nodemailer.js";
 import { createLogger } from "../utils/logger.js";
 import { searchRegex, parsePaging } from "../utils/searchQuery.js";
 import { activeReservationFilter } from "../services/bookingAvailability.js";
+import { escapeHtml } from "../utils/html.js";
+import { logAudit } from "../middleware/auditLogger.js";
 
 const logger = createLogger('HotelController');
 
@@ -528,7 +530,14 @@ export const updateHotelStatus = asyncHandler(async (req, res) => {
     });
   }
 
-  const hotel = await Hotel.findById(req.params.id).populate('owner');
+  if (reason !== undefined && reason !== null && typeof reason !== 'string') {
+    return res.status(400).json({ success: false, message: 'Reason must be text' });
+  }
+  const cleanReason = typeof reason === 'string' ? reason.trim().slice(0, 500) : '';
+
+  // Only the owner's contact fields: the full User document carries the
+  // password hash and token hashes, and the hotel is returned in the response.
+  const hotel = await Hotel.findById(req.params.id).populate('owner', 'fullname email contact');
 
   if (!hotel) {
     return res.status(404).json({
@@ -537,14 +546,22 @@ export const updateHotelStatus = asyncHandler(async (req, res) => {
     });
   }
 
+  const before = { status: hotel.status, statusReason: hotel.statusReason };
   hotel.status = status;
+  hotel.statusReason = status === 'rejected' ? cleanReason || undefined : undefined;
+  hotel.statusChangedAt = new Date();
   await hotel.save();
+  await logAudit(req.user?._id, status === 'approved' ? 'approve_hotel' : 'reject_hotel', 'hotel', hotel._id,
+    before, { status: hotel.status, statusReason: hotel.statusReason }, req);
 
-  // Send email notification to hotel owner
+  // Send email notification to hotel owner (every interpolated value is escaped)
   try {
-    const owner = hotel.owner;
+    const owner = hotel.owner || {};
     const ownerEmail = owner.email || owner.contact?.email;
-    const ownerName = owner.fullname || owner.name || 'Hotel Owner';
+    const ownerName = escapeHtml(owner.fullname || owner.name || 'Hotel Owner');
+    const hotelName = escapeHtml(hotel.name);
+    const city = escapeHtml(hotel.location?.city || 'N/A');
+    const country = escapeHtml(hotel.location?.country || 'N/A');
 
     if (ownerEmail) {
       const statusText = status === 'approved' ? 'Approved' : 'Rejected';
@@ -556,11 +573,11 @@ export const updateHotelStatus = asyncHandler(async (req, res) => {
         emailBody = `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #10B981;">🎉 Congratulations, ${ownerName}!</h2>
-            <p>Your hotel <strong>"${hotel.name}"</strong> has been approved and is now live on StayHaven.</p>
+            <p>Your hotel <strong>"${hotelName}"</strong> has been approved and is now live on StayHaven.</p>
             <p>Guests can now discover and book your property. You can manage your hotel from your dashboard.</p>
             <div style="margin: 20px 0; padding: 15px; background-color: #f3f4f6; border-radius: 8px;">
-              <p style="margin: 0;"><strong>Hotel:</strong> ${hotel.name}</p>
-              <p style="margin: 5px 0 0 0;"><strong>Location:</strong> ${hotel.location?.city || 'N/A'}, ${hotel.location?.country || 'N/A'}</p>
+              <p style="margin: 0;"><strong>Hotel:</strong> ${hotelName}</p>
+              <p style="margin: 5px 0 0 0;"><strong>Location:</strong> ${city}, ${country}</p>
             </div>
             <p>Start adding rooms and managing your bookings today!</p>
             <p>Best regards,<br>The StayHaven Team</p>
@@ -571,8 +588,8 @@ export const updateHotelStatus = asyncHandler(async (req, res) => {
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #EF4444;">Hotel Status Update</h2>
             <p>Dear ${ownerName},</p>
-            <p>We regret to inform you that your hotel <strong>"${hotel.name}"</strong> was not approved for listing on StayHaven.</p>
-            ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ''}
+            <p>We regret to inform you that your hotel <strong>"${hotelName}"</strong> was not approved for listing on StayHaven.</p>
+            ${cleanReason ? `<p><strong>Reason:</strong> ${escapeHtml(cleanReason)}</p>` : ''}
             <p>If you believe this is an error or would like to reapply, please contact our support team.</p>
             <p>Best regards,<br>The StayHaven Team</p>
           </div>

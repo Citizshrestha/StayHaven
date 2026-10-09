@@ -173,6 +173,7 @@ export const confirmPayment = async (req, res) => {
       // Create or update invoice
       let invoice = await Invoice.findOne({ booking: booking._id }).session(session);
       if (!invoice) {
+        const invoiceQuote = booking.priceBreakdown?.totalPaisa != null ? booking.priceBreakdown : null;
         invoice = await Invoice.create([{
           hotel: booking.hotel,
           company: booking.company,
@@ -187,15 +188,19 @@ export const confirmPayment = async (req, res) => {
           checkIn: booking.checkIn,
           checkOut: booking.checkOut,
           nights: booking.durationNights,
+          // booking.totalAmount already includes the quoted fee/tax
+          // (priceBreakdown); adding 13% on top left paid bookings "partial"
+          // (REQ-public-7, same fix as webhookController).
           charges: {
-            room: booking.totalAmount,
+            room: invoiceQuote ? invoiceQuote.subtotalPaisa / 100 : booking.totalAmount,
             extras: 0,
-            tax: booking.totalAmount * 0.13,
-            total: booking.totalAmount * 1.13,
+            taxRate: invoiceQuote?.taxRate ?? 0,
+            tax: invoiceQuote ? invoiceQuote.taxPaisa / 100 : 0,
+            total: booking.totalAmount,
           },
           paid: totalPaid,
-          balance: Math.max(0, booking.totalAmount * 1.13 - totalPaid),
-          status: totalPaid >= booking.totalAmount * 1.13 ? "paid" : "partial",
+          balance: Math.max(0, booking.totalAmount - totalPaid),
+          status: totalPaid >= booking.totalAmount ? "paid" : "partial",
         }], { session });
         invoice = invoice[0];
       } else {

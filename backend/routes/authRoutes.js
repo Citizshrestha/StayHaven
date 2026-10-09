@@ -22,6 +22,7 @@ import {
   passwordResetLimiter,
   otpLimiter,
   signupLimiter,
+  accountCheckLimiter,
 } from "../middleware/rateLimiter.js";
 import { sanitizeAll } from '../middleware/sanitization.js';
 
@@ -31,7 +32,9 @@ const router = express.Router();
 router.use(sanitizeAll());
 
 // Public routes
-router.get('/check', checkUserExists);
+// Used by the signup form; rate-limited because it reveals whether an email
+// has an account (REQ-guest-1).
+router.get('/check', accountCheckLimiter, checkUserExists);
 router.post('/login', authLimiter, loginUser);
 router.post("/register", signupLimiter, registerUser);
 router.post('/google-login', authLimiter, googleLogin);

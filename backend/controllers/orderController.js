@@ -387,7 +387,19 @@ export const getOrders = asyncHandler(async (req, res) => {
   const { page: parsedPage, limit: parsedLimit, skip } = parsePaging({ page, limit }, { defaultLimit: 100, maxLimit: 200 });
 
   const filter = { hotel: hotelId };
-  if (typeof status === "string" && status && status !== "all") filter.status = status;
+  if (typeof status === "string" && status && status !== "all") {
+    // "pending,confirmed,preparing,ready" lets the boards load every active
+    // ticket separately from the capped history list (REQ-kitchen-3).
+    const statuses = status.split(",").map((s) => s.trim()).filter(Boolean);
+    if (statuses.length > 1) {
+      if (!statuses.every((s) => ORDER_STATUSES.includes(s))) {
+        return res.status(400).json({ success: false, message: `Invalid status. Use: ${ORDER_STATUSES.join(", ")}` });
+      }
+      filter.status = { $in: statuses };
+    } else {
+      filter.status = status;
+    }
+  }
   if (typeof orderType === "string" && orderType && orderType !== "all") filter.orderType = orderType;
   // User text is matched literally (an unescaped "(((" used to crash with 500).
   const pattern = searchRegex(search);
@@ -429,6 +441,7 @@ export const getOrders = asyncHandler(async (req, res) => {
 // non-terminal status; no status may move backward once advanced.
 const ORDER_STATUS_SEQUENCE = ["pending", "confirmed", "preparing", "ready", "delivered"];
 const TERMINAL_STATUSES = ["delivered", "cancelled"];
+const ORDER_STATUSES = [...ORDER_STATUS_SEQUENCE, "cancelled"];
 
 // Who may make which forward move. The kitchen owns pending→ready (it may skip
 // "confirmed"), the floor owns ready→delivered, supervisors may make any
@@ -546,6 +559,13 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
 
   const previousStatus = existing.status;
   const update = { status };
+  // Kitchen timers ("Preparing for 12m") read these instead of updatedAt (REQ-kitchen-4).
+  if (status === "preparing") {
+    update.startedPreparingAt = new Date();
+  }
+  if (status === "ready") {
+    update.readyAt = new Date();
+  }
   if (status === "delivered") {
     update.deliveredAt = new Date();
   }

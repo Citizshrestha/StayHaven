@@ -109,6 +109,20 @@ export const otpLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// "Is this email registered?" (signup pre-check). It answers yes/no without
+// auth, so cap it to stop bulk user enumeration (REQ-guest-1).
+export const accountCheckLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: isDev ? 200 : 10,
+  store: redisStore("account-check"),
+  message: {
+    success: false,
+    message: "Too many requests. Please try again after 15 minutes.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Signup registration — prevent mass account creation
 export const signupLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
@@ -163,10 +177,13 @@ export const batchLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Payment operations limiter - strict for security
+// Payment operations limiter - strict for security. Keyed per signed-in user
+// (every payment route runs protect() first); a per-IP key made all guests on
+// one hotel Wi-Fi / mobile CGNAT address share 5 attempts (REQ-public-9).
 export const paymentLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: isDev ? 100 : 5, // dev: 100 | prod: 5 payment operations per hour per IP
+  max: isDev ? 100 : 10, // dev: 100 | prod: 10 payment operations per hour per user
+  keyGenerator: (req) => (req.user?._id ? `user:${req.user._id}` : ipKeyGenerator(req.ip || "")),
   store: redisStore("payment"),
   message: {
     success: false,

@@ -128,6 +128,13 @@ const orderSchema = new mongoose.Schema({
   preparationTime: {
     type: Number, // In minutes
   },
+  // Set by updateOrderStatus when the kitchen starts / finishes the order.
+  startedPreparingAt: {
+    type: Date,
+  },
+  readyAt: {
+    type: Date,
+  },
   deliveredAt: {
     type: Date,
   },
